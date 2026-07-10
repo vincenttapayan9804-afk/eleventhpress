@@ -1,0 +1,12 @@
+{
+  "name": "epip-ws-service",
+  "version": "1.0.0",
+  "description": "Real-time WebSocket service for EPIP dashboard live updates",
+  "scripts": {
+    "dev": "bun --hot index.ts"
+  },
+  "dependencies": {
+    "socket.io": "^4.7.2",
+    "bun-types": "latest"
+  }
+}

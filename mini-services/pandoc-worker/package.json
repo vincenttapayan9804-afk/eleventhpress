@@ -1,0 +1,11 @@
+{
+  "name": "epip-pandoc-worker",
+  "version": "1.0.0",
+  "description": "Production & Typesetting Service for Eleventh Press International Publishing — converts DOCX/Markdown/HTML manuscripts to HTML, PDF (via WeasyPrint), and JATS XML galleys using Pandoc.",
+  "scripts": {
+    "dev": "bun --hot index.ts"
+  },
+  "dependencies": {
+    "bun-types": "latest"
+  }
+}

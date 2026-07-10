@@ -1,0 +1,28 @@
+# dependencies
+node_modules/
+mini-services/*/node_modules/
+
+# next.js
+.next/
+out/
+
+# env
+.env
+.env*.local
+
+# database
+*.db
+*.db-journal
+prisma/*.db
+
+# local file storage (simulated S3 buckets)
+storage/
+
+# logs
+dev.log
+server.log
+npm-debug.log*
+
+# misc
+.DS_Store
+*.pem

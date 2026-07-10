@@ -1,0 +1,554 @@
+"use client";
+
+import { useState, useRef } from "react";
+import { apiFetch } from "@/lib/api-client";
+import { useApp } from "@/lib/store";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
+import { toast } from "sonner";
+import {
+  FileText,
+  ArrowRight,
+  ArrowLeft,
+  CheckCircle2,
+  Loader2,
+  Plus,
+  X,
+  ShieldCheck,
+  FileCheck2,
+  Sparkles,
+  Upload,
+  CloudUpload,
+  Globe2,
+} from "lucide-react";
+import { DISCIPLINES } from "@/lib/article";
+
+interface Props {
+  onSubmitted: () => void;
+}
+
+interface Author {
+  name: string;
+  affiliation: string;
+  orcid?: string;
+  email: string;
+}
+
+interface UploadedFile {
+  key: string;
+  filename: string;
+  size: number;
+  contentType: string;
+}
+
+export function AuthorSubmitTab({ onSubmitted }: Props) {
+  const { user, openDashboard } = useApp();
+  const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<{ doi: string; plagiarismScore: number; status: string } | null>(null);
+
+  const [form, setForm] = useState({
+    title: "",
+    abstract: "",
+    keywords: "",
+    discipline: "Physics",
+    reviewModel: "DOUBLE_BLIND",
+    openReview: false,
+  });
+  const [authors, setAuthors] = useState<Author[]>([
+    {
+      name: user?.fullName || "",
+      affiliation: user?.affiliation || "",
+      orcid: user?.orcid || "",
+      email: user?.email || "",
+    },
+  ]);
+
+  // File upload state
+  const [uploadedFile, setUploadedFile] = useState<UploadedFile | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function addAuthor() {
+    setAuthors([...authors, { name: "", affiliation: "", email: "" }]);
+  }
+  function removeAuthor(i: number) {
+    setAuthors(authors.filter((_, idx) => idx !== i));
+  }
+  function updateAuthor(i: number, field: keyof Author, value: string) {
+    setAuthors(authors.map((a, idx) => (idx === i ? { ...a, [field]: value } : a)));
+  }
+
+  function canAdvance(): boolean {
+    if (step === 1) return form.title.length > 5 && form.abstract.length > 50;
+    if (step === 2) return authors.every((a) => a.name && a.email);
+    if (step === 3) return form.discipline !== "" && form.reviewModel !== "";
+    return true;
+  }
+
+  // ----- Real pre-signed S3-style upload -----
+  async function handleFileSelected(file: File) {
+    if (!file) return;
+    // Basic validation
+    const allowedTypes = [
+      "application/pdf",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/msword",
+      "text/markdown",
+      "text/plain",
+      "text/html",
+      "application/x-tex",
+    ];
+    const allowedExt = [".pdf", ".docx", ".doc", ".md", ".txt", ".html", ".tex"];
+    const ext = "." + (file.name.split(".").pop() || "").toLowerCase();
+    if (!allowedTypes.includes(file.type) && !allowedExt.includes(ext)) {
+      toast.error("Unsupported file type", {
+        description: "Allowed: PDF, DOCX, DOC, MD, TXT, HTML, TEX",
+      });
+      return;
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error("File too large", { description: "Maximum 50 MB." });
+      return;
+    }
+
+    setUploading(true);
+    setUploadProgress(0);
+    try {
+      // 1. Request a pre-signed PUT URL from the storage API.
+      const presign = await apiFetch<{
+        uploadUrl: string;
+        key: string;
+        headers: Record<string, string>;
+      }>("/api/storage/presign", {
+        method: "POST",
+        body: JSON.stringify({
+          filename: file.name,
+          contentType: file.type || "application/octet-stream",
+          bucket: "raw-submissions",
+        }),
+      });
+
+      // 2. Upload directly to the storage layer via PUT. The pre-signed URL
+      //    authorises the upload — we don't need the bearer token here.
+      const uploadRes = await fetch(presign.uploadUrl, {
+        method: "PUT",
+        body: file,
+        headers: presign.headers,
+      });
+      if (!uploadRes.ok) {
+        const errText = await uploadRes.text();
+        throw new Error(`Upload failed (${uploadRes.status}): ${errText}`);
+      }
+
+      setUploadedFile({
+        key: presign.key,
+        filename: file.name,
+        size: file.size,
+        contentType: file.type || "application/octet-stream",
+      });
+      setUploadProgress(100);
+      toast.success("Manuscript uploaded", {
+        description: `${file.name} (${formatBytes(file.size)}) — stored at ${presign.key}`,
+      });
+    } catch (e: any) {
+      toast.error("Upload failed", { description: e.message });
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function onFileDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleFileSelected(file);
+  }
+
+  async function submit() {
+    setLoading(true);
+    try {
+      const res = await apiFetch<{ article: { doi: string; plagiarismScore: number; status: string } }>(
+        "/api/articles/submit",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            ...form,
+            authors,
+            manuscriptKey: uploadedFile?.key,
+            manuscriptName: uploadedFile?.filename,
+          }),
+        }
+      );
+      setResult(res.article);
+      toast.success("Submission received", {
+        description: `Draft DOI: ${res.article.doi} · Plagiarism: ${res.article.plagiarismScore}%`,
+      });
+    } catch (e: any) {
+      toast.error("Submission failed", { description: e.message });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (result) {
+    return (
+      <Card className="paper-card">
+        <CardContent className="p-8 text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+            <CheckCircle2 className="h-8 w-8" />
+          </div>
+          <h2 className="mt-4 font-display text-2xl font-semibold">Submission received</h2>
+          <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+            Your manuscript has entered the editorial pipeline. A draft Crossref DOI has been
+            minted, the manuscript has been stored in the <code className="font-mono text-xs">raw-submissions</code> bucket,
+            and the editorial office has been notified.
+          </p>
+          <div className="mx-auto mt-6 max-w-md rounded-md border border-border bg-muted/30 p-4 text-left text-sm">
+            <Row label="Draft DOI" value={<code className="font-mono text-xs">{result.doi}</code>} />
+            <Row label="Plagiarism score" value={`${result.plagiarismScore}% (iThenticate)`} />
+            <Row label="Workflow status" value={<Badge variant="outline" className="font-mono text-[0.6rem]">{result.status}</Badge>} />
+            <Row label="Review model" value={form.reviewModel.replace("_", " ")} />
+            <Row label="Open peer review" value={form.openReview ? "Enabled — reviews will be public" : "Disabled"} />
+            {uploadedFile && (
+              <Row label="Manuscript" value={<code className="font-mono text-xs">{uploadedFile.filename}</code>} />
+            )}
+          </div>
+          <div className="mt-6 flex justify-center gap-3">
+            <Button onClick={() => { setResult(null); setStep(1); setForm({ title: "", abstract: "", keywords: "", discipline: "Physics", reviewModel: "DOUBLE_BLIND", openReview: false }); setUploadedFile(null); }}>
+              Submit another
+            </Button>
+            <Button variant="outline" onClick={() => { onSubmitted(); openDashboard("myArticles"); }}>
+              View my articles <ArrowRight className="ml-1 h-4 w-4" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <Card className="paper-card">
+        <CardHeader>
+          <p className="eyebrow">New submission</p>
+          <h2 className="font-display text-2xl font-semibold">
+            Submit a manuscript
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Complete the three-step form below. A draft Crossref DOI will be minted upon
+            submission, the manuscript is uploaded to private S3-style storage via a
+            pre-signed PUT URL, and an iThenticate plagiarism check will be triggered.
+          </p>
+        </CardHeader>
+        <CardContent>
+          {/* Stepper */}
+          <div className="mb-8 flex items-center justify-between">
+            {[
+              { n: 1, label: "Manuscript details", icon: FileText },
+              { n: 2, label: "Authors & affiliations", icon: ShieldCheck },
+              { n: 3, label: "Classification & review", icon: FileCheck2 },
+            ].map((s, i) => {
+              const active = step === s.n;
+              const done = step > s.n;
+              return (
+                <div key={s.n} className="flex flex-1 items-center">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs font-semibold ${
+                        done
+                          ? "border-emerald-500 bg-emerald-500 text-white"
+                          : active
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border bg-card text-muted-foreground"
+                      }`}
+                    >
+                      {done ? <CheckCircle2 className="h-4 w-4" /> : s.n}
+                    </div>
+                    <span className={`hidden text-xs font-medium sm:inline ${active ? "text-foreground" : "text-muted-foreground"}`}>
+                      {s.label}
+                    </span>
+                  </div>
+                  {i < 2 && <div className={`mx-2 h-px flex-1 ${done ? "bg-emerald-500" : "bg-border"}`} />}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Step 1: Manuscript details */}
+          {step === 1 && (
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="title">Article title</Label>
+                <Input
+                  id="title"
+                  placeholder="e.g. Topological Signatures in Strain-Engineered Transition Metal Dichalcogenides"
+                  value={form.title}
+                  onChange={(e) => setForm({ ...form, title: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="abstract">Abstract</Label>
+                <Textarea
+                  id="abstract"
+                  rows={8}
+                  placeholder="Paste your structured abstract here (min. 50 characters). The abstract is what reviewers and search engines see first."
+                  value={form.abstract}
+                  onChange={(e) => setForm({ ...form, abstract: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground">{form.abstract.length} characters</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="keywords">Keywords (comma-separated)</Label>
+                <Input
+                  id="keywords"
+                  placeholder="quantum materials, superconductivity, topological insulators"
+                  value={form.keywords}
+                  onChange={(e) => setForm({ ...form, keywords: e.target.value })}
+                />
+              </div>
+
+              {/* Real file upload */}
+              <div className="space-y-1.5">
+                <Label htmlFor="manuscript">Manuscript file</Label>
+                <input
+                  ref={fileInputRef}
+                  id="manuscript"
+                  type="file"
+                  className="hidden"
+                  accept=".pdf,.docx,.doc,.md,.txt,.html,.tex"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) handleFileSelected(f);
+                  }}
+                />
+                {uploadedFile ? (
+                  <div className="flex items-center justify-between rounded-md border border-emerald-300 bg-emerald-50 p-4">
+                    <div className="flex items-center gap-3">
+                      <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                      <div>
+                        <p className="text-sm font-medium">{uploadedFile.filename}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatBytes(uploadedFile.size)} · stored at <code className="font-mono text-[0.65rem]">{uploadedFile.key}</code>
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => { setUploadedFile(null); setUploadProgress(0); }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div
+                    onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                    onDragLeave={() => setDragOver(false)}
+                    onDrop={onFileDrop}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`flex cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed p-8 text-center transition-colors ${
+                      dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/40 hover:bg-muted/30"
+                    }`}
+                  >
+                    {uploading ? (
+                      <>
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                        <p className="mt-3 text-sm font-medium">Uploading…</p>
+                        <p className="text-xs text-muted-foreground">
+                          Requesting pre-signed URL and streaming to storage…
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <CloudUpload className="h-8 w-8 text-muted-foreground" />
+                        <p className="mt-3 text-sm font-medium">Drop your manuscript here or click to browse</p>
+                        <p className="text-xs text-muted-foreground">
+                          PDF, DOCX, MD, TXT, HTML, TEX · max 50 MB
+                        </p>
+                        <p className="mt-2 text-[0.7rem] text-muted-foreground">
+                          A pre-signed PUT URL is requested from <code className="font-mono">/api/storage/presign</code> —
+                          the file streams directly to private S3-style storage.
+                        </p>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Step 2: Authors */}
+          {step === 2 && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                List all authors in the order they should appear on the published article. The first
+                author will be the corresponding author by default.
+              </p>
+              {authors.map((a, i) => (
+                <Card key={i} className="border-border">
+                  <CardContent className="p-4">
+                    <div className="mb-3 flex items-center justify-between">
+                      <Badge variant="outline" className="font-mono text-[0.65rem]">
+                        Author {i + 1} {i === 0 && "· corresponding"}
+                      </Badge>
+                      {authors.length > 1 && (
+                        <Button variant="ghost" size="sm" onClick={() => removeAuthor(i)}>
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Full name</Label>
+                        <Input value={a.name} onChange={(e) => updateAuthor(i, "name", e.target.value)} placeholder="Dr. Jane Doe" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Email</Label>
+                        <Input type="email" value={a.email} onChange={(e) => updateAuthor(i, "email", e.target.value)} placeholder="jane@university.edu" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Affiliation</Label>
+                        <Input value={a.affiliation} onChange={(e) => updateAuthor(i, "affiliation", e.target.value)} placeholder="University of Example" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">ORCID (optional)</Label>
+                        <Input value={a.orcid || ""} onChange={(e) => updateAuthor(i, "orcid", e.target.value)} placeholder="0000-0002-..." />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+              <Button variant="outline" size="sm" onClick={addAuthor}>
+                <Plus className="mr-1.5 h-3.5 w-3.5" /> Add author
+              </Button>
+            </div>
+          )}
+
+          {/* Step 3: Classification & review */}
+          {step === 3 && (
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="discipline">Primary discipline</Label>
+                <Select value={form.discipline} onValueChange={(v) => setForm({ ...form, discipline: v })}>
+                  <SelectTrigger id="discipline">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DISCIPLINES.map((d) => (
+                      <SelectItem key={d} value={d}>{d}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Used by Elasticsearch to match your paper against the reviewer pool.
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="review">Peer-review model</Label>
+                <Select value={form.reviewModel} onValueChange={(v) => setForm({ ...form, reviewModel: v })}>
+                  <SelectTrigger id="review">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="DOUBLE_BLIND">Double-blind (default — both authors and reviewers anonymised)</SelectItem>
+                    <SelectItem value="SINGLE_BLIND">Single-blind (reviewers anonymised, authors known)</SelectItem>
+                    <SelectItem value="OPEN">Open (identities visible to all parties)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Open peer review toggle */}
+              <div className="rounded-md border border-border p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <Globe2 className="h-4 w-4 text-primary" />
+                      <p className="font-display text-sm font-semibold">Open peer review</p>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      When enabled, completed reviews (reviewer name, affiliation, ORCID,
+                      recommendation, scores, and comments-to-author) will be published
+                      alongside the article upon publication. This is independent of the
+                      review-model above — even double-blind reviews can be released after
+                      acceptance, as is common in venues like eLife and EMBO.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={form.openReview}
+                    onCheckedChange={(v) => setForm({ ...form, openReview: v })}
+                  />
+                </div>
+              </div>
+
+              <Separator className="my-4" />
+              <div className="rounded-md border border-primary/30 bg-primary/5 p-4">
+                <p className="flex items-center gap-2 font-display text-sm font-semibold">
+                  <Sparkles className="h-4 w-4 text-primary" /> What happens next?
+                </p>
+                <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                  <li>· A draft Crossref DOI is minted (you can put it on your CV immediately).</li>
+                  <li>· The manuscript is uploaded to private S3-style storage with a pre-signed PUT URL.</li>
+                  <li>· An iThenticate plagiarism report is generated asynchronously.</li>
+                  <li>· If double-blind, an anonymised copy of your PDF is created for reviewers.</li>
+                  <li>· Editors are notified and the article enters the SUBMITTED state.</li>
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {/* Navigation */}
+          <div className="mt-6 flex items-center justify-between border-t border-border pt-4">
+            <Button
+              variant="ghost"
+              onClick={() => (step === 1 ? openDashboard("overview") : setStep(step - 1))}
+              disabled={loading}
+            >
+              <ArrowLeft className="mr-1.5 h-4 w-4" /> {step === 1 ? "Cancel" : "Back"}
+            </Button>
+            {step < 3 ? (
+              <Button onClick={() => setStep(step + 1)} disabled={!canAdvance()}>
+                Continue <ArrowRight className="ml-1.5 h-4 w-4" />
+              </Button>
+            ) : (
+              <Button onClick={submit} disabled={!canAdvance() || loading}>
+                {loading ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Sparkles className="mr-1.5 h-4 w-4" />}
+                Submit manuscript
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between py-1">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="text-sm font-medium">{value}</span>
+    </div>
+  );
+}
+
+function formatBytes(b: number): string {
+  if (b < 1024) return `${b} B`;
+  if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
+  return `${(b / (1024 * 1024)).toFixed(1)} MB`;
+}

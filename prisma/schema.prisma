@@ -1,0 +1,417 @@
+// ELEVENTH PRESS INTERNATIONAL PUBLISHING - Prisma Schema
+// Multidisciplinary Journal Platform
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Identity & Access Management (IAM)
+// ---------------------------------------------------------------------------
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String
+  fullName      String
+  affiliation   String?
+  orcid         String?
+  // Role: SUPER_ADMIN | EDITOR | ASSOCIATE_EDITOR | REVIEWER | AUTHOR | READER
+  role          String   @default("READER")
+  bio           String?
+  expertise     String?  // comma-separated keywords for reviewer matching
+  country       String?
+  // ORCID OAuth tokens (premium integration)
+  orcidAccessToken  String?
+  orcidRefreshToken String?
+  orcidTokenExpiry  DateTime?
+  orcidLastSync     DateTime?
+  // Institutional affiliation (premium IP-auth feature)
+  institutionId String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  submissions          Article[]     @relation("AuthorArticles")
+  assignedReviews      Review[]      @relation("ReviewerReviews")
+  editorialDecisions   EditorialDecision[]
+  subscriptions        Subscription[]
+  invoices             Invoice[]
+  notifications        Notification[]
+  auditLogs            AuditLog[]
+  institution          Institution? @relation(fields: [institutionId], references: [id])
+}
+
+// ---------------------------------------------------------------------------
+// Journal metadata
+// ---------------------------------------------------------------------------
+model Journal {
+  id              String   @id @default(cuid())
+  name            String
+  issn            String?
+  publisher       String   @default("Eleventh Press International Publishing")
+  description     String?
+  aimsScope       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  articles        Article[]
+  issues          Issue[]
+}
+
+model Issue {
+  id           String   @id @default(cuid())
+  journalId    String
+  volume       Int
+  issueNumber  Int
+  year         Int
+  title        String?
+  publishedAt  DateTime?
+  createdAt    DateTime @default(now())
+
+  journal      Journal  @relation(fields: [journalId], references: [id])
+  articles     Article[]
+}
+
+// ---------------------------------------------------------------------------
+// Submission & Manuscript Service
+// ---------------------------------------------------------------------------
+model Article {
+  id            String   @id @default(cuid())
+  journalId     String
+  issueId       String?
+  doi           String?  // e.g. 10.52011/epip.2024.001
+  doiStatus     String   @default("NONE") // NONE | DRAFT | REGISTERED | PUBLISHED
+
+  title         String
+  abstract      String
+  keywords      String   // comma-separated
+  discipline    String   // Physics | Biology | Computer Science | Sociology | etc.
+  authors       String   // JSON array of {name, affiliation, orcid, email}
+  correspondingAuthorId String?
+
+  manuscriptKey String?  // S3-style key for raw upload
+  anonymizedKey String?  // S3-style key for double-blind version
+  galleyPdfKey  String?  // published PDF
+  galleyHtmlKey String?  // published HTML
+  galleyJatsKey String?  // published JATS XML
+
+  // Workflow state machine
+  // DRAFT | SUBMITTED | UNDER_REVIEW | REVISIONS_REQUIRED | ACCEPTED | IN_PRODUCTION | PUBLISHED | REJECTED | WITHDRAWN
+  status        String   @default("DRAFT")
+  reviewModel   String   @default("DOUBLE_BLIND") // SINGLE_BLIND | DOUBLE_BLIND | OPEN
+  openReview    Boolean  @default(false) // If true, completed reviews are made public when article is published
+
+  plagiarismScore Float?
+
+  // Crossref deposit tracking
+  crossrefBatchId   String?  // Crossref-assigned batch ID after successful deposit
+  crossrefDepositedAt DateTime?
+  crossrefDepositLog String? // JSON-stringified response / error log
+
+  submittedAt   DateTime?
+  acceptedAt    DateTime?
+  publishedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Citation counts (mock analytics)
+  views         Int      @default(0)
+  downloads     Int      @default(0)
+  citations     Int      @default(0)
+
+  journal       Journal  @relation(fields: [journalId], references: [id])
+  issue         Issue?   @relation(fields: [issueId], references: [id])
+  author        User?    @relation("AuthorArticles", fields: [correspondingAuthorId], references: [id])
+  reviews       Review[]
+  decisions     EditorialDecision[]
+  invoices      Invoice[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
+  datasets      DatasetLink[]
+  embedding     ArticleEmbedding?
+  triageReport  EditorialTriageReport?
+}
+
+// ---------------------------------------------------------------------------
+// Workflow & Peer Review Service
+// ---------------------------------------------------------------------------
+model Review {
+  id            String   @id @default(cuid())
+  articleId     String
+  reviewerId    String
+  // INVITED | ACCEPTED | DECLINED | IN_PROGRESS | COMPLETED
+  status        String   @default("INVITED")
+  dueDate       DateTime?
+
+  // Review form (flexible, discipline-agnostic)
+  overallScore  Int?     // 1-5
+  recommendation String? // ACCEPT | MINOR_REVISIONS | MAJOR_REVISIONS | REJECT
+  confidence    Int?     // 1-5
+  commentsToAuthor  String?
+  commentsToEditor  String?
+  conflictOfInterest Boolean @default(false)
+
+  completedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Open peer review: set to true when article is published with openReview enabled
+  madePublic    Boolean  @default(false)
+
+  article       Article  @relation(fields: [articleId], references: [id])
+  reviewer      User     @relation("ReviewerReviews", fields: [reviewerId], references: [id])
+}
+
+// ---------------------------------------------------------------------------
+// Editorial decision log
+// ---------------------------------------------------------------------------
+model EditorialDecision {
+  id          String   @id @default(cuid())
+  articleId   String
+  editorId    String
+  decision    String   // ASSIGN_REVIEWERS | REQUEST_REVISIONS | ACCEPT | REJECT | SEND_TO_PRODUCTION
+  note        String?
+  createdAt   DateTime @default(now())
+
+  article     Article  @relation(fields: [articleId], references: [id])
+  editor      User     @relation(fields: [editorId], references: [id])
+}
+
+// ---------------------------------------------------------------------------
+// Billing & Subscription Service (Stripe-style mock)
+// ---------------------------------------------------------------------------
+model Subscription {
+  id           String   @id @default(cuid())
+  userId       String
+  plan         String   // READER_MONTHLY | READER_YEARLY | INSTITUTIONAL
+  status       String   @default("ACTIVE") // ACTIVE | CANCELED | PAST_DUE | TRIALING
+  stripeSubId  String?  // mock stripe subscription id
+  currentPeriodEnd DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user         User     @relation(fields: [userId], references: [id])
+}
+
+model Invoice {
+  id            String   @id @default(cuid())
+  userId        String
+  articleId     String?
+  type          String   // APC | SUBSCRIPTION | INSTITUTIONAL
+  amount        Float
+  currency      String   @default("USD")
+  status        String   @default("OPEN") // OPEN | PAID | VOID | REFUNDED
+  stripeInvoiceId String?
+  paidAt        DateTime?
+  createdAt     DateTime @default(now())
+
+  user          User     @relation(fields: [userId], references: [id])
+  article       Article? @relation(fields: [articleId], references: [id])
+}
+
+// ---------------------------------------------------------------------------
+// Notification Service
+// ---------------------------------------------------------------------------
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // INFO | SUCCESS | WARNING | ERROR
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  articleId String?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+  article   Article? @relation(fields: [articleId], references: [id])
+}
+
+// ---------------------------------------------------------------------------
+// Audit Log (cross-service event sourcing)
+// ---------------------------------------------------------------------------
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String   // SUBMIT | ASSIGN_REVIEWER | SUBMIT_REVIEW | ACCEPT | REJECT | PUBLISH | DOI_MINT | DOI_PUBLISH | PAYMENT_RECEIVED | CROSSREF_DEPOSIT | GALLEY_GENERATED
+  entityType String  // ARTICLE | REVIEW | INVOICE | SUBSCRIPTION | USER
+  entityId  String
+  articleId String?
+  metadata  String?  // JSON string
+  createdAt DateTime @default(now())
+
+  user      User?    @relation(fields: [userId], references: [id])
+  article   Article? @relation(fields: [articleId], references: [id])
+}
+
+// ---------------------------------------------------------------------------
+// Storage Service — tracks every file in the three S3 buckets
+// ---------------------------------------------------------------------------
+model StorageObject {
+  id           String   @id @default(cuid())
+  bucket       String   // raw-submissions | anonymized-manuscripts | published-galleys
+  key          String   @unique
+  fileName     String
+  contentType  String
+  sizeBytes    Int
+  uploadStatus String   @default("PENDING") // PENDING | UPLOADED | FAILED
+  uploadedBy   String?  // user id
+  articleId    String?
+  // Pre-signed URL metadata
+  presignToken String?  @unique
+  presignExpiresAt DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Galley Job — tracks Pandoc conversion jobs from the production worker
+// ---------------------------------------------------------------------------
+model GalleyJob {
+  id           String   @id @default(cuid())
+  articleId    String
+  inputKey     String   // storage key of source DOCX/MD
+  status       String   @default("QUEUED") // QUEUED | PROCESSING | COMPLETED | FAILED
+  htmlKey      String?
+  pdfKey       String?
+  jatsKey      String?
+  workerLog    String?  // JSON-stringified worker output
+  errorMessage String?
+  startedAt    DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// COUNTER 5 Usage Events — raw event log for SUSHI-compatible reporting
+// ---------------------------------------------------------------------------
+model CounterEvent {
+  id           String   @id @default(cuid())
+  articleId    String?
+  userId       String?
+  // Metric_Type: Total_Item_Investigations | Total_Item_Requests | Unique_Item_Investigations | Unique_Item_Requests
+  metricType   String
+  // Access_Method: Regular | TDM
+  accessMethod String   @default("Regular")
+  // Access_Type: OA | Controlled
+  accessType   String   @default("OA")
+  // Section_Type: Article | Search|TOC | Publication
+  sectionType  String   @default("Article")
+  // YOP = Year of Publication
+  yop          Int?
+  // Identifier
+  doi          String?
+  isbn         String?
+  issn         String?
+  // Requesting institution (for institutional subscribers)
+  institutionId String?
+  // Session/user fingerprint for unique deduplication
+  sessionId    String?
+  userAgent    String?
+  ipAddress    String?
+  createdAt    DateTime @default(now())
+
+  @@index([articleId, createdAt])
+  @@index([metricType, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// PREMIUM: Institutional IP Authentication
+// ---------------------------------------------------------------------------
+model Institution {
+  id              String   @id @default(cuid())
+  name            String
+  domain          String?  // e.g. "harvard.edu"
+  country         String?
+  // IP ranges in CIDR notation, comma-separated (e.g. "128.103.0.0/16,140.247.0.0/16")
+  ipRanges        String
+  // SSO / Shibboleth entity ID (optional)
+  ssoEntityId     String?
+  ssoMetadataUrl  String?
+  // Subscription details
+  plan            String   @default("INSTITUTIONAL") // INSTITUTIONAL | TRANSFORMATIVE
+  status          String   @default("ACTIVE") // ACTIVE | EXPIRED | TRIALING
+  currentPeriodEnd DateTime?
+  // Transformative agreement: APC quota for authors from this institution
+  apcQuota        Int      @default(0)
+  apcUsed         Int      @default(0)
+  // COUNTER 5 customer ID for SUSHI report slicing
+  counterCustomerId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  users           User[]
+  datasets        DatasetLink[]
+}
+
+// ---------------------------------------------------------------------------
+// PREMIUM: Zenodo / OSF / Dryad Data Deposit Integration
+// ---------------------------------------------------------------------------
+model DatasetLink {
+  id            String   @id @default(cuid())
+  articleId     String
+  repository    String   // ZENODO | OSF | DRYAD | FIGSHARE | GITHUB
+  datasetDoi    String?  // e.g. 10.5281/zenodo.1234567
+  datasetUrl    String
+  datasetTitle  String
+  depositorId   String
+  // Relation type per Crossref: isSupplementedBy | isReferencedBy | isSourceOf
+  relationType  String   @default("isSupplementedBy")
+  // Zenodo deposit metadata
+  zenodoDepositId String?
+  zenodoConceptId String?
+  createdAt     DateTime @default(now())
+
+  article       Article  @relation(fields: [articleId], references: [id])
+  institution   Institution? @relation(fields: [institutionId], references: [id])
+  institutionId String?
+}
+
+// ---------------------------------------------------------------------------
+// PREMIUM: Semantic Search Embeddings
+// ---------------------------------------------------------------------------
+model ArticleEmbedding {
+  id            String   @id @default(cuid())
+  articleId     String   @unique
+  // Embedding vector stored as JSON array of floats (1536 dims for text-embedding-3-small)
+  embedding     String   // JSON stringified float array
+  model         String   @default("text-embedding-3-small")
+  textHash      String   // SHA-256 of the embedded text (for cache invalidation)
+  dimensions    Int      @default(1536)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  article       Article  @relation(fields: [articleId], references: [id])
+}
+
+// ---------------------------------------------------------------------------
+// PREMIUM: LLM-Assisted Editorial Triage Report
+// ---------------------------------------------------------------------------
+model EditorialTriageReport {
+  id            String   @id @default(cuid())
+  articleId     String   @unique
+  // Scope fit score 0-100
+  scopeFitScore Int
+  scopeFitReason String
+  // Methodological flags
+  methodologyFlags String  // JSON array of {flag, severity, explanation}
+  // Suggested reviewers (JSON array of {userId, name, matchScore, reason})
+  suggestedReviewers String
+  // Recommended review model
+  recommendedReviewModel String
+  // 3-sentence summary
+  summary       String
+  // Predicted impact (1-5 stars)
+  predictedImpact Int
+  // Risk flags (plagiarism risk, ethics concerns, novelty)
+  riskFlags     String   // JSON array
+  // Full LLM response (for audit)
+  rawResponse   String
+  model         String   @default("glm-4")
+  createdAt     DateTime @default(now())
+
+  article       Article  @relation(fields: [articleId], references: [id])
+}

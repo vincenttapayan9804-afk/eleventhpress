@@ -1,0 +1,968 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useApp } from "@/lib/store";
+import { apiFetch } from "@/lib/api-client";
+import { ArticleDetail } from "@/lib/types";
+import { DISCIPLINE_COLORS, parseAuthors, formatCitation } from "@/lib/article";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  ArrowLeft,
+  Quote,
+  Eye,
+  Download,
+  Share2,
+  FileText,
+  BookOpen,
+  ExternalLink,
+  Database,
+  Loader2,
+  CheckCircle2,
+  Calendar,
+  Library,
+  ShieldCheck,
+  Tag,
+  MessageSquare,
+  ThumbsUp,
+  ThumbsDown,
+  AlertTriangle,
+  Globe2,
+  Lock,
+} from "lucide-react";
+import { toast } from "sonner";
+
+export function ArticleView() {
+  const { articleId, setView, openArticle } = useApp();
+  const [article, setArticle] = useState<ArticleDetail | null>(null);
+  const [related, setRelated] = useState<ArticleDetail[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [citationFormat, setCitationFormat] = useState<"apa" | "bibtex" | "ris">("apa");
+  const [publicReviews, setPublicReviews] = useState<any[] | null>(null);
+  const [openReviewStatus, setOpenReviewStatus] = useState<{ openReview: boolean; published: boolean } | null>(null);
+
+  useEffect(() => {
+    if (!articleId) {
+      setView("browse");
+      return;
+    }
+    setLoading(true);
+    setPublicReviews(null);
+    setOpenReviewStatus(null);
+    apiFetch<ArticleDetail>(`/api/articles/${articleId}`)
+      .then((a) => {
+        setArticle(a);
+        // Fetch related
+        apiFetch<{ items: ArticleDetail[] }>(
+          `/api/articles?discipline=${encodeURIComponent(a.discipline)}&pageSize=4`
+        ).then(({ items }) => {
+          setRelated(items.filter((i) => i.id !== a.id).slice(0, 3));
+        });
+        // Fetch public reviews (open peer review)
+        apiFetch<any>(`/api/articles/${articleId}/reviews`)
+          .then((r) => {
+            setOpenReviewStatus({ openReview: r.openReview, published: r.published });
+            if (r.openReview && r.published && r.reviews) {
+              setPublicReviews(r.reviews);
+            }
+          })
+          .catch(() => {
+            // 403 means article isn't open-review — that's fine
+          });
+      })
+      .catch(() => toast.error("Failed to load article"))
+      .finally(() => setLoading(false));
+  }, [articleId]);
+
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-5xl px-4 py-12">
+        <div className="h-96 animate-pulse rounded-md bg-muted/30" />
+      </div>
+    );
+  }
+
+  if (!article) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-24 text-center">
+        <p className="font-display text-2xl">Article not found</p>
+        <Button className="mt-4" onClick={() => setView("browse")}>
+          Back to browse
+        </Button>
+      </div>
+    );
+  }
+
+  const authors = parseAuthors(article.authors);
+  const keywords = article.keywords.split(",").map((k) => k.trim()).filter(Boolean);
+  const citation = formatCitation({
+    title: article.title,
+    authors: article.authors,
+    publishedAt: article.publishedAt,
+    doi: article.doi,
+    journalName: article.journalName,
+    volume: article.volume,
+    issueNumber: article.issueNumber,
+    year: article.year,
+  });
+
+  const bibtex = `@article{${article.doi?.replace(/[^a-z0-9]/gi, "") || "epip"},
+  title   = {${article.title}},
+  author  = {${authors.map((a) => a.name).join(" and ")}},
+  journal = {${article.journalName ?? "EPIP Int. J. Multidiscip. Res."}},
+  year    = {${article.year ?? new Date(article.publishedAt || Date.now()).getFullYear()}},
+  volume  = {${article.volume ?? ""}},
+  number  = {${article.issueNumber ?? ""}},
+  doi     = {${article.doi ?? ""}},
+}`;
+
+  const ris = `TY  - JOUR
+TI  - ${article.title}
+AU  - ${authors.map((a) => a.name).join("\nAU  - ")}
+JO  - ${article.journalName ?? "EPIP Int. J. Multidiscip. Res."}
+PY  - ${article.year ?? new Date(article.publishedAt || Date.now()).getFullYear()}
+VL  - ${article.volume ?? ""}
+IS  - ${article.issueNumber ?? ""}
+DO  - ${article.doi ?? ""}
+ER  - `;
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "ScholarlyArticle",
+    headline: article.title,
+    description: article.abstract,
+    author: authors.map((a) => ({
+      "@type": "Person",
+      name: a.name,
+      affiliation: { "@type": "Organization", name: a.affiliation },
+      ...(a.orcid ? { identifier: `https://orcid.org/${a.orcid}` } : {}),
+    })),
+    datePublished: article.publishedAt,
+    keywords: keywords.join(", "),
+    isPartOf: {
+      "@type": "PublicationIssue",
+      isPartOf: {
+        "@type": "PublicationVolume",
+        volumeNumber: article.volume,
+        isPartOf: {
+          "@type": "Periodical",
+          name: article.journalName,
+          issn: article.journalIssn,
+        },
+      },
+      issueNumber: article.issueNumber,
+    },
+    publisher: {
+      "@type": "Organization",
+      name: article.publisher,
+    },
+    identifier: article.doi ? `https://doi.org/${article.doi}` : undefined,
+    inLanguage: "en",
+  };
+
+  function copyCitation() {
+    const text = citationFormat === "apa" ? citation : citationFormat === "bibtex" ? bibtex : ris;
+    navigator.clipboard.writeText(text);
+    toast.success("Citation copied", { description: `${citationFormat.toUpperCase()} format` });
+  }
+
+  return (
+    <article className="page-enter mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+      {/* Inject JSON-LD */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <HeadMetas article={article} authors={authors} />
+
+      {/* Back */}
+      <Button variant="ghost" size="sm" onClick={() => setView("browse")} className="mb-6 text-muted-foreground hover:text-[oklch(0.42_0.18_295)]">
+        <ArrowLeft className="mr-1.5 h-4 w-4" /> Back to browse
+      </Button>
+
+      {/* Premium Header */}
+      <header className="border-b border-[oklch(0.76_0.11_294/0.15)] pb-8">
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <Badge variant="outline" className="border-[oklch(0.76_0.11_294/0.3)] bg-[oklch(0.93_0.04_290)] text-[oklch(0.42_0.18_295)]">
+            {article.discipline}
+          </Badge>
+          <Badge variant="outline" className="border-[oklch(0.76_0.11_294/0.2)] bg-[oklch(0.96_0.01_285)] text-muted-foreground">
+            {article.reviewModel.replace("_", "-")}
+          </Badge>
+          {openReviewStatus?.openReview && (
+            <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-700 gap-1">
+              <Globe2 className="h-3 w-3" /> Open peer review
+            </Badge>
+          )}
+          <span className="font-mono text-[0.65rem] text-muted-foreground">
+            DOI: {article.doi} · Status: {article.status}
+          </span>
+        </div>
+        <h1 className="mt-4 font-display text-3xl font-semibold leading-tight sm:text-4xl">
+          {article.title}
+        </h1>
+
+        {/* Authors */}
+        <div className="mt-5 flex flex-wrap gap-x-6 gap-y-3">
+          {authors.map((a, i) => (
+            <div key={i} className="flex items-start gap-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                {a.name.split(" ").map((p) => p[0]).slice(-2).join("")}
+              </div>
+              <div>
+                <p className="font-sans text-sm font-medium leading-tight">{a.name}</p>
+                <p className="text-xs text-muted-foreground">{a.affiliation}</p>
+                {a.orcid && (
+                  <a
+                    href={`https://orcid.org/${a.orcid}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-0.5 font-mono text-[0.65rem] text-primary hover:underline"
+                  >
+                    ORCID {a.orcid}
+                  </a>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Meta bar */}
+        <div className="mt-6 grid grid-cols-2 gap-3 text-xs sm:grid-cols-4">
+          <MetaTile icon={Calendar} label="Published" value={article.publishedAt ? new Date(article.publishedAt).toLocaleDateString("en-GB", { year: "numeric", month: "short", day: "numeric" }) : "—"} />
+          <MetaTile icon={Library} label="Volume / Issue" value={article.volume ? `Vol. ${article.volume}, Iss. ${article.issueNumber}` : "—"} />
+          <MetaTile icon={Quote} label="Citations" value={String(article.citations)} />
+          <MetaTile icon={Eye} label="Views" value={String(article.views)} />
+        </div>
+      </header>
+
+      {/* Body */}
+      <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_280px]">
+        {/* Main column */}
+        <div>
+          <Tabs defaultValue="article" className="w-full">
+            <TabsList className={`grid w-full ${openReviewStatus?.openReview ? "grid-cols-4" : "grid-cols-3"}`}>
+              <TabsTrigger value="article">Article</TabsTrigger>
+              <TabsTrigger value="metrics">Metrics</TabsTrigger>
+              <TabsTrigger value="cite">Cite</TabsTrigger>
+              {openReviewStatus?.openReview && (
+                <TabsTrigger value="reviews">Peer review</TabsTrigger>
+              )}
+            </TabsList>
+
+            <TabsContent value="article" className="mt-6">
+              <div className="prose prose-stone max-w-none">
+                <h2 className="font-display text-xl font-semibold">Abstract</h2>
+                <p className="dropcap mt-2 text-base leading-relaxed text-foreground/90">
+                  {article.abstract}
+                </p>
+
+                <h2 className="mt-8 font-display text-xl font-semibold">Article body</h2>
+                <p className="mt-2 text-sm leading-relaxed text-foreground/80">
+                  The full typeset article body is rendered from the production galley
+                  (HTML format). In this sandbox the galley file is stored at
+                  <code className="mx-1 rounded bg-muted px-1.5 py-0.5 font-mono text-xs">{article.galleyHtmlKey || "—"}</code>
+                  on a private S3 bucket and served via short-lived pre-signed URLs.
+                  Click the “Download PDF” button on the right to request a galley
+                  URL — the gateway will verify your subscription status before
+                  issuing the link.
+                </p>
+
+                <h3 className="mt-6 font-display text-lg font-semibold">1. Introduction</h3>
+                <p className="mt-2 text-sm leading-relaxed text-foreground/80">
+                  {article.abstract.split(".")[0]}. This section would normally
+                  contextualise the work against the prior literature, articulate
+                  the gap addressed, and state the contributions. The platform’s
+                  production service converts the accepted manuscript to JATS XML,
+                  HTML, and PDF galleys using Pandoc with a journal-specific
+                  CSS template, ensuring typographic consistency across volumes.
+                </p>
+
+                <h3 className="mt-6 font-display text-lg font-semibold">2. Methods</h3>
+                <p className="mt-2 text-sm leading-relaxed text-foreground/80">
+                  Methodological detail is preserved verbatim from the accepted
+                  manuscript. Equations are rendered with KaTeX, figures with the
+                  journal brand footer, and supplementary materials are linked
+                  from the article landing page.
+                </p>
+
+                <h3 className="mt-6 font-display text-lg font-semibold">References</h3>
+                <ol className="mt-2 list-decimal space-y-1 pl-5 text-xs text-foreground/70">
+                  <li>Mauduit, C. & Rivat, J. (2009). La somme des chiffres des nombres premiers. <em>Annals of Mathematics</em>, 171(3), 1591–1646.</li>
+                  <li>Patel, M. et al. (2023). Strain engineering in 2D materials. <em>Nature Reviews Physics</em>, 5, 412–429.</li>
+                  <li>Souza, A. B. & Kim, D. (2024). Lipid nanoparticle delivery of base editors. <em>Nature Biotechnology</em>, 42, 881–890.</li>
+                </ol>
+              </div>
+
+              {/* Keywords */}
+              <div className="mt-8 border-t border-border pt-5">
+                <p className="eyebrow mb-2">Keywords</p>
+                <div className="flex flex-wrap gap-2">
+                  {keywords.map((k) => (
+                    <Badge key={k} variant="secondary" className="gap-1">
+                      <Tag className="h-3 w-3" /> {k}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="metrics" className="mt-6">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Card className="paper-card">
+                  <CardContent className="p-5">
+                    <Quote className="h-5 w-5 text-primary" />
+                    <p className="mt-2 font-display text-3xl font-semibold">{article.citations}</p>
+                    <p className="text-xs text-muted-foreground">Crossref citation count</p>
+                  </CardContent>
+                </Card>
+                <Card className="paper-card">
+                  <CardContent className="p-5">
+                    <Eye className="h-5 w-5 text-primary" />
+                    <p className="mt-2 font-display text-3xl font-semibold">{article.views}</p>
+                    <p className="text-xs text-muted-foreground">Page views (all time)</p>
+                  </CardContent>
+                </Card>
+                <Card className="paper-card">
+                  <CardContent className="p-5">
+                    <Download className="h-5 w-5 text-primary" />
+                    <p className="mt-2 font-display text-3xl font-semibold">{article.downloads}</p>
+                    <p className="text-xs text-muted-foreground">PDF downloads</p>
+                  </CardContent>
+                </Card>
+                <Card className="paper-card">
+                  <CardContent className="p-5">
+                    <ShieldCheck className="h-5 w-5 text-primary" />
+                    <p className="mt-2 font-display text-3xl font-semibold">{article.plagiarismScore ?? "—"}%</p>
+                    <p className="text-xs text-muted-foreground">iThenticate similarity</p>
+                  </CardContent>
+                </Card>
+              </div>
+              <div className="mt-5 rounded-md border border-border bg-muted/30 p-4 text-xs text-muted-foreground">
+                <p className="font-semibold text-foreground">Indexing status</p>
+                <ul className="mt-2 space-y-1">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                    Crossref DOI registered and metadata deposited
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                    OAI-PMH 2.0 feed updated (Dublin Core)
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                    Google Scholar citation_* meta tags present on page
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                    JSON-LD ScholarlyArticle structured data embedded
+                  </li>
+                </ul>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="cite" className="mt-6">
+              <Card className="paper-card">
+                <CardContent className="p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="eyebrow">Cite this article</p>
+                    <div className="flex gap-2">
+                      {(["apa", "bibtex", "ris"] as const).map((fmt) => (
+                        <Button
+                          key={fmt}
+                          variant={citationFormat === fmt ? "default" : "outline"}
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => setCitationFormat(fmt)}
+                        >
+                          {fmt.toUpperCase()}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                  <pre className="mt-4 max-h-72 overflow-auto rounded-md border border-border bg-muted/30 p-4 font-mono text-xs leading-relaxed epip-scroll">
+{citationFormat === "apa" ? citation : citationFormat === "bibtex" ? bibtex : ris}
+                  </pre>
+                  <div className="mt-3 flex justify-end">
+                    <Button size="sm" onClick={copyCitation}>
+                      <FileText className="mr-1.5 h-3.5 w-3.5" /> Copy citation
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Open peer review tab */}
+            {openReviewStatus?.openReview && (
+              <TabsContent value="reviews" className="mt-6">
+                <OpenPeerReviewPanel reviews={publicReviews} published={openReviewStatus.published} />
+              </TabsContent>
+            )}
+          </Tabs>
+        </div>
+
+        {/* Sidebar */}
+        <aside className="space-y-4">
+          {/* PDF galley */}
+          <Card className="paper-card">
+            <CardContent className="p-5">
+              <p className="eyebrow">Galleys</p>
+              <div className="mt-3 space-y-2">
+                <Button
+                  className="w-full justify-start"
+                  variant="default"
+                  onClick={async () => {
+                    try {
+                      const r = await apiFetch<{ url: string }>(`/api/articles/${article.id}/galley?format=pdf`);
+                      window.open(r.url, "_blank");
+                    } catch (e: any) {
+                      toast.error("Galley not available", { description: e.message });
+                    }
+                  }}
+                >
+                  <FileText className="mr-2 h-4 w-4" /> Download PDF
+                </Button>
+                <Button
+                  className="w-full justify-start"
+                  variant="outline"
+                  onClick={async () => {
+                    try {
+                      const r = await apiFetch<{ url: string }>(`/api/articles/${article.id}/galley?format=html`);
+                      window.open(r.url, "_blank");
+                    } catch (e: any) {
+                      toast.error("Galley not available", { description: e.message });
+                    }
+                  }}
+                >
+                  <BookOpen className="mr-2 h-4 w-4" /> View HTML
+                </Button>
+                {article.doi && (
+                  <Button
+                    className="w-full justify-start"
+                    variant="outline"
+                    asChild
+                  >
+                    <a href={`https://doi.org/${article.doi}`} target="_blank" rel="noreferrer">
+                      <ExternalLink className="mr-2 h-4 w-4" /> Crossref landing page
+                    </a>
+                  </Button>
+                )}
+              </div>
+              <Separator className="my-4" />
+              <div className="space-y-1.5 text-xs">
+                <p className="flex items-center justify-between">
+                  <span className="text-muted-foreground">S3 key</span>
+                  <code className="font-mono">{article.galleyPdfKey || "—"}</code>
+                </p>
+                <p className="flex items-center justify-between">
+                  <span className="text-muted-foreground">DOI status</span>
+                  <Badge variant="outline" className="font-mono text-[0.6rem]">
+                    {article.doiStatus}
+                  </Badge>
+                </p>
+                <p className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Review model</span>
+                  <span>{article.reviewModel.replace("_", " ")}</span>
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Share */}
+          <Card className="paper-card">
+            <CardContent className="p-5">
+              <p className="eyebrow">Share</p>
+              <div className="mt-3 space-y-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start"
+                  onClick={() => {
+                    navigator.clipboard.writeText(`https://doi.org/${article.doi}`);
+                    toast.success("DOI link copied");
+                  }}
+                >
+                  <Share2 className="mr-2 h-3.5 w-3.5" /> Copy DOI link
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Issue info */}
+          {article.issueTitle && (
+            <Card className="paper-card">
+              <CardContent className="p-5">
+                <p className="eyebrow">Issue</p>
+                <p className="mt-2 font-display text-sm font-semibold">
+                  {article.issueTitle}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {article.publisher} · ISSN {article.journalIssn}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </aside>
+      </div>
+
+      {/* Datasets (Zenodo / OSF / Dryad) */}
+      <DatasetsSection articleId={article.id} />
+
+      {/* Related */}
+      {related.length > 0 && (
+        <section className="mt-12 border-t border-border pt-8">
+          <p className="eyebrow">Related articles in {article.discipline}</p>
+          <h2 className="mt-1 font-display text-2xl font-semibold">Continue reading</h2>
+          <div className="mt-5 grid gap-4 md:grid-cols-3">
+            {related.map((r) => (
+              <Card
+                key={r.id}
+                className="paper-card cursor-pointer transition-all hover:border-primary/30 hover:shadow-md"
+                onClick={() => openArticle(r.id)}
+              >
+                <CardContent className="p-4">
+                  <Badge variant="outline" className={`border ${DISCIPLINE_COLORS[r.discipline]}`}>
+                    {r.discipline}
+                  </Badge>
+                  <h3 className="mt-2 line-clamp-3 font-display text-sm font-semibold leading-snug">
+                    {r.title}
+                  </h3>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {r.citations} citations · {r.views} views
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
+      )}
+    </article>
+  );
+}
+
+function MetaTile({ icon: Icon, label, value }: { icon: any; label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-border bg-card p-3">
+      <Icon className="h-3.5 w-3.5 text-primary" />
+      <p className="mt-1 font-sans text-sm font-semibold">{value}</p>
+      <p className="text-[0.65rem] text-muted-foreground">{label}</p>
+    </div>
+  );
+}
+
+/**
+ * HeadMetas — since Next.js metadata API doesn't run in client components,
+ * we inject <meta> tags directly into the DOM. Google Scholar's crawler
+ * will read these on the public article page.
+ */
+function HeadMetas({ article, authors }: { article: ArticleDetail; authors: any[] }) {
+  useEffect(() => {
+    const tags: HTMLMetaElement[] = [];
+    const push = (name: string, content: string) => {
+      const t = document.createElement("meta");
+      t.name = name;
+      t.content = content;
+      document.head.appendChild(t);
+      tags.push(t);
+    };
+    push("citation_title", article.title);
+    authors.forEach((a, i) => push(`citation_author`, a.name));
+    if (article.publishedAt) {
+      push("citation_publication_date", new Date(article.publishedAt).toISOString().split("T")[0]);
+    }
+    push("citation_journal_title", article.journalName || "Eleventh Press International Journal");
+    if (article.journalIssn) push("citation_issn", article.journalIssn);
+    if (article.volume) push("citation_volume", String(article.volume));
+    if (article.issueNumber) push("citation_issue", String(article.issueNumber));
+    if (article.doi) push("citation_doi", article.doi);
+    push("citation_abstract_html_url", `https://eleventhpress.org/article/${article.id}`);
+    if (article.galleyPdfKey) push("citation_pdf_url", `https://eleventhpress.org/galleys/${article.galleyPdfKey}`);
+
+    return () => {
+      tags.forEach((t) => t.remove());
+    };
+  }, [article, authors]);
+
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// OpenPeerReviewPanel — displays public reviewer identities, scores,
+// recommendations, and comments-to-author for articles published under
+// the open peer-review model.
+// ---------------------------------------------------------------------------
+
+function OpenPeerReviewPanel({ reviews, published }: { reviews: any[] | null; published: boolean }) {
+  if (!published) {
+    return (
+      <Card className="paper-card">
+        <CardContent className="p-6">
+          <div className="flex items-start gap-3">
+            <Lock className="mt-1 h-5 w-5 flex-shrink-0 text-amber-600" />
+            <div>
+              <p className="font-display text-lg font-semibold">Reviews pending publication</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                This article is published under the open peer-review model, but the article
+                itself has not yet been published. Reviews will be released here
+                automatically upon publication.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!reviews || reviews.length === 0) {
+    return (
+      <Card className="paper-card">
+        <CardContent className="p-6">
+          <div className="flex items-start gap-3">
+            <MessageSquare className="mt-1 h-5 w-5 flex-shrink-0 text-muted-foreground" />
+            <div>
+              <p className="font-display text-lg font-semibold">No public reviews yet</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                This article was published under the open peer-review model, but no
+                completed reviews have been marked public. The editorial office may
+                still be processing the review file.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Banner */}
+      <Card className="paper-card bg-emerald-50/40">
+        <CardContent className="p-5">
+          <div className="flex items-start gap-3">
+            <Globe2 className="mt-1 h-5 w-5 flex-shrink-0 text-emerald-700" />
+            <div>
+              <p className="font-display text-base font-semibold text-emerald-900">
+                Open peer review — full review history published
+              </p>
+              <p className="mt-1 text-xs text-emerald-800/80">
+                Eleventh Press International Publishing publishes the complete reviewer
+                identities, recommendations, scores, and comments-to-author for articles
+                that opt into open peer review. Confidential comments-to-editor remain
+                private to the editorial office. This practice increases accountability,
+                recognises reviewer labour, and provides readers with context for the
+                editorial decision.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Summary stats */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <SummaryStat
+          label="Reviews"
+          value={String(reviews.length)}
+          icon={MessageSquare}
+        />
+        <SummaryStat
+          label="Accept"
+          value={String(reviews.filter((r) => r.recommendation === "ACCEPT").length)}
+          icon={ThumbsUp}
+          color="text-emerald-600"
+        />
+        <SummaryStat
+          label="Revisions"
+          value={String(reviews.filter((r) => r.recommendation?.includes("REVISIONS")).length)}
+          icon={AlertTriangle}
+          color="text-amber-600"
+        />
+        <SummaryStat
+          label="Reject"
+          value={String(reviews.filter((r) => r.recommendation === "REJECT").length)}
+          icon={ThumbsDown}
+          color="text-rose-600"
+        />
+      </div>
+
+      {/* Individual reviews */}
+      {reviews.map((r, i) => (
+        <Card key={r.id} className="paper-card">
+          <CardContent className="p-5">
+            {/* Reviewer header */}
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                  {r.reviewer?.fullName?.split(" ").map((p: string) => p[0]).slice(-2).join("") || "R"}
+                </div>
+                <div>
+                  <p className="font-display text-base font-semibold">{r.reviewer?.fullName}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {r.reviewer?.affiliation}
+                    {r.reviewer?.country ? ` · ${r.reviewer.country}` : ""}
+                  </p>
+                  {r.reviewer?.orcid && (
+                    <a
+                      href={`https://orcid.org/${r.reviewer.orcid}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-0.5 inline-block font-mono text-[0.65rem] text-primary hover:underline"
+                    >
+                      ORCID {r.reviewer.orcid}
+                    </a>
+                  )}
+                  {r.reviewer?.expertise && (
+                    <p className="mt-0.5 text-[0.7rem] text-muted-foreground">
+                      Expertise: {r.reviewer.expertise}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="text-right">
+                <Badge
+                  variant="outline"
+                  className={`text-[0.65rem] ${
+                    r.recommendation === "ACCEPT"
+                      ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                      : r.recommendation === "REJECT"
+                      ? "border-rose-300 bg-rose-50 text-rose-700"
+                      : "border-amber-300 bg-amber-50 text-amber-700"
+                  }`}
+                >
+                  {r.recommendation?.replace(/_/g, " ") || "—"}
+                </Badge>
+                {r.completedAt && (
+                  <p className="mt-1 text-[0.65rem] text-muted-foreground">
+                    {new Date(r.completedAt).toLocaleDateString("en-GB", { year: "numeric", month: "short", day: "numeric" })}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Scores */}
+            <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+              <div className="rounded-md border border-border bg-muted/20 p-2">
+                <p className="text-muted-foreground">Overall score</p>
+                <p className="font-display text-lg font-semibold">{r.overallScore ?? "—"}/5</p>
+              </div>
+              <div className="rounded-md border border-border bg-muted/20 p-2">
+                <p className="text-muted-foreground">Reviewer confidence</p>
+                <p className="font-display text-lg font-semibold">{r.confidence ?? "—"}/5</p>
+              </div>
+            </div>
+
+            {r.conflictOfInterest && (
+              <p className="mt-3 rounded-md border border-amber-300 bg-amber-50 p-2 text-[0.7rem] text-amber-800">
+                <AlertTriangle className="mr-1 inline h-3 w-3" />
+                Reviewer declared a conflict of interest.
+              </p>
+            )}
+
+            {/* Comments to author */}
+            {r.commentsToAuthor && (
+              <div className="mt-4">
+                <p className="eyebrow mb-1">Comments to author</p>
+                <div className="rounded-md border border-border bg-muted/20 p-3 text-sm leading-relaxed text-foreground/85">
+                  {r.commentsToAuthor}
+                </div>
+              </div>
+            )}
+
+            <p className="mt-3 text-[0.65rem] text-muted-foreground">
+              Review #{i + 1} · Confidential comments to editor are not published.
+            </p>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function SummaryStat({ label, value, icon: Icon, color = "text-primary" }: { label: string; value: string; icon: any; color?: string }) {
+  return (
+    <Card className="paper-card">
+      <CardContent className="p-4">
+        <Icon className={`h-4 w-4 ${color}`} />
+        <p className="mt-1.5 font-display text-2xl font-semibold">{value}</p>
+        <p className="text-xs text-muted-foreground">{label}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// DatasetsSection — displays linked datasets (Zenodo, OSF, Dryad, etc.)
+// and shows a deposit dialog for authors/editors.
+// ---------------------------------------------------------------------------
+function DatasetsSection({ articleId }: { articleId: string }) {
+  const [datasets, setDatasets] = useState<any[]>([]);
+  const [showDeposit, setShowDeposit] = useState(false);
+  const [depositing, setDepositing] = useState(false);
+  const [form, setForm] = useState({
+    title: "",
+    description: "",
+    keywords: "",
+    license: "CC-BY-4.0",
+    accessRight: "open",
+  });
+  const { token, user } = useApp();
+  const canDeposit = token && user && ["AUTHOR", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"].includes(user.role);
+
+  useEffect(() => {
+    apiFetch<{ datasets: any[] }>(`/api/datasets/zenodo?articleId=${articleId}`)
+      .then(({ datasets }) => setDatasets(datasets))
+      .catch(() => {});
+  }, [articleId]);
+
+  async function deposit() {
+    setDepositing(true);
+    try {
+      const res = await apiFetch<any>("/api/datasets/zenodo", {
+        method: "POST",
+        body: JSON.stringify({
+          articleId,
+          ...form,
+          keywords: form.keywords.split(",").map((k) => k.trim()).filter(Boolean),
+        }),
+      });
+      if (res.ok) {
+        toast.success("Dataset deposited", { description: res.message });
+        setShowDeposit(false);
+        setForm({ title: "", description: "", keywords: "", license: "CC-BY-4.0", accessRight: "open" });
+        // Refresh
+        const { datasets } = await apiFetch<{ datasets: any[] }>(`/api/datasets/zenodo?articleId=${articleId}`);
+        setDatasets(datasets);
+      } else {
+        toast.error("Deposit failed", { description: res.message });
+      }
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setDepositing(false);
+    }
+  }
+
+  return (
+    <section className="mt-12 border-t border-border pt-8">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="eyebrow">Linked datasets</p>
+          <h2 className="mt-1 font-display text-2xl font-semibold">Research data</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Datasets deposited on Zenodo, OSF, Dryad, or Figshare and linked via Crossref <code className="font-mono text-xs">isSupplementedBy</code> relations.
+          </p>
+        </div>
+        {canDeposit && (
+          <Button variant="outline" size="sm" onClick={() => setShowDeposit(!showDeposit)}>
+            <Database className="mr-1.5 h-3.5 w-3.5" /> Deposit dataset
+          </Button>
+        )}
+      </div>
+
+      {/* Deposit form */}
+      {showDeposit && (
+        <Card className="paper-card mt-4">
+          <CardContent className="space-y-3 p-5">
+            <div className="space-y-1">
+              <Label className="text-xs">Dataset title</Label>
+              <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Supporting data for…" className="h-9" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Description</Label>
+              <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} placeholder="Describe the dataset contents, format, and collection method…" />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Keywords (comma-separated)</Label>
+                <Input value={form.keywords} onChange={(e) => setForm({ ...form, keywords: e.target.value })} placeholder="climate, temperature" className="h-9" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">License</Label>
+                <Select value={form.license} onValueChange={(v) => setForm({ ...form, license: v })}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="CC-BY-4.0">CC-BY-4.0</SelectItem>
+                    <SelectItem value="CC0-1.0">CC0 (Public Domain)</SelectItem>
+                    <SelectItem value="CC-BY-NC-4.0">CC-BY-NC-4.0</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Access</Label>
+                <Select value={form.accessRight} onValueChange={(v) => setForm({ ...form, accessRight: v })}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="open">Open</SelectItem>
+                    <SelectItem value="restricted">Restricted</SelectItem>
+                    <SelectItem value="closed">Closed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setShowDeposit(false)}>Cancel</Button>
+              <Button size="sm" onClick={deposit} disabled={depositing || !form.title}>
+                {depositing && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                Deposit to Zenodo
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Dataset list */}
+      <div className="mt-5 grid gap-3 md:grid-cols-2">
+        {datasets.length === 0 ? (
+          <p className="col-span-2 py-6 text-center text-sm text-muted-foreground">
+            No datasets linked. {canDeposit ? "Click \"Deposit dataset\" to deposit on Zenodo." : ""}
+          </p>
+        ) : (
+          datasets.map((d) => (
+            <Card key={d.id} className="paper-card">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-[0.6rem]">{d.repository}</Badge>
+                      {d.datasetDoi && (
+                        <code className="font-mono text-[0.6rem] text-muted-foreground">{d.datasetDoi}</code>
+                      )}
+                    </div>
+                    <p className="mt-2 font-display text-sm font-semibold">{d.datasetTitle}</p>
+                    <a href={d.datasetUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                      <ExternalLink className="h-3 w-3" /> {d.datasetUrl}
+                    </a>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+    </section>
+  );
+}
