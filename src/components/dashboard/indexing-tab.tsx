@@ -26,6 +26,8 @@ import {
   Send,
   Loader2,
   AlertCircle,
+  Import,
+  Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -56,13 +58,18 @@ export function IndexingTab() {
   const [depositing, setDepositing] = useState(false);
   const [lastDepositResult, setLastDepositResult] = useState<any>(null);
 
+  const [issues, setIssues] = useState<any[]>([]);
+  const [selectedIssueId, setSelectedIssueId] = useState<string>("");
+  const [ojsPreviewXml, setOjsPreviewXml] = useState<string>("");
+
   async function load() {
     setLoading(true);
     try {
-      const [logRes, oaiRes, liveRes] = await Promise.all([
+      const [logRes, oaiRes, liveRes, issuesRes] = await Promise.all([
         apiFetch<{ logs: CrossrefLog[]; published: any[] }>("/api/crossref-log"),
         fetch("/api/oai-pmh?verb=ListRecords&metadataPrefix=oai_dc").then((r) => r.text()),
         apiFetch<{ liveMode: boolean }>("/api/crossref/deposit"),
+        apiFetch<{ items: any[] }>("/api/issues"),
       ]);
       setLogs(logRes.logs);
       setPublished(logRes.published);
@@ -70,6 +77,11 @@ export function IndexingTab() {
       setCrossrefLive(liveRes.liveMode);
       if (logRes.published.length > 0 && !selectedArticleId) {
         setSelectedArticleId(logRes.published[0].id);
+      }
+      const publishedIssues = issuesRes.items.filter((i) => i.articleCount > 0);
+      setIssues(publishedIssues);
+      if (publishedIssues.length > 0 && !selectedIssueId) {
+        setSelectedIssueId(publishedIssues[0].id);
       }
     } catch (e) {
       console.error(e);
@@ -89,6 +101,18 @@ export function IndexingTab() {
       .then(setPreviewXml)
       .catch((e) => setPreviewXml(`<!-- failed to load: ${e.message} -->`));
   }, [selectedArticleId]);
+
+  // Fetch OJS Native XML preview when selected issue changes
+  useEffect(() => {
+    if (!selectedIssueId) {
+      setOjsPreviewXml("");
+      return;
+    }
+    fetch(`/api/export/ojs/issue/${selectedIssueId}`)
+      .then((r) => r.text())
+      .then(setOjsPreviewXml)
+      .catch((e) => setOjsPreviewXml(`<!-- failed to load: ${e.message} -->`));
+  }, [selectedIssueId]);
 
   async function deposit() {
     if (!selectedArticleId) return;
@@ -144,7 +168,7 @@ export function IndexingTab() {
       </Card>
 
       <Tabs defaultValue="crossref">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="crossref">
             <FileText className="mr-1.5 h-3.5 w-3.5" /> Crossref DOI log
           </TabsTrigger>
@@ -153,6 +177,9 @@ export function IndexingTab() {
           </TabsTrigger>
           <TabsTrigger value="oaipmh">
             <Globe2 className="mr-1.5 h-3.5 w-3.5" /> OAI-PMH feed
+          </TabsTrigger>
+          <TabsTrigger value="ojs">
+            <Import className="mr-1.5 h-3.5 w-3.5" /> OJS export
           </TabsTrigger>
           <TabsTrigger value="scholar">
             <Search className="mr-1.5 h-3.5 w-3.5" /> Google Scholar
@@ -389,6 +416,89 @@ export function IndexingTab() {
                 {oaiPmhXml.slice(0, 5000)}
                 {oaiPmhXml.length > 5000 && "\n... (truncated — open raw endpoint for full feed)"}
               </pre>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* OJS Native XML export */}
+        <TabsContent value="ojs" className="mt-4 space-y-4">
+          <Card className="paper-card">
+            <CardContent className="p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="font-display text-base font-semibold">
+                    Export to Open Journal Systems (OJS)
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Generates PKP's Native XML Import/Export format — the file format a real OJS
+                    installation accepts via <span className="font-medium">Admin → Native Import/Export
+                    plugin</span> (or the CLI: <code className="font-mono">php tools/importExport.php
+                    import &lt;file&gt; &lt;journal_path&gt; &lt;username&gt;</code>). Pick an issue to
+                    preview its export, or download the full journal.
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" asChild>
+                  <a href="/api/export/ojs/journal">
+                    <Download className="mr-1.5 h-3.5 w-3.5" /> Download full journal export
+                  </a>
+                </Button>
+              </div>
+
+              <div className="mt-3 flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800">
+                <AlertCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+                <div>
+                  <p className="font-medium">No official schema documentation exists for this format.</p>
+                  <p className="mt-0.5">
+                    This export is built from PKP's XSD (<code className="font-mono">native.xsd</code> /{" "}
+                    <code className="font-mono">pkp-native.xsd</code>) and community example files — there
+                    is no published prose spec. Validate the output against your target OJS version's
+                    actual schema before importing into a production instance. See{" "}
+                    <code className="font-mono">docs/ojs-interop.md</code> for sources and caveats.
+                  </p>
+                </div>
+              </div>
+
+              {/* Issue picker */}
+              <div className="mt-4 flex flex-wrap items-end gap-3">
+                <div className="flex-1 min-w-[260px] space-y-1.5">
+                  <label className="text-xs font-medium">Issue</label>
+                  <Select value={selectedIssueId} onValueChange={setSelectedIssueId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pick an issue to export…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {issues.map((i) => (
+                        <SelectItem key={i.id} value={i.id}>
+                          Vol. {i.volume}, Iss. {i.issueNumber} ({i.year}) · {i.articleCount} article
+                          {i.articleCount === 1 ? "" : "s"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* XML preview */}
+              <div className="mt-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="eyebrow flex items-center gap-1.5">
+                    <Code2 className="h-3 w-3" /> PKP Native XML preview (this issue)
+                  </p>
+                  {selectedIssueId && (
+                    <a
+                      href={`/api/export/ojs/issue/${selectedIssueId}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                    >
+                      <ExternalLink className="h-3 w-3" /> Open raw
+                    </a>
+                  )}
+                </div>
+                <pre className="max-h-96 overflow-auto rounded-md border border-border bg-[oklch(0.18_0.012_60)] p-4 font-mono text-[0.65rem] leading-relaxed text-[oklch(0.85_0.012_80)] epip-scroll">
+{ojsPreviewXml || "Select an issue to preview its OJS Native XML export."}
+                </pre>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
 
   const published = await db.article.findMany({
     where: { status: "PUBLISHED" },
-    select: { doi: true, title: true, publishedAt: true, discipline: true },
+    select: { id: true, doi: true, title: true, publishedAt: true, discipline: true },
     orderBy: { publishedAt: "desc" },
     take: 50,
   });
