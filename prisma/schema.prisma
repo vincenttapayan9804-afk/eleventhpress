@@ -2,7 +2,13 @@
 // Multidisciplinary Journal Platform
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // Vercel's serverless functions run on Amazon Linux, not this build
+  // machine's platform — without an explicit target for it, Prisma only
+  // bundles the query engine binary for whatever OS built the project,
+  // and the deployed function fails at runtime with "query engine not
+  // found." "native" keeps local dev working.
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {

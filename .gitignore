@@ -18,6 +18,8 @@ next-env.d.ts
 *.db
 *.db-journal
 prisma/*.db
+# ...except the bundled read-only seed snapshot used on Vercel (see src/lib/db.ts)
+!prisma/seed.db
 
 # local file storage (simulated S3 buckets)
 storage/
