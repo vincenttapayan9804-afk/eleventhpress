@@ -17,6 +17,7 @@ import {
   ArrowRight,
   CheckCircle2,
   Clock,
+  Library,
 } from "lucide-react";
 
 interface Props {

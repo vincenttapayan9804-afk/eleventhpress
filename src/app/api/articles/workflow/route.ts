@@ -6,6 +6,7 @@ import { depositToCrossref } from "@/lib/crossref";
 import { getObject } from "@/lib/storage";
 import { generateGalleys } from "@/lib/galley";
 import { APP_BASE_URL } from "@/lib/site";
+import { APC_USD } from "@/lib/pricing";
 
 /**
  * POST /api/articles/workflow
@@ -239,7 +240,7 @@ export async function POST(req: NextRequest) {
           userId: article.correspondingAuthorId,
           articleId,
           type: "APC",
-          amount: 1850.0,
+          amount: APC_USD,
           currency: "USD",
           status: "OPEN",
         },
@@ -249,7 +250,7 @@ export async function POST(req: NextRequest) {
           userId: article.correspondingAuthorId,
           type: "INFO",
           title: "Article Accepted — APC Invoice Issued",
-          message: `Your article "${article.title}" has been accepted. An Article Processing Charge invoice for USD 1,850.00 has been issued. Production will commence upon payment confirmation.`,
+          message: `Your article "${article.title}" has been accepted. An Article Processing Charge invoice for USD ${APC_USD.toFixed(2)} has been issued. Production will commence upon payment confirmation.`,
           articleId,
         },
       });

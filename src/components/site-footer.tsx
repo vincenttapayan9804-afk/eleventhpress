@@ -50,7 +50,7 @@ export function SiteFooter() {
                 <li>Double-blind peer review</li>
                 <li>Crossref DOI deposit</li>
                 <li>GDPR / CCPA compliant</li>
-                <li>PCI-DSS via Stripe</li>
+                <li>PCI-DSS across all payment gateways</li>
               </ul>
             </div>
           </div>

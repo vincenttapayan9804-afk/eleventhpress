@@ -202,11 +202,11 @@ export function AboutView() {
               <CreditCard className="h-6 w-6 text-primary" />
               <p className="mt-3 font-display text-lg font-semibold">Author pays (APC)</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Triggered when an article is accepted. The author is invoiced USD 1,850.
-                Payment is verified via Stripe webhooks before the production service
+                Triggered when an article is accepted. The author is invoiced USD 97.
+                Payment is verified via webhook before the production service
                 generates the final PDF and publishes.
               </p>
-              <p className="mt-3 font-mono text-lg font-semibold">USD 1,850</p>
+              <p className="mt-3 font-mono text-lg font-semibold">USD 97</p>
             </CardContent>
           </Card>
           <Card className="paper-card">
@@ -214,13 +214,13 @@ export function AboutView() {
               <Users className="h-6 w-6 text-primary" />
               <p className="mt-3 font-display text-lg font-semibold">Reader subscription</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Handled by the Billing Service via Stripe Billing. The API Gateway
-                intercepts requests to full PDFs, verifies the JWT, queries billing
-                status, and either serves a pre-signed S3 URL or returns 402 Payment
-                Required.
+                Handled by the Billing Service via your choice of payment provider.
+                The API Gateway intercepts requests to full PDFs, verifies the JWT,
+                queries billing status, and either serves a pre-signed download URL
+                or returns 402 Payment Required.
               </p>
               <p className="mt-3 font-mono text-lg font-semibold">
-                USD 19 / mo · USD 180 / yr
+                USD 10 / mo · USD 97 / yr · USD 997 / yr (institutional)
               </p>
             </CardContent>
           </Card>
@@ -231,7 +231,7 @@ export function AboutView() {
       <section className="mt-12">
         <h2 className="font-display text-2xl font-semibold">Compliance</h2>
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <ComplianceCard icon={ShieldCheck} title="PCI-DSS" desc="Credit card data never touches our servers — handled entirely by Stripe Elements." />
+          <ComplianceCard icon={ShieldCheck} title="PCI-DSS" desc="Credit card data never touches our servers — handled entirely by the hosted checkout of your chosen payment gateway." />
           <ComplianceCard icon={Scale} title="GDPR / CCPA" desc="Account deletion cascades through all databases, anonymising review comments but retaining published papers." />
           <ComplianceCard icon={Workflow} title="Audit log" desc="Every state transition is recorded in an append-only audit log with user + metadata." />
         </div>
@@ -295,7 +295,7 @@ const ARCHITECTURE = [
   },
   {
     name: "Billing & Subscription",
-    description: "Stripe APC invoicing + recurring subscriptions. ACID-compliant financial data.",
+    description: "APC invoicing + recurring subscriptions via Stripe, PayPal, PayMongo, Xendit, or Lemon Squeezy. ACID-compliant financial data.",
     icon: CreditCard,
     db: "PostgreSQL",
   },

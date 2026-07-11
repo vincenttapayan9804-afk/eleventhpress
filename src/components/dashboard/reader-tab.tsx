@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
+import { PaymentProviderPicker } from "@/components/billing/payment-provider-picker";
 import {
   Library,
   CheckCircle2,
@@ -27,7 +28,7 @@ const PLANS = [
   {
     id: "READER_MONTHLY",
     name: "Monthly Reader",
-    price: 19,
+    price: 10,
     period: "month",
     description: "Full PDF access for casual readers and visiting researchers.",
     features: [
@@ -41,12 +42,12 @@ const PLANS = [
   {
     id: "READER_YEARLY",
     name: "Annual Reader",
-    price: 180,
+    price: 97,
     period: "year",
     description: "Best value for active scholars and doctoral candidates.",
     features: [
       "Everything in Monthly",
-      "Save ~21% vs. monthly billing",
+      "Save ~19% vs. monthly billing",
       "Early access to forthcoming articles",
       "Citation export in BibTeX / RIS / APA",
       "Priority support",
@@ -56,7 +57,7 @@ const PLANS = [
   {
     id: "INSTITUTIONAL",
     name: "Institutional",
-    price: 2400,
+    price: 997,
     period: "year",
     description: "Site-wide access for libraries, universities, and research institutes.",
     features: [
@@ -72,21 +73,19 @@ const PLANS = [
 
 export function ReaderTab({ subscription, onRefresh }: Props) {
   const [subscribing, setSubscribing] = useState<string | null>(null);
+  const [pickerPlan, setPickerPlan] = useState<string | null>(null);
 
-  async function subscribe(plan: string) {
-    setSubscribing(plan);
+  async function checkoutSubscription(providerId: string) {
+    if (!pickerPlan) return;
+    setSubscribing(pickerPlan);
     try {
-      await apiFetch("/api/billing/subscribe", {
+      const { redirectUrl } = await apiFetch<{ redirectUrl: string }>("/api/billing/checkout", {
         method: "POST",
-        body: JSON.stringify({ plan }),
+        body: JSON.stringify({ kind: "SUBSCRIPTION", plan: pickerPlan, provider: providerId }),
       });
-      toast.success("Subscription activated", {
-        description: "Stripe webhook confirmed. Full PDF access is now enabled.",
-      });
-      onRefresh();
+      window.location.href = redirectUrl;
     } catch (e: any) {
-      toast.error("Subscription failed", { description: e.message });
-    } finally {
+      toast.error("Checkout failed", { description: e.message });
       setSubscribing(null);
     }
   }
@@ -170,7 +169,7 @@ export function ReaderTab({ subscription, onRefresh }: Props) {
                     className="mt-4 w-full"
                     variant={p.popular ? "default" : "outline"}
                     disabled={isCurrent || subscribing !== null}
-                    onClick={() => subscribe(p.id)}
+                    onClick={() => setPickerPlan(p.id)}
                   >
                     {subscribing === p.id && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
                     {isCurrent ? "Current plan" : <CreditCard className="mr-1.5 h-3.5 w-3.5" />}
@@ -203,6 +202,13 @@ export function ReaderTab({ subscription, onRefresh }: Props) {
           </div>
         </CardContent>
       </Card>
+
+      <PaymentProviderPicker
+        open={pickerPlan !== null}
+        onOpenChange={(open) => !open && setPickerPlan(null)}
+        onSelect={checkoutSubscription}
+        busy={subscribing !== null}
+      />
     </div>
   );
 }

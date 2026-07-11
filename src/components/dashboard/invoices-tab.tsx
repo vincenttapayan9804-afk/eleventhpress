@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
+import { PaymentProviderPicker } from "@/components/billing/payment-provider-picker";
 import {
   Receipt,
   CreditCard,
@@ -27,21 +28,19 @@ interface Props {
 
 export function InvoicesTab({ invoices, subscription, onRefresh }: Props) {
   const [paying, setPaying] = useState<string | null>(null);
+  const [pickerInvoiceId, setPickerInvoiceId] = useState<string | null>(null);
 
-  async function payInvoice(id: string) {
-    setPaying(id);
+  async function checkoutInvoice(providerId: string) {
+    if (!pickerInvoiceId) return;
+    setPaying(pickerInvoiceId);
     try {
-      await apiFetch("/api/billing/apc", {
+      const { redirectUrl } = await apiFetch<{ redirectUrl: string }>("/api/billing/checkout", {
         method: "POST",
-        body: JSON.stringify({ invoiceId: id }),
+        body: JSON.stringify({ kind: "APC", invoiceId: pickerInvoiceId, provider: providerId }),
       });
-      toast.success("Payment received", {
-        description: "Stripe webhook confirmed. Article moved to production.",
-      });
-      onRefresh();
+      window.location.href = redirectUrl;
     } catch (e: any) {
-      toast.error("Payment failed", { description: e.message });
-    } finally {
+      toast.error("Checkout failed", { description: e.message });
       setPaying(null);
     }
   }
@@ -191,7 +190,7 @@ export function InvoicesTab({ invoices, subscription, onRefresh }: Props) {
                     {inv.status === "OPEN" && (
                       <Button
                         size="sm"
-                        onClick={() => payInvoice(inv.id)}
+                        onClick={() => setPickerInvoiceId(inv.id)}
                         disabled={paying === inv.id}
                       >
                         {paying === inv.id ? (
@@ -214,6 +213,13 @@ export function InvoicesTab({ invoices, subscription, onRefresh }: Props) {
           )}
         </CardContent>
       </Card>
+
+      <PaymentProviderPicker
+        open={pickerInvoiceId !== null}
+        onOpenChange={(open) => !open && setPickerInvoiceId(null)}
+        onSelect={checkoutInvoice}
+        busy={paying !== null}
+      />
     </div>
   );
 }

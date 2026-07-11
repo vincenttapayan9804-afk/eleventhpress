@@ -157,10 +157,10 @@ export function HomeView() {
                     <StatTile label="Published articles" value={stats.articles} icon={FileText} />
                     <StatTile label="Total citations" value={stats.citations} icon={Quote} />
                     <StatTile label="PDF downloads" value={stats.downloads} icon={TrendingUp} />
-                    <StatTile label="Indexing sources" value={3} icon={Globe2} />
+                    <StatTile label="Indexing sources" value={6} icon={Globe2} />
                   </div>
                   <div className="mt-4 rounded-xl bg-[oklch(0.93_0.04_290/0.5)] px-4 py-3 text-xs text-muted-foreground">
-                    Indexed in: <strong className="text-foreground">Google Scholar</strong> · <strong className="text-foreground">Crossref</strong> · <strong className="text-foreground">OAI-PMH 2.0</strong>
+                    Indexed in: <strong className="text-foreground">Google Scholar</strong> · <strong className="text-foreground">Crossref</strong> · <strong className="text-foreground">OAI-PMH 2.0</strong> · <strong className="text-foreground">BASE</strong> · <strong className="text-foreground">CORE</strong> · <strong className="text-foreground">OpenAIRE</strong>
                   </div>
                 </div>
               </div>
