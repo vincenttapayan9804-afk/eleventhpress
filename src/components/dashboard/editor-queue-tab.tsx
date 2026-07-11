@@ -26,6 +26,7 @@ import {
 } from "@/lib/article";
 import type { ArticleStatus } from "@/lib/article";
 import { TriagePanel } from "@/components/dashboard/triage-panel";
+import { ManuscriptChecksPanel } from "@/components/dashboard/manuscript-checks-panel";
 import {
   ListChecks,
   Clock,
@@ -287,7 +288,7 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
               } />
               <MetaRow label="DOI" value={<code className="font-mono">{article.doi || "—"}</code>} />
               <MetaRow label="Review model" value={article.reviewModel.replace("_", " ")} />
-              <MetaRow label="Plagiarism score" value={`${article.plagiarismScore ?? "—"}% (iThenticate)`} />
+              <MetaRow label="Similarity score" value={`${article.plagiarismScore ?? "—"}% (in-corpus)`} />
               <MetaRow label="Submitted" value={article.submittedAt ? new Date(article.submittedAt).toLocaleString() : "—"} />
             </div>
 
@@ -398,6 +399,11 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
 
             {/* AI Editorial Triage */}
             <TriagePanel articleId={article.id} />
+
+            <Separator />
+
+            {/* Manuscript checks: similarity, statistical sanity, references */}
+            <ManuscriptChecksPanel articleId={article.id} />
 
             <Separator />
 

@@ -91,6 +91,7 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
     },
   ]);
   const [funders, setFunders] = useState<Funder[]>([]);
+  const [references, setReferences] = useState("");
 
   // File upload state
   const [uploadedFile, setUploadedFile] = useState<UploadedFile | null>(null);
@@ -246,6 +247,7 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
             ...form,
             authors,
             funders,
+            references: references.split("\n").map((r) => r.trim()).filter(Boolean),
             manuscriptKey: uploadedFile?.key,
             manuscriptName: uploadedFile?.filename,
           }),
@@ -277,7 +279,7 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
           </p>
           <div className="mx-auto mt-6 max-w-md rounded-md border border-border bg-muted/30 p-4 text-left text-sm">
             <Row label="Draft DOI" value={<code className="font-mono text-xs">{result.doi}</code>} />
-            <Row label="Plagiarism score" value={`${result.plagiarismScore}% (iThenticate)`} />
+            <Row label="Similarity score" value={`${result.plagiarismScore}% (in-corpus)`} />
             <Row label="Workflow status" value={<Badge variant="outline" className="font-mono text-[0.6rem]">{result.status}</Badge>} />
             <Row label="Review model" value={form.reviewModel.replace("_", " ")} />
             <Row label="Open peer review" value={form.openReview ? "Enabled — reviews will be public" : "Disabled"} />
@@ -286,7 +288,7 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
             )}
           </div>
           <div className="mt-6 flex justify-center gap-3">
-            <Button onClick={() => { setResult(null); setStep(1); setForm({ title: "", abstract: "", keywords: "", discipline: "Physics", reviewModel: "DOUBLE_BLIND", openReview: false, apcWaiverRequested: false, apcWaiverReason: "" }); setUploadedFile(null); setFunders([]); }}>
+            <Button onClick={() => { setResult(null); setStep(1); setForm({ title: "", abstract: "", keywords: "", discipline: "Physics", reviewModel: "DOUBLE_BLIND", openReview: false, apcWaiverRequested: false, apcWaiverReason: "" }); setUploadedFile(null); setFunders([]); setReferences(""); }}>
               Submit another
             </Button>
             <Button variant="outline" onClick={() => { onSubmitted(); openDashboard("myArticles"); }}>
@@ -309,7 +311,8 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
           <p className="text-sm text-muted-foreground">
             Complete the three-step form below. A draft Crossref DOI will be minted upon
             submission, the manuscript is uploaded to private S3-style storage via a
-            pre-signed PUT URL, and an iThenticate plagiarism check will be triggered.
+            pre-signed PUT URL, and an in-corpus similarity check runs against every
+            other article already in the journal.
           </p>
         </CardHeader>
         <CardContent>
@@ -377,6 +380,19 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
                   value={form.keywords}
                   onChange={(e) => setForm({ ...form, keywords: e.target.value })}
                 />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="references">References (optional, one per line)</Label>
+                <Textarea
+                  id="references"
+                  rows={5}
+                  placeholder={"Smith, J. (2023). A study of X. Journal of Y, 12(3), 45-67. https://doi.org/10.1234/example\nDoe, A. et al. (2021). Another paper. ..."}
+                  value={references}
+                  onChange={(e) => setReferences(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  An editor will validate these against OpenAlex before publication.
+                </p>
               </div>
 
               {/* Real file upload */}
@@ -649,7 +665,7 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
                 <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
                   <li>· A draft Crossref DOI is minted (you can put it on your CV immediately).</li>
                   <li>· The manuscript is uploaded to private S3-style storage with a pre-signed PUT URL.</li>
-                  <li>· An iThenticate plagiarism report is generated asynchronously.</li>
+                  <li>· An in-corpus similarity check runs against every other article already in the journal.</li>
                   <li>· If double-blind, an anonymised copy of your PDF is created for reviewers.</li>
                   <li>· Editors are notified and the article enters the SUBMITTED state.</li>
                 </ul>

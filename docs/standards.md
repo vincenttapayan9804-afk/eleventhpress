@@ -85,3 +85,38 @@ prose documentation:
   `start_date`/`end_date` are attributes, not nested elements.
   **`<license_ref>`'s URL is the element's own text content**, not a
   nested `<URI>` — `start_date` and `applies_to` are attributes.
+
+## Manuscript quality checks (`src/lib/manuscript-checks.ts`, `src/lib/citations.ts`)
+
+- **In-corpus similarity, not Crossref Similarity Check / iThenticate.**
+  `checkSimilarity()` is a real check — cosine similarity between the
+  submission's embedding and every other article already in this
+  journal — but it is not a substitute for a full Crossref Similarity
+  Check (iThenticate-powered) subscription, which checks against a far
+  larger cross-publisher index and requires paid credentials this
+  environment doesn't have. It genuinely catches duplicate/self-plagiarized
+  submissions against this journal's own back catalog (verified: a
+  deliberately near-duplicate test submission scored 80% against the
+  article it paraphrased), which the platform's previous
+  `Math.random()`-based mock score could never do.
+- **Citation validation is OpenAlex, not Crossref/Semantic Scholar.**
+  OpenAlex (https://openalex.org) is a free, keyless, well-documented
+  scholarly metadata index — DOI lookups at `/works/doi:{doi}`, fuzzy
+  title search at `/works?search=`. `api.openalex.org` is not reachable
+  from this development sandbox (network policy blocks scholarly-API
+  hosts here — confirmed as a categorical block, not a transient
+  failure), so `src/lib/citations.ts` was written against OpenAlex's
+  documented, stable REST shape and defensively parsed (a fetch failure
+  or shape mismatch degrades to `AMBIGUOUS`, never a crash or a false
+  `VALID`), but has not been exercised against the live API from this
+  environment. Run one real reference validation after deploying (where
+  outbound internet access is unrestricted) before relying on it.
+- **Image forensics and AI alt-text were scoped out of this pass.** The
+  Article model has no discrete figure/image data — galleys
+  (`galleyPdfKey`/`galleyHtmlKey`/`galleyJatsKey`) are single
+  whole-document files, not individual extracted images — so there is
+  nothing for either feature to operate on yet. Building them for real
+  would mean adding a figure-extraction pipeline and a `Figure`/
+  `ArticleAsset` model first; that's a bigger, separate piece of work,
+  not something to fake with placeholder UI that doesn't actually
+  analyze anything.

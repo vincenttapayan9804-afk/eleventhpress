@@ -29,6 +29,7 @@ export interface ArticleDetail extends ArticleListItem {
   plagiarismScore: number | null;
   integrityStatus?: string;
   funders?: string | null;
+  laySummary?: string | null;
   submittedAt: string | null;
   acceptedAt: string | null;
   issueTitle: string | null;

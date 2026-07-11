@@ -42,6 +42,7 @@ export async function GET(
     plagiarismScore: article.plagiarismScore,
     integrityStatus: article.integrityStatus,
     funders: article.funders,
+    laySummary: article.laySummary,
     submittedAt: article.submittedAt,
     acceptedAt: article.acceptedAt,
     publishedAt: article.publishedAt,

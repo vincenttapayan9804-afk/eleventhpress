@@ -130,7 +130,23 @@ model Article {
   // on the article page. NORMAL | CORRECTED | UNDER_CONCERN | RETRACTED
   integrityStatus String @default("NORMAL")
 
-  plagiarismScore Float?
+  // Real in-corpus similarity check (cosine similarity of this article's
+  // embedding against every other article's, via src/lib/manuscript-checks.ts)
+  // — catches duplicate/self-plagiarized submissions against this platform's
+  // own corpus. Not a substitute for a full Crossref Similarity Check /
+  // iThenticate subscription (which checks against a much larger index and
+  // requires paid credentials this environment doesn't have); see
+  // docs/standards.md for the scope note.
+  plagiarismScore    Float?
+  similarityReport   String?   // JSON: [{articleId, title, score}] top in-corpus matches
+  similarityCheckedAt DateTime?
+
+  // LLM-assisted checks (src/lib/manuscript-checks.ts) — both optional,
+  // author/editor-triggered, never run silently.
+  laySummary            String?
+  aiKeywordSuggestions  String?   // JSON array of suggested keyword strings
+  statisticalFlags      String?   // JSON array of {flag, severity, explanation}
+  statisticalCheckedAt  DateTime?
 
   // Funders — JSON array of {name, id?} (id = a Crossref Open Funder
   // Registry / ROR identifier where known). Lets authors under a funder
@@ -172,6 +188,7 @@ model Article {
   embedding     ArticleEmbedding?
   triageReport  EditorialTriageReport?
   corrections   Correction[]
+  references    Reference[]
 }
 
 // ---------------------------------------------------------------------------
@@ -202,6 +219,26 @@ model Correction {
 
   article       Article  @relation(fields: [articleId], references: [id])
   issuedBy      User     @relation(fields: [issuedById], references: [id])
+}
+
+// ---------------------------------------------------------------------------
+// References — author-submitted bibliography, validated against OpenAlex
+// (a free, keyless scholarly-metadata index; see src/lib/citations.ts and
+// docs/standards.md) so editors can see which cited works are genuinely
+// findable before publication.
+// ---------------------------------------------------------------------------
+model Reference {
+  id             String    @id @default(cuid())
+  articleId      String
+  rawText        String    // the citation as pasted by the author
+  status         String    @default("PENDING") // PENDING | VALID | NOT_FOUND | AMBIGUOUS
+  doi            String?   // resolved DOI, if found
+  resolvedTitle  String?   // title OpenAlex matched it to
+  openAlexId     String?
+  checkedAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  article        Article   @relation(fields: [articleId], references: [id])
 }
 
 // ---------------------------------------------------------------------------

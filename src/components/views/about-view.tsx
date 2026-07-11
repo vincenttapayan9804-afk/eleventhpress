@@ -106,7 +106,8 @@ export function AboutView() {
         <div className="mt-4 space-y-3 text-sm leading-relaxed text-foreground/85">
           <p>
             Every submission is initially screened by an associate editor for scope fit,
-            methodological soundness, and plagiarism (via iThenticate). Submissions that
+            methodological soundness, and an in-corpus similarity check against every
+            other article already in the journal. Submissions that
             pass initial screening are anonymised — for double-blind review, the
             Manuscript Service strips author names, affiliations, and PDF metadata
             automatically using a headless browser — and assigned to two or three

@@ -214,7 +214,7 @@ function runHeuristicTriage(article: any, authors: any[], reviewerPool: any[]): 
     methodologyFlags.push({ flag: "Insufficient keywords", severity: "info", explanation: "Fewer than 3 keywords provided; consider requesting more for better reviewer matching." });
   }
   if (article.plagiarismScore && article.plagiarismScore > 15) {
-    methodologyFlags.push({ flag: "High similarity score", severity: "concern", explanation: `iThenticate score of ${article.plagiarismScore}% exceeds the 15% threshold; editor should review the similarity report.` });
+    methodologyFlags.push({ flag: "High similarity score", severity: "concern", explanation: `In-corpus similarity of ${article.plagiarismScore}% exceeds the 15% threshold; editor should review the similarity report.` });
   }
   methodologyFlags.push({ flag: "Pre-screening complete", severity: "info", explanation: "Manuscript passed automated format and metadata checks." });
 

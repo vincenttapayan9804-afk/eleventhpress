@@ -66,6 +66,7 @@ export function ArticleView() {
   const [publicReviews, setPublicReviews] = useState<any[] | null>(null);
   const [openReviewStatus, setOpenReviewStatus] = useState<{ openReview: boolean; published: boolean } | null>(null);
   const [corrections, setCorrections] = useState<any[]>([]);
+  const [references, setReferences] = useState<any[]>([]);
   const canIssueCorrection = !!user && ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"].includes(user.role);
 
   useEffect(() => {
@@ -83,6 +84,10 @@ export function ArticleView() {
         apiFetch<{ corrections: any[] }>(`/api/articles/${articleId}/corrections`)
           .then((r) => setCorrections(r.corrections || []))
           .catch(() => setCorrections([]));
+        // Fetch references
+        apiFetch<{ references: any[] }>(`/api/articles/${articleId}/references`)
+          .then((r) => setReferences(r.references || []))
+          .catch(() => setReferences([]));
         // Fetch related
         apiFetch<{ items: ArticleDetail[] }>(
           `/api/articles?discipline=${encodeURIComponent(a.discipline)}&pageSize=4`
@@ -326,6 +331,13 @@ ER  - `;
                   {article.abstract}
                 </p>
 
+                {article.laySummary && (
+                  <div className="mt-4 rounded-md border border-primary/20 bg-primary/5 p-4 not-prose">
+                    <p className="eyebrow mb-1">Plain-language summary</p>
+                    <p className="text-sm leading-relaxed text-foreground/85">{article.laySummary}</p>
+                  </div>
+                )}
+
                 <h2 className="mt-8 font-display text-xl font-semibold">Article body</h2>
                 <p className="mt-2 text-sm leading-relaxed text-foreground/80">
                   The full typeset article body is rendered from the production galley
@@ -355,12 +367,34 @@ ER  - `;
                   from the article landing page.
                 </p>
 
-                <h3 className="mt-6 font-display text-lg font-semibold">References</h3>
-                <ol className="mt-2 list-decimal space-y-1 pl-5 text-xs text-foreground/70">
-                  <li>Mauduit, C. & Rivat, J. (2009). La somme des chiffres des nombres premiers. <em>Annals of Mathematics</em>, 171(3), 1591–1646.</li>
-                  <li>Patel, M. et al. (2023). Strain engineering in 2D materials. <em>Nature Reviews Physics</em>, 5, 412–429.</li>
-                  <li>Souza, A. B. & Kim, D. (2024). Lipid nanoparticle delivery of base editors. <em>Nature Biotechnology</em>, 42, 881–890.</li>
-                </ol>
+                {references.length > 0 && (
+                  <>
+                    <h3 className="mt-6 font-display text-lg font-semibold">References</h3>
+                    <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-xs text-foreground/70">
+                      {references.map((ref) => (
+                        <li key={ref.id}>
+                          {ref.doi ? (
+                            <a
+                              href={`https://doi.org/${ref.doi}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="hover:text-primary hover:underline"
+                            >
+                              {ref.rawText}
+                            </a>
+                          ) : (
+                            ref.rawText
+                          )}
+                          {ref.status === "NOT_FOUND" && (
+                            <Badge variant="outline" className="ml-1.5 align-middle text-[0.55rem] border-amber-300 bg-amber-50 text-amber-700">
+                              unverified
+                            </Badge>
+                          )}
+                        </li>
+                      ))}
+                    </ol>
+                  </>
+                )}
               </div>
 
               {/* Keywords */}
@@ -403,7 +437,7 @@ ER  - `;
                   <CardContent className="p-5">
                     <ShieldCheck className="h-5 w-5 text-primary" />
                     <p className="mt-2 font-display text-3xl font-semibold">{article.plagiarismScore ?? "—"}%</p>
-                    <p className="text-xs text-muted-foreground">iThenticate similarity</p>
+                    <p className="text-xs text-muted-foreground">In-corpus similarity</p>
                   </CardContent>
                 </Card>
               </div>

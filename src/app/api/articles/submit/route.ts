@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
+import { checkSimilarity } from "@/lib/manuscript-checks";
 
 /**
  * POST /api/articles/submit
  * Author submits a new manuscript. Triggers:
  *  - Draft DOI minting (mock Crossref)
- *  - Plagiarism check (mock iThenticate score)
+ *  - In-corpus similarity check (real cosine-similarity against this
+ *    journal's existing articles — see src/lib/manuscript-checks.ts)
  *  - Anonymization key generation (if double-blind)
  *  - Audit log + notification to editors
  */
@@ -23,7 +25,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const {
       title, abstract, keywords, discipline, authors, reviewModel, manuscriptKey, manuscriptName, openReview,
-      funders, apcWaiverRequested, apcWaiverReason,
+      funders, apcWaiverRequested, apcWaiverReason, references,
     } = body as {
       title: string;
       abstract: string;
@@ -37,6 +39,7 @@ export async function POST(req: NextRequest) {
       funders?: any[];
       apcWaiverRequested?: boolean;
       apcWaiverReason?: string;
+      references?: string[];
     };
 
     if (!title || !abstract || !discipline || !authors?.length) {
@@ -53,8 +56,9 @@ export async function POST(req: NextRequest) {
     const doiSuffix = Math.floor(Math.random() * 90000) + 10000;
     const draftDoi = `10.52011/epip.draft.${doiSuffix}`;
 
-    // Mock plagiarism score
-    const plagiarismScore = Math.floor(Math.random() * 18) + 2;
+    // Real in-corpus similarity check (see src/lib/manuscript-checks.ts)
+    const similarity = await checkSimilarity(`${title}. ${abstract}`);
+    const plagiarismScore = similarity.score;
 
     // If double-blind, we generate the anonymised copy by stripping author
     // metadata from the uploaded PDF. In the sandbox we just record the key
@@ -80,6 +84,8 @@ export async function POST(req: NextRequest) {
         reviewModel,
         openReview: openReview ?? false,
         plagiarismScore,
+        similarityReport: JSON.stringify(similarity.matches),
+        similarityCheckedAt: new Date(),
         funders: funders?.length ? JSON.stringify(funders) : null,
         apcWaiverRequested: apcWaiverRequested ?? false,
         apcWaiverReason: apcWaiverRequested ? apcWaiverReason || null : null,
@@ -87,6 +93,14 @@ export async function POST(req: NextRequest) {
         submittedAt: new Date(),
       },
     });
+
+    // References, if provided — validated later by an editor
+    const refLines = (references ?? []).map((r) => r.trim()).filter(Boolean);
+    if (refLines.length) {
+      await db.reference.createMany({
+        data: refLines.map((rawText) => ({ articleId: article.id, rawText })),
+      });
+    }
 
     // Audit log
     await db.auditLog.create({

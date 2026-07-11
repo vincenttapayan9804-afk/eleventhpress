@@ -136,7 +136,7 @@ export function AuthorArticlesTab({ submissions, onRefresh }: Props) {
 
               {s.plagiarismScore != null && (
                 <p className="mt-3 font-mono text-[0.65rem] text-muted-foreground">
-                  iThenticate similarity: {s.plagiarismScore}% · Review model: {s.reviewModel.replace("_", " ")}
+                  In-corpus similarity: {s.plagiarismScore}% · Review model: {s.reviewModel.replace("_", " ")}
                 </p>
               )}
             </CardContent>

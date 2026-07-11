@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
+import { generateEmbedding } from "@/lib/embeddings";
 
 /**
  * GET /api/articles/assign-reviewer?articleId=...
- *   Returns eligible reviewers (REVIEWER-role users) with expertise matching
- *   the article's discipline.
+ *   Returns eligible reviewers (REVIEWER-role users) ranked by semantic
+ *   similarity between the article's title/abstract/discipline and each
+ *   reviewer's expertise text (src/lib/embeddings.ts's hashed n-gram
+ *   embedding — same "real, corpus-relative, not a hosted semantic model"
+ *   approach used for search — see docs/standards.md), with a keyword
+ *   substring bonus so an exact discipline/keyword match still counts even
+ *   when the expertise text is too short for the hash embedding to be
+ *   informative on its own.
  *
  * POST /api/articles/assign-reviewer
  *   { articleId, reviewerId, dueDate? }
@@ -34,23 +41,49 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  // Compute simple keyword-match score against discipline + keywords
   const disciplineLower = article.discipline.toLowerCase();
   const articleKeywords = article.keywords.toLowerCase().split(/[,\s]+/).filter(Boolean);
+  const articleEmbedding = await generateEmbedding(
+    `${article.title}. ${article.abstract} ${article.keywords} ${article.discipline}`
+  );
 
-  const scored = reviewers
-    .map((r) => {
-      const expertise = (r.expertise || "").toLowerCase();
-      let score = 0;
-      if (expertise.includes(disciplineLower)) score += 3;
-      for (const kw of articleKeywords) {
-        if (expertise.includes(kw)) score += 2;
-      }
-      return { ...r, matchScore: score };
-    })
-    .sort((a, b) => b.matchScore - a.matchScore);
+  const scored = (
+    await Promise.all(
+      reviewers.map(async (r) => {
+        const expertiseRaw = r.expertise || "";
+        const expertise = expertiseRaw.toLowerCase();
+
+        let keywordBonus = 0;
+        if (expertise.includes(disciplineLower)) keywordBonus += 10;
+        for (const kw of articleKeywords) {
+          if (expertise.includes(kw)) keywordBonus += 5;
+        }
+
+        let semanticScore = 0;
+        if (expertiseRaw.trim()) {
+          const reviewerEmbedding = await generateEmbedding(expertiseRaw);
+          semanticScore = Math.round(cosineSimilarity(articleEmbedding, reviewerEmbedding) * 100);
+        }
+
+        const matchScore = Math.min(100, semanticScore + keywordBonus);
+        return { ...r, matchScore, semanticScore, keywordBonus };
+      })
+    )
+  ).sort((a, b) => b.matchScore - a.matchScore);
 
   return NextResponse.json({ reviewers: scored, articleDiscipline: article.discipline, articleKeywords });
+}
+
+function cosineSimilarity(a: number[], b: number[]): number {
+  if (a.length !== b.length) return 0;
+  let dot = 0, magA = 0, magB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    magA += a[i] * a[i];
+    magB += b[i] * b[i];
+  }
+  const denom = Math.sqrt(magA) * Math.sqrt(magB);
+  return denom === 0 ? 0 : Math.max(0, dot / denom);
 }
 
 export async function POST(req: NextRequest) {
