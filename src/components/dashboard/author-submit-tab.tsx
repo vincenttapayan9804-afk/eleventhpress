@@ -18,6 +18,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import {
   FileText,
@@ -33,8 +34,9 @@ import {
   Upload,
   CloudUpload,
   Globe2,
+  Landmark,
 } from "lucide-react";
-import { DISCIPLINES } from "@/lib/article";
+import { DISCIPLINES, CREDIT_ROLES } from "@/lib/article";
 
 interface Props {
   onSubmitted: () => void;
@@ -45,6 +47,14 @@ interface Author {
   affiliation: string;
   orcid?: string;
   email: string;
+  rorId?: string;
+  creditRoles?: string[];
+}
+
+interface Funder {
+  name: string;
+  id?: string;
+  awardNumber?: string;
 }
 
 interface UploadedFile {
@@ -67,6 +77,8 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
     discipline: "Physics",
     reviewModel: "DOUBLE_BLIND",
     openReview: false,
+    apcWaiverRequested: false,
+    apcWaiverReason: "",
   });
   const [authors, setAuthors] = useState<Author[]>([
     {
@@ -74,8 +86,11 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
       affiliation: user?.affiliation || "",
       orcid: user?.orcid || "",
       email: user?.email || "",
+      rorId: "",
+      creditRoles: [],
     },
   ]);
+  const [funders, setFunders] = useState<Funder[]>([]);
 
   // File upload state
   const [uploadedFile, setUploadedFile] = useState<UploadedFile | null>(null);
@@ -85,13 +100,32 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function addAuthor() {
-    setAuthors([...authors, { name: "", affiliation: "", email: "" }]);
+    setAuthors([...authors, { name: "", affiliation: "", email: "", rorId: "", creditRoles: [] }]);
   }
   function removeAuthor(i: number) {
     setAuthors(authors.filter((_, idx) => idx !== i));
   }
   function updateAuthor(i: number, field: keyof Author, value: string) {
     setAuthors(authors.map((a, idx) => (idx === i ? { ...a, [field]: value } : a)));
+  }
+  function toggleAuthorRole(i: number, role: string) {
+    setAuthors(
+      authors.map((a, idx) => {
+        if (idx !== i) return a;
+        const roles = a.creditRoles || [];
+        return { ...a, creditRoles: roles.includes(role) ? roles.filter((r) => r !== role) : [...roles, role] };
+      })
+    );
+  }
+
+  function addFunder() {
+    setFunders([...funders, { name: "", id: "", awardNumber: "" }]);
+  }
+  function removeFunder(i: number) {
+    setFunders(funders.filter((_, idx) => idx !== i));
+  }
+  function updateFunder(i: number, field: keyof Funder, value: string) {
+    setFunders(funders.map((f, idx) => (idx === i ? { ...f, [field]: value } : f)));
   }
 
   function canAdvance(): boolean {
@@ -211,6 +245,7 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
           body: JSON.stringify({
             ...form,
             authors,
+            funders,
             manuscriptKey: uploadedFile?.key,
             manuscriptName: uploadedFile?.filename,
           }),
@@ -251,7 +286,7 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
             )}
           </div>
           <div className="mt-6 flex justify-center gap-3">
-            <Button onClick={() => { setResult(null); setStep(1); setForm({ title: "", abstract: "", keywords: "", discipline: "Physics", reviewModel: "DOUBLE_BLIND", openReview: false }); setUploadedFile(null); }}>
+            <Button onClick={() => { setResult(null); setStep(1); setForm({ title: "", abstract: "", keywords: "", discipline: "Physics", reviewModel: "DOUBLE_BLIND", openReview: false, apcWaiverRequested: false, apcWaiverReason: "" }); setUploadedFile(null); setFunders([]); }}>
               Submit another
             </Button>
             <Button variant="outline" onClick={() => { onSubmitted(); openDashboard("myArticles"); }}>
@@ -451,12 +486,68 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
                         <Label className="text-xs">ORCID (optional)</Label>
                         <Input value={a.orcid || ""} onChange={(e) => updateAuthor(i, "orcid", e.target.value)} placeholder="0000-0002-..." />
                       </div>
+                      <div className="space-y-1 sm:col-span-2">
+                        <Label className="text-xs">ROR ID (optional)</Label>
+                        <Input
+                          value={a.rorId || ""}
+                          onChange={(e) => updateAuthor(i, "rorId", e.target.value)}
+                          placeholder="e.g. 057zh3y96 — from ror.org, identifies the affiliation above"
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-3 space-y-1.5">
+                      <Label className="text-xs">CRediT contributor roles (optional)</Label>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-3">
+                        {CREDIT_ROLES.map((role) => (
+                          <label key={role} className="flex items-center gap-1.5 text-xs">
+                            <Checkbox
+                              checked={(a.creditRoles || []).includes(role)}
+                              onCheckedChange={() => toggleAuthorRole(i, role)}
+                            />
+                            {role}
+                          </label>
+                        ))}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
               ))}
               <Button variant="outline" size="sm" onClick={addAuthor}>
                 <Plus className="mr-1.5 h-3.5 w-3.5" /> Add author
+              </Button>
+
+              <Separator className="my-4" />
+              <div className="space-y-1.5">
+                <Label className="flex items-center gap-1.5"><Landmark className="h-3.5 w-3.5" /> Funders (optional)</Label>
+                <p className="text-xs text-muted-foreground">
+                  Funding bodies that supported this research, for Crossref FundRef deposit.
+                </p>
+              </div>
+              {funders.map((f, i) => (
+                <Card key={i} className="border-border">
+                  <CardContent className="grid gap-3 p-4 sm:grid-cols-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Funder name</Label>
+                      <Input value={f.name} onChange={(e) => updateFunder(i, "name", e.target.value)} placeholder="National Science Foundation" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Funder ID (optional)</Label>
+                      <Input value={f.id || ""} onChange={(e) => updateFunder(i, "id", e.target.value)} placeholder="Crossref Funder ID / ROR" />
+                    </div>
+                    <div className="flex items-end gap-2">
+                      <div className="flex-1 space-y-1">
+                        <Label className="text-xs">Award number (optional)</Label>
+                        <Input value={f.awardNumber || ""} onChange={(e) => updateFunder(i, "awardNumber", e.target.value)} placeholder="GRANT-12345" />
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => removeFunder(i)}>
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+              <Button variant="outline" size="sm" onClick={addFunder}>
+                <Plus className="mr-1.5 h-3.5 w-3.5" /> Add funder
               </Button>
             </div>
           )}
@@ -515,6 +606,39 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
                     onCheckedChange={(v) => setForm({ ...form, openReview: v })}
                   />
                 </div>
+              </div>
+
+              {/* APC waiver request */}
+              <div className="rounded-md border border-border p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <Landmark className="h-4 w-4 text-primary" />
+                      <p className="font-display text-sm font-semibold">Request an APC waiver</p>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      If you cannot cover the article processing charge (e.g. no institutional funding,
+                      based in a low/middle-income country), request a full or partial waiver. An editor
+                      will review this request before the article proceeds to production.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={form.apcWaiverRequested}
+                    onCheckedChange={(v) => setForm({ ...form, apcWaiverRequested: v })}
+                  />
+                </div>
+                {form.apcWaiverRequested && (
+                  <div className="mt-3 space-y-1.5">
+                    <Label htmlFor="waiverReason" className="text-xs">Reason for waiver request</Label>
+                    <Textarea
+                      id="waiverReason"
+                      rows={3}
+                      placeholder="Briefly explain your funding situation…"
+                      value={form.apcWaiverReason}
+                      onChange={(e) => setForm({ ...form, apcWaiverReason: e.target.value })}
+                    />
+                  </div>
+                )}
               </div>
 
               <Separator className="my-4" />

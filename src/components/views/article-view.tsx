@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useApp } from "@/lib/store";
 import { apiFetch } from "@/lib/api-client";
 import { ArticleDetail } from "@/lib/types";
-import { DISCIPLINE_COLORS, parseAuthors, formatCitation } from "@/lib/article";
+import { DISCIPLINE_COLORS, parseAuthors, formatCitation, CORRECTION_TYPE_LABELS, CorrectionType } from "@/lib/article";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -58,13 +58,15 @@ import {
 import { toast } from "sonner";
 
 export function ArticleView() {
-  const { articleId, setView, openArticle } = useApp();
+  const { articleId, setView, openArticle, user } = useApp();
   const [article, setArticle] = useState<ArticleDetail | null>(null);
   const [related, setRelated] = useState<ArticleDetail[]>([]);
   const [loading, setLoading] = useState(true);
   const [citationFormat, setCitationFormat] = useState<"apa" | "bibtex" | "ris">("apa");
   const [publicReviews, setPublicReviews] = useState<any[] | null>(null);
   const [openReviewStatus, setOpenReviewStatus] = useState<{ openReview: boolean; published: boolean } | null>(null);
+  const [corrections, setCorrections] = useState<any[]>([]);
+  const canIssueCorrection = !!user && ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"].includes(user.role);
 
   useEffect(() => {
     if (!articleId) {
@@ -77,6 +79,10 @@ export function ArticleView() {
     apiFetch<ArticleDetail>(`/api/articles/${articleId}`)
       .then((a) => {
         setArticle(a);
+        // Fetch correction/retraction history
+        apiFetch<{ corrections: any[] }>(`/api/articles/${articleId}/corrections`)
+          .then((r) => setCorrections(r.corrections || []))
+          .catch(() => setCorrections([]));
         // Fetch related
         apiFetch<{ items: ArticleDetail[] }>(
           `/api/articles?discipline=${encodeURIComponent(a.discipline)}&pageSize=4`
@@ -205,6 +211,24 @@ ER  - `;
         <ArrowLeft className="mr-1.5 h-4 w-4" /> Back to browse
       </Button>
 
+      {/* Correction / retraction banner */}
+      {article.integrityStatus && article.integrityStatus !== "NORMAL" && (
+        <IntegrityBanner status={article.integrityStatus} corrections={corrections} />
+      )}
+
+      {/* Editor-only: issue a correction/retraction */}
+      {canIssueCorrection && article.status === "PUBLISHED" && (
+        <div className="mb-4 flex justify-end">
+          <IssueCorrectionDialog
+            articleId={article.id}
+            onIssued={(updated, newCorrections) => {
+              setArticle((prev) => (prev ? { ...prev, integrityStatus: updated } : prev));
+              setCorrections(newCorrections);
+            }}
+          />
+        </div>
+      )}
+
       {/* Premium Header */}
       <header className="border-b border-[oklch(0.76_0.11_294/0.15)] pb-8">
         <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -236,7 +260,22 @@ ER  - `;
               </div>
               <div>
                 <p className="font-sans text-sm font-medium leading-tight">{a.name}</p>
-                <p className="text-xs text-muted-foreground">{a.affiliation}</p>
+                <p className="text-xs text-muted-foreground">
+                  {a.affiliation}
+                  {a.rorId && (
+                    <>
+                      {" · "}
+                      <a
+                        href={`https://ror.org/${a.rorId}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="underline decoration-dotted underline-offset-2 hover:text-primary"
+                      >
+                        ROR
+                      </a>
+                    </>
+                  )}
+                </p>
                 {a.orcid && (
                   <a
                     href={`https://orcid.org/${a.orcid}`}
@@ -246,6 +285,11 @@ ER  - `;
                   >
                     ORCID {a.orcid}
                   </a>
+                )}
+                {a.creditRoles && a.creditRoles.length > 0 && (
+                  <p className="mt-0.5 max-w-[16rem] text-[0.65rem] text-muted-foreground">
+                    {a.creditRoles.join(", ")}
+                  </p>
                 )}
               </div>
             </div>
@@ -562,6 +606,131 @@ ER  - `;
         </section>
       )}
     </article>
+  );
+}
+
+const INTEGRITY_BANNER_COPY: Record<string, { label: string; tone: string }> = {
+  CORRECTED: { label: "Correction issued", tone: "border-amber-300 bg-amber-50 text-amber-900" },
+  UNDER_CONCERN: { label: "Expression of concern", tone: "border-amber-400 bg-amber-100 text-amber-950" },
+  RETRACTED: { label: "Retracted", tone: "border-red-400 bg-red-50 text-red-950" },
+};
+
+function IntegrityBanner({ status, corrections }: { status: string; corrections: any[] }) {
+  const copy = INTEGRITY_BANNER_COPY[status];
+  if (!copy) return null;
+  const latest = corrections[0];
+  return (
+    <div className={`mb-6 flex items-start gap-3 rounded-md border p-4 ${copy.tone}`}>
+      <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0" />
+      <div>
+        <p className="font-display text-sm font-semibold">{copy.label}</p>
+        {latest ? (
+          <>
+            <p className="mt-1 text-xs">{latest.title}</p>
+            <p className="mt-1 text-xs opacity-80">{latest.description}</p>
+            {latest.doi && (
+              <p className="mt-1 font-mono text-[0.65rem] opacity-80">
+                Notice DOI: {latest.doi}
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="mt-1 text-xs opacity-80">
+            This article's status has been updated by the editorial office.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function IssueCorrectionDialog({
+  articleId,
+  onIssued,
+}: {
+  articleId: string;
+  onIssued: (integrityStatus: string, corrections: any[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [type, setType] = useState<CorrectionType>("CORRIGENDUM");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+
+  async function submit() {
+    if (!title || !description) return;
+    setSubmitting(true);
+    try {
+      await apiFetch(`/api/articles/${articleId}/corrections`, {
+        method: "POST",
+        body: JSON.stringify({ type, title, description }),
+      });
+      const { corrections } = await apiFetch<{ corrections: any[] }>(`/api/articles/${articleId}/corrections`);
+      const integrityStatus =
+        type === "RETRACTION" ? "RETRACTED" : type === "EXPRESSION_OF_CONCERN" ? "UNDER_CONCERN" : "CORRECTED";
+      onIssued(integrityStatus, corrections);
+      toast.success(`${CORRECTION_TYPE_LABELS[type]} issued`, {
+        description: "Crossmark update deposited and the article page now shows the notice.",
+      });
+      setOpen(false);
+      setTitle("");
+      setDescription("");
+    } catch (e: any) {
+      toast.error("Failed to issue correction", { description: e.message });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="text-amber-700">
+          <AlertTriangle className="mr-1.5 h-3.5 w-3.5" /> Issue correction/retraction
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Issue a correction or retraction</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Type</Label>
+            <Select value={type} onValueChange={(v) => setType(v as CorrectionType)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(Object.keys(CORRECTION_TYPE_LABELS) as CorrectionType[]).map((k) => (
+                  <SelectItem key={k} value={k}>{CORRECTION_TYPE_LABELS[k]}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Notice title</Label>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Short summary of the notice" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Description</Label>
+            <Textarea
+              rows={5}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Explain what was wrong and, if applicable, how it was corrected. This will be shown publicly on the article page."
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            This mints a new DOI for the notice, deposits it to Crossref, and re-deposits the
+            original DOI with a Crossmark update pointing at it. This cannot be undone from the UI.
+          </p>
+          <Button onClick={submit} disabled={submitting || !title || !description} className="w-full">
+            {submitting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
+            Issue {CORRECTION_TYPE_LABELS[type].toLowerCase()}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

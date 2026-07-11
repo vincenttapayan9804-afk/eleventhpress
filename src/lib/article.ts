@@ -79,13 +79,78 @@ export interface ArticleAuthor {
   affiliation: string;
   orcid?: string;
   email: string;
+  // Research Organization Registry ID for `affiliation` (e.g. "01an7q238") —
+  // optional, since not every institution is registered yet.
+  rorId?: string;
+  // ANSI/NISO Z39.104 CRediT contributor roles this author performed.
+  creditRoles?: string[];
 }
+
+/** The 14 standard CRediT contributor roles (ANSI/NISO Z39.104-2022). */
+export const CREDIT_ROLES = [
+  "Conceptualization",
+  "Data curation",
+  "Formal analysis",
+  "Funding acquisition",
+  "Investigation",
+  "Methodology",
+  "Project administration",
+  "Resources",
+  "Software",
+  "Supervision",
+  "Validation",
+  "Visualization",
+  "Writing – original draft",
+  "Writing – review & editing",
+] as const;
 
 export function parseAuthors(raw: string): ArticleAuthor[] {
   try {
     return JSON.parse(raw) as ArticleAuthor[];
   } catch {
     return [];
+  }
+}
+
+export interface ArticleFunder {
+  name: string;
+  id?: string; // Crossref Open Funder Registry / ROR identifier, where known
+  awardNumber?: string;
+}
+
+export function parseFunders(raw: string | null | undefined): ArticleFunder[] {
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw) as ArticleFunder[];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Per COPE/ICMJE convention: a Corrigendum fixes an author error, an
+ * Erratum fixes a publisher error, an Expression of Concern flags
+ * unresolved doubt pending investigation, a Retraction withdraws the
+ * findings entirely. See docs/standards.md for sources.
+ */
+export type CorrectionType = "CORRIGENDUM" | "ERRATUM" | "EXPRESSION_OF_CONCERN" | "RETRACTION";
+
+export const CORRECTION_TYPE_LABELS: Record<CorrectionType, string> = {
+  CORRIGENDUM: "Corrigendum",
+  ERRATUM: "Erratum",
+  EXPRESSION_OF_CONCERN: "Expression of Concern",
+  RETRACTION: "Retraction",
+};
+
+/** Maps a correction type to the resulting Article.integrityStatus value. */
+export function correctionTypeToIntegrityStatus(type: CorrectionType): string {
+  switch (type) {
+    case "RETRACTION":
+      return "RETRACTED";
+    case "EXPRESSION_OF_CONCERN":
+      return "UNDER_CONCERN";
+    default:
+      return "CORRECTED";
   }
 }
 

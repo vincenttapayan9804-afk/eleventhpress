@@ -29,6 +29,7 @@ export async function GET(req: NextRequest) {
       domain: i.domain,
       country: i.country,
       ipRanges: i.ipRanges,
+      rorId: i.rorId,
       plan: i.plan,
       status: i.status,
       currentPeriodEnd: i.currentPeriodEnd,

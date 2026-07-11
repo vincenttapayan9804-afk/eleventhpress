@@ -40,6 +40,8 @@ export async function GET(
     downloads: article.downloads,
     citations: article.citations,
     plagiarismScore: article.plagiarismScore,
+    integrityStatus: article.integrityStatus,
+    funders: article.funders,
     submittedAt: article.submittedAt,
     acceptedAt: article.acceptedAt,
     publishedAt: article.publishedAt,

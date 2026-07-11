@@ -21,7 +21,10 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { title, abstract, keywords, discipline, authors, reviewModel, manuscriptKey, manuscriptName, openReview } = body as {
+    const {
+      title, abstract, keywords, discipline, authors, reviewModel, manuscriptKey, manuscriptName, openReview,
+      funders, apcWaiverRequested, apcWaiverReason,
+    } = body as {
       title: string;
       abstract: string;
       keywords: string;
@@ -31,6 +34,9 @@ export async function POST(req: NextRequest) {
       manuscriptKey?: string;
       manuscriptName?: string;
       openReview?: boolean;
+      funders?: any[];
+      apcWaiverRequested?: boolean;
+      apcWaiverReason?: string;
     };
 
     if (!title || !abstract || !discipline || !authors?.length) {
@@ -74,6 +80,10 @@ export async function POST(req: NextRequest) {
         reviewModel,
         openReview: openReview ?? false,
         plagiarismScore,
+        funders: funders?.length ? JSON.stringify(funders) : null,
+        apcWaiverRequested: apcWaiverRequested ?? false,
+        apcWaiverReason: apcWaiverRequested ? apcWaiverReason || null : null,
+        apcWaiverStatus: apcWaiverRequested ? "REQUESTED" : "NONE",
         submittedAt: new Date(),
       },
     });

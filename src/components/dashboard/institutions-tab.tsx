@@ -25,6 +25,7 @@ interface Institution {
   domain: string | null;
   country: string | null;
   ipRanges: string;
+  rorId: string | null;
   plan: string;
   status: string;
   currentPeriodEnd: string | null;
@@ -155,6 +156,19 @@ export function InstitutionsTab() {
                         {inst.counterCustomerId && (
                           <p className="flex items-center gap-1">
                             <Shield className="h-3 w-3" /> COUNTER: {inst.counterCustomerId}
+                          </p>
+                        )}
+                        {inst.rorId && (
+                          <p className="flex items-center gap-1">
+                            <Network className="h-3 w-3" />
+                            <a
+                              href={`https://ror.org/${inst.rorId}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="underline decoration-dotted underline-offset-2 hover:text-primary"
+                            >
+                              ROR: {inst.rorId}
+                            </a>
                           </p>
                         )}
                         <p className="flex items-center gap-1">

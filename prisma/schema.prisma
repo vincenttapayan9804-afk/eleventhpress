@@ -59,6 +59,7 @@ model User {
   notifications        Notification[]
   auditLogs            AuditLog[]
   institution          Institution? @relation(fields: [institutionId], references: [id])
+  correctionsIssued    Correction[]
 }
 
 // ---------------------------------------------------------------------------
@@ -121,7 +122,27 @@ model Article {
   reviewModel   String   @default("DOUBLE_BLIND") // SINGLE_BLIND | DOUBLE_BLIND | OPEN
   openReview    Boolean  @default(false) // If true, completed reviews are made public when article is published
 
+  // Post-publication integrity status — independent of the editorial
+  // workflow `status` above, since a PUBLISHED article can later be
+  // corrected or retracted without re-entering the submission pipeline.
+  // Reflects the most recent Correction issued (see the Correction model);
+  // full history lives there, this is just the current-state summary shown
+  // on the article page. NORMAL | CORRECTED | UNDER_CONCERN | RETRACTED
+  integrityStatus String @default("NORMAL")
+
   plagiarismScore Float?
+
+  // Funders — JSON array of {name, id?} (id = a Crossref Open Funder
+  // Registry / ROR identifier where known). Lets authors under a funder
+  // mandate (e.g. NIH, Plan S signatories) prove compliance through
+  // deposited metadata.
+  funders       String?
+
+  // Individual APC fee waiver (Plan S requires waivers be genuinely
+  // available on request, not just theoretically offered)
+  apcWaiverRequested Boolean @default(false)
+  apcWaiverReason    String?
+  apcWaiverStatus    String  @default("NONE") // NONE | REQUESTED | APPROVED | DENIED
 
   // Crossref deposit tracking
   crossrefBatchId   String?  // Crossref-assigned batch ID after successful deposit
@@ -150,6 +171,37 @@ model Article {
   datasets      DatasetLink[]
   embedding     ArticleEmbedding?
   triageReport  EditorialTriageReport?
+  corrections   Correction[]
+}
+
+// ---------------------------------------------------------------------------
+// Corrections, errata, expressions of concern, and retractions.
+// Per COPE/ICMJE convention (see docs/ojs-interop.md's sibling,
+// docs/standards.md, for sources): a Corrigendum fixes an author error, an
+// Erratum fixes a publisher error, an Expression of Concern flags unresolved
+// doubt pending investigation, and a Retraction withdraws the findings
+// entirely. Each gets its own notice, its own DOI, and — once deposited —
+// a Crossmark registration so readers see the update even after the PDF
+// has already been downloaded.
+// ---------------------------------------------------------------------------
+model Correction {
+  id            String   @id @default(cuid())
+  articleId     String
+  type          String   // CORRIGENDUM | ERRATUM | EXPRESSION_OF_CONCERN | RETRACTION
+  title         String
+  description   String
+  doi           String?  // DOI minted for this correction/retraction notice itself
+  issuedById    String
+  issuedAt      DateTime @default(now())
+
+  // Crossmark / Crossref update registration
+  crossmarkRegisteredAt DateTime?
+  crossrefDepositLog    String?  // JSON-stringified deposit response, mirrors Article's own field
+
+  createdAt     DateTime @default(now())
+
+  article       Article  @relation(fields: [articleId], references: [id])
+  issuedBy      User     @relation(fields: [issuedById], references: [id])
 }
 
 // ---------------------------------------------------------------------------
@@ -342,6 +394,10 @@ model Institution {
   name            String
   domain          String?  // e.g. "harvard.edu"
   country         String?
+  // Research Organization Registry ID (e.g. "01an7q238") — the persistent
+  // institutional identifier now expected by Crossref/DataCite/ORCID
+  // metadata in place of free-text affiliation strings.
+  rorId           String?
   // IP ranges in CIDR notation, comma-separated (e.g. "128.103.0.0/16,140.247.0.0/16")
   ipRanges        String
   // SSO / Shibboleth entity ID (optional)

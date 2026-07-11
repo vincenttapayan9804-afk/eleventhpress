@@ -27,6 +27,8 @@ export interface ArticleDetail extends ArticleListItem {
   galleyPdfKey: string | null;
   galleyHtmlKey: string | null;
   plagiarismScore: number | null;
+  integrityStatus?: string;
+  funders?: string | null;
   submittedAt: string | null;
   acceptedAt: string | null;
   issueTitle: string | null;
