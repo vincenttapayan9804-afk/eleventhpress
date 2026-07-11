@@ -27,7 +27,7 @@ export async function GET(
 
   const { articles, journal, ...issueRest } = issue;
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
-${buildOjsIssueXml({ issue: issueRest, articles, journal })}`;
+${await buildOjsIssueXml({ issue: issueRest, articles, journal })}`;
 
   return new NextResponse(xml, {
     headers: {

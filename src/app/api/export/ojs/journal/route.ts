@@ -20,7 +20,7 @@ export async function GET() {
     orderBy: [{ year: "asc" }, { volume: "asc" }, { issueNumber: "asc" }],
   });
 
-  const xml = buildOjsIssuesExportXml({
+  const xml = await buildOjsIssuesExportXml({
     journal,
     issues: issues.map(({ articles, ...issue }) => ({ issue, articles })),
   });

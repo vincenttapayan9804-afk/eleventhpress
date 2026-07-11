@@ -19,8 +19,9 @@ next-env.d.ts
 *.db-journal
 prisma/*.db
 
-# local file storage (simulated S3 buckets)
-storage/
+# local file storage (simulated S3 buckets) — root-anchored so this
+# doesn't also match src/app/api/storage/, which is real source code
+/storage/
 
 # logs
 dev.log

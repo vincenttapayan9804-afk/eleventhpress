@@ -144,23 +144,25 @@ ${keywords.map((k) => `          <keyword>${esc(k)}</keyword>`).join("\n")}
  * `id: int`, no href/URL), which doesn't fit a "point at an already-hosted
  * galley" export like this one.
  */
-function buildGalleysXml(article: any): string {
+async function buildGalleysXml(article: any): Promise<string> {
   const galleys: string[] = [];
   if (article.galleyPdfKey) {
+    const src = await presignGet(article.galleyPdfKey);
     galleys.push(
       `        <article_galley approved="true" galley_type="PDF">
           <name locale="${DEFAULT_LOCALE}">PDF</name>
           <seq>1</seq>
-          <remote src="${esc(absoluteUrl(presignGet(article.galleyPdfKey)))}"/>
+          <remote src="${esc(absoluteUrl(src))}"/>
         </article_galley>`
     );
   }
   if (article.galleyHtmlKey) {
+    const src = await presignGet(article.galleyHtmlKey);
     galleys.push(
       `        <article_galley approved="true" galley_type="HTML">
           <name locale="${DEFAULT_LOCALE}">HTML</name>
           <seq>2</seq>
-          <remote src="${esc(absoluteUrl(presignGet(article.galleyHtmlKey)))}"/>
+          <remote src="${esc(absoluteUrl(src))}"/>
         </article_galley>`
     );
   }
@@ -174,7 +176,7 @@ function buildGalleysXml(article: any): string {
  * one <publication>, which is where title/abstract/authors/galleys/DOI
  * actually live per the schema.
  */
-export function buildOjsArticleXml(input: { article: any; issue: any; journal: any }): string {
+export async function buildOjsArticleXml(input: { article: any; issue: any; journal: any }): Promise<string> {
   const { article } = input;
   const sectionRef = disciplineToSectionRef(article.discipline);
   const stage = mapStatusToOjsStage(article.status);
@@ -185,6 +187,7 @@ export function buildOjsArticleXml(input: { article: any; issue: any; journal: a
     : new Date().getFullYear();
   const authors = parseAuthors(article.authors);
   const copyrightHolder = authors[0]?.name || "";
+  const galleysXml = await buildGalleysXml(article);
 
   return `<article xmlns="${OJS_NS}" locale="${DEFAULT_LOCALE}" date_submitted="${dateSubmitted}" stage="${stage}">
       <publication date_submitted="${dateSubmitted}"${
@@ -200,7 +203,7 @@ ${buildKeywordsXml(article.keywords)}
         <authors>
 ${buildAuthorsXml(article.authors)}
         </authors>
-${buildGalleysXml(article)}
+${galleysXml}
       </publication>
     </article>`;
 }
@@ -223,13 +226,13 @@ function buildSectionXml(discipline: string): string {
  * discipline among the given articles, declared before <articles> per the
  * schema's child order) and nested <articles>.
  */
-export function buildOjsIssueXml(input: { issue: any; articles: any[]; journal: any }): string {
+export async function buildOjsIssueXml(input: { issue: any; articles: any[]; journal: any }): Promise<string> {
   const { issue, articles, journal } = input;
   const disciplines = Array.from(new Set(articles.map((a) => a.discipline).filter(Boolean)));
   const sectionsXml = disciplines.map(buildSectionXml).join("\n");
-  const articlesXml = articles
-    .map((a) => buildOjsArticleXml({ article: a, issue, journal }))
-    .join("\n");
+  const articlesXml = (
+    await Promise.all(articles.map((a) => buildOjsArticleXml({ article: a, issue, journal })))
+  ).join("\n");
 
   return `<issue xmlns="${OJS_NS}" published="${intBool(!!issue.publishedAt)}" current="${intBool(
     false
@@ -252,14 +255,18 @@ ${articlesXml || "    <!-- no published articles in this issue -->"}
  * Builds the bulk <issues> root wrapping every given issue — the format
  * PKP's admin guide recommends for back-issue / bulk import.
  */
-export function buildOjsIssuesExportXml(input: {
+export async function buildOjsIssuesExportXml(input: {
   journal: any;
   issues: { issue: any; articles: any[] }[];
-}): string {
+}): Promise<string> {
   const { issues } = input;
-  const issuesXml = issues
-    .map(({ issue, articles }) => indent(buildOjsIssueXml({ issue, articles, journal: input.journal }), 2))
-    .join("\n");
+  const issuesXml = (
+    await Promise.all(
+      issues.map(async ({ issue, articles }) =>
+        indent(await buildOjsIssueXml({ issue, articles, journal: input.journal }), 2)
+      )
+    )
+  ).join("\n");
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!-- PKP Native XML export — Eleventh Press International Publishing.

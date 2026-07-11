@@ -18,10 +18,13 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { Loader2, Mail, Lock, User as UserIcon, Building2, Globe2, Tag, BookOpen, ArrowLeft, KeyRound } from "lucide-react";
 
+// Only roles a registrant can grant themselves — matches the backend's
+// SELF_SELECTABLE_ROLES in src/app/api/auth/register/route.ts. Reviewer,
+// editor, and admin access are invited/promoted by the editorial office,
+// never self-service.
 const ROLES = [
   { value: "READER", label: "Reader — subscribe and read articles" },
   { value: "AUTHOR", label: "Author — submit manuscripts" },
-  { value: "REVIEWER", label: "Reviewer — peer-review submissions" },
 ];
 
 export function AuthView() {

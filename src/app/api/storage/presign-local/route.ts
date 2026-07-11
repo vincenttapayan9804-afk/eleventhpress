@@ -1,0 +1,69 @@
+import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
+import { db } from "@/lib/db";
+import { getSessionFromHeaders } from "@/lib/auth";
+
+const ALLOWED_CONTENT_TYPES = [
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/msword",
+  "text/markdown",
+  "text/plain",
+  "text/html",
+  "application/x-tex",
+];
+const PRESIGN_TTL_MS = 10 * 60 * 1000;
+
+/**
+ * POST /api/storage/presign-local
+ * Dev-only fallback used when no Blob storage is connected (see
+ * GET /api/storage/mode). Simpler contract than Vercel Blob's client-upload
+ * protocol: returns a URL the browser PUTs the raw file bytes to directly,
+ * proxied through this app's own /api/storage/upload-local/[token] route
+ * and written to local disk — fine for local testing, but note this proxies
+ * bytes through a serverless function, so it does NOT scale to large files
+ * on a real Vercel deployment the way the Blob-backed flow does.
+ */
+export async function POST(req: NextRequest) {
+  const session = getSessionFromHeaders(req.headers);
+  if (!session) {
+    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  }
+
+  const { filename, contentType, bucket } = (await req.json()) as {
+    filename?: string;
+    contentType?: string;
+    bucket?: string;
+  };
+  if (!filename) {
+    return NextResponse.json({ error: "filename is required" }, { status: 400 });
+  }
+  if (contentType && !ALLOWED_CONTENT_TYPES.includes(contentType)) {
+    return NextResponse.json({ error: `Unsupported content type: ${contentType}` }, { status: 400 });
+  }
+
+  const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const key = `${bucket || "raw-submissions"}/${session.userId}/${Date.now()}-${safeName}`;
+  const token = crypto.randomBytes(24).toString("hex");
+  const presignExpiresAt = new Date(Date.now() + PRESIGN_TTL_MS);
+
+  await db.storageObject.create({
+    data: {
+      bucket: bucket || "raw-submissions",
+      key,
+      fileName: filename,
+      contentType: contentType || "application/octet-stream",
+      sizeBytes: 0,
+      uploadStatus: "PENDING",
+      uploadedBy: session.userId,
+      presignToken: token,
+      presignExpiresAt,
+    },
+  });
+
+  return NextResponse.json({
+    uploadUrl: `/api/storage/upload-local/${token}`,
+    key,
+    headers: { "Content-Type": contentType || "application/octet-stream" },
+  });
+}

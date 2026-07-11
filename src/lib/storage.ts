@@ -1,16 +1,18 @@
 /**
- * Local storage service — simulates AWS S3 with pre-signed URLs.
+ * Storage service — real object storage via Vercel Blob when configured
+ * (BLOB_READ_WRITE_TOKEN present, which Vercel injects automatically once
+ * Blob storage is connected to the project), falling back to the local
+ * filesystem otherwise. Vercel's serverless functions have a read-only
+ * filesystem outside /tmp, so the local-filesystem path is a dev-only
+ * convenience, not a production storage layer — Blob is what makes uploads
+ * actually persist on a real deployment.
  *
- * In production, swap these functions for the AWS S3 SDK:
- *   - putObject     → s3.putObject(...)
- *   - presignGet    → s3.getSignedUrlPromise("getObject", ...)
- *   - getObject     → s3.getObject(...)
- *
- * Here we use the local filesystem under /home/z/my-project/storage/
- * with three "buckets": raw-submissions, anonymized-manuscripts, published-galleys.
+ * Three "buckets": raw-submissions, anonymized-manuscripts, published-galleys.
  */
 import { promises as fs } from "fs";
 import path from "path";
+import crypto from "crypto";
+import { put, get, head, del } from "@vercel/blob";
 
 const STORAGE_ROOT = path.resolve(process.cwd(), "storage");
 
@@ -20,8 +22,13 @@ const BUCKET_DIRS: Record<string, string> = {
   "published-galleys": path.join(STORAGE_ROOT, "published-galleys"),
 };
 
-/** Ensure all bucket directories exist. */
+export function usingBlob(): boolean {
+  return !!process.env.BLOB_READ_WRITE_TOKEN;
+}
+
+/** Ensure all local bucket directories exist (no-op in Blob mode). */
 export async function ensureBuckets(): Promise<void> {
+  if (usingBlob()) return;
   for (const dir of Object.values(BUCKET_DIRS)) {
     await fs.mkdir(dir, { recursive: true });
   }
@@ -41,15 +48,24 @@ function parseKey(key: string): { bucket: string; path: string } {
   return { bucket, path: rest };
 }
 
-/**
- * Write a buffer to local storage under the given key.
- * Equivalent to S3 PutObject.
- */
+/** Write a buffer to storage under the given key. */
 export async function putObject(
   key: string,
   data: Buffer,
   contentType: string
 ): Promise<{ key: string; size: number; etag: string }> {
+  const etag = crypto.createHash("md5").update(data).digest("hex");
+
+  if (usingBlob()) {
+    await put(key, data, {
+      access: "public",
+      contentType,
+      addRandomSuffix: false,
+      allowOverwrite: true,
+    });
+    return { key, size: data.length, etag };
+  }
+
   const { bucket, path: relPath } = parseKey(key);
   const bucketDir = BUCKET_DIRS[bucket];
   if (!bucketDir) {
@@ -58,17 +74,28 @@ export async function putObject(
   const fullPath = path.join(bucketDir, relPath);
   await fs.mkdir(path.dirname(fullPath), { recursive: true });
   await fs.writeFile(fullPath, data);
-
-  const crypto = await import("crypto");
-  const etag = crypto.createHash("md5").update(data).digest("hex");
   return { key, size: data.length, etag };
 }
 
-/**
- * Read an object from local storage.
- * Equivalent to S3 GetObject.
- */
+/** Read an object from storage. */
 export async function getObject(key: string): Promise<Buffer | null> {
+  if (usingBlob()) {
+    try {
+      const result = await get(key, { access: "public" });
+      if (!result || result.statusCode !== 200) return null;
+      const chunks: Uint8Array[] = [];
+      const reader = result.stream.getReader();
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value) chunks.push(value);
+      }
+      return Buffer.concat(chunks);
+    } catch {
+      return null;
+    }
+  }
+
   const { bucket, path: relPath } = parseKey(key);
   const bucketDir = BUCKET_DIRS[bucket];
   if (!bucketDir) return null;
@@ -81,26 +108,51 @@ export async function getObject(key: string): Promise<Buffer | null> {
 }
 
 /**
- * Generate a "pre-signed GET URL" for an object.
- * In production this would be an S3 pre-signed URL with a short TTL.
- * Here we return a relative URL that hits our /api/storage/download endpoint.
+ * Generate a download URL for an object. In Blob mode this is the blob's
+ * real, directly-fetchable public URL (optionally forcing a download
+ * filename via Blob's `?download=` convention); otherwise it's a relative
+ * URL that hits our own /api/storage/download endpoint.
  */
-export function presignGet(key: string): string {
-  return `/api/storage/download?key=${encodeURIComponent(key)}`;
+export async function presignGet(key: string, downloadFilename?: string): Promise<string> {
+  if (usingBlob()) {
+    try {
+      const meta = await head(key);
+      const url = new URL(meta.url);
+      if (downloadFilename) url.searchParams.set("download", downloadFilename);
+      return url.toString();
+    } catch {
+      // Object doesn't exist yet — fall through to a best-effort local-style URL
+      // so callers still get a string back rather than throwing.
+    }
+  }
+
+  const qs = new URLSearchParams({ key });
+  if (downloadFilename) qs.set("filename", downloadFilename);
+  return `/api/storage/download?${qs.toString()}`;
 }
 
-/**
- * Check if an object exists.
- */
+/** Check if an object exists. */
 export async function objectExists(key: string): Promise<boolean> {
+  if (usingBlob()) {
+    try {
+      await head(key);
+      return true;
+    } catch {
+      return false;
+    }
+  }
   const buf = await getObject(key);
   return buf !== null;
 }
 
-/**
- * Delete an object.
- */
+/** Delete an object. */
 export async function deleteObject(key: string): Promise<void> {
+  if (usingBlob()) {
+    try {
+      await del(key);
+    } catch {}
+    return;
+  }
   const { bucket, path: relPath } = parseKey(key);
   const bucketDir = BUCKET_DIRS[bucket];
   if (!bucketDir) return;

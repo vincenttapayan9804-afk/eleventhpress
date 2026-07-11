@@ -24,7 +24,7 @@ export async function GET(
   }
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
-${buildOjsArticleXml({ article, issue: article.issue, journal: article.journal })}`;
+${await buildOjsArticleXml({ article, issue: article.issue, journal: article.journal })}`;
 
   return new NextResponse(xml, {
     headers: {

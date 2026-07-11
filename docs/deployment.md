@@ -11,6 +11,22 @@ bundled a read-only SQLite snapshot as a stopgap (Vercel's serverless
 filesystem is read-only outside `/tmp`, and `/tmp` isn't persistent or
 shared across instances, so SQLite never was a real option there).
 
+## Sessions and file uploads also need real configuration now
+
+Two more env vars matter beyond the database:
+
+- **`SESSION_SECRET`** — required in production; the app throws at startup
+  without it (`src/lib/auth.ts`). Sessions are signed JWTs now, not the
+  original unsigned base64 mock. Generate one with
+  `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
+- **`BLOB_READ_WRITE_TOKEN`** — enables real manuscript uploads via Vercel
+  Blob. Connect a Blob store the same way as Postgres (project → **Storage**
+  tab → create a Blob store), and this is injected automatically. Without
+  it, the upload flow falls back to a local-disk dev mode
+  (`GET /api/storage/mode` reports which one is active) that does not work
+  once deployed, since Vercel's serverless filesystem is read-only outside
+  `/tmp`.
+
 ## What still doesn't run on Vercel
 
 - **Production galley generation (Pandoc/WeasyPrint) and the realtime

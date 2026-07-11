@@ -1,9 +1,17 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Activity,
   CheckCircle2,
@@ -15,11 +23,119 @@ import {
   CreditCard,
   XCircle,
   Sparkles,
+  Users,
 } from "lucide-react";
+import { apiFetch } from "@/lib/api-client";
+import { toast } from "sonner";
 
 interface Props {
   audit: any[];
   stats?: { published: number; inReview: number; accepted: number; submitted: number };
+}
+
+interface AdminUser {
+  id: string;
+  email: string;
+  fullName: string;
+  role: string;
+  affiliation: string | null;
+  country: string | null;
+  createdAt: string;
+}
+
+const ASSIGNABLE_ROLES = ["READER", "AUTHOR", "REVIEWER", "ASSOCIATE_EDITOR", "EDITOR", "SUPER_ADMIN"];
+
+function UserManagementCard() {
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [savingId, setSavingId] = useState<string | null>(null);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const res = await apiFetch<{ users: AdminUser[] }>("/api/admin/users");
+      setUsers(res.users);
+    } catch (e: any) {
+      toast.error("Failed to load users", { description: e.message });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function changeRole(userId: string, role: string) {
+    setSavingId(userId);
+    try {
+      await apiFetch(`/api/admin/users/${userId}/role`, {
+        method: "POST",
+        body: JSON.stringify({ role }),
+      });
+      setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, role } : u)));
+      toast.success("Role updated");
+    } catch (e: any) {
+      toast.error("Failed to update role", { description: e.message });
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  return (
+    <Card className="paper-card">
+      <CardHeader className="pb-3">
+        <div className="flex items-center gap-2">
+          <Users className="h-4 w-4 text-primary" />
+          <p className="eyebrow">User management</p>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Registration can only ever create Reader or Author accounts. Reviewer, editor, and admin
+          access is granted here — the only place a privileged role can be assigned.
+        </p>
+      </CardHeader>
+      <CardContent>
+        <ScrollArea className="h-96 pr-3 epip-scroll">
+          {loading ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">Loading…</p>
+          ) : (
+            <div className="space-y-2">
+              {users.map((u) => (
+                <div
+                  key={u.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border p-3"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">{u.fullName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {u.email}
+                      {u.affiliation ? ` · ${u.affiliation}` : ""}
+                    </p>
+                  </div>
+                  <Select
+                    value={u.role}
+                    onValueChange={(v) => changeRole(u.id, v)}
+                    disabled={savingId === u.id}
+                  >
+                    <SelectTrigger className="h-9 w-44">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ASSIGNABLE_ROLES.map((r) => (
+                        <SelectItem key={r} value={r}>
+                          {r}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ))}
+            </div>
+          )}
+        </ScrollArea>
+      </CardContent>
+    </Card>
+  );
 }
 
 const ACTION_ICONS: Record<string, any> = {
@@ -46,6 +162,8 @@ export function AdminTab({ audit, stats }: Props) {
           <StatTile icon={FileText} label="Published" value={stats.published} color="text-primary" />
         </div>
       )}
+
+      <UserManagementCard />
 
       {/* Audit log */}
       <Card className="paper-card">

@@ -130,41 +130,62 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
     setUploading(true);
     setUploadProgress(0);
     try {
-      // 1. Request a pre-signed PUT URL from the storage API.
-      const presign = await apiFetch<{
-        uploadUrl: string;
-        key: string;
-        headers: Record<string, string>;
-      }>("/api/storage/presign", {
-        method: "POST",
-        body: JSON.stringify({
-          filename: file.name,
-          contentType: file.type || "application/octet-stream",
-          bucket: "raw-submissions",
-        }),
-      });
+      // Ask which upload flow is live: Vercel Blob's real client-upload
+      // protocol (production, once Blob storage is connected — uploads go
+      // straight from the browser to Blob storage, bypassing this app's
+      // serverless functions entirely so large manuscripts don't hit
+      // request-body size limits) or the simpler local-proxy fallback
+      // (dev, when no Blob storage is configured).
+      const { mode } = await apiFetch<{ mode: "blob" | "local" }>("/api/storage/mode", { method: "GET" });
 
-      // 2. Upload directly to the storage layer via PUT. The pre-signed URL
-      //    authorises the upload — we don't need the bearer token here.
-      const uploadRes = await fetch(presign.uploadUrl, {
-        method: "PUT",
-        body: file,
-        headers: presign.headers,
-      });
-      if (!uploadRes.ok) {
-        const errText = await uploadRes.text();
-        throw new Error(`Upload failed (${uploadRes.status}): ${errText}`);
+      let key: string;
+      if (mode === "blob") {
+        const { upload } = await import("@vercel/blob/client");
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const blob = await upload(`raw-submissions/${Date.now()}-${safeName}`, file, {
+          access: "public",
+          handleUploadUrl: "/api/storage/presign",
+          contentType: file.type || "application/octet-stream",
+        });
+        key = blob.pathname;
+      } else {
+        // 1. Request a pre-signed PUT URL from the storage API.
+        const presign = await apiFetch<{
+          uploadUrl: string;
+          key: string;
+          headers: Record<string, string>;
+        }>("/api/storage/presign-local", {
+          method: "POST",
+          body: JSON.stringify({
+            filename: file.name,
+            contentType: file.type || "application/octet-stream",
+            bucket: "raw-submissions",
+          }),
+        });
+
+        // 2. Upload directly to the storage layer via PUT. The pre-signed
+        //    URL's token authorises the upload — no bearer token needed.
+        const uploadRes = await fetch(presign.uploadUrl, {
+          method: "PUT",
+          body: file,
+          headers: presign.headers,
+        });
+        if (!uploadRes.ok) {
+          const errText = await uploadRes.text();
+          throw new Error(`Upload failed (${uploadRes.status}): ${errText}`);
+        }
+        key = presign.key;
       }
 
       setUploadedFile({
-        key: presign.key,
+        key,
         filename: file.name,
         size: file.size,
         contentType: file.type || "application/octet-stream",
       });
       setUploadProgress(100);
       toast.success("Manuscript uploaded", {
-        description: `${file.name} (${formatBytes(file.size)}) — stored at ${presign.key}`,
+        description: `${file.name} (${formatBytes(file.size)}) — stored at ${key}`,
       });
     } catch (e: any) {
       toast.error("Upload failed", { description: e.message });

@@ -82,6 +82,6 @@ export async function GET(
   }
 
   const downloadFilename = `${article.doi?.replace(/[^a-z0-9]/gi, "-") || article.id}.${format}`;
-  const url = presignGet(galleyKey, downloadFilename);
+  const url = await presignGet(galleyKey, downloadFilename);
   return NextResponse.json({ url, key: galleyKey, format, expiresInSeconds: 600 });
 }
