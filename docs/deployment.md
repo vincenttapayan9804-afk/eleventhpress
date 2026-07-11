@@ -11,9 +11,9 @@ bundled a read-only SQLite snapshot as a stopgap (Vercel's serverless
 filesystem is read-only outside `/tmp`, and `/tmp` isn't persistent or
 shared across instances, so SQLite never was a real option there).
 
-## Sessions and file uploads also need real configuration now
+## Sessions, file uploads, and LLM triage also need real configuration now
 
-Two more env vars matter beyond the database:
+Three more env vars matter beyond the database:
 
 - **`SESSION_SECRET`** — required in production; the app throws at startup
   without it (`src/lib/auth.ts`). Sessions are signed JWTs now, not the
@@ -26,6 +26,14 @@ Two more env vars matter beyond the database:
   (`GET /api/storage/mode` reports which one is active) that does not work
   once deployed, since Vercel's serverless filesystem is read-only outside
   `/tmp`.
+- **`ANTHROPIC_API_KEY`** — optional; enables real LLM-assisted editorial
+  triage (`src/lib/llm.ts`, backed by the Anthropic Messages API) on every
+  new submission. The original implementation called a dev-sandbox-only
+  SDK (`z-ai-web-dev-sdk`) that has no working configuration outside that
+  sandbox, so triage silently ran the heuristic fallback in every real
+  deployment; it now calls the real API when this key is set, and still
+  falls back to the same deterministic heuristic (keyword matching, no LLM
+  call) when it isn't.
 
 ## What still doesn't run on Vercel
 

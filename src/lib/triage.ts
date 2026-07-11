@@ -1,8 +1,8 @@
 /**
  * LLM-Assisted Editorial Triage Service.
  *
- * Uses z-ai-web-dev-sdk to analyze a newly-submitted manuscript and produce
- * a structured editorial report:
+ * Uses the real Anthropic API (src/lib/llm.ts) to analyze a newly-submitted
+ * manuscript and produce a structured editorial report:
  *   - Scope fit score (0-100)
  *   - Methodological soundness flags
  *   - Suggested reviewers (from the reviewer pool, ranked by semantic match)
@@ -11,11 +11,12 @@
  *   - Predicted impact (1-5 stars)
  *   - Risk flags
  *
- * Falls back to a deterministic heuristic analysis if the LLM is unavailable.
+ * Falls back to a deterministic heuristic analysis if ANTHROPIC_API_KEY is
+ * unset or the API call fails.
  */
 import { db } from "@/lib/db";
 import { parseAuthors, DISCIPLINES } from "@/lib/article";
-import { generateEmbedding } from "@/lib/embeddings";
+import { chatJSON, isLLMAvailable } from "@/lib/llm";
 
 const AIMS_SCOPE = `Eleventh Press International Publishing is committed to rigorous, transparent, and rapid dissemination of scholarship. The journal welcomes original research submissions spanning the natural sciences, engineering, social sciences, and humanities. Disciplines: Physics, Biology, Computer Science, Sociology, Economics, Psychology, Environmental Science, Mathematics.`;
 
@@ -66,7 +67,7 @@ export async function runEditorialTriage(articleId: string): Promise<TriageResul
     select: { id: true, fullName: true, affiliation: true, expertise: true, orcid: true },
   });
 
-  // Try the real LLM via z-ai-web-dev-sdk
+  // Try the real Anthropic API
   try {
     const result = await callLLM(article, authors, reviewerPool);
     if (result) {
@@ -140,8 +141,7 @@ export async function runEditorialTriage(articleId: string): Promise<TriageResul
 }
 
 async function callLLM(article: any, authors: any[], reviewerPool: any[]): Promise<TriageResult | null> {
-  const ZAI = (await import("z-ai-web-dev-sdk")).default;
-  const zai = await ZAI.create();
+  if (!isLLMAvailable()) return null;
 
   const reviewerPoolText = reviewerPool
     .map((r) => `- ${r.fullName} (${r.affiliation || "no affiliation"}): expertise = ${r.expertise || "not specified"}`)
@@ -164,29 +164,9 @@ ${reviewerPoolText}
 
 Produce the editorial triage report as a single JSON object.`;
 
-  const res = await (zai as any).chat.completions.create({
-    model: "glm-4",
-    messages: [
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: userPrompt },
-    ],
-    temperature: 0.3,
-    max_tokens: 2000,
+  const { data: parsed, rawResponse, model } = await chatJSON<any>(SYSTEM_PROMPT, userPrompt, {
+    maxTokens: 2000,
   });
-
-  const content = res.choices?.[0]?.message?.content;
-  if (!content) return null;
-
-  // Extract JSON from the response (handles markdown code fences)
-  const jsonMatch = content.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) return null;
-
-  let parsed: any;
-  try {
-    parsed = JSON.parse(jsonMatch[0]);
-  } catch {
-    return null;
-  }
 
   return {
     scopeFitScore: parsed.scopeFitScore ?? 50,
@@ -197,8 +177,8 @@ Produce the editorial triage report as a single JSON object.`;
     summary: parsed.summary ?? "Summary unavailable.",
     predictedImpact: parsed.predictedImpact ?? 3,
     riskFlags: parsed.riskFlags ?? [],
-    rawResponse: content,
-    model: "glm-4",
+    rawResponse,
+    model,
     mode: "llm",
   };
 }

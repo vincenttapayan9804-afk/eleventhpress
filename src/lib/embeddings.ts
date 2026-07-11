@@ -2,54 +2,34 @@
  * Semantic search service — generates vector embeddings for articles and
  * performs cosine-similarity search.
  *
- * Uses z-ai-web-dev-sdk for embedding generation (text-embedding model).
- * Embeddings are stored as JSON arrays in the ArticleEmbedding table.
- *
- * In simulation mode (no API access), generates deterministic pseudo-embeddings
- * from text hashing so the search still works end-to-end.
+ * The Anthropic API has no embeddings endpoint (Claude is a generation
+ * model, not an embedding model), so this uses a deterministic hashed
+ * n-gram embedding rather than a hosted provider — see hashEmbedding()
+ * below. It captures lexical overlap (shared vocabulary clusters
+ * together) but not real semantic similarity. Swap in a dedicated
+ * embeddings provider (e.g. Voyage AI, Anthropic's recommended partner)
+ * behind this same generateEmbedding() signature if true semantic search
+ * is needed later — every caller already goes through this one function.
  */
 import { db } from "@/lib/db";
 import crypto from "crypto";
 
-const EMBEDDING_DIMS = 256; // reduced from 1536 for SQLite storage efficiency
+const EMBEDDING_DIMS = 256;
 
 /**
  * Generate an embedding vector for an article's title + abstract + keywords.
  * Returns a float array of EMBEDDING_DIMS dimensions.
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
-  // Try the real embedding API via z-ai-web-dev-sdk
-  try {
-    const ZAI = (await import("z-ai-web-dev-sdk")).default;
-    const zai = await ZAI.create();
-    // The SDK exposes embedding via the chat interface in some versions;
-    // fall back to simulation if not available.
-    if (typeof (zai as any).embeddings?.create === "function") {
-      const res = await (zai as any).embeddings.create({
-        model: "embedding-3",
-        input: text.slice(0, 8000),
-      });
-      const vec = res.data?.[0]?.embedding;
-      if (vec && vec.length > 0) {
-        return normalize(padOrTruncate(vec, EMBEDDING_DIMS));
-      }
-    }
-  } catch {
-    // fall through to simulation
-  }
-
-  // SIMULATION: generate a deterministic pseudo-embedding from text hashing.
-  // This produces a stable vector that captures some lexical similarity
-  // (articles sharing words will share hash contributions).
-  return simulateEmbedding(text, EMBEDDING_DIMS);
+  return hashEmbedding(text, EMBEDDING_DIMS);
 }
 
 /**
- * Simulated embedding: hashes overlapping n-grams of the text and uses
+ * Deterministic embedding: hashes overlapping n-grams of the text and uses
  * each hash to seed a dimension. Articles with similar vocabulary will
  * have vectors that cluster together.
  */
-function simulateEmbedding(text: string, dims: number): number[] {
+function hashEmbedding(text: string, dims: number): number[] {
   const vec = new Array(dims).fill(0);
   const normalized = text.toLowerCase().replace(/[^a-z0-9\s]/g, " ");
   const words = normalized.split(/\s+/).filter((w) => w.length > 2);
