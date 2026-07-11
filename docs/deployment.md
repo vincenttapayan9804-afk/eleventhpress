@@ -24,21 +24,35 @@ shared across instances, so SQLite never was a real option there).
   deterministic heuristic/hash-based implementations outside the original
   sandbox they were built in — unaffected by where the app is hosted.
 
+## Schema + seed data run automatically on every build
+
+The `build` script (`package.json`) chains `prisma db push` and `bun run
+scripts/seed.ts` before `next build`. Vercel's build environment has normal
+internet access (unlike, say, a network-restricted sandbox trying to reach
+the database directly), so this runs cleanly there with no manual step.
+`scripts/seed.ts` checks for an existing `Journal` row first and exits
+immediately if one's found, so re-running it on every subsequent redeploy
+is a safe no-op rather than a duplicate insert or a crash.
+
+One simplification worth knowing: preview and production deployments share
+the same database (whatever's connected to the project), since this project
+doesn't set up per-branch database provisioning (Neon supports branching
+for that, if you want it later).
+
 ## Steps
 
 1. **Provision Postgres.** Either:
    - In the Vercel dashboard, open the project → **Storage** tab → connect
-     a Postgres database. Vercel injects `POSTGRES_PRISMA_URL` and
-     `POSTGRES_URL_NON_POOLING` into the project automatically — nothing to
-     copy or type.
-   - Or use any other provider (Neon, Supabase, RDS, ...) and set those two
-     env vars yourself in the Vercel project settings.
-2. **Create the schema and load starter data**, once, against that database:
-   ```
-   POSTGRES_PRISMA_URL=... POSTGRES_URL_NON_POOLING=... bun run db:push
-   POSTGRES_PRISMA_URL=... POSTGRES_URL_NON_POOLING=... bun run scripts/seed.ts
-   ```
-3. In the Vercel dashboard: **Add New → Project → Import Git Repository**,
+     a Postgres database (e.g. the Neon marketplace integration). Whatever
+     env var names it injects, set `POSTGRES_PRISMA_URL` (pooled) and
+     `POSTGRES_URL_NON_POOLING` (direct) in the project's Environment
+     Variables to point at the same values — those are the exact names
+     `prisma/schema.prisma` reads.
+   - Or use any other provider (Neon, Supabase, RDS, ...) directly and set
+     those same two env vars yourself.
+2. In the Vercel dashboard: **Add New → Project → Import Git Repository**,
    select this repo. Framework preset (Next.js) and root directory are
    auto-detected — no custom build/install commands needed.
-4. Deploy.
+3. Deploy (or redeploy, if the project already existed before the database
+   was connected). The build creates the schema and loads starter data
+   automatically — nothing else to run by hand.

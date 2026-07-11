@@ -308,6 +308,16 @@ const ARTICLES: SeedArticle[] = [
 ];
 
 export async function main() {
+  // Idempotent: this runs on every Vercel build (see package.json's "build"
+  // script), not just once by hand, so re-running it against an
+  // already-seeded database must be a safe no-op rather than a duplicate
+  // insert or a unique-constraint crash.
+  const existingJournal = await db.journal.findFirst();
+  if (existingJournal) {
+    console.log("Database already seeded (found an existing Journal row) — skipping.");
+    return;
+  }
+
   console.log("Seeding ELEVENTH PRESS INTERNATIONAL PUBLISHING database...");
 
   // 1. Journal
