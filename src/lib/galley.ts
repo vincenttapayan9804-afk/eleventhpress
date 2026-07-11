@@ -12,6 +12,7 @@ import { spawn } from "child_process";
 import { promises as fs } from "fs";
 import path from "path";
 import crypto from "crypto";
+import PDFDocument from "pdfkit";
 import { putObject } from "@/lib/storage";
 
 const PROJECT_ROOT = process.cwd();
@@ -163,7 +164,9 @@ year: ${meta.year}
     htmlContent = `<!DOCTYPE html><html><body><h1>${escapeXml(meta.title)}</h1><p>${escapeXml(meta.abstract)}</p></body></html>`;
   }
 
-  // 2. PDF galley via WeasyPrint
+  // 2. PDF galley via WeasyPrint, when available (higher-fidelity HTML/CSS
+  // rendering — typically only present in a local dev environment with the
+  // binary installed).
   try {
     if (htmlContent) {
       const htmlForPdf = path.join(TEMP_DIR, `${jobId}-for-pdf.html`);
@@ -177,6 +180,19 @@ year: ${meta.year}
     }
   } catch (e: any) {
     log.push(`PDF error: ${e.message}`);
+  }
+
+  // WeasyPrint isn't installed on Vercel's serverless runtime (no system
+  // binaries), so this is the actual production path: a real PDF built
+  // in-process with PDFKit (pure JS, no native dependencies) instead of a
+  // placeholder file.
+  if (!pdfBuffer) {
+    try {
+      pdfBuffer = await renderPdfKitGalley(meta, htmlContent);
+      log.push(`PDF galley built via in-process PDFKit renderer (${pdfBuffer.length} bytes)`);
+    } catch (e: any) {
+      log.push(`PDFKit error: ${e.message}`);
+    }
   }
 
   // 3. JATS XML via Pandoc (or fallback)
@@ -206,14 +222,14 @@ year: ${meta.year}
   await putObject(htmlKey, Buffer.from(htmlContent, "utf-8"), "text/html; charset=utf-8");
   log.push(`Stored HTML: ${htmlKey} (${htmlContent.length} chars)`);
 
-  if (pdfBuffer) {
-    await putObject(pdfKey, pdfBuffer, "application/pdf");
-    log.push(`Stored PDF: ${pdfKey} (${pdfBuffer.length} bytes)`);
-  } else {
-    // Write a placeholder PDF if WeasyPrint failed
-    await putObject(pdfKey, Buffer.from("PDF generation failed - placeholder"), "application/pdf");
-    log.push(`Stored PDF placeholder: ${pdfKey}`);
+  if (!pdfBuffer) {
+    // Last-resort path — only reached if the PDFKit renderer itself threw.
+    // Still a real, openable PDF (not a mislabeled text file).
+    pdfBuffer = await renderMinimalErrorPdf(meta);
+    log.push("PDF galley built via minimal error-fallback PDF");
   }
+  await putObject(pdfKey, pdfBuffer, "application/pdf");
+  log.push(`Stored PDF: ${pdfKey} (${pdfBuffer.length} bytes)`);
 
   if (jatsContent) {
     await putObject(jatsKey, Buffer.from(jatsContent, "utf-8"), "application/xml");
@@ -295,4 +311,156 @@ ${(meta.keywords || "").split(",").map((k: string) => `        <kwd>${escapeXml(
     </ref-list>
   </back>
 </article>`;
+}
+
+const BRAND_MAROON = "#7A1F2B";
+const BRAND_GOLD = "#c9a55c";
+const BRAND_INK = "#2a1f1a";
+
+/** Strips tags/entities down to readable body text for the PDF body flow. */
+function htmlToPlainText(html: string, stripLeadingTitle?: string): string {
+  let text = html
+    .replace(/<header[\s\S]*?<\/header>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<\/(p|div|h1|h2|h3|h4|li|tr|blockquote)>/gi, "\n\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\n[ \t]+/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  if (stripLeadingTitle) {
+    const lines = text.split("\n");
+    if (lines[0]?.trim().toLowerCase() === stripLeadingTitle.trim().toLowerCase()) {
+      text = lines.slice(1).join("\n").trim();
+    }
+  }
+  return text;
+}
+
+/**
+ * Renders a real, branded PDF galley entirely in-process with PDFKit (pure
+ * JS, no native binaries) — this is the path that actually runs on Vercel's
+ * serverless runtime, where WeasyPrint isn't installed.
+ */
+function renderPdfKitGalley(meta: any, htmlContent: string): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({
+        size: "A4",
+        margins: { top: 64, bottom: 56, left: 56, right: 56 },
+        bufferPages: true,
+        info: { Title: meta.title || "Untitled", Author: authorNames(meta) },
+      });
+      const chunks: Buffer[] = [];
+      doc.on("data", (c: Buffer) => chunks.push(c));
+      doc.on("end", () => resolve(Buffer.concat(chunks)));
+      doc.on("error", reject);
+
+      // Masthead
+      doc.fillColor(BRAND_GOLD).font("Helvetica-Bold").fontSize(8)
+        .text("ELEVENTH PRESS INTERNATIONAL PUBLISHING");
+      doc.moveDown(0.2);
+      doc.fillColor(BRAND_MAROON).font("Helvetica-Bold").fontSize(12).text(meta.journalName || "");
+      doc.fillColor("#666666").font("Helvetica").fontSize(8).text(
+        `ISSN ${meta.issn || "—"} · Vol. ${meta.volume}, Iss. ${meta.issue} (${meta.year}) · DOI: ${meta.doi || "—"}`
+      );
+      doc.moveDown(0.3);
+      doc.strokeColor(BRAND_MAROON).lineWidth(1.2)
+        .moveTo(doc.page.margins.left, doc.y)
+        .lineTo(doc.page.width - doc.page.margins.right, doc.y)
+        .stroke();
+      doc.moveDown(1);
+
+      // Title
+      doc.fillColor(BRAND_MAROON).font("Helvetica-Bold").fontSize(18).text(meta.title || "Untitled");
+      doc.moveDown(0.5);
+
+      // Authors + affiliations
+      const authors = safeParseAuthors(meta.authors);
+      if (authors.length) {
+        doc.fillColor(BRAND_INK).font("Helvetica-Bold").fontSize(10)
+          .text(authors.map((a: any) => a.name).filter(Boolean).join(", "));
+        const affiliations = Array.from(new Set(authors.map((a: any) => a.affiliation).filter(Boolean)));
+        if (affiliations.length) {
+          doc.font("Helvetica").fontSize(8.5).fillColor("#555555").text(affiliations.join(" · "));
+        }
+        doc.moveDown(0.8);
+      }
+
+      // Abstract
+      if (meta.abstract) {
+        doc.font("Helvetica-Bold").fontSize(9).fillColor(BRAND_MAROON).text("ABSTRACT");
+        doc.moveDown(0.15);
+        doc.font("Helvetica").fontSize(9.5).fillColor(BRAND_INK).text(meta.abstract, { align: "justify" });
+        doc.moveDown(0.6);
+      }
+
+      if (meta.keywords) {
+        doc.font("Helvetica-Oblique").fontSize(8.5).fillColor("#555555").text(`Keywords: ${meta.keywords}`);
+        doc.moveDown(1);
+      }
+
+      // Body
+      const bodyText = htmlToPlainText(htmlContent, meta.title);
+      if (bodyText) {
+        doc.font("Helvetica").fontSize(10).fillColor(BRAND_INK).text(bodyText, { align: "left" });
+      }
+
+      // Footer on every page
+      const range = doc.bufferedPageRange();
+      for (let i = range.start; i < range.start + range.count; i++) {
+        doc.switchToPage(i);
+        doc.font("Helvetica").fontSize(7.5).fillColor(BRAND_MAROON).text(
+          `Eleventh Press International Publishing — ISSN ${meta.issn || "—"} · Page ${i - range.start + 1}`,
+          doc.page.margins.left,
+          doc.page.height - doc.page.margins.bottom + 18,
+          { align: "center", width: doc.page.width - doc.page.margins.left - doc.page.margins.right }
+        );
+      }
+
+      doc.end();
+    } catch (e) {
+      reject(e);
+    }
+  });
+}
+
+/** Absolute last resort — a minimal but still valid, openable PDF. */
+function renderMinimalErrorPdf(meta: any): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ size: "A4", margins: { top: 72, bottom: 72, left: 72, right: 72 } });
+      const chunks: Buffer[] = [];
+      doc.on("data", (c: Buffer) => chunks.push(c));
+      doc.on("end", () => resolve(Buffer.concat(chunks)));
+      doc.on("error", reject);
+      doc.font("Helvetica-Bold").fontSize(14).text(meta.title || "Untitled");
+      doc.moveDown();
+      doc.font("Helvetica").fontSize(10).text(
+        "The PDF galley could not be fully rendered. Please contact the editorial office to regenerate this file."
+      );
+      doc.end();
+    } catch (e) {
+      reject(e);
+    }
+  });
+}
+
+function safeParseAuthors(authorsJson: string): any[] {
+  try {
+    return JSON.parse(authorsJson || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function authorNames(meta: any): string {
+  return safeParseAuthors(meta.authors).map((a: any) => a.name).filter(Boolean).join(", ");
 }
