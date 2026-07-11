@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useApp } from "@/lib/store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ import {
 
 export function AboutView() {
   const { setView } = useApp();
+  const t = useTranslations("home");
   return (
     <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
       {/* Header */}
@@ -239,16 +241,16 @@ export function AboutView() {
 
       {/* CTA */}
       <section className="mt-16 rounded-md border border-border bg-card p-8 text-center">
-        <p className="eyebrow">Join the conversation</p>
+        <p className="eyebrow">{t("joinConversation")}</p>
         <h2 className="mt-2 font-display text-2xl font-semibold">
-          Submit your manuscript or subscribe to read
+          {t("ctaHeadline")}
         </h2>
         <div className="mt-5 flex flex-wrap justify-center gap-3">
           <Button onClick={() => useApp.getState().setAuthSheetOpen(true)}>
-            Sign in to submit
+            {t("signInToSubmit")}
           </Button>
           <Button variant="outline" onClick={() => setView("browse")}>
-            Browse articles
+            {t("browseAll")}
           </Button>
         </div>
       </section>

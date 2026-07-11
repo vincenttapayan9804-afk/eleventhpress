@@ -13,6 +13,7 @@ import { AuthView } from "@/components/views/auth-view";
 import { DashboardView } from "@/components/views/dashboard-view";
 import { AuthSheet } from "@/components/auth-sheet";
 import { Toaster } from "@/components/ui/sonner";
+import { I18nProvider } from "@/components/i18n-provider";
 
 export default function Page() {
   const view = useApp((s) => s.view);
@@ -55,19 +56,21 @@ export default function Page() {
   }, [view, useApp.getState().articleId]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <SiteHeader />
-      <main className="flex-1">
-        {view === "home" && <HomeView />}
-        {view === "browse" && <BrowseView />}
-        {view === "article" && <ArticleView />}
-        {view === "about" && <AboutView />}
-        {(view === "login" || view === "register") && <AuthView />}
-        {view === "dashboard" && <DashboardView />}
-      </main>
-      <SiteFooter />
-      <AuthSheet />
-      <Toaster richColors position="top-right" />
-    </div>
+    <I18nProvider>
+      <div className="min-h-screen flex flex-col bg-background">
+        <SiteHeader />
+        <main className="flex-1">
+          {view === "home" && <HomeView />}
+          {view === "browse" && <BrowseView />}
+          {view === "article" && <ArticleView />}
+          {view === "about" && <AboutView />}
+          {(view === "login" || view === "register") && <AuthView />}
+          {view === "dashboard" && <DashboardView />}
+        </main>
+        <SiteFooter />
+        <AuthSheet />
+        <Toaster richColors position="top-right" />
+      </div>
+    </I18nProvider>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { useApp } from "@/lib/store";
 import { apiFetch } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ const ROLES = [
 export function AuthView() {
   const { view, setView, setAuth, openDashboard } = useApp();
   const [loading, setLoading] = useState(false);
+  const t = useTranslations("auth");
 
   // Login form
   const [loginEmail, setLoginEmail] = useState("author@eleventhpress.org");
@@ -85,26 +87,26 @@ export function AuthView() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
       <Button variant="ghost" size="sm" onClick={() => setView("home")} className="mb-6">
-        <ArrowLeft className="mr-1.5 h-4 w-4" /> Back to home
+        <ArrowLeft className="mr-1.5 h-4 w-4" /> {t("backToHome")}
       </Button>
 
       <div className="grid gap-8 lg:grid-cols-2">
         {/* LOGIN */}
         <Card className="paper-card">
           <CardHeader>
-            <p className="eyebrow">Sign in</p>
+            <p className="eyebrow">{t("signInEyebrow")}</p>
             <h1 className="font-display text-2xl font-semibold text-primary">
-              Returning user
+              {t("returningUser")}
             </h1>
             <p className="text-sm text-muted-foreground">
-              Use one of the demo accounts below, or register a new account on the right.
+              {t("signInHint")}
             </p>
           </CardHeader>
           <CardContent>
             <form onSubmit={submitLogin} className="space-y-4">
               <div className="space-y-1.5">
                 <Label htmlFor="li-email" className="flex items-center gap-1.5">
-                  <Mail className="h-3 w-3" /> Email
+                  <Mail className="h-3 w-3" /> {t("emailLabel")}
                 </Label>
                 <Input
                   id="li-email"
@@ -117,7 +119,7 @@ export function AuthView() {
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="li-pass" className="flex items-center gap-1.5">
-                  <Lock className="h-3 w-3" /> Password
+                  <Lock className="h-3 w-3" /> {t("passwordLabel")}
                 </Label>
                 <Input
                   id="li-pass"
@@ -130,7 +132,7 @@ export function AuthView() {
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Sign in
+                {t("signInButton")}
               </Button>
             </form>
 
@@ -176,9 +178,9 @@ export function AuthView() {
         {/* REGISTER */}
         <Card className="paper-card">
           <CardHeader>
-            <p className="eyebrow">Register</p>
+            <p className="eyebrow">{t("registerEyebrow")}</p>
             <h1 className="font-display text-2xl font-semibold text-primary">
-              Create a new account
+              {t("newAccount")}
             </h1>
             <p className="text-sm text-muted-foreground">
               Choose a role. You can request additional roles from the editorial office later.
@@ -188,7 +190,7 @@ export function AuthView() {
             <form onSubmit={submitRegister} className="space-y-3">
               <div className="space-y-1.5">
                 <Label htmlFor="reg-name" className="flex items-center gap-1.5">
-                  <UserIcon className="h-3 w-3" /> Full name
+                  <UserIcon className="h-3 w-3" /> {t("fullNameLabel")}
                 </Label>
                 <Input
                   id="reg-name"
@@ -201,7 +203,7 @@ export function AuthView() {
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="reg-email" className="flex items-center gap-1.5">
-                  <Mail className="h-3 w-3" /> Email
+                  <Mail className="h-3 w-3" /> {t("emailLabel")}
                 </Label>
                 <Input
                   id="reg-email"
@@ -215,7 +217,7 @@ export function AuthView() {
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="reg-pass" className="flex items-center gap-1.5">
-                  <Lock className="h-3 w-3" /> Password
+                  <Lock className="h-3 w-3" /> {t("passwordLabel")}
                 </Label>
                 <Input
                   id="reg-pass"
@@ -230,7 +232,7 @@ export function AuthView() {
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="reg-role" className="flex items-center gap-1.5">
-                  <BookOpen className="h-3 w-3" /> Role
+                  <BookOpen className="h-3 w-3" /> {t("roleLabel")}
                 </Label>
                 <Select value={reg.role} onValueChange={(v) => setReg({ ...reg, role: v })}>
                   <SelectTrigger id="reg-role" className="h-10">
@@ -248,7 +250,7 @@ export function AuthView() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="reg-aff" className="flex items-center gap-1.5">
-                    <Building2 className="h-3 w-3" /> Affiliation
+                    <Building2 className="h-3 w-3" /> {t("affiliationLabel")}
                   </Label>
                   <Input
                     id="reg-aff"
@@ -260,7 +262,7 @@ export function AuthView() {
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="reg-country" className="flex items-center gap-1.5">
-                    <Globe2 className="h-3 w-3" /> Country
+                    <Globe2 className="h-3 w-3" /> {t("countryLabel")}
                   </Label>
                   <Input
                     id="reg-country"
@@ -285,7 +287,7 @@ export function AuthView() {
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                <KeyRound className="mr-1.5 h-4 w-4" /> Create account
+                <KeyRound className="mr-1.5 h-4 w-4" /> {t("createAccountButton")}
               </Button>
             </form>
           </CardContent>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { useApp } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,16 +23,19 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { apiFetch } from "@/lib/api-client";
-
-const NAV_ITEMS = [
-  { label: "Home", view: "home" as const },
-  { label: "Articles", view: "browse" as const },
-  { label: "About", view: "about" as const },
-];
+import { LanguageSwitcher } from "@/components/language-switcher";
 
 export function SiteHeader() {
   const { view, setView, user, token, logout, openDashboard, mobileNavOpen, setMobileNavOpen } = useApp();
   const [unread, setUnread] = useState(0);
+  const t = useTranslations("nav");
+  const tHeader = useTranslations("header");
+
+  const NAV_ITEMS = [
+    { label: t("home"), view: "home" as const },
+    { label: t("articles"), view: "browse" as const },
+    { label: t("about"), view: "about" as const },
+  ];
 
   useState(() => {
     if (!token) return;
@@ -54,10 +58,10 @@ export function SiteHeader() {
             <span className="wax-mark group-hover:scale-105 transition-transform duration-500" style={{ transitionTimingFunction: "var(--ease-luxury)" }}>EP</span>
             <span className="hidden flex-col leading-tight sm:flex">
               <span className="font-display text-base font-semibold text-royal-gradient">
-                ELEVENTH PRESS
+                {tHeader("brandName")}
               </span>
               <span className="text-[0.62rem] font-sans font-medium uppercase tracking-[0.22em] text-muted-foreground">
-                International Publishing
+                {tHeader("brandTagline")}
               </span>
             </span>
           </button>
@@ -80,7 +84,7 @@ export function SiteHeader() {
                 data-active={view === "dashboard"}
                 className="nav-underline flex items-center gap-1.5 font-sans text-sm font-medium text-foreground/80 hover:text-foreground transition-colors"
               >
-                <LayoutDashboard className="h-3.5 w-3.5" /> Dashboard
+                <LayoutDashboard className="h-3.5 w-3.5" /> {t("dashboard")}
               </button>
             )}
           </nav>
@@ -95,7 +99,7 @@ export function SiteHeader() {
                     size="icon"
                     onClick={() => openDashboard("overview")}
                     className="relative"
-                    aria-label="Notifications"
+                    aria-label={t("notifications")}
                   >
                     <Bell className="h-4 w-4" />
                     <span className="absolute right-1 top-1 flex h-2 w-2">
@@ -132,24 +136,26 @@ export function SiteHeader() {
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => openDashboard("overview")}>
-                      <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard
+                      <LayoutDashboard className="mr-2 h-4 w-4" /> {t("dashboard")}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => logout()}>
-                      <LogOut className="mr-2 h-4 w-4" /> Sign out
+                      <LogOut className="mr-2 h-4 w-4" /> {t("signOut")}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </>
             ) : (
               <Button onClick={() => setView("login")} size="sm" className="btn-royal-glow hidden sm:inline-flex">
-                Sign in
+                {t("signIn")}
               </Button>
             )}
+
+            <LanguageSwitcher />
 
             {/* Mobile nav */}
             <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="md:hidden" aria-label="Menu">
+                <Button variant="ghost" size="icon" className="md:hidden" aria-label={t("menu")}>
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
@@ -174,7 +180,7 @@ export function SiteHeader() {
                       onClick={() => { openDashboard("overview"); setMobileNavOpen(false); }}
                       className="rounded-md px-3 py-2 text-left font-sans text-sm font-medium hover:bg-[oklch(0.93_0.04_290)] transition-colors"
                     >
-                      Dashboard
+                      {t("dashboard")}
                     </button>
                   )}
                   {!token && (
@@ -182,7 +188,7 @@ export function SiteHeader() {
                       onClick={() => { setView("login"); setMobileNavOpen(false); }}
                       className="mt-2 rounded-md bg-[oklch(0.42_0.18_295)] px-3 py-2 text-left font-sans text-sm font-medium text-white"
                     >
-                      Sign in
+                      {t("signIn")}
                     </button>
                   )}
                 </nav>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { useApp } from "@/lib/store";
 import { apiFetch } from "@/lib/api-client";
 import { ArticleListItem } from "@/lib/types";
@@ -50,6 +51,7 @@ const DISCIPLINE_COLORS: Record<string, string> = {
 
 export function HomeView() {
   const { setView, openArticle } = useApp();
+  const t = useTranslations("home");
   const [featured, setFeatured] = useState<ArticleListItem[]>([]);
   const [stats, setStats] = useState({ articles: 0, citations: 0, downloads: 0, countries: 28 });
   const [searchQ, setSearchQ] = useState("");
@@ -100,16 +102,14 @@ export function HomeView() {
           <div className="grid items-center gap-12 lg:grid-cols-2">
             <div ref={heroReveal.observe} className={`reveal ${heroReveal.inView ? "in-view" : ""}`}>
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[oklch(0.86_0.07_292)] drop-shadow-lg">
-                Volume 4 · Issue 2 · 2024 · ISSN 2945-1138
+                {t("issueLine")}
               </p>
               <h1 className="mt-4 font-display text-4xl font-semibold leading-[1.05] text-white drop-shadow-[0_4px_24px_oklch(0.14_0.02_285/0.6)] sm:text-5xl lg:text-6xl">
-                Where disciplines<br />
-                <span className="bg-gradient-to-r from-[oklch(0.86_0.07_292)] via-[oklch(0.76_0.11_294)] to-[oklch(0.62_0.16_296)] bg-clip-text text-transparent">converge</span>.
+                {t("headline1")}<br />
+                <span className="bg-gradient-to-r from-[oklch(0.86_0.07_292)] via-[oklch(0.76_0.11_294)] to-[oklch(0.62_0.16_296)] bg-clip-text text-transparent">{t("headline2")}</span>.
               </h1>
               <p className="mt-7 max-w-xl text-lg leading-relaxed text-[oklch(0.93_0.01_285)] drop-shadow-[0_2px_8px_oklch(0.14_0.02_285/0.5)]">
-                Eleventh Press International Publishing is a peer-reviewed, open-access
-                multidisciplinary journal. Rigorous editorial workflow, Crossref DOI registration,
-                and OAI-PMH 2.0 indexing — engineered for high-performance scholarly discovery.
+                {t("description")}
               </p>
 
               {/* Search */}
@@ -117,7 +117,7 @@ export function HomeView() {
                 <div className="relative flex-1">
                   <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/60" />
                   <Input
-                    placeholder="Search articles, authors, keywords…"
+                    placeholder={t("searchPlaceholder")}
                     className="h-12 border-white/20 bg-white/10 pl-11 font-sans text-white placeholder:text-white/50 backdrop-blur-xl"
                     value={searchQ}
                     onChange={(e) => setSearchQ(e.target.value)}
@@ -125,19 +125,19 @@ export function HomeView() {
                   />
                 </div>
                 <Button size="lg" onClick={doSearch} className="btn-royal-glow h-12 border-white/20 bg-white/15 px-8 text-white backdrop-blur-xl hover:bg-white/25">
-                  Search <ArrowRight className="ml-1 h-4 w-4" />
+                  {t("searchButton")} <ArrowRight className="ml-1 h-4 w-4" />
                 </Button>
               </div>
 
               <div className="mt-7 flex flex-wrap gap-3 text-sm">
                 <Button variant="outline" size="sm" onClick={() => setView("browse")} className="border-white/25 bg-white/10 text-white backdrop-blur-xl hover:bg-white/20 hover:text-white btn-royal-glow">
-                  <FileText className="mr-1.5 h-3.5 w-3.5" /> Browse all articles
+                  <FileText className="mr-1.5 h-3.5 w-3.5" /> {t("browseAll")}
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => setView("about")} className="border-white/25 bg-white/10 text-white backdrop-blur-xl hover:bg-white/20 hover:text-white">
-                  About the journal
+                  {t("aboutJournal")}
                 </Button>
                 <Button size="sm" variant="ghost" className="text-[oklch(0.86_0.07_292)] hover:bg-white/10 hover:text-white" onClick={() => useApp.getState().setAuthSheetOpen(true)}>
-                  <Sparkles className="mr-1.5 h-3.5 w-3.5" /> Sign in to submit
+                  <Sparkles className="mr-1.5 h-3.5 w-3.5" /> {t("signInToSubmit")}
                 </Button>
               </div>
             </div>
@@ -148,19 +148,19 @@ export function HomeView() {
                 <div className="glass-strong rounded-[1.35rem] p-8">
                   <div className="flex items-center justify-between mb-6">
                     <div>
-                      <p className="eyebrow">Journal at a glance</p>
-                      <p className="mt-1 font-display text-xl text-royal-gradient">Live editorial metrics</p>
+                      <p className="eyebrow">{t("journalAtGlance")}</p>
+                      <p className="mt-1 font-display text-xl text-royal-gradient">{t("liveMetrics")}</p>
                     </div>
                     <div className="h-12 w-12"><ImpactSphere /></div>
                   </div>
                   <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-[oklch(0.88_0.015_285/0.4)]">
-                    <StatTile label="Published articles" value={stats.articles} icon={FileText} />
-                    <StatTile label="Total citations" value={stats.citations} icon={Quote} />
-                    <StatTile label="PDF downloads" value={stats.downloads} icon={TrendingUp} />
-                    <StatTile label="Indexing sources" value={6} icon={Globe2} />
+                    <StatTile label={t("publishedArticles")} value={stats.articles} icon={FileText} />
+                    <StatTile label={t("totalCitations")} value={stats.citations} icon={Quote} />
+                    <StatTile label={t("pdfDownloads")} value={stats.downloads} icon={TrendingUp} />
+                    <StatTile label={t("indexingSources")} value={6} icon={Globe2} />
                   </div>
                   <div className="mt-4 rounded-xl bg-[oklch(0.93_0.04_290/0.5)] px-4 py-3 text-xs text-muted-foreground">
-                    Indexed in: <strong className="text-foreground">Google Scholar</strong> · <strong className="text-foreground">Crossref</strong> · <strong className="text-foreground">OAI-PMH 2.0</strong> · <strong className="text-foreground">BASE</strong> · <strong className="text-foreground">CORE</strong> · <strong className="text-foreground">OpenAIRE</strong>
+                    {t("indexedIn")} <strong className="text-foreground">Google Scholar</strong> · <strong className="text-foreground">Crossref</strong> · <strong className="text-foreground">OAI-PMH 2.0</strong> · <strong className="text-foreground">BASE</strong> · <strong className="text-foreground">CORE</strong> · <strong className="text-foreground">OpenAIRE</strong>
                   </div>
                 </div>
               </div>
@@ -177,11 +177,11 @@ export function HomeView() {
           <div ref={disciplinesReveal.observe} className={`reveal stagger ${disciplinesReveal.inView ? "in-view" : ""}`}>
             <div className="mb-10 flex items-end justify-between">
               <div>
-                <p className="eyebrow">Scope</p>
-                <h2 className="mt-2 font-display text-3xl font-semibold">Twelve disciplines, one platform</h2>
+                <p className="eyebrow">{t("disciplinesEyebrow")}</p>
+                <h2 className="mt-2 font-display text-3xl font-semibold">{t("disciplinesTitle")}</h2>
               </div>
               <Button variant="ghost" onClick={() => setView("browse")} className="text-[oklch(0.42_0.18_295)]">
-                See all <ArrowRight className="ml-1 h-4 w-4" />
+                {t("seeAll")} <ArrowRight className="ml-1 h-4 w-4" />
               </Button>
             </div>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">

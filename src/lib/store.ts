@@ -36,6 +36,8 @@ interface SessionUser {
   bio?: string | null;
 }
 
+export type Locale = "en" | "es" | "fr" | "fil" | "zh-Hans";
+
 interface AppState {
   // View routing (single-page)
   view: ViewKey;
@@ -58,6 +60,10 @@ interface AppState {
   setAuthSheetOpen: (v: boolean) => void;
   mobileNavOpen: boolean;
   setMobileNavOpen: (v: boolean) => void;
+
+  // i18n
+  locale: Locale;
+  setLocale: (l: Locale) => void;
 }
 
 export const useApp = create<AppState>()(
@@ -89,10 +95,13 @@ export const useApp = create<AppState>()(
       setAuthSheetOpen: (v) => set({ authSheetOpen: v }),
       mobileNavOpen: false,
       setMobileNavOpen: (v) => set({ mobileNavOpen: v }),
+
+      locale: "en",
+      setLocale: (l) => set({ locale: l }),
     }),
     {
       name: "epip-session",
-      partialize: (s) => ({ token: s.token, user: s.user }) as any,
+      partialize: (s) => ({ token: s.token, user: s.user, locale: s.locale }) as any,
     }
   )
 );

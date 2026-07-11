@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { useApp } from "@/lib/store";
 import { apiFetch } from "@/lib/api-client";
 import { DISCIPLINES, parseAuthors } from "@/lib/article";
@@ -17,19 +18,19 @@ import {
   Quote, Eye, Download, Sparkles, X,
 } from "lucide-react";
 
-const SORTS = [
-  { value: "newest", label: "Newest first" },
-  { value: "cited", label: "Most cited" },
-  { value: "viewed", label: "Most viewed" },
-  { value: "title", label: "Title (A–Z)" },
-];
-
 const DISCIPLINE_COLORS: Record<string, string> = Object.fromEntries(
   DISCIPLINES.map((d) => [d, "bg-[oklch(0.93_0.04_290)] text-[oklch(0.42_0.18_295)] border-[oklch(0.76_0.11_294/0.3)]"])
 );
 
 export function BrowseView() {
   const { openArticle } = useApp();
+  const t = useTranslations("browse");
+  const SORTS = [
+    { value: "newest", label: t("sortNewest") },
+    { value: "cited", label: t("sortCited") },
+    { value: "viewed", label: t("sortViewed") },
+    { value: "title", label: t("sortTitle") },
+  ];
   const [items, setItems] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -97,11 +98,10 @@ export function BrowseView() {
     <div className="page-enter mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
       {/* Header */}
       <div ref={headerReveal.observe} className={`reveal ${headerReveal.inView ? "in-view" : ""} border-b border-[oklch(0.76_0.11_294/0.1)] pb-8`}>
-        <p className="eyebrow">Article archive</p>
-        <h1 className="mt-2 font-display text-4xl font-semibold">Browse articles</h1>
+        <p className="eyebrow">{t("eyebrow")}</p>
+        <h1 className="mt-2 font-display text-4xl font-semibold">{t("title")}</h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          Search across all published articles. Toggle semantic mode for AI-powered discovery,
-          or use the 3D keyword cluster to explore research themes visually.
+          {t("description")}
         </p>
       </div>
 
@@ -112,7 +112,7 @@ export function BrowseView() {
             <div className="relative flex-1">
               <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder={semanticMode ? "Semantic search — describe what you're looking for…" : "Search title, abstract, keywords, or author name…"}
+                placeholder={semanticMode ? t("semanticPlaceholder") : t("searchPlaceholder")}
                 className="glass-panel h-11 pl-11 border-[oklch(0.76_0.11_294/0.2)]"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
@@ -128,7 +128,7 @@ export function BrowseView() {
               onClick={() => { setSemanticMode(!semanticMode); setPage(1); }}
             >
               <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-              {semanticMode ? "Semantic" : "Lexical"}
+              {semanticMode ? t("semantic") : t("lexical")}
             </Button>
             <Button
               variant={showKeywordCluster ? "default" : "outline"}
@@ -137,7 +137,7 @@ export function BrowseView() {
               onClick={() => setShowKeywordCluster(!showKeywordCluster)}
             >
               <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5" />
-              3D Cluster
+              {t("cluster3d")}
             </Button>
             <Select value={discipline} onValueChange={setDiscipline}>
               <SelectTrigger className="glass-panel h-11 w-[180px] border-[oklch(0.76_0.11_294/0.2)]">
@@ -145,7 +145,7 @@ export function BrowseView() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="glass-strong">
-                <SelectItem value="ALL">All disciplines</SelectItem>
+                <SelectItem value="ALL">{t("allDisciplines")}</SelectItem>
                 {DISCIPLINES.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
               </SelectContent>
             </Select>
@@ -159,7 +159,7 @@ export function BrowseView() {
             </Select>
           </div>
           <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-            <span>{loading ? "Searching…" : `${total} article${total === 1 ? "" : "s"} found`}</span>
+            <span>{loading ? "Searching…" : t("articlesFound", { count: total })}</span>
             {(q || discipline !== "ALL" || semanticMode) && (
               <Button variant="ghost" size="sm" onClick={() => { setQ(""); setDiscipline("ALL"); setSemanticMode(false); }}>
                 <X className="mr-1 h-3 w-3" /> Clear filters
@@ -201,8 +201,8 @@ export function BrowseView() {
       ) : items.length === 0 ? (
         <div className="mt-8 flex flex-col items-center justify-center py-24 text-center">
           <FileX className="h-12 w-12 text-muted-foreground" />
-          <p className="mt-4 font-display text-lg font-medium">No articles found</p>
-          <p className="text-sm text-muted-foreground">Try adjusting your search or discipline filter.</p>
+          <p className="mt-4 font-display text-lg font-medium">{t("noArticlesFound")}</p>
+          <p className="text-sm text-muted-foreground">{t("tryAdjusting")}</p>
         </div>
       ) : (
         <div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
