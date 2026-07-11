@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { correctionTypeToIntegrityStatus, CorrectionType, CORRECTION_TYPE_LABELS } from "@/lib/article";
 import { depositToCrossref, depositCrossmarkUpdate } from "@/lib/crossref";
+import { APP_BASE_URL } from "@/lib/site";
 
 /**
  * GET /api/articles/[id]/corrections
@@ -71,7 +72,7 @@ export async function POST(
 
   const suffix = Math.floor(Math.random() * 90000) + 10000;
   const noticeDoi = `10.52011/epip.correction.${suffix}`;
-  const articleUrl = `https://eleventhpress.org/article/${article.id}`;
+  const articleUrl = `${APP_BASE_URL}/article/${article.id}`;
   const issuedAt = new Date();
 
   // Deposit the correction/retraction notice as its own Crossref record.

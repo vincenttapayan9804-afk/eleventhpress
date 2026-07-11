@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { depositToCrossref, isLiveMode, buildDoiBatchXml } from "@/lib/crossref";
+import { APP_BASE_URL } from "@/lib/site";
 
 /**
  * POST /api/crossref/deposit
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Article not found" }, { status: 404 });
   }
 
-  const articleUrl = `https://eleventhpress.org/article/${article.id}`;
+  const articleUrl = `${APP_BASE_URL}/article/${article.id}`;
   const result = await depositToCrossref({ article, articleUrl });
 
   // Persist the deposit outcome on the article

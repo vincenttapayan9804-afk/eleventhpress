@@ -803,8 +803,15 @@ function HeadMetas({ article, authors }: { article: ArticleDetail; authors: any[
     if (article.volume) push("citation_volume", String(article.volume));
     if (article.issueNumber) push("citation_issue", String(article.issueNumber));
     if (article.doi) push("citation_doi", article.doi);
-    push("citation_abstract_html_url", `https://eleventhpress.org/article/${article.id}`);
-    if (article.galleyPdfKey) push("citation_pdf_url", `https://eleventhpress.org/galleys/${article.galleyPdfKey}`);
+    // window.location.origin (not a hardcoded domain) so this is always
+    // correct for whatever host is actually serving the page.
+    push("citation_abstract_html_url", `${window.location.origin}/article/${article.id}`);
+    // citation_pdf_url intentionally omitted: Google Scholar requires the
+    // PDF be fetchable with no login wall, but the real galley route
+    // (/api/articles/[id]/galley) requires auth and, for READER accounts,
+    // an active subscription. Pointing Scholar's crawler at an auth-gated
+    // URL would fail indexing outright, so there's nothing correct to put
+    // here until published articles have a genuinely public download path.
 
     return () => {
       tags.forEach((t) => t.remove());

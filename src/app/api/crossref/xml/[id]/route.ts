@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { buildDoiBatchXml } from "@/lib/crossref";
+import { APP_BASE_URL } from "@/lib/site";
 
 /**
  * GET /api/crossref/xml/[id]
@@ -23,7 +24,7 @@ export async function GET(
 
   const xml = buildDoiBatchXml({
     article,
-    articleUrl: `https://eleventhpress.org/article/${article.id}`,
+    articleUrl: `${APP_BASE_URL}/article/${article.id}`,
   });
 
   return new NextResponse(xml, {

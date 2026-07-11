@@ -24,10 +24,10 @@
 import { parseAuthors } from "@/lib/article";
 import type { ArticleStatus } from "@/lib/article";
 import { presignGet } from "@/lib/storage";
+import { APP_BASE_URL } from "@/lib/site";
 
 const OJS_NS = "http://pkp.sfu.ca";
 const DEFAULT_LOCALE = "en_US";
-const APP_BASE_URL = process.env.APP_BASE_URL || "https://eleventhpress.org";
 const CC_BY_LICENSE_URL = "https://creativecommons.org/licenses/by/4.0/";
 /**
  * The schema's <identity> type (which <author> extends) requires <email> —

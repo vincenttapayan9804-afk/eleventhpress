@@ -11,6 +11,7 @@
  */
 
 import { parseAuthors } from "@/lib/article";
+import { APP_HOST } from "@/lib/site";
 
 const CROSSREF_TEST_ENDPOINT = "https://api.test.crossref.org/deposits";
 const CROSSREF_USERNAME = process.env.CROSSREF_USERNAME || "";
@@ -226,7 +227,7 @@ ${contributorsXml}
         <crossmark>
           <crossmark_policy>${esc(article.doi || "")}</crossmark_policy>
           <crossmark_domains>
-            <crossmark_domain><domain>eleventhpress.org</domain></crossmark_domain>
+            <crossmark_domain><domain>${esc(APP_HOST)}</domain></crossmark_domain>
           </crossmark_domains>
           <crossmark_domain_exclusive>false</crossmark_domain_exclusive>
           <updates>

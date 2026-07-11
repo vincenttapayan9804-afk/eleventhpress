@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { APP_BASE_URL, APP_HOST } from "@/lib/site";
 
 /**
  * GET /api/oai-pmh?verb=Identify
@@ -13,7 +14,7 @@ import { db } from "@/lib/db";
  * installations' own harvesting tools, consume feeds shaped like this one.
  */
 
-const BASE_URL = "https://eleventhpress.org/api/oai-pmh";
+const BASE_URL = `${APP_BASE_URL}/api/oai-pmh`;
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -39,9 +40,9 @@ export async function GET(req: NextRequest) {
                       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                       xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/oai-identifier http://www.openarchives.org/OAI/2.0/oai-identifier.xsd">
         <scheme>oai</scheme>
-        <repositoryIdentifier>eleventhpress.org</repositoryIdentifier>
+        <repositoryIdentifier>${APP_HOST}</repositoryIdentifier>
         <delimiter>:</delimiter>
-        <sampleIdentifier>oai:eleventhpress.org:epip.2024.001</sampleIdentifier>
+        <sampleIdentifier>oai:${APP_HOST}:epip.2024.001</sampleIdentifier>
       </oai-identifier>
     </description>
   </Identify>
@@ -163,7 +164,7 @@ ${sets}
 // ---------------------------------------------------------------------------
 
 function buildOaiId(a: { doi: string | null; id: string }): string {
-  return `oai:eleventhpress.org:${a.doi?.replace(/\./g, "/") || a.id}`;
+  return `oai:${APP_HOST}:${a.doi?.replace(/\./g, "/") || a.id}`;
 }
 
 function buildRecordXml(a: any): string {

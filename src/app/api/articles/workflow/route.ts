@@ -5,6 +5,7 @@ import type { ArticleStatus } from "@/lib/article";
 import { depositToCrossref } from "@/lib/crossref";
 import { getObject } from "@/lib/storage";
 import { generateGalleys } from "@/lib/galley";
+import { APP_BASE_URL } from "@/lib/site";
 
 /**
  * POST /api/articles/workflow
@@ -112,7 +113,7 @@ export async function POST(req: NextRequest) {
       try {
         const deposit = await depositToCrossref({
           article: updated as any,
-          articleUrl: `https://eleventhpress.org/article/${updated.id}`,
+          articleUrl: `${APP_BASE_URL}/article/${updated.id}`,
         });
         await db.article.update({
           where: { id: articleId },
