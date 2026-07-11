@@ -12,7 +12,7 @@
  */
 import Anthropic from "@anthropic-ai/sdk";
 
-const MODEL = "claude-opus-4-8";
+const MODEL = "claude-sonnet-5";
 
 let client: Anthropic | null = null;
 
