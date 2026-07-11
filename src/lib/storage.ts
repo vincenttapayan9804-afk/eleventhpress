@@ -1,11 +1,17 @@
 /**
- * Storage service — real object storage via Vercel Blob when configured
- * (BLOB_READ_WRITE_TOKEN present, which Vercel injects automatically once
- * Blob storage is connected to the project), falling back to the local
- * filesystem otherwise. Vercel's serverless functions have a read-only
- * filesystem outside /tmp, so the local-filesystem path is a dev-only
- * convenience, not a production storage layer — Blob is what makes uploads
- * actually persist on a real deployment.
+ * Storage service — real object storage via Vercel Blob when configured,
+ * falling back to the local filesystem otherwise. Vercel's serverless
+ * functions have a read-only filesystem outside /tmp, so the
+ * local-filesystem path is a dev-only convenience, not a production
+ * storage layer — Blob is what makes uploads actually persist on a real
+ * deployment.
+ *
+ * @vercel/blob v2 supports two auth modes: the classic static
+ * BLOB_READ_WRITE_TOKEN, or the newer OIDC-based auth (VERCEL_OIDC_TOKEN +
+ * BLOB_STORE_ID) that Vercel injects automatically once a store is
+ * connected via the dashboard's "Connect Project" flow — no static token
+ * involved in that path, so BLOB_STORE_ID is the presence check that
+ * actually matches how a dashboard-connected store shows up.
  *
  * Three "buckets": raw-submissions, anonymized-manuscripts, published-galleys.
  */
@@ -23,7 +29,7 @@ const BUCKET_DIRS: Record<string, string> = {
 };
 
 export function usingBlob(): boolean {
-  return !!process.env.BLOB_READ_WRITE_TOKEN;
+  return !!(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
 }
 
 /** Ensure all local bucket directories exist (no-op in Blob mode). */
