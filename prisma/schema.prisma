@@ -12,8 +12,18 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // POSTGRES_PRISMA_URL / POSTGRES_URL_NON_POOLING are the names Vercel's
+  // native Postgres storage integration auto-injects into a connected
+  // project — no manual env var entry needed if you provision through
+  // Vercel's Storage tab. If you're using a different provider (Neon,
+  // Supabase, RDS, etc. directly), set both env vars yourself: url to a
+  // pooled/pgbouncer connection string if your provider offers one (fall
+  // back to the same value as directUrl if not), directUrl to a direct
+  // (non-pooled) connection string — Prisma needs the direct one to run
+  // migrations.
+  url       = env("POSTGRES_PRISMA_URL")
+  directUrl = env("POSTGRES_URL_NON_POOLING")
 }
 
 // ---------------------------------------------------------------------------

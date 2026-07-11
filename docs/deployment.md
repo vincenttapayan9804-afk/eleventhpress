@@ -1,46 +1,44 @@
 # Deploying to Vercel
 
-## What works, and what doesn't
+## Database: real Postgres, not the bundled SQLite demo
 
-EPIP was built to run as a single Node.js process with a local SQLite file
-and local-disk "S3" storage. Vercel's serverless functions have neither: the
-filesystem is read-only except `/tmp`, and `/tmp` is wiped between cold
-starts and not shared across concurrent instances. Two changes make the app
-boot and serve real content there anyway, with one honest limitation:
+`prisma/schema.prisma` targets Postgres (`POSTGRES_PRISMA_URL` for the
+pooled connection, `POSTGRES_URL_NON_POOLING` for migrations — see
+`.env.example`). This gives the deployed app a real, persistent database:
+registering, submitting a manuscript, editorial decisions, reviews — all of
+it actually sticks, unlike an earlier iteration of this deployment that
+bundled a read-only SQLite snapshot as a stopgap (Vercel's serverless
+filesystem is read-only outside `/tmp`, and `/tmp` isn't persistent or
+shared across instances, so SQLite never was a real option there).
 
-- **Reads work.** `src/lib/db.ts` detects `process.env.VERCEL` (set
-  automatically by the platform) and, on cold start, copies a bundled,
-  pre-seeded SQLite snapshot (`prisma/seed.db`) into `/tmp` before Prisma
-  connects. Browsing articles, the OJS/Crossref/OAI-PMH export endpoints,
-  and every other read path serve real seeded data.
-- **Writes don't persist.** Registering a new account, submitting a
-  manuscript, submitting a review — these will appear to succeed within
-  that one request, but the next request may hit a different serverless
-  instance with its own fresh copy of the seed data. This is not a bug to
-  work around; it's what "no persistent database" means. Don't rely on this
-  deployment for anything you need to keep.
+## What still doesn't run on Vercel
+
 - **Production galley generation (Pandoc/WeasyPrint) and the realtime
-  WebSocket dashboard don't run at all** — both need a long-lived process,
-  which serverless functions aren't. The app already degrades gracefully
-  here (placeholder galleys, no live updates) rather than crashing.
-- **LLM editorial triage / semantic search** already fall back to their
+  WebSocket dashboard** — both need a long-lived process, which serverless
+  functions aren't. The app already degrades gracefully here (placeholder
+  galleys, no live updates) rather than crashing. If you want these for
+  real, run `mini-services/pandoc-worker` and `mini-services/ws-service` on
+  something that stays running — Cloud Run, Fly.io, a small VPS — and point
+  `src/lib/galley.ts` / `src/lib/ws-client.ts` at them.
+- **LLM editorial triage / semantic search** fall back to their
   deterministic heuristic/hash-based implementations outside the original
-  sandbox — unchanged by deploying to Vercel.
-
-## To get a real, persistent deployment
-
-Swap the datasource in `prisma/schema.prisma` from `sqlite` to `postgresql`,
-point `DATABASE_URL` at a real hosted Postgres instance (Vercel Postgres/Neon,
-Supabase, RDS, etc.), and run `prisma migrate deploy` against it once. At
-that point `src/lib/db.ts`'s Vercel-specific bootstrap block can be deleted
-entirely — it exists only to make an otherwise-database-less deployment work
-for demo purposes.
+  sandbox they were built in — unaffected by where the app is hosted.
 
 ## Steps
 
-1. In the Vercel dashboard: **Add New → Project → Import Git Repository**,
-   and select this repo.
-2. Leave the framework preset on **Next.js** (auto-detected) and the root
-   directory as `/` — no custom build/install commands needed.
-3. Deploy. No environment variables are required for the read-only demo
-   mode described above.
+1. **Provision Postgres.** Either:
+   - In the Vercel dashboard, open the project → **Storage** tab → connect
+     a Postgres database. Vercel injects `POSTGRES_PRISMA_URL` and
+     `POSTGRES_URL_NON_POOLING` into the project automatically — nothing to
+     copy or type.
+   - Or use any other provider (Neon, Supabase, RDS, ...) and set those two
+     env vars yourself in the Vercel project settings.
+2. **Create the schema and load starter data**, once, against that database:
+   ```
+   POSTGRES_PRISMA_URL=... POSTGRES_URL_NON_POOLING=... bun run db:push
+   POSTGRES_PRISMA_URL=... POSTGRES_URL_NON_POOLING=... bun run scripts/seed.ts
+   ```
+3. In the Vercel dashboard: **Add New → Project → Import Git Repository**,
+   select this repo. Framework preset (Next.js) and root directory are
+   auto-detected — no custom build/install commands needed.
+4. Deploy.
