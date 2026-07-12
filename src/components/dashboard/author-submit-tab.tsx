@@ -64,8 +64,15 @@ interface UploadedFile {
   contentType: string;
 }
 
+// Uploads are proxied through this app's own serverless function (see
+// handleFileSelected below for why), so this has to stay comfortably
+// under Vercel's ~4.5MB request-body limit rather than the 50MB a
+// direct-to-blob upload could otherwise handle.
+const MAX_MANUSCRIPT_MB = 4;
+const MAX_MANUSCRIPT_BYTES = MAX_MANUSCRIPT_MB * 1024 * 1024;
+
 export function AuthorSubmitTab({ onSubmitted }: Props) {
-  const { user, token, openDashboard } = useApp();
+  const { user, openDashboard } = useApp();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ doi: string; plagiarismScore: number; status: string } | null>(null);
@@ -157,66 +164,50 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
       });
       return;
     }
-    if (file.size > 50 * 1024 * 1024) {
-      toast.error("File too large", { description: "Maximum 50 MB." });
+    if (file.size > MAX_MANUSCRIPT_BYTES) {
+      toast.error("File too large", { description: `Maximum ${MAX_MANUSCRIPT_MB} MB.` });
       return;
     }
 
     setUploading(true);
     setUploadProgress(0);
     try {
-      // Ask which upload flow is live: Vercel Blob's real client-upload
-      // protocol (production, once Blob storage is connected — uploads go
-      // straight from the browser to Blob storage, bypassing this app's
-      // serverless functions entirely so large manuscripts don't hit
-      // request-body size limits) or the simpler local-proxy fallback
-      // (dev, when no Blob storage is configured).
-      const { mode } = await apiFetch<{ mode: "blob" | "local" }>("/api/storage/mode", { method: "GET" });
-
-      let key: string;
-      if (mode === "blob") {
-        const { upload } = await import("@vercel/blob/client");
-        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-        const blob = await upload(`raw-submissions/${Date.now()}-${safeName}`, file, {
-          access: "public",
-          handleUploadUrl: "/api/storage/presign",
+      // Always proxied through our own server rather than Vercel Blob's
+      // direct-to-browser client-token protocol. That protocol requires a
+      // classic BLOB_READ_WRITE_TOKEN to sign client tokens — an OIDC-only
+      // Blob connection (BLOB_STORE_ID) doesn't have one, which is exactly
+      // why uploads were failing with "Failed to retrieve the client
+      // token". Proxying through this app's own API does still reach real
+      // Blob storage (via putObject() in storage.ts, which is OIDC-aware)
+      // — the tradeoff is the file now passes through a serverless
+      // function, which is why the size cap below is well under Vercel's
+      // ~4.5MB request-body limit rather than the 50MB the direct-to-blob
+      // path could otherwise handle. If a real BLOB_READ_WRITE_TOKEN gets
+      // added later, this cap can go back up and the direct-to-blob path
+      // (still implemented in /api/storage/presign) can be re-enabled.
+      const presign = await apiFetch<{
+        uploadUrl: string;
+        key: string;
+        headers: Record<string, string>;
+      }>("/api/storage/presign-local", {
+        method: "POST",
+        body: JSON.stringify({
+          filename: file.name,
           contentType: file.type || "application/octet-stream",
-          // @vercel/blob's client upload() doesn't forward this app's own
-          // Bearer-token auth to handleUploadUrl by default — it has to be
-          // passed explicitly, or /api/storage/presign sees no session and
-          // the client surfaces a generic "Failed to retrieve the client
-          // token" error.
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        });
-        key = blob.pathname;
-      } else {
-        // 1. Request a pre-signed PUT URL from the storage API.
-        const presign = await apiFetch<{
-          uploadUrl: string;
-          key: string;
-          headers: Record<string, string>;
-        }>("/api/storage/presign-local", {
-          method: "POST",
-          body: JSON.stringify({
-            filename: file.name,
-            contentType: file.type || "application/octet-stream",
-            bucket: "raw-submissions",
-          }),
-        });
+          bucket: "raw-submissions",
+        }),
+      });
 
-        // 2. Upload directly to the storage layer via PUT. The pre-signed
-        //    URL's token authorises the upload — no bearer token needed.
-        const uploadRes = await fetch(presign.uploadUrl, {
-          method: "PUT",
-          body: file,
-          headers: presign.headers,
-        });
-        if (!uploadRes.ok) {
-          const errText = await uploadRes.text();
-          throw new Error(`Upload failed (${uploadRes.status}): ${errText}`);
-        }
-        key = presign.key;
+      const uploadRes = await fetch(presign.uploadUrl, {
+        method: "PUT",
+        body: file,
+        headers: presign.headers,
+      });
+      if (!uploadRes.ok) {
+        const errText = await uploadRes.text();
+        throw new Error(`Upload failed (${uploadRes.status}): ${errText}`);
       }
+      const key = presign.key;
 
       setUploadedFile({
         key,
@@ -457,11 +448,11 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
                         <CloudUpload className="h-8 w-8 text-muted-foreground" />
                         <p className="mt-3 text-sm font-medium">Drop your manuscript here or click to browse</p>
                         <p className="text-xs text-muted-foreground">
-                          PDF, DOCX, MD, TXT, HTML, TEX · max 50 MB
+                          PDF, DOCX, MD, TXT, HTML, TEX · max {MAX_MANUSCRIPT_MB} MB
                         </p>
                         <p className="mt-2 text-[0.7rem] text-muted-foreground">
-                          A pre-signed PUT URL is requested from <code className="font-mono">/api/storage/presign</code> —
-                          the file streams directly to private S3-style storage.
+                          A pre-signed PUT URL is requested from <code className="font-mono">/api/storage/presign-local</code> —
+                          the file streams to private S3-style storage.
                         </p>
                       </>
                     )}

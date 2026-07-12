@@ -109,34 +109,25 @@ export function ProfileTab() {
     setAvatarUploading(true);
 
     try {
-      const { mode } = await apiFetch<{ mode: "blob" | "local" }>("/api/storage/mode");
-
-      let avatarUrl: string;
-      if (mode === "blob") {
-        const { upload } = await import("@vercel/blob/client");
-        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-        const blob = await upload(`avatars/${Date.now()}-${safeName}`, file, {
-          access: "public",
-          handleUploadUrl: "/api/storage/presign",
-          contentType: file.type,
-          // See author-submit-tab.tsx's identical comment — the client
-          // upload() call needs this app's Bearer token passed explicitly,
-          // it isn't forwarded automatically.
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        });
-        avatarUrl = blob.url;
-      } else {
-        const presign = await apiFetch<{ uploadUrl: string; key: string; headers: Record<string, string> }>(
-          "/api/storage/presign-local",
-          {
-            method: "POST",
-            body: JSON.stringify({ filename: file.name, contentType: file.type, bucket: "avatars" }),
-          }
-        );
-        const uploadRes = await fetch(presign.uploadUrl, { method: "PUT", body: file, headers: presign.headers });
-        if (!uploadRes.ok) throw new Error(`Upload failed (${uploadRes.status})`);
-        avatarUrl = `/api/storage/download?key=${encodeURIComponent(presign.key)}`;
-      }
+      // Always proxied through our own server rather than Vercel Blob's
+      // direct-to-browser client-token protocol: that protocol requires a
+      // classic BLOB_READ_WRITE_TOKEN to sign client tokens, which an
+      // OIDC-only Blob connection doesn't have (a real gap — it's why
+      // avatar uploads were failing with "Failed to retrieve the client
+      // token"). Avatars are small (5 MB cap), so routing the bytes
+      // through this app's own API — which already resolves to real Blob
+      // storage via putObject()/presignGet() when connected — is both
+      // simpler and doesn't depend on that extra credential existing.
+      const presign = await apiFetch<{ uploadUrl: string; key: string; headers: Record<string, string> }>(
+        "/api/storage/presign-local",
+        {
+          method: "POST",
+          body: JSON.stringify({ filename: file.name, contentType: file.type, bucket: "avatars" }),
+        }
+      );
+      const uploadRes = await fetch(presign.uploadUrl, { method: "PUT", body: file, headers: presign.headers });
+      if (!uploadRes.ok) throw new Error(`Upload failed (${uploadRes.status})`);
+      const { url: avatarUrl } = (await uploadRes.json()) as { url: string };
 
       const { user: updated } = await apiFetch<{ user: Profile }>("/api/auth/me", {
         method: "PATCH",

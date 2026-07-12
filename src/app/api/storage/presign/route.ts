@@ -28,10 +28,21 @@ const BUCKET_RULES: Record<string, { contentTypes: string[]; maxSizeBytes: numbe
  * Implements Vercel Blob's client-upload token protocol (@vercel/blob/client
  * upload() on the frontend talks to this route, then PUTs the file bytes
  * directly to Blob storage — never through this serverless function, which
- * is what lets a 50MB manuscript upload without hitting the platform's
- * request-body size limit). Only reachable when Blob storage is connected;
- * the frontend checks GET /api/storage/mode first and uses the simpler
- * local-proxy routes otherwise.
+ * is what would let a 50MB manuscript upload without hitting the
+ * platform's request-body size limit).
+ *
+ * NOT currently called by the frontend: generating a client token here
+ * requires a classic BLOB_READ_WRITE_TOKEN (this route's `handleUpload`
+ * call needs one to sign the token and derive the store ID from it), and
+ * this project's Blob store is connected via the newer OIDC-only method
+ * (BLOB_STORE_ID + VERCEL_OIDC_TOKEN), which `handleUpload` doesn't
+ * accept — every call here fails with "No read-write token found" no
+ * matter how it's invoked. Both upload flows use
+ * /api/storage/presign-local instead (proxied through the server, capped
+ * at sizes that comfortably fit a serverless function body). This route
+ * is left in place, correct and ready to resume being used the moment a
+ * real BLOB_READ_WRITE_TOKEN is added to the project's environment
+ * variables.
  */
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const session = getSessionFromHeaders(req.headers);
