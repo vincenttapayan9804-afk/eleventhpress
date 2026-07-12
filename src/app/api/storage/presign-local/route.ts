@@ -3,15 +3,23 @@ import crypto from "crypto";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 
-const ALLOWED_CONTENT_TYPES = [
-  "application/pdf",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/msword",
-  "text/markdown",
-  "text/plain",
-  "text/html",
-  "application/x-tex",
-];
+/** Per-bucket upload rules — mirrors /api/storage/presign's BUCKET_RULES. */
+const BUCKET_RULES: Record<string, { contentTypes: string[] }> = {
+  "raw-submissions": {
+    contentTypes: [
+      "application/pdf",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/msword",
+      "text/markdown",
+      "text/plain",
+      "text/html",
+      "application/x-tex",
+    ],
+  },
+  avatars: {
+    contentTypes: ["image/jpeg", "image/png", "image/webp", "image/gif"],
+  },
+};
 const PRESIGN_TTL_MS = 10 * 60 * 1000;
 
 /**
@@ -38,18 +46,23 @@ export async function POST(req: NextRequest) {
   if (!filename) {
     return NextResponse.json({ error: "filename is required" }, { status: 400 });
   }
-  if (contentType && !ALLOWED_CONTENT_TYPES.includes(contentType)) {
+  const resolvedBucket = bucket || "raw-submissions";
+  const rules = BUCKET_RULES[resolvedBucket];
+  if (!rules) {
+    return NextResponse.json({ error: `Unknown bucket: ${resolvedBucket}` }, { status: 400 });
+  }
+  if (contentType && !rules.contentTypes.includes(contentType)) {
     return NextResponse.json({ error: `Unsupported content type: ${contentType}` }, { status: 400 });
   }
 
   const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const key = `${bucket || "raw-submissions"}/${session.userId}/${Date.now()}-${safeName}`;
+  const key = `${resolvedBucket}/${session.userId}/${Date.now()}-${safeName}`;
   const token = crypto.randomBytes(24).toString("hex");
   const presignExpiresAt = new Date(Date.now() + PRESIGN_TTL_MS);
 
   await db.storageObject.create({
     data: {
-      bucket: bucket || "raw-submissions",
+      bucket: resolvedBucket,
       key,
       fileName: filename,
       contentType: contentType || "application/octet-stream",

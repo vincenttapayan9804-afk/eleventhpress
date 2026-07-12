@@ -3,16 +3,25 @@ import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 
-const ALLOWED_CONTENT_TYPES = [
-  "application/pdf",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/msword",
-  "text/markdown",
-  "text/plain",
-  "text/html",
-  "application/x-tex",
-];
-const MAX_SIZE_BYTES = 50 * 1024 * 1024;
+/** Per-bucket upload rules. Only buckets listed here may be uploaded to directly from the client. */
+const BUCKET_RULES: Record<string, { contentTypes: string[]; maxSizeBytes: number }> = {
+  "raw-submissions": {
+    contentTypes: [
+      "application/pdf",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/msword",
+      "text/markdown",
+      "text/plain",
+      "text/html",
+      "application/x-tex",
+    ],
+    maxSizeBytes: 50 * 1024 * 1024,
+  },
+  avatars: {
+    contentTypes: ["image/jpeg", "image/png", "image/webp", "image/gif"],
+    maxSizeBytes: 5 * 1024 * 1024,
+  },
+};
 
 /**
  * POST /api/storage/presign
@@ -37,13 +46,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       body,
       request: req,
       onBeforeGenerateToken: async (pathname) => {
-        if (!pathname.startsWith("raw-submissions/")) {
-          throw new Error("Uploads are only permitted into the raw-submissions bucket");
+        const bucket = pathname.split("/")[0];
+        const rules = BUCKET_RULES[bucket];
+        if (!rules || !pathname.startsWith(`${bucket}/`)) {
+          throw new Error(`Uploads are only permitted into: ${Object.keys(BUCKET_RULES).join(", ")}`);
         }
         return {
-          allowedContentTypes: ALLOWED_CONTENT_TYPES,
-          maximumSizeInBytes: MAX_SIZE_BYTES,
-          tokenPayload: JSON.stringify({ userId: session.userId }),
+          allowedContentTypes: rules.contentTypes,
+          maximumSizeInBytes: rules.maxSizeBytes,
+          tokenPayload: JSON.stringify({ userId: session.userId, bucket }),
         };
       },
       onUploadCompleted: async ({ blob, tokenPayload }) => {
@@ -54,7 +65,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           const payload = tokenPayload ? JSON.parse(tokenPayload) : {};
           await db.storageObject.create({
             data: {
-              bucket: "raw-submissions",
+              bucket: payload.bucket || "raw-submissions",
               key: blob.pathname,
               fileName: blob.pathname.split("/").pop() || blob.pathname,
               contentType: blob.contentType,

@@ -25,9 +25,11 @@ import {
   Loader2,
   AlertCircle,
   BarChart3,
+  UserCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { ProfileTab } from "@/components/dashboard/profile-tab";
 import { AuthorSubmitTab } from "@/components/dashboard/author-submit-tab";
 import { AuthorArticlesTab } from "@/components/dashboard/author-articles-tab";
 import { InvoicesTab } from "@/components/dashboard/invoices-tab";
@@ -98,6 +100,7 @@ export function DashboardView() {
   // Role-based tab list
   const TABS: { key: string; label: string; icon: any; roles: string[] }[] = [
     { key: "overview", label: "Overview", icon: LayoutDashboard, roles: ["*"] },
+    { key: "profile", label: "Profile", icon: UserCircle, roles: ["*"] },
     { key: "submit", label: "New submission", icon: FilePlus2, roles: ["AUTHOR", "SUPER_ADMIN"] },
     { key: "myArticles", label: "My articles", icon: FolderOpen, roles: ["AUTHOR", "SUPER_ADMIN"] },
     { key: "invoices", label: "Billing & invoices", icon: Receipt, roles: ["AUTHOR", "READER", "SUPER_ADMIN"] },
@@ -231,6 +234,7 @@ export function DashboardView() {
         {/* Main panel */}
         <div className="min-w-0">
           {dashboardTab === "overview" && <OverviewTab data={data} />}
+          {dashboardTab === "profile" && <ProfileTab />}
           {dashboardTab === "submit" && <AuthorSubmitTab onSubmitted={loadDashboard} />}
           {dashboardTab === "myArticles" && <AuthorArticlesTab submissions={data.submissions || []} onRefresh={loadDashboard} />}
           {dashboardTab === "invoices" && <InvoicesTab invoices={data.invoices || []} subscription={data.subscription} onRefresh={loadDashboard} />}

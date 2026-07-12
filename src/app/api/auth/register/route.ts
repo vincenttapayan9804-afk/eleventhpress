@@ -64,6 +64,7 @@ export async function POST(req: NextRequest) {
         affiliation: user.affiliation,
         expertise: user.expertise,
         country: user.country,
+        avatarUrl: user.avatarUrl,
       },
     });
   } catch (e) {

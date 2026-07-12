@@ -32,6 +32,7 @@ export async function POST(req: NextRequest) {
         country: user.country,
         orcid: user.orcid,
         bio: user.bio,
+        avatarUrl: user.avatarUrl,
       },
     });
   } catch (e) {

@@ -16,6 +16,7 @@ export type ViewKey =
 
 export type DashboardTab =
   | "overview"
+  | "profile"
   | "submit"
   | "myArticles"
   | "invoices"
@@ -37,6 +38,7 @@ interface SessionUser {
   country?: string | null;
   orcid?: string | null;
   bio?: string | null;
+  avatarUrl?: string | null;
 }
 
 export type Locale = "en" | "es" | "fr" | "fil" | "zh-Hans";

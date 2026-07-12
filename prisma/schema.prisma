@@ -41,6 +41,15 @@ model User {
   bio           String?
   expertise     String?  // comma-separated keywords for reviewer matching
   country       String?
+  // Public profile
+  avatarUrl     String?  // profile picture — resolved public URL (Blob or /api/storage/download)
+  profession    String?  // e.g. "Associate Professor of Computational Biology" — distinct from `affiliation` (institution name)
+  website       String?
+  twitterUrl    String?
+  linkedinUrl   String?
+  githubUrl     String?
+  contactEmail  String?  // public-facing contact address — deliberately separate from the login `email`
+  contactPhone  String?
   // ORCID OAuth tokens (premium integration)
   orcidAccessToken  String?
   orcidRefreshToken String?

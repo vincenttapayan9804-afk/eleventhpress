@@ -20,7 +20,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { apiFetch } from "@/lib/api-client";
 import { LanguageSwitcher } from "@/components/language-switcher";
@@ -115,6 +115,7 @@ export function SiteHeader() {
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="flex items-center gap-2 pl-2 pr-3">
                       <Avatar className="h-7 w-7 border border-[oklch(0.76_0.11_294/0.3)]">
+                        {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.fullName} className="object-cover" />}
                         <AvatarFallback className="bg-[oklch(0.93_0.04_290)] text-[oklch(0.42_0.18_295)] text-xs font-medium">
                           {initials}
                         </AvatarFallback>

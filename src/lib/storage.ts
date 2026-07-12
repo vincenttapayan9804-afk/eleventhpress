@@ -13,7 +13,8 @@
  * involved in that path, so BLOB_STORE_ID is the presence check that
  * actually matches how a dashboard-connected store shows up.
  *
- * Three "buckets": raw-submissions, anonymized-manuscripts, published-galleys.
+ * Four "buckets": raw-submissions, anonymized-manuscripts, published-galleys,
+ * avatars.
  */
 import { promises as fs } from "fs";
 import path from "path";
@@ -26,6 +27,7 @@ const BUCKET_DIRS: Record<string, string> = {
   "raw-submissions": path.join(STORAGE_ROOT, "raw-submissions"),
   "anonymized-manuscripts": path.join(STORAGE_ROOT, "anonymized-manuscripts"),
   "published-galleys": path.join(STORAGE_ROOT, "published-galleys"),
+  avatars: path.join(STORAGE_ROOT, "avatars"),
 };
 
 export function usingBlob(): boolean {
