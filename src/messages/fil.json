@@ -2,7 +2,10 @@
   "nav": {
     "home": "Home",
     "articles": "Mga Artikulo",
+    "authors": "Mga May-akda",
+    "resources": "Mga Resources",
     "about": "Tungkol",
+    "faqs": "FAQs",
     "dashboard": "Dashboard",
     "signIn": "Mag-sign in",
     "signOut": "Mag-sign out",
@@ -20,7 +23,10 @@
     "exploreLabel": "Galugarin",
     "home": "Home",
     "allArticles": "Lahat ng Artikulo",
+    "authorsDirectory": "Authors' directory",
+    "resources": "Mga Resources",
     "aboutJournal": "Tungkol sa Journal",
+    "faqs": "FAQs",
     "oaiEndpoint": "OAI-PMH endpoint",
     "policiesLabel": "Mga Patakaran",
     "policyOpenAccess": "Open access (CC BY 4.0)",
@@ -87,6 +93,43 @@
     "affiliationLabel": "Affiliation",
     "countryLabel": "Bansa",
     "createAccountButton": "Gumawa ng account"
+  },
+  "authors": {
+    "eyebrow": "Komunidad",
+    "title": "Authors' directory",
+    "description": "Lahat ng may-akda na nakapaglathala sa amin, kinuha mula sa aming mga nailathalang artikulo — mga profile, affiliation, at tunay na publication statistics.",
+    "searchPlaceholder": "Maghanap ayon sa pangalan o affiliation…",
+    "allDisciplines": "Lahat ng disiplina",
+    "noAuthorsFound": "Walang nahanap na may-akda",
+    "noAuthorsHint": "Subukan ang ibang search term o discipline filter.",
+    "statArticles": "Artikulo",
+    "statCitations": "Sipi (Citations)",
+    "statViews": "Views",
+    "statDownloads": "Downloads",
+    "publications": "Mga Publication",
+    "noAffiliation": "Walang nakalagay na affiliation"
+  },
+  "resources": {
+    "eyebrow": "Resources",
+    "title": "Matuto, maglathala, at lumago kasama kami",
+    "description": "Mga gabay, editorial insight, at reading recommendation para sa mga may-akda at reviewer — pati na rin ang preview ng darating.",
+    "tabTrainings": "Trainings & courses",
+    "tabWebinars": "Webinars",
+    "tabBlogs": "Blogs",
+    "tabGuides": "Mga Gabay",
+    "tabBooks": "Mga Aklat",
+    "comingSoonTrainings": "Ang aming training program ay ginagawa pa. Ito ang aming plano — sabihin sa amin kung ano ang magiging kapaki-pakinabang para sa inyo.",
+    "comingSoonWebinars": "Ang aming webinar series ay ginagawa pa. Ito ang aming plano — sabihin sa amin kung ano ang magiging kapaki-pakinabang para sa inyo.",
+    "readMore": "Basahin pa",
+    "booksDisclaimer": "Isang recommended reading list, independiyenteng inilathala — walang kaugnayan o endorsement mula sa Eleventh Press."
+  },
+  "faqs": {
+    "eyebrow": "Help center",
+    "title": "Mga madalas itanong",
+    "description": "Mga sagot sa mga tanong na madalas naming natatanggap tungkol sa paglalathala, pagbabasa, at lahat ng nasa pagitan.",
+    "stillHaveQuestions": "May tanong pa ba?",
+    "contactHeadline": "Masaya kaming tumulong sa aming editorial office",
+    "emailUs": "I-email kami"
   },
   "language": {
     "label": "Wika"

@@ -2,7 +2,10 @@
   "nav": {
     "home": "Home",
     "articles": "Articles",
+    "authors": "Authors",
+    "resources": "Resources",
     "about": "About",
+    "faqs": "FAQs",
     "dashboard": "Dashboard",
     "signIn": "Sign in",
     "signOut": "Sign out",
@@ -20,7 +23,10 @@
     "exploreLabel": "Explore",
     "home": "Home",
     "allArticles": "All articles",
+    "authorsDirectory": "Authors' directory",
+    "resources": "Resources",
     "aboutJournal": "About the journal",
+    "faqs": "FAQs",
     "oaiEndpoint": "OAI-PMH endpoint",
     "policiesLabel": "Policies",
     "policyOpenAccess": "Open access (CC BY 4.0)",
@@ -87,6 +93,43 @@
     "affiliationLabel": "Affiliation",
     "countryLabel": "Country",
     "createAccountButton": "Create account"
+  },
+  "authors": {
+    "eyebrow": "Community",
+    "title": "Authors' directory",
+    "description": "Every author who has published with us, aggregated from our published articles — profiles, affiliations, and real publication statistics.",
+    "searchPlaceholder": "Search by name or affiliation…",
+    "allDisciplines": "All disciplines",
+    "noAuthorsFound": "No authors found",
+    "noAuthorsHint": "Try a different search term or discipline filter.",
+    "statArticles": "Articles",
+    "statCitations": "Citations",
+    "statViews": "Views",
+    "statDownloads": "Downloads",
+    "publications": "Publications",
+    "noAffiliation": "Affiliation not provided"
+  },
+  "resources": {
+    "eyebrow": "Resources",
+    "title": "Learn, publish, and grow with us",
+    "description": "Guides, editorial insights, and reading recommendations for authors and reviewers — plus a look at what's coming next.",
+    "tabTrainings": "Trainings & courses",
+    "tabWebinars": "Webinars",
+    "tabBlogs": "Blogs",
+    "tabGuides": "Guides",
+    "tabBooks": "Books",
+    "comingSoonTrainings": "Our training program is in development. Here's what we're planning — let us know what you'd find useful.",
+    "comingSoonWebinars": "Our webinar series is in development. Here's what we're planning — let us know what you'd find useful.",
+    "readMore": "Read more",
+    "booksDisclaimer": "A recommended reading list, independently published — not affiliated with or endorsed by Eleventh Press."
+  },
+  "faqs": {
+    "eyebrow": "Help center",
+    "title": "Frequently asked questions",
+    "description": "Answers to the questions we hear most often about publishing, reading, and everything in between.",
+    "stillHaveQuestions": "Still have questions?",
+    "contactHeadline": "Our editorial office is happy to help",
+    "emailUs": "Email us"
   },
   "language": {
     "label": "Language"

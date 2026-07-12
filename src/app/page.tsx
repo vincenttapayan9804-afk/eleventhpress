@@ -11,6 +11,9 @@ import { ArticleView } from "@/components/views/article-view";
 import { AboutView } from "@/components/views/about-view";
 import { AuthView } from "@/components/views/auth-view";
 import { DashboardView } from "@/components/views/dashboard-view";
+import { ResourcesView } from "@/components/views/resources-view";
+import { AuthorsView } from "@/components/views/authors-view";
+import { FaqsView } from "@/components/views/faqs-view";
 import { AuthSheet } from "@/components/auth-sheet";
 import { Toaster } from "@/components/ui/sonner";
 import { I18nProvider } from "@/components/i18n-provider";
@@ -66,6 +69,9 @@ export default function Page() {
           {view === "about" && <AboutView />}
           {(view === "login" || view === "register") && <AuthView />}
           {view === "dashboard" && <DashboardView />}
+          {view === "resources" && <ResourcesView />}
+          {view === "authors" && <AuthorsView />}
+          {view === "faqs" && <FaqsView />}
         </main>
         <SiteFooter />
         <AuthSheet />

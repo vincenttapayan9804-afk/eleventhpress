@@ -38,7 +38,10 @@ export function SiteFooter() {
               <ul className="space-y-2.5 text-sm">
                 <li><button onClick={() => setView("home")} className="text-muted-foreground hover:text-[oklch(0.42_0.18_295)] transition-colors">{t("home")}</button></li>
                 <li><button onClick={() => setView("browse")} className="text-muted-foreground hover:text-[oklch(0.42_0.18_295)] transition-colors">{t("allArticles")}</button></li>
+                <li><button onClick={() => setView("authors")} className="text-muted-foreground hover:text-[oklch(0.42_0.18_295)] transition-colors">{t("authorsDirectory")}</button></li>
+                <li><button onClick={() => setView("resources")} className="text-muted-foreground hover:text-[oklch(0.42_0.18_295)] transition-colors">{t("resources")}</button></li>
                 <li><button onClick={() => setView("about")} className="text-muted-foreground hover:text-[oklch(0.42_0.18_295)] transition-colors">{t("aboutJournal")}</button></li>
+                <li><button onClick={() => setView("faqs")} className="text-muted-foreground hover:text-[oklch(0.42_0.18_295)] transition-colors">{t("faqs")}</button></li>
                 <li><a href="/api/oai-pmh?verb=Identify" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-muted-foreground hover:text-[oklch(0.42_0.18_295)] transition-colors"><Globe className="h-3 w-3" /> {t("oaiEndpoint")}</a></li>
               </ul>
             </div>

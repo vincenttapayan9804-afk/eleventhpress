@@ -2,7 +2,10 @@
   "nav": {
     "home": "Accueil",
     "articles": "Articles",
+    "authors": "Auteurs",
+    "resources": "Ressources",
     "about": "À propos",
+    "faqs": "FAQ",
     "dashboard": "Tableau de bord",
     "signIn": "Connexion",
     "signOut": "Déconnexion",
@@ -20,7 +23,10 @@
     "exploreLabel": "Explorer",
     "home": "Accueil",
     "allArticles": "Tous les articles",
+    "authorsDirectory": "Annuaire des auteurs",
+    "resources": "Ressources",
     "aboutJournal": "À propos de la revue",
+    "faqs": "FAQ",
     "oaiEndpoint": "Point d'accès OAI-PMH",
     "policiesLabel": "Politiques",
     "policyOpenAccess": "Libre accès (CC BY 4.0)",
@@ -87,6 +93,43 @@
     "affiliationLabel": "Affiliation",
     "countryLabel": "Pays",
     "createAccountButton": "Créer le compte"
+  },
+  "authors": {
+    "eyebrow": "Communauté",
+    "title": "Annuaire des auteurs",
+    "description": "Tous les auteurs ayant publié chez nous, regroupés à partir de nos articles publiés — profils, affiliations et statistiques de publication réelles.",
+    "searchPlaceholder": "Rechercher par nom ou affiliation…",
+    "allDisciplines": "Toutes les disciplines",
+    "noAuthorsFound": "Aucun auteur trouvé",
+    "noAuthorsHint": "Essayez un autre terme de recherche ou filtre de discipline.",
+    "statArticles": "Articles",
+    "statCitations": "Citations",
+    "statViews": "Vues",
+    "statDownloads": "Téléchargements",
+    "publications": "Publications",
+    "noAffiliation": "Affiliation non renseignée"
+  },
+  "resources": {
+    "eyebrow": "Ressources",
+    "title": "Apprenez, publiez et progressez avec nous",
+    "description": "Guides, billets éditoriaux et recommandations de lecture pour les auteurs et les évaluateurs — et un aperçu de ce qui arrive.",
+    "tabTrainings": "Formations & cours",
+    "tabWebinars": "Webinaires",
+    "tabBlogs": "Blog",
+    "tabGuides": "Guides",
+    "tabBooks": "Livres",
+    "comingSoonTrainings": "Notre programme de formation est en cours de développement. Voici ce que nous prévoyons — dites-nous ce qui vous serait utile.",
+    "comingSoonWebinars": "Notre série de webinaires est en cours de développement. Voici ce que nous prévoyons — dites-nous ce qui vous serait utile.",
+    "readMore": "Lire la suite",
+    "booksDisclaimer": "Une liste de lectures recommandées, publiée indépendamment — sans affiliation ni approbation d'Eleventh Press."
+  },
+  "faqs": {
+    "eyebrow": "Centre d'aide",
+    "title": "Foire aux questions",
+    "description": "Réponses aux questions que nous recevons le plus souvent sur la publication, la lecture, et tout le reste.",
+    "stillHaveQuestions": "Encore des questions ?",
+    "contactHeadline": "Notre bureau éditorial se fera un plaisir de vous aider",
+    "emailUs": "Écrivez-nous"
   },
   "language": {
     "label": "Langue"

@@ -34,7 +34,10 @@ export function SiteHeader() {
   const NAV_ITEMS = [
     { label: t("home"), view: "home" as const },
     { label: t("articles"), view: "browse" as const },
+    { label: t("authors"), view: "authors" as const },
+    { label: t("resources"), view: "resources" as const },
     { label: t("about"), view: "about" as const },
+    { label: t("faqs"), view: "faqs" as const },
   ];
 
   useState(() => {
@@ -67,7 +70,7 @@ export function SiteHeader() {
           </button>
 
           {/* Desktop nav */}
-          <nav className="hidden items-center gap-8 md:flex">
+          <nav className="hidden items-center gap-5 lg:flex">
             {NAV_ITEMS.map((item) => (
               <button
                 key={item.view}
@@ -155,7 +158,7 @@ export function SiteHeader() {
             {/* Mobile nav */}
             <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="md:hidden" aria-label={t("menu")}>
+                <Button variant="ghost" size="icon" className="lg:hidden" aria-label={t("menu")}>
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>

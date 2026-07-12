@@ -2,7 +2,10 @@
   "nav": {
     "home": "首页",
     "articles": "文章",
+    "authors": "作者",
+    "resources": "资源",
     "about": "关于期刊",
+    "faqs": "常见问题",
     "dashboard": "控制台",
     "signIn": "登录",
     "signOut": "退出登录",
@@ -20,7 +23,10 @@
     "exploreLabel": "浏览",
     "home": "首页",
     "allArticles": "全部文章",
+    "authorsDirectory": "作者名录",
+    "resources": "资源",
     "aboutJournal": "关于本刊",
+    "faqs": "常见问题",
     "oaiEndpoint": "OAI-PMH 接口",
     "policiesLabel": "政策",
     "policyOpenAccess": "开放获取（CC BY 4.0）",
@@ -87,6 +93,43 @@
     "affiliationLabel": "所属机构",
     "countryLabel": "国家/地区",
     "createAccountButton": "创建账号"
+  },
+  "authors": {
+    "eyebrow": "社区",
+    "title": "作者名录",
+    "description": "汇总自本刊已发表文章的所有作者——个人主页、所属机构，以及真实的发表统计数据。",
+    "searchPlaceholder": "按姓名或所属机构搜索……",
+    "allDisciplines": "全部学科",
+    "noAuthorsFound": "未找到相关作者",
+    "noAuthorsHint": "请尝试更换搜索词或学科筛选条件。",
+    "statArticles": "文章数",
+    "statCitations": "引用数",
+    "statViews": "浏览量",
+    "statDownloads": "下载量",
+    "publications": "发表文章",
+    "noAffiliation": "未提供所属机构"
+  },
+  "resources": {
+    "eyebrow": "资源",
+    "title": "与我们一起学习、发表与成长",
+    "description": "面向作者与审稿人的指南、编辑观点与阅读推荐——以及即将推出的内容预告。",
+    "tabTrainings": "培训与课程",
+    "tabWebinars": "网络研讨会",
+    "tabBlogs": "博客",
+    "tabGuides": "指南",
+    "tabBooks": "书籍",
+    "comingSoonTrainings": "我们的培训项目正在筹备中。以下是我们的初步计划——欢迎告诉我们您希望了解的内容。",
+    "comingSoonWebinars": "我们的网络研讨会系列正在筹备中。以下是我们的初步计划——欢迎告诉我们您希望了解的内容。",
+    "readMore": "阅读更多",
+    "booksDisclaimer": "推荐阅读书单，均为独立出版物——与 Eleventh Press 无关联、亦非官方推荐。"
+  },
+  "faqs": {
+    "eyebrow": "帮助中心",
+    "title": "常见问题",
+    "description": "关于发表、阅读及其他相关事宜的常见问题解答。",
+    "stillHaveQuestions": "还有其他问题？",
+    "contactHeadline": "我们的编辑部很乐意为您提供帮助",
+    "emailUs": "给我们发邮件"
   },
   "language": {
     "label": "语言"

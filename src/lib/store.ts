@@ -9,7 +9,10 @@ export type ViewKey =
   | "about"
   | "login"
   | "register"
-  | "dashboard";
+  | "dashboard"
+  | "resources"
+  | "authors"
+  | "faqs";
 
 export type DashboardTab =
   | "overview"
