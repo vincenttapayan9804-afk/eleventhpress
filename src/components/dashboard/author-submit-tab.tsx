@@ -65,7 +65,7 @@ interface UploadedFile {
 }
 
 export function AuthorSubmitTab({ onSubmitted }: Props) {
-  const { user, openDashboard } = useApp();
+  const { user, token, openDashboard } = useApp();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ doi: string; plagiarismScore: number; status: string } | null>(null);
@@ -181,6 +181,12 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
           access: "public",
           handleUploadUrl: "/api/storage/presign",
           contentType: file.type || "application/octet-stream",
+          // @vercel/blob's client upload() doesn't forward this app's own
+          // Bearer-token auth to handleUploadUrl by default — it has to be
+          // passed explicitly, or /api/storage/presign sees no session and
+          // the client surfaces a generic "Failed to retrieve the client
+          // token" error.
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         });
         key = blob.pathname;
       } else {

@@ -119,6 +119,10 @@ export function ProfileTab() {
           access: "public",
           handleUploadUrl: "/api/storage/presign",
           contentType: file.type,
+          // See author-submit-tab.tsx's identical comment — the client
+          // upload() call needs this app's Bearer token passed explicitly,
+          // it isn't forwarded automatically.
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         });
         avatarUrl = blob.url;
       } else {
