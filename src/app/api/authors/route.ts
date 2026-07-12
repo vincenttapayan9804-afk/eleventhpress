@@ -8,6 +8,14 @@ import { parseAuthors } from "@/lib/article";
  * field (not just registered accounts — most co-authors never register).
  * Grouped by ORCID where present, otherwise by normalized name, so the same
  * person's stats roll up across all their published articles.
+ *
+ * Registered accounts are automatically cross-referenced by ORCID (first
+ * choice) or account email (fallback) so a matched entry's profile picture,
+ * profession, bio, and social/contact links stay in sync with whatever the
+ * author last saved in their dashboard — no separate publish step, this
+ * always reflects current account state on every request. Only the
+ * account's opt-in public `contactEmail` is ever exposed here, never the
+ * private login `email` used for matching.
  */
 export async function GET() {
   const articles = await db.article.findMany({
@@ -31,6 +39,7 @@ export async function GET() {
     name: string;
     affiliation: string;
     orcid: string | null;
+    email: string | null;
     disciplines: Set<string>;
     articleCount: number;
     totalViews: number;
@@ -52,6 +61,7 @@ export async function GET() {
           name: au.name,
           affiliation: au.affiliation || "",
           orcid: au.orcid || null,
+          email: au.email || null,
           disciplines: new Set(),
           articleCount: 0,
           totalViews: 0,
@@ -70,8 +80,53 @@ export async function GET() {
     }
   }
 
+  // Cross-reference registered accounts by ORCID or email so public
+  // profile fields (avatar, profession, bio, social/contact links) come
+  // straight from whatever the author currently has saved.
+  const orcids = [...byKey.values()].map((e) => e.orcid).filter((v): v is string => !!v);
+  const emails = [...byKey.values()].map((e) => e.email).filter((v): v is string => !!v);
+  const accounts = orcids.length || emails.length
+    ? await db.user.findMany({
+        where: { OR: [...(orcids.length ? [{ orcid: { in: orcids } }] : []), ...(emails.length ? [{ email: { in: emails } }] : [])] },
+        select: {
+          id: true,
+          orcid: true,
+          email: true,
+          fullName: true,
+          avatarUrl: true,
+          profession: true,
+          bio: true,
+          website: true,
+          twitterUrl: true,
+          linkedinUrl: true,
+          githubUrl: true,
+          contactEmail: true,
+          contactPhone: true,
+        },
+      })
+    : [];
+  const accountByOrcid = new Map(accounts.filter((u) => u.orcid).map((u) => [u.orcid as string, u]));
+  const accountByEmail = new Map(accounts.filter((u) => u.email).map((u) => [u.email.toLowerCase(), u]));
+
   const authors = [...byKey.values()]
-    .map((e) => ({ ...e, disciplines: [...e.disciplines] }))
+    .map((e) => {
+      const account = (e.orcid && accountByOrcid.get(e.orcid)) || (e.email && accountByEmail.get(e.email.toLowerCase())) || null;
+      const { email, ...rest } = e;
+      return {
+        ...rest,
+        disciplines: [...e.disciplines],
+        hasAccount: !!account,
+        avatarUrl: account?.avatarUrl || null,
+        profession: account?.profession || null,
+        bio: account?.bio || null,
+        website: account?.website || null,
+        twitterUrl: account?.twitterUrl || null,
+        linkedinUrl: account?.linkedinUrl || null,
+        githubUrl: account?.githubUrl || null,
+        contactEmail: account?.contactEmail || null,
+        contactPhone: account?.contactPhone || null,
+      };
+    })
     .sort((a, b) => b.articleCount - a.articleCount || b.totalCitations - a.totalCitations || a.name.localeCompare(b.name));
 
   return NextResponse.json({ authors, total: authors.length });

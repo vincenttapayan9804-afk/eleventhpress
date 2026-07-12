@@ -7,7 +7,7 @@ import { apiFetch } from "@/lib/api-client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
@@ -23,7 +23,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, FileText, Eye, Download, Quote, BadgeCheck, Loader2 } from "lucide-react";
+import {
+  Search,
+  FileText,
+  Eye,
+  Download,
+  Quote,
+  BadgeCheck,
+  Loader2,
+  Globe2,
+  Link2,
+  Linkedin,
+  Github,
+  Mail,
+  Phone,
+} from "lucide-react";
 
 interface AuthorArticle {
   id: string;
@@ -44,6 +58,19 @@ interface AuthorEntry {
   totalDownloads: number;
   totalCitations: number;
   articles: AuthorArticle[];
+  // Merged in from a matching registered account, when one exists —
+  // always reflects whatever that author currently has saved in their
+  // dashboard Profile tab, refreshed on every load of this directory.
+  hasAccount: boolean;
+  avatarUrl: string | null;
+  profession: string | null;
+  bio: string | null;
+  website: string | null;
+  twitterUrl: string | null;
+  linkedinUrl: string | null;
+  githubUrl: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
 }
 
 function initialsOf(name: string) {
@@ -143,15 +170,18 @@ export function AuthorsView() {
             <CardContent className="p-5">
               <div className="flex items-center gap-3">
                 <Avatar className="h-11 w-11 border border-[oklch(0.76_0.11_294/0.3)]">
+                  {a.avatarUrl && <AvatarImage src={a.avatarUrl} alt={a.name} className="object-cover" />}
                   <AvatarFallback className="bg-[oklch(0.93_0.04_290)] text-sm font-medium text-[oklch(0.42_0.18_295)]">
                     {initialsOf(a.name)}
                   </AvatarFallback>
                 </Avatar>
                 <div className="min-w-0">
                   <p className="truncate font-display text-base font-semibold">{a.name}</p>
-                  {a.affiliation && (
+                  {a.profession ? (
+                    <p className="truncate text-xs text-muted-foreground">{a.profession}</p>
+                  ) : a.affiliation ? (
                     <p className="truncate text-xs text-muted-foreground">{a.affiliation}</p>
-                  )}
+                  ) : null}
                 </div>
               </div>
               <div className="mt-3 flex flex-wrap gap-1.5">
@@ -184,27 +214,59 @@ export function AuthorsView() {
               <DialogHeader>
                 <div className="flex items-center gap-3">
                   <Avatar className="h-12 w-12 border border-[oklch(0.76_0.11_294/0.3)]">
+                    {selected.avatarUrl && <AvatarImage src={selected.avatarUrl} alt={selected.name} className="object-cover" />}
                     <AvatarFallback className="bg-[oklch(0.93_0.04_290)] text-sm font-medium text-[oklch(0.42_0.18_295)]">
                       {initialsOf(selected.name)}
                     </AvatarFallback>
                   </Avatar>
                   <div>
                     <DialogTitle className="font-display text-lg">{selected.name}</DialogTitle>
-                    <DialogDescription>{selected.affiliation || t("noAffiliation")}</DialogDescription>
+                    <DialogDescription>
+                      {selected.profession || selected.affiliation || t("noAffiliation")}
+                    </DialogDescription>
+                    {selected.profession && selected.affiliation && (
+                      <p className="text-xs text-muted-foreground">{selected.affiliation}</p>
+                    )}
                   </div>
                 </div>
               </DialogHeader>
 
-              {selected.orcid && (
-                <a
-                  href={`https://orcid.org/${selected.orcid}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-1 inline-flex w-fit items-center gap-1.5 rounded-md border border-[oklch(0.76_0.11_294/0.3)] px-2.5 py-1 text-xs font-medium text-[oklch(0.42_0.18_295)] hover:bg-[oklch(0.93_0.04_290)]"
-                >
-                  <BadgeCheck className="h-3.5 w-3.5" /> {selected.orcid}
-                </a>
+              {selected.bio && (
+                <p className="mt-1 text-sm leading-relaxed text-foreground/85">{selected.bio}</p>
               )}
+
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                {selected.orcid && (
+                  <a
+                    href={`https://orcid.org/${selected.orcid}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex w-fit items-center gap-1.5 rounded-md border border-[oklch(0.76_0.11_294/0.3)] px-2.5 py-1 text-xs font-medium text-[oklch(0.42_0.18_295)] hover:bg-[oklch(0.93_0.04_290)]"
+                  >
+                    <BadgeCheck className="h-3.5 w-3.5" /> {selected.orcid}
+                  </a>
+                )}
+                {selected.website && (
+                  <SocialLink href={selected.website} icon={Globe2} label="Website" />
+                )}
+                {selected.twitterUrl && (
+                  <SocialLink href={selected.twitterUrl} icon={Link2} label="X / Twitter" />
+                )}
+                {selected.linkedinUrl && (
+                  <SocialLink href={selected.linkedinUrl} icon={Linkedin} label="LinkedIn" />
+                )}
+                {selected.githubUrl && (
+                  <SocialLink href={selected.githubUrl} icon={Github} label="GitHub" />
+                )}
+                {selected.contactEmail && (
+                  <SocialLink href={`mailto:${selected.contactEmail}`} icon={Mail} label={selected.contactEmail} />
+                )}
+                {selected.contactPhone && (
+                  <span className="inline-flex w-fit items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                    <Phone className="h-3.5 w-3.5" /> {selected.contactPhone}
+                  </span>
+                )}
+              </div>
 
               <div className="mt-3 grid grid-cols-3 gap-2 rounded-md border border-border bg-muted/30 p-3 text-center">
                 <Stat icon={FileText} value={selected.articleCount} label={t("statArticles")} />
@@ -239,6 +301,19 @@ export function AuthorsView() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function SocialLink({ href, icon: Icon, label }: { href: string; icon: any; label: string }) {
+  return (
+    <a
+      href={href}
+      target={href.startsWith("mailto:") ? undefined : "_blank"}
+      rel="noreferrer"
+      className="inline-flex w-fit items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+    >
+      <Icon className="h-3.5 w-3.5" /> {label}
+    </a>
   );
 }
 
