@@ -26,6 +26,8 @@ import { Loader2, Mail, Lock, User as UserIcon, Building2, Globe2, Tag, BookOpen
 const ROLES = [
   { value: "READER", label: "Reader — subscribe and read articles" },
   { value: "AUTHOR", label: "Author — submit manuscripts" },
+  { value: "REVIEWER", label: "Peer Reviewer — requires qualification review" },
+  { value: "EDITOR", label: "Editor — requires qualification review" },
 ];
 
 export function AuthView() {
@@ -70,13 +72,18 @@ export function AuthView() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await apiFetch<{ token: string; user: any }>("/api/auth/register", {
+      const res = await apiFetch<{ token: string; user: any; pendingApplication?: boolean }>("/api/auth/register", {
         method: "POST",
         body: JSON.stringify(reg),
       });
       setAuth(res.token, res.user);
-      toast.success(`Account created — welcome, ${res.user.fullName.split(" ")[0]}`);
-      openDashboard("overview");
+      if (res.pendingApplication) {
+        toast.success("Account created — please complete your qualification application");
+        openDashboard("application");
+      } else {
+        toast.success(`Account created — welcome, ${res.user.fullName.split(" ")[0]}`);
+        openDashboard("overview");
+      }
     } catch (e: any) {
       toast.error("Registration failed", { description: e.message });
     } finally {
@@ -247,6 +254,16 @@ export function AuthView() {
                   </SelectContent>
                 </Select>
               </div>
+              {(reg.role === "REVIEWER" || reg.role === "EDITOR") && (
+                <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-xs text-foreground/80">
+                  <p className="font-medium">Qualification review required</p>
+                  <p className="mt-1">
+                    After registration, you will need to upload your professional resume,
+                    transcript of records, certificates (research/peer reviewer/grammarian/statistician/PRC ID),
+                    and verified ORCID iD. Your application will be reviewed by the editorial board.
+                  </p>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="reg-aff" className="flex items-center gap-1.5">

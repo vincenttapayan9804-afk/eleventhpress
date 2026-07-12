@@ -12,7 +12,8 @@ export type ViewKey =
   | "dashboard"
   | "resources"
   | "authors"
-  | "faqs";
+  | "faqs"
+  | "adminPortal";
 
 export type DashboardTab =
   | "overview"
@@ -25,7 +26,9 @@ export type DashboardTab =
   | "reviewerForm"
   | "indexing"
   | "counter"
+  | "institutions"
   | "reader"
+  | "application"
   | "admin";
 
 interface SessionUser {
@@ -66,6 +69,11 @@ interface AppState {
   mobileNavOpen: boolean;
   setMobileNavOpen: (v: boolean) => void;
 
+  // Admin portal gate
+  adminVerified: boolean;
+  setAdminVerified: (v: boolean) => void;
+  openAdminPortal: () => void;
+
   // i18n
   locale: Locale;
   setLocale: (l: Locale) => void;
@@ -100,6 +108,10 @@ export const useApp = create<AppState>()(
       setAuthSheetOpen: (v) => set({ authSheetOpen: v }),
       mobileNavOpen: false,
       setMobileNavOpen: (v) => set({ mobileNavOpen: v }),
+
+      adminVerified: false,
+      setAdminVerified: (v) => set({ adminVerified: v }),
+      openAdminPortal: () => set({ view: "adminPortal" }),
 
       locale: "en",
       setLocale: (l) => set({ locale: l }),

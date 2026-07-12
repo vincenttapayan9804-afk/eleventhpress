@@ -21,6 +21,15 @@ const BUCKET_RULES: Record<string, { contentTypes: string[]; maxSizeBytes: numbe
     contentTypes: ["image/jpeg", "image/png", "image/webp", "image/gif"],
     maxSizeBytes: 5 * 1024 * 1024,
   },
+  applications: {
+    contentTypes: [
+      "application/pdf",
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+    ],
+    maxSizeBytes: 10 * 1024 * 1024,
+  },
 };
 
 /**

@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useApp } from "@/lib/store";
-import { Globe } from "lucide-react";
+import { Globe, ShieldCheck } from "lucide-react";
 
 export function SiteFooter() {
   const setView = useApp((s) => s.setView);
@@ -60,7 +60,15 @@ export function SiteFooter() {
 
           <div className="mt-12 flex flex-col items-start justify-between gap-3 border-t border-[oklch(0.76_0.11_294/0.1)] pt-6 text-xs text-muted-foreground sm:flex-row sm:items-center">
             <p>{t("copyright", { year: new Date().getFullYear() })}</p>
-            <p className="font-mono">{t("indexedLine")}</p>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setView("adminPortal")}
+                className="flex items-center gap-1 text-muted-foreground/60 hover:text-primary transition-colors"
+              >
+                <ShieldCheck className="h-3 w-3" /> Admin Portal
+              </button>
+              <p className="font-mono">{t("indexedLine")}</p>
+            </div>
           </div>
         </div>
       </div>

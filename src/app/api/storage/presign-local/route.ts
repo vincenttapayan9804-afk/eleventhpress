@@ -19,6 +19,14 @@ const BUCKET_RULES: Record<string, { contentTypes: string[] }> = {
   avatars: {
     contentTypes: ["image/jpeg", "image/png", "image/webp", "image/gif"],
   },
+  applications: {
+    contentTypes: [
+      "application/pdf",
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+    ],
+  },
 };
 const PRESIGN_TTL_MS = 10 * 60 * 1000;
 

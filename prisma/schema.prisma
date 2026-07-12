@@ -69,6 +69,36 @@ model User {
   auditLogs            AuditLog[]
   institution          Institution? @relation(fields: [institutionId], references: [id])
   correctionsIssued    Correction[]
+  roleApplications     RoleApplication[] @relation("ApplicantApplications")
+  reviewedApplications RoleApplication[] @relation("ReviewerApplications")
+}
+
+// ---------------------------------------------------------------------------
+// Role Application — qualification workflow for Reviewer / Editor roles
+// ---------------------------------------------------------------------------
+model RoleApplication {
+  id               String   @id @default(cuid())
+  userId           String
+  requestedRole    String   // REVIEWER | EDITOR
+  status           String   @default("PENDING") // PENDING | UNDER_REVIEW | APPROVED | REJECTED
+  applicationText  String?
+  orcidId          String?
+  expertise        String?
+  specializations  String?
+
+  resumeKey        String?
+  transcriptKey    String?
+  certificateKeys  String?  // JSON array of storage keys
+
+  reviewedBy       String?
+  reviewedAt       DateTime?
+  reviewNote       String?
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  applicant        User     @relation("ApplicantApplications", fields: [userId], references: [id])
+  reviewer         User?    @relation("ReviewerApplications", fields: [reviewedBy], references: [id])
 }
 
 // ---------------------------------------------------------------------------

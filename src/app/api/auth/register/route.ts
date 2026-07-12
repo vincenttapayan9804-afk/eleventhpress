@@ -24,15 +24,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Email already registered" }, { status: 409 });
     }
 
-    // Self-registration may only ever self-select READER or AUTHOR — both
-    // are "low trust" in the sense that they only ever act on the
-    // registrant's own data (submitting their own manuscript, reading their
-    // own subscription). REVIEWER, ASSOCIATE_EDITOR, EDITOR, and SUPER_ADMIN
-    // grant access to *other* people's submissions/reviews or admin
-    // functions, so those can only be granted by an existing admin via
-    // POST /api/admin/users/[id]/role — a public, unauthenticated endpoint
-    // must never accept a client-supplied privileged role.
     const SELF_SELECTABLE_ROLES = ["READER", "AUTHOR"];
+    const APPLICATION_ROLES = ["REVIEWER", "EDITOR"];
+    const needsApplication = APPLICATION_ROLES.includes(role || "");
     const finalRole = SELF_SELECTABLE_ROLES.includes(role || "") ? role! : "READER";
 
     const user = await db.user.create({
@@ -47,6 +41,18 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    let pendingApplication = false;
+    if (needsApplication) {
+      await db.roleApplication.create({
+        data: {
+          userId: user.id,
+          requestedRole: role!,
+          status: "PENDING",
+        },
+      });
+      pendingApplication = true;
+    }
+
     const token = signToken({
       userId: user.id,
       email: user.email,
@@ -56,6 +62,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       token,
+      pendingApplication,
+      requestedRole: needsApplication ? role : undefined,
       user: {
         id: user.id,
         email: user.email,
