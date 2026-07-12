@@ -136,11 +136,34 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
     setFunders(funders.map((f, idx) => (idx === i ? { ...f, [field]: value } : f)));
   }
 
-  function canAdvance(): boolean {
-    if (step === 1) return form.title.length > 5 && form.abstract.length > 50;
-    if (step === 2) return authors.every((a) => a.name && a.email);
-    if (step === 3) return form.discipline !== "" && form.reviewModel !== "";
-    return true;
+  function validateStep(): string | null {
+    if (step === 1) {
+      if (!form.title.trim()) return "Please enter a title for your manuscript.";
+      if (form.title.trim().length < 6) return "Title must be at least 6 characters.";
+      if (!form.abstract.trim()) return "Please enter an abstract.";
+      if (form.abstract.trim().length < 50) return `Abstract must be at least 50 characters (currently ${form.abstract.trim().length}).`;
+      return null;
+    }
+    if (step === 2) {
+      const missing = authors.findIndex((a) => !a.name.trim() || !a.email.trim());
+      if (missing !== -1) return `Author ${missing + 1} is missing a name or email address.`;
+      return null;
+    }
+    if (step === 3) {
+      if (!form.discipline) return "Please select a discipline.";
+      if (!form.reviewModel) return "Please select a review model.";
+      return null;
+    }
+    return null;
+  }
+
+  function handleContinue() {
+    const error = validateStep();
+    if (error) {
+      toast.error("Cannot continue", { description: error });
+      return;
+    }
+    setStep(step + 1);
   }
 
   // ----- Real pre-signed S3-style upload -----
@@ -680,11 +703,11 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
               <ArrowLeft className="mr-1.5 h-4 w-4" /> {step === 1 ? "Cancel" : "Back"}
             </Button>
             {step < 3 ? (
-              <Button onClick={() => setStep(step + 1)} disabled={!canAdvance()}>
+              <Button onClick={handleContinue}>
                 Continue <ArrowRight className="ml-1.5 h-4 w-4" />
               </Button>
             ) : (
-              <Button onClick={submit} disabled={!canAdvance() || loading}>
+              <Button onClick={() => { const err = validateStep(); if (err) { toast.error("Cannot submit", { description: err }); return; } submit(); }} disabled={loading}>
                 {loading ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Sparkles className="mr-1.5 h-4 w-4" />}
                 Submit manuscript
               </Button>
