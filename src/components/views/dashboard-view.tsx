@@ -42,6 +42,7 @@ import { AdminTab } from "@/components/dashboard/admin-tab";
 import { OverviewTab } from "@/components/dashboard/overview-tab";
 import { CounterTab } from "@/components/dashboard/counter-tab";
 import { InstitutionsTab } from "@/components/dashboard/institutions-tab";
+import { ApplicationTab } from "@/components/dashboard/application-tab";
 import { useLiveDashboard } from "@/hooks/use-live-dashboard";
 
 interface DashboardData {
@@ -109,6 +110,7 @@ export function DashboardView() {
     { key: "indexing", label: "Indexing & discovery", icon: Search, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"] },
     { key: "counter", label: "COUNTER 5 / SUSHI", icon: BarChart3, roles: ["SUPER_ADMIN", "EDITOR"] },
     { key: "institutions", label: "Institutions", icon: Building2, roles: ["SUPER_ADMIN", "EDITOR", "READER"] },
+    { key: "application", label: "Role application", icon: FilePlus2, roles: ["READER", "AUTHOR"] },
     { key: "reader", label: "Subscription", icon: Library, roles: ["READER", "AUTHOR", "REVIEWER", "SUPER_ADMIN"] },
     { key: "admin", label: "Admin & audit", icon: Users, roles: ["SUPER_ADMIN"] },
   ];
@@ -244,6 +246,7 @@ export function DashboardView() {
           {dashboardTab === "indexing" && <IndexingTab />}
           {dashboardTab === "counter" && <CounterTab />}
           {dashboardTab === "institutions" && <InstitutionsTab />}
+          {dashboardTab === "application" && <ApplicationTab onRefresh={loadDashboard} />}
           {dashboardTab === "reader" && <ReaderTab subscription={data.subscription} onRefresh={loadDashboard} />}
           {dashboardTab === "admin" && <AdminTab audit={data.recentAudit || []} stats={data.stats} />}
         </div>

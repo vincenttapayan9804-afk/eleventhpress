@@ -26,7 +26,15 @@ import { Loader2, Mail, Lock, User as UserIcon, Building2, Globe2, Tag, BookOpen
 const ROLES = [
   { value: "READER", label: "Reader — subscribe and read articles" },
   { value: "AUTHOR", label: "Author — submit manuscripts" },
+  { value: "REVIEWER", label: "Peer Reviewer — requires qualification review" },
+  { value: "EDITOR", label: "Editor — requires qualification review" },
 ];
+
+// Demo account credentials are only ever a local convenience — showing
+// plaintext admin/editor/reviewer passwords on a public login page in
+// production would hand out real privileged access. Opt-in only, via an
+// env var set for demo/staging deployments.
+const SHOW_DEMO_ACCOUNTS = process.env.NEXT_PUBLIC_SHOW_DEMO_ACCOUNTS === "true";
 
 export function AuthView() {
   const { view, setView, setAuth, openDashboard } = useApp();
@@ -34,8 +42,8 @@ export function AuthView() {
   const t = useTranslations("auth");
 
   // Login form
-  const [loginEmail, setLoginEmail] = useState("author@eleventhpress.org");
-  const [loginPassword, setLoginPassword] = useState("author");
+  const [loginEmail, setLoginEmail] = useState(SHOW_DEMO_ACCOUNTS ? "author@eleventhpress.org" : "");
+  const [loginPassword, setLoginPassword] = useState(SHOW_DEMO_ACCOUNTS ? "author" : "");
 
   // Register form
   const [reg, setReg] = useState({
@@ -70,13 +78,18 @@ export function AuthView() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await apiFetch<{ token: string; user: any }>("/api/auth/register", {
+      const res = await apiFetch<{ token: string; user: any; pendingApplication?: boolean }>("/api/auth/register", {
         method: "POST",
         body: JSON.stringify(reg),
       });
       setAuth(res.token, res.user);
-      toast.success(`Account created — welcome, ${res.user.fullName.split(" ")[0]}`);
-      openDashboard("overview");
+      if (res.pendingApplication) {
+        toast.success("Account created — please complete your qualification application");
+        openDashboard("application");
+      } else {
+        toast.success(`Account created — welcome, ${res.user.fullName.split(" ")[0]}`);
+        openDashboard("overview");
+      }
     } catch (e: any) {
       toast.error("Registration failed", { description: e.message });
     } finally {
@@ -152,26 +165,28 @@ export function AuthView() {
               </p>
             </div>
 
-            <div className="mt-6">
-              <Separator className="mb-4" />
-              <p className="mb-2 text-xs font-medium text-muted-foreground">Demo accounts:</p>
-              <div className="grid grid-cols-2 gap-1.5 text-[0.7rem]">
-                {DEMO_ACCOUNTS.map((a) => (
-                  <button
-                    key={a.email}
-                    onClick={() => {
-                      setLoginEmail(a.email);
-                      setLoginPassword(a.password);
-                    }}
-                    className="rounded border border-border bg-muted/30 px-2 py-1.5 text-left font-mono hover:border-primary/40 hover:bg-muted/60"
-                  >
-                    <span className="font-semibold text-foreground">{a.role}</span>
-                    <br />
-                    <span className="text-muted-foreground">{a.email}</span>
-                  </button>
-                ))}
+            {SHOW_DEMO_ACCOUNTS && (
+              <div className="mt-6">
+                <Separator className="mb-4" />
+                <p className="mb-2 text-xs font-medium text-muted-foreground">Demo accounts:</p>
+                <div className="grid grid-cols-2 gap-1.5 text-[0.7rem]">
+                  {DEMO_ACCOUNTS.map((a) => (
+                    <button
+                      key={a.email}
+                      onClick={() => {
+                        setLoginEmail(a.email);
+                        setLoginPassword(a.password);
+                      }}
+                      className="rounded border border-border bg-muted/30 px-2 py-1.5 text-left font-mono hover:border-primary/40 hover:bg-muted/60"
+                    >
+                      <span className="font-semibold text-foreground">{a.role}</span>
+                      <br />
+                      <span className="text-muted-foreground">{a.email}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
 
@@ -247,6 +262,16 @@ export function AuthView() {
                   </SelectContent>
                 </Select>
               </div>
+              {(reg.role === "REVIEWER" || reg.role === "EDITOR") && (
+                <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-xs text-foreground/80">
+                  <p className="font-medium">Qualification review required</p>
+                  <p className="mt-1">
+                    After registration, you will need to upload your professional resume,
+                    transcript of records, certificates (research/peer reviewer/grammarian/statistician/PRC ID),
+                    and verified ORCID iD. Your application will be reviewed by the editorial board.
+                  </p>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="reg-aff" className="flex items-center gap-1.5">

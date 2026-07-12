@@ -28,6 +28,7 @@ const BUCKET_DIRS: Record<string, string> = {
   "anonymized-manuscripts": path.join(STORAGE_ROOT, "anonymized-manuscripts"),
   "published-galleys": path.join(STORAGE_ROOT, "published-galleys"),
   avatars: path.join(STORAGE_ROOT, "avatars"),
+  applications: path.join(STORAGE_ROOT, "applications"),
 };
 
 export function usingBlob(): boolean {
