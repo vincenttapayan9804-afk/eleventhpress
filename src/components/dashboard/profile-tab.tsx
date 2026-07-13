@@ -63,6 +63,7 @@ export function ProfileTab() {
   const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState({
+    fullName: "",
     profession: "",
     bio: "",
     website: "",
@@ -78,6 +79,7 @@ export function ProfileTab() {
       .then(({ user: p }) => {
         setProfile(p);
         setForm({
+          fullName: p.fullName || "",
           profession: p.profession || "",
           bio: p.bio || "",
           website: p.website || "",
@@ -162,6 +164,10 @@ export function ProfileTab() {
 
   async function saveDetails(e: React.FormEvent) {
     e.preventDefault();
+    if (!form.fullName.trim()) {
+      toast.error("Full name cannot be empty");
+      return;
+    }
     setSaving(true);
     try {
       const { user: updated } = await apiFetch<{ user: Profile }>("/api/auth/me", {
@@ -170,6 +176,7 @@ export function ProfileTab() {
       });
       setProfile(updated);
       setForm({
+        fullName: updated.fullName || "",
         profession: updated.profession || "",
         bio: updated.bio || "",
         website: updated.website || "",
@@ -179,6 +186,7 @@ export function ProfileTab() {
         contactEmail: updated.contactEmail || "",
         contactPhone: updated.contactPhone || "",
       });
+      if (token && user) setAuth(token, { ...user, fullName: updated.fullName });
       toast.success("Profile updated");
     } catch (e: any) {
       toast.error("Failed to save", { description: e.message });
@@ -260,6 +268,29 @@ export function ProfileTab() {
       </Card>
 
       <form onSubmit={saveDetails} className="space-y-6">
+        {/* Name */}
+        <Card className="paper-card">
+          <CardHeader>
+            <p className="eyebrow">Identity</p>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1.5">
+              <Label htmlFor="fullName">Full name</Label>
+              <Input
+                id="fullName"
+                value={form.fullName}
+                onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+                placeholder="Dr. Jane Doe"
+                required
+                className="h-10"
+              />
+              <p className="text-[0.65rem] text-muted-foreground">
+                Shown across the platform — submissions, reviews, and any listing with your name.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Profession & bio */}
         <Card className="paper-card">
           <CardHeader>

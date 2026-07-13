@@ -40,9 +40,10 @@ export async function GET(req: NextRequest) {
 /**
  * PATCH /api/auth/me
  * Self-service profile editor — every user can update their own public
- * profile: avatar, profession, bio, social links, and public contact info.
- * Deliberately excludes email/password/role/fullName/affiliation — those
- * are identity fields handled elsewhere (or, for role, never self-service).
+ * profile: full name, avatar, profession, bio, social links, and public
+ * contact info. Deliberately excludes email/password/role/affiliation —
+ * those are identity fields handled elsewhere (or, for role, never
+ * self-service).
  */
 const MAX_LEN: Record<string, number> = {
   profession: 200,
@@ -96,6 +97,16 @@ export async function PATCH(req: NextRequest) {
   for (const key of EDITABLE_FIELDS) {
     const sanitized = sanitizeField(key, body[key]);
     if (sanitized !== undefined) data[key] = sanitized;
+  }
+
+  // fullName is a required identity field, so it can't go through
+  // sanitizeField's empty-string-to-null path like the optional fields above.
+  if (typeof body.fullName === "string") {
+    const trimmed = body.fullName.trim().slice(0, 200);
+    if (trimmed.length === 0) {
+      return NextResponse.json({ error: "Full name cannot be empty" }, { status: 400 });
+    }
+    data.fullName = trimmed;
   }
 
   if (Object.keys(data).length === 0) {
