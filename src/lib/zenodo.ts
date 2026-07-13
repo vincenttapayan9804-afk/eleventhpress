@@ -26,6 +26,19 @@ export function zenodoLiveMode(): boolean {
   return !!process.env.ZENODO_TOKEN;
 }
 
+/** Extracts a human-readable reason from a Zenodo error response body —
+ * Zenodo typically returns JSON like {"message": "...", "status": 403} —
+ * falling back to a truncated raw body when it isn't JSON. */
+function extractZenodoErrorReason(body: string): string {
+  try {
+    const parsed = JSON.parse(body);
+    if (parsed?.message) return parsed.message;
+  } catch {
+    // not JSON — fall through to raw text
+  }
+  return body.slice(0, 200) || "(empty response body)";
+}
+
 export interface ZenodoDepositInput {
   articleId: string;
   title: string;
@@ -279,7 +292,7 @@ export async function depositArticleToZenodo(
         doi: null,
         recordUrl: "",
         zenodoRecordId: null,
-        message: `Zenodo create failed: ${createRes.status}`,
+        message: `Zenodo create failed: ${createRes.status} — ${extractZenodoErrorReason(body)}`,
         rawLog: JSON.stringify({ step: "create", status: createRes.status, body }),
       };
     }
@@ -313,7 +326,7 @@ export async function depositArticleToZenodo(
         doi: null,
         recordUrl: "",
         zenodoRecordId: String(depositionId),
-        message: `Zenodo file upload failed: ${uploadRes.status}`,
+        message: `Zenodo file upload failed: ${uploadRes.status} — ${extractZenodoErrorReason(body)}`,
         rawLog: JSON.stringify({ step: "upload", status: uploadRes.status, body }),
       };
     }
@@ -351,7 +364,7 @@ export async function depositArticleToZenodo(
         doi: null,
         recordUrl: "",
         zenodoRecordId: String(depositionId),
-        message: `Zenodo metadata failed: ${metadataRes.status}`,
+        message: `Zenodo metadata failed: ${metadataRes.status} — ${extractZenodoErrorReason(body)}`,
         rawLog: JSON.stringify({ step: "metadata", status: metadataRes.status, body }),
       };
     }
@@ -368,7 +381,7 @@ export async function depositArticleToZenodo(
         doi: null,
         recordUrl: "",
         zenodoRecordId: String(depositionId),
-        message: `Zenodo publish failed: ${publishRes.status}`,
+        message: `Zenodo publish failed: ${publishRes.status} — ${extractZenodoErrorReason(body)}`,
         rawLog: JSON.stringify({ step: "publish", status: publishRes.status, body }),
       };
     }
