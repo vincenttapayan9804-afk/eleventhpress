@@ -256,7 +256,7 @@ export function ManuscriptChecksPanel({ articleId }: Props) {
               <div className="mt-2 space-y-1">
                 {references.map((r) => (
                   <div key={r.id} className="flex items-start gap-2 rounded-md border border-border p-2 text-xs">
-                    <div className="flex-1 truncate">{r.rawText}</div>
+                    <div className="min-w-0 flex-1 break-words">{r.rawText}</div>
                     <Badge
                       variant="outline"
                       className={`text-[0.55rem] ${
