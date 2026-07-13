@@ -539,7 +539,7 @@ ER  - `;
                     asChild
                   >
                     <a href={`https://doi.org/${article.doi}`} target="_blank" rel="noreferrer">
-                      <ExternalLink className="mr-2 h-4 w-4" /> Crossref landing page
+                      <ExternalLink className="mr-2 h-4 w-4" /> View DOI record
                     </a>
                   </Button>
                 )}
