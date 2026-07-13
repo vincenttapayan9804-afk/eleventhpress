@@ -204,6 +204,14 @@ model Article {
   crossrefDepositedAt DateTime?
   crossrefDepositLog String? // JSON-stringified response / error log
 
+  // Zenodo deposit tracking — the free, real-DOI alternative used for the
+  // article's own DOI when no paid Crossref membership exists yet (see
+  // src/lib/zenodo.ts's depositArticleToZenodo). Distinct from the
+  // per-dataset DatasetLink.zenodoDepositId, which is for supplementary
+  // datasets, not the article's own record.
+  zenodoRecordId    String?
+  zenodoDepositLog  String? // JSON-stringified response / error log
+
   submittedAt   DateTime?
   acceptedAt    DateTime?
   publishedAt   DateTime?

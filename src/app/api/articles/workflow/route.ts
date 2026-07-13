@@ -3,10 +3,12 @@ import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import type { ArticleStatus } from "@/lib/article";
 import { depositToCrossref } from "@/lib/crossref";
+import { depositArticleToZenodo, zenodoLiveMode } from "@/lib/zenodo";
 import { getObject } from "@/lib/storage";
 import { generateGalleys } from "@/lib/galley";
 import { APP_BASE_URL } from "@/lib/site";
 import { APC_USD } from "@/lib/pricing";
+import { parseAuthors } from "@/lib/article";
 
 /**
  * POST /api/articles/workflow
@@ -83,6 +85,7 @@ export async function POST(req: NextRequest) {
     }
 
     const updated = await db.article.update({ where: { id: articleId }, data: patch });
+    let finalDoi = updated.doi;
 
     // Editorial decision log
     await db.editorialDecision.create({
@@ -110,54 +113,11 @@ export async function POST(req: NextRequest) {
     if (next === "PUBLISHED") {
       const publishEvents: string[] = [];
 
-      // 1. Crossref deposit (async, non-blocking on failure)
-      try {
-        const deposit = await depositToCrossref({
-          article: updated as any,
-          articleUrl: `${APP_BASE_URL}/article/${updated.id}`,
-        });
-        await db.article.update({
-          where: { id: articleId },
-          data: {
-            crossrefBatchId: deposit.batchId,
-            crossrefDepositedAt: deposit.depositedAt,
-            crossrefDepositLog: JSON.stringify({
-              ok: deposit.ok,
-              mode: deposit.mode,
-              status: deposit.status,
-              statusText: deposit.statusText,
-              responseBody: deposit.responseBody.slice(0, 4000),
-              endpoint: deposit.endpoint,
-              batchId: deposit.batchId,
-              depositedAt: deposit.depositedAt.toISOString(),
-            }),
-          },
-        });
-        publishEvents.push(
-          `Crossref deposit ${deposit.ok ? "succeeded" : "failed"} (mode=${deposit.mode}, batch=${deposit.batchId}, status=${deposit.status})`
-        );
-
-        await db.auditLog.create({
-          data: {
-            userId: session.userId,
-            action: "DOI_DEPOSIT",
-            entityType: "ARTICLE",
-            entityId: articleId,
-            articleId,
-            metadata: JSON.stringify({
-              ok: deposit.ok,
-              mode: deposit.mode,
-              batchId: deposit.batchId,
-              status: deposit.status,
-              endpoint: deposit.endpoint,
-            }),
-          },
-        });
-      } catch (e: any) {
-        publishEvents.push(`Crossref deposit threw: ${e.message}`);
-      }
-
-      // 2. Production: generate galleys via the pandoc-worker mini-service.
+      // 1. Production: generate galleys via the pandoc-worker mini-service.
+      //    Runs before the DOI deposit below so a real PDF galley is
+      //    available to attach to the Zenodo deposition when that path
+      //    is active (Zenodo requires at least one file per record).
+      let generatedPdfKey: string | null = null;
       try {
         const galleyResults = await generateGalleysForArticle(updated.id);
         if (galleyResults) {
@@ -169,6 +129,7 @@ export async function POST(req: NextRequest) {
               galleyJatsKey: galleyResults.jatsKey,
             },
           });
+          generatedPdfKey = galleyResults.pdfKey;
           publishEvents.push(
             `Galleys generated (html=${galleyResults.htmlKey}, pdf=${galleyResults.pdfKey}, jats=${galleyResults.jatsKey || "—"})`
           );
@@ -184,6 +145,128 @@ export async function POST(req: NextRequest) {
             galleyHtmlKey: `published-galleys/${suffix}.html`,
           },
         });
+      }
+
+      // 2. DOI deposit. Prefers Zenodo (free, real, permanently-resolving
+      //    DOI — see src/lib/zenodo.ts) whenever ZENODO_TOKEN is configured.
+      //    Falls back to the Crossref sandbox/simulation path otherwise,
+      //    matching pre-Zenodo behavior for journals without either set up
+      //    yet. The two are mutually exclusive per article: a Zenodo DOI
+      //    lives under Zenodo's own prefix and can't also be deposited to
+      //    Crossref (that requires owning the DOI's prefix).
+      {
+        try {
+          if (zenodoLiveMode()) {
+            let fileBuffer: Buffer | null = generatedPdfKey ? await getObject(generatedPdfKey) : null;
+            let fileName = generatedPdfKey?.split("/").pop() || `${updated.id}.pdf`;
+            let fileContentType = "application/pdf";
+            if (!fileBuffer) {
+              fileBuffer = article.manuscriptKey ? await getObject(article.manuscriptKey) : null;
+              fileName = article.manuscriptKey?.split("/").pop() || `${updated.id}.md`;
+              fileContentType = "text/markdown";
+            }
+            if (!fileBuffer) {
+              fileBuffer = Buffer.from(synthesiseMarkdown(updated), "utf-8");
+              fileName = `${updated.id}.md`;
+              fileContentType = "text/markdown";
+            }
+
+            const authors = parseAuthors(updated.authors);
+            const deposit = await depositArticleToZenodo({
+              articleId: updated.id,
+              title: updated.title,
+              abstract: updated.abstract,
+              creators: authors.map((a) => ({ name: a.name, affiliation: a.affiliation, orcid: a.orcid })),
+              keywords: updated.keywords.split(",").map((k) => k.trim()).filter(Boolean),
+              // Platform-wide policy is fully open access — see docs/standards.md
+              // and the site's stated OA policy — so CC-BY 4.0 is the default
+              // license for every Zenodo deposit rather than a per-article field.
+              license: "cc-by-4.0",
+              journalTitle: article.journal?.name || "Eleventh Press International Publishing",
+              journalVolume: article.issue?.volume ? String(article.issue.volume) : undefined,
+              journalIssue: article.issue?.issueNumber ? String(article.issue.issueNumber) : undefined,
+              publicationDate: (updated.publishedAt || new Date()).toISOString().slice(0, 10),
+              fileBuffer,
+              fileName,
+              fileContentType,
+            });
+
+            await db.article.update({
+              where: { id: articleId },
+              data: {
+                ...(deposit.ok && deposit.doi ? { doi: deposit.doi, doiStatus: "PUBLISHED" } : {}),
+                zenodoRecordId: deposit.zenodoRecordId,
+                zenodoDepositLog: deposit.rawLog,
+              },
+            });
+            if (deposit.ok && deposit.doi) finalDoi = deposit.doi;
+            publishEvents.push(
+              `Zenodo deposit ${deposit.ok ? "succeeded" : "failed"} (mode=${deposit.mode}${deposit.doi ? `, doi=${deposit.doi}` : ""})`
+            );
+
+            await db.auditLog.create({
+              data: {
+                userId: session.userId,
+                action: "DOI_DEPOSIT",
+                entityType: "ARTICLE",
+                entityId: articleId,
+                articleId,
+                metadata: JSON.stringify({
+                  provider: "ZENODO",
+                  ok: deposit.ok,
+                  mode: deposit.mode,
+                  doi: deposit.doi,
+                  recordUrl: deposit.recordUrl,
+                }),
+              },
+            });
+          } else {
+            const deposit = await depositToCrossref({
+              article: updated as any,
+              articleUrl: `${APP_BASE_URL}/article/${updated.id}`,
+            });
+            await db.article.update({
+              where: { id: articleId },
+              data: {
+                crossrefBatchId: deposit.batchId,
+                crossrefDepositedAt: deposit.depositedAt,
+                crossrefDepositLog: JSON.stringify({
+                  ok: deposit.ok,
+                  mode: deposit.mode,
+                  status: deposit.status,
+                  statusText: deposit.statusText,
+                  responseBody: deposit.responseBody.slice(0, 4000),
+                  endpoint: deposit.endpoint,
+                  batchId: deposit.batchId,
+                  depositedAt: deposit.depositedAt.toISOString(),
+                }),
+              },
+            });
+            publishEvents.push(
+              `Crossref deposit ${deposit.ok ? "succeeded" : "failed"} (mode=${deposit.mode}, batch=${deposit.batchId}, status=${deposit.status})`
+            );
+
+            await db.auditLog.create({
+              data: {
+                userId: session.userId,
+                action: "DOI_DEPOSIT",
+                entityType: "ARTICLE",
+                entityId: articleId,
+                articleId,
+                metadata: JSON.stringify({
+                  provider: "CROSSREF",
+                  ok: deposit.ok,
+                  mode: deposit.mode,
+                  batchId: deposit.batchId,
+                  status: deposit.status,
+                  endpoint: deposit.endpoint,
+                }),
+              },
+            });
+          }
+        } catch (e: any) {
+          publishEvents.push(`DOI deposit threw: ${e.message}`);
+        }
       }
 
       // 3. Open peer review: mark all completed reviews as publicly visible.
@@ -207,7 +290,7 @@ export async function POST(req: NextRequest) {
           entityId: articleId,
           articleId,
           metadata: JSON.stringify({
-            doi: updated.doi,
+            doi: finalDoi,
             registeredAt: new Date().toISOString(),
             events: publishEvents,
           }),
@@ -220,7 +303,7 @@ export async function POST(req: NextRequest) {
             userId: article.correspondingAuthorId,
             type: "SUCCESS",
             title: "Article Published",
-            message: `"${article.title}" is now live. DOI: ${updated.doi}. Production events: ${publishEvents.join(" · ")}`,
+            message: `"${article.title}" is now live. DOI: ${finalDoi}. Production events: ${publishEvents.join(" · ")}`,
             articleId,
           },
         });
@@ -230,7 +313,7 @@ export async function POST(req: NextRequest) {
       Promise.all([
         import("@/lib/embeddings").then(({ indexArticle }) => indexArticle(articleId).catch(() => {})),
         import("@/lib/ws-client").then(({ emitWS }) => emitWS("workflow:transition", {
-          articleId, from: article.status, to: next, doi: updated.doi, title: article.title,
+          articleId, from: article.status, to: next, doi: finalDoi, title: article.title,
         }).catch(() => {})),
       ]).catch(() => {});
     } else if (next === "ACCEPTED" && article.correspondingAuthorId) {
@@ -257,7 +340,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({
-      article: { id: updated.id, status: updated.status, doi: updated.doi },
+      article: { id: updated.id, status: updated.status, doi: finalDoi },
     });
   } catch (e) {
     console.error("[workflow]", e);
