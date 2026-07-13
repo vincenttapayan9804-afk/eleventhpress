@@ -13,6 +13,8 @@
  */
 import { db } from "@/lib/db";
 import crypto from "crypto";
+import { cosineSimilarity } from "@/lib/vector-math";
+import { ensurePgvector, upsertVector, vectorLiteral } from "@/lib/pgvector";
 
 const EMBEDDING_DIMS = 256;
 
@@ -59,12 +61,6 @@ function normalize(vec: number[]): number[] {
   return vec.map((v) => v / mag);
 }
 
-function padOrTruncate(vec: number[], dims: number): number[] {
-  if (vec.length === dims) return vec;
-  if (vec.length > dims) return vec.slice(0, dims);
-  return [...vec, ...new Array(dims - vec.length).fill(0)];
-}
-
 /**
  * Generate and store an embedding for an article.
  */
@@ -79,6 +75,8 @@ export async function indexArticle(articleId: string): Promise<void> {
   const embedding = await generateEmbedding(text);
   const textHash = crypto.createHash("sha256").update(text).digest("hex");
 
+  // Canonical write — the JSON column stays the source of truth and
+  // automatic fallback regardless of pgvector availability.
   await db.articleEmbedding.upsert({
     where: { articleId },
     create: {
@@ -94,6 +92,17 @@ export async function indexArticle(articleId: string): Promise<void> {
       updatedAt: new Date(),
     },
   });
+
+  // Opportunistic — the canonical write above has already landed, so a
+  // failure here never loses data, it just means this article's indexed
+  // similarity search stays on the JS fallback until the next reindex.
+  if (await ensurePgvector()) {
+    try {
+      await upsertVector(articleId, embedding);
+    } catch (e) {
+      console.error(`[embeddings] pgvector upsert failed for article ${articleId}, JSON column already written:`, e);
+    }
+  }
 }
 
 /**
@@ -109,7 +118,31 @@ export async function semanticSearch(
 
   const queryEmbedding = await generateEmbedding(query);
 
-  // Fetch all embeddings (in production this would be a vector DB query)
+  if (await ensurePgvector()) {
+    try {
+      // ORDER BY ... LIMIT is index-backed (HNSW) regardless of corpus
+      // size. Applying `threshold` to the already-limited/sorted rows in
+      // JS below is equivalent to today's filter-then-sort-then-slice
+      // (score is monotonic along the distance ordering) — don't move it
+      // into the SQL WHERE clause, that would fight the HNSW index's
+      // KNN-ordered access pattern.
+      const literal = vectorLiteral(queryEmbedding);
+      const rows = await db.$queryRaw<{ articleId: string; score: number }[]>`
+        SELECT ve.article_id AS "articleId",
+               1 - (ve.embedding <=> ${literal}::vector) AS score
+        FROM vec.article_embedding ve
+        JOIN public."Article" a ON a.id = ve.article_id
+        WHERE a.status = 'PUBLISHED'
+        ORDER BY ve.embedding <=> ${literal}::vector ASC
+        LIMIT ${limit}
+      `;
+      return rows.filter((r) => r.score >= threshold);
+    } catch (e) {
+      console.error("[embeddings] pgvector semanticSearch failed, falling back to in-memory scan:", e);
+    }
+  }
+
+  // Fallback: unbounded in-memory scan, unchanged from before pgvector.
   const allEmbeddings = await db.articleEmbedding.findMany({
     include: {
       article: {
@@ -130,16 +163,4 @@ export async function semanticSearch(
     .slice(0, limit);
 
   return results;
-}
-
-function cosineSimilarity(a: number[], b: number[]): number {
-  if (a.length !== b.length) return 0;
-  let dot = 0, magA = 0, magB = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    magA += a[i] * a[i];
-    magB += b[i] * b[i];
-  }
-  const denom = Math.sqrt(magA) * Math.sqrt(magB);
-  return denom === 0 ? 0 : dot / denom;
 }
