@@ -313,9 +313,12 @@ export async function depositArticleToZenodo(
         rawLog: JSON.stringify({ step: "bucket", deposition }),
       };
     }
+    // Zenodo's bucket upload endpoint (S3-compatible) infers the file's
+    // real type from the filename, not this header — it rejects anything
+    // other than application/octet-stream here with a 415.
     const uploadRes = await fetch(`${bucketUrl}/${encodeURIComponent(input.fileName)}?access_token=${token}`, {
       method: "PUT",
-      headers: { "Content-Type": input.fileContentType || "application/octet-stream" },
+      headers: { "Content-Type": "application/octet-stream" },
       body: input.fileBuffer as any,
     });
     if (!uploadRes.ok) {
