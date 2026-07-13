@@ -30,136 +30,138 @@ datasource db {
 // Identity & Access Management (IAM)
 // ---------------------------------------------------------------------------
 model User {
-  id            String   @id @default(cuid())
-  email         String   @unique
-  passwordHash  String
-  fullName      String
-  affiliation   String?
-  orcid         String?
+  id                String    @id @default(cuid())
+  email             String    @unique
+  passwordHash      String
+  fullName          String
+  affiliation       String?
+  orcid             String?
   // Role: SUPER_ADMIN | EDITOR | ASSOCIATE_EDITOR | REVIEWER | AUTHOR | READER
-  role          String   @default("READER")
-  bio           String?
-  expertise     String?  // comma-separated keywords for reviewer matching
-  country       String?
+  role              String    @default("READER")
+  bio               String?
+  expertise         String? // comma-separated keywords for reviewer matching
+  country           String?
   // Public profile
-  avatarUrl     String?  // profile picture — resolved public URL (Blob or /api/storage/download)
-  profession    String?  // e.g. "Associate Professor of Computational Biology" — distinct from `affiliation` (institution name)
-  website       String?
-  twitterUrl    String?
-  linkedinUrl   String?
-  githubUrl     String?
-  contactEmail  String?  // public-facing contact address — deliberately separate from the login `email`
-  contactPhone  String?
+  avatarUrl         String? // profile picture — resolved public URL (Blob or /api/storage/download)
+  profession        String? // e.g. "Associate Professor of Computational Biology" — distinct from `affiliation` (institution name)
+  website           String?
+  twitterUrl        String?
+  linkedinUrl       String?
+  githubUrl         String?
+  contactEmail      String? // public-facing contact address — deliberately separate from the login `email`
+  contactPhone      String?
   // ORCID OAuth tokens (premium integration)
   orcidAccessToken  String?
   orcidRefreshToken String?
   orcidTokenExpiry  DateTime?
   orcidLastSync     DateTime?
   // Institutional affiliation (premium IP-auth feature)
-  institutionId String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  institutionId     String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
-  submissions          Article[]     @relation("AuthorArticles")
-  assignedReviews      Review[]      @relation("ReviewerReviews")
+  submissions          Article[]           @relation("AuthorArticles")
+  assignedReviews      Review[]            @relation("ReviewerReviews")
   editorialDecisions   EditorialDecision[]
   subscriptions        Subscription[]
   invoices             Invoice[]
   notifications        Notification[]
   auditLogs            AuditLog[]
-  institution          Institution? @relation(fields: [institutionId], references: [id])
+  institution          Institution?        @relation(fields: [institutionId], references: [id])
   correctionsIssued    Correction[]
-  roleApplications     RoleApplication[] @relation("ApplicantApplications")
-  reviewedApplications RoleApplication[] @relation("ReviewerApplications")
+  roleApplications     RoleApplication[]   @relation("ApplicantApplications")
+  reviewedApplications RoleApplication[]   @relation("ReviewerApplications")
 }
 
 // ---------------------------------------------------------------------------
 // Role Application — qualification workflow for Reviewer / Editor roles
 // ---------------------------------------------------------------------------
 model RoleApplication {
-  id               String   @id @default(cuid())
-  userId           String
-  requestedRole    String   // REVIEWER | EDITOR
-  status           String   @default("PENDING") // PENDING | UNDER_REVIEW | APPROVED | REJECTED
-  applicationText  String?
-  orcidId          String?
-  expertise        String?
-  specializations  String?
+  id              String  @id @default(cuid())
+  userId          String
+  requestedRole   String // REVIEWER | EDITOR
+  status          String  @default("PENDING") // PENDING | UNDER_REVIEW | APPROVED | REJECTED
+  applicationText String?
+  orcidId         String?
+  expertise       String?
+  specializations String?
 
-  resumeKey        String?
-  transcriptKey    String?
-  certificateKeys  String?  // JSON array of storage keys
+  resumeKey       String?
+  transcriptKey   String?
+  certificateKeys String? // JSON array of storage keys
 
-  reviewedBy       String?
-  reviewedAt       DateTime?
-  reviewNote       String?
+  reviewedBy String?
+  reviewedAt DateTime?
+  reviewNote String?
 
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  applicant        User     @relation("ApplicantApplications", fields: [userId], references: [id])
-  reviewer         User?    @relation("ReviewerApplications", fields: [reviewedBy], references: [id])
+  applicant User  @relation("ApplicantApplications", fields: [userId], references: [id])
+  reviewer  User? @relation("ReviewerApplications", fields: [reviewedBy], references: [id])
 }
 
 // ---------------------------------------------------------------------------
 // Journal metadata
 // ---------------------------------------------------------------------------
 model Journal {
-  id              String   @id @default(cuid())
-  name            String
-  issn            String?
-  publisher       String   @default("Eleventh Press International Publishing")
-  description     String?
-  aimsScope       String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id          String   @id @default(cuid())
+  name        String
+  issn        String?
+  publisher   String   @default("Eleventh Press International Publishing")
+  description String?
+  aimsScope   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  articles        Article[]
-  issues          Issue[]
+  articles Article[]
+  issues   Issue[]
 }
 
 model Issue {
-  id           String   @id @default(cuid())
-  journalId    String
-  volume       Int
-  issueNumber  Int
-  year         Int
-  title        String?
-  publishedAt  DateTime?
-  createdAt    DateTime @default(now())
+  id          String    @id @default(cuid())
+  journalId   String
+  volume      Int
+  issueNumber Int
+  year        Int
+  title       String?
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
 
-  journal      Journal  @relation(fields: [journalId], references: [id])
-  articles     Article[]
+  journal  Journal   @relation(fields: [journalId], references: [id])
+  articles Article[]
+
+  @@index([journalId, year, volume, issueNumber])
 }
 
 // ---------------------------------------------------------------------------
 // Submission & Manuscript Service
 // ---------------------------------------------------------------------------
 model Article {
-  id            String   @id @default(cuid())
-  journalId     String
-  issueId       String?
-  doi           String?  // e.g. 10.52011/epip.2024.001
-  doiStatus     String   @default("NONE") // NONE | DRAFT | REGISTERED | PUBLISHED
+  id        String  @id @default(cuid())
+  journalId String
+  issueId   String?
+  doi       String? // e.g. 10.52011/epip.2024.001
+  doiStatus String  @default("NONE") // NONE | DRAFT | REGISTERED | PUBLISHED
 
-  title         String
-  abstract      String
-  keywords      String   // comma-separated
-  discipline    String   // Physics | Biology | Computer Science | Sociology | etc.
-  authors       String   // JSON array of {name, affiliation, orcid, email}
+  title                 String
+  abstract              String
+  keywords              String // comma-separated
+  discipline            String // Physics | Biology | Computer Science | Sociology | etc.
+  authors               String // JSON array of {name, affiliation, orcid, email}
   correspondingAuthorId String?
 
-  manuscriptKey String?  // S3-style key for raw upload
-  anonymizedKey String?  // S3-style key for double-blind version
-  galleyPdfKey  String?  // published PDF
-  galleyHtmlKey String?  // published HTML
-  galleyJatsKey String?  // published JATS XML
+  manuscriptKey String? // S3-style key for raw upload
+  anonymizedKey String? // S3-style key for double-blind version
+  galleyPdfKey  String? // published PDF
+  galleyHtmlKey String? // published HTML
+  galleyJatsKey String? // published JATS XML
 
   // Workflow state machine
   // DRAFT | SUBMITTED | UNDER_REVIEW | REVISIONS_REQUIRED | ACCEPTED | IN_PRODUCTION | PUBLISHED | REJECTED | WITHDRAWN
-  status        String   @default("DRAFT")
-  reviewModel   String   @default("DOUBLE_BLIND") // SINGLE_BLIND | DOUBLE_BLIND | OPEN
-  openReview    Boolean  @default(false) // If true, completed reviews are made public when article is published
+  status      String  @default("DRAFT")
+  reviewModel String  @default("DOUBLE_BLIND") // SINGLE_BLIND | DOUBLE_BLIND | OPEN
+  openReview  Boolean @default(false) // If true, completed reviews are made public when article is published
 
   // Post-publication integrity status — independent of the editorial
   // workflow `status` above, since a PUBLISHED article can later be
@@ -176,22 +178,22 @@ model Article {
   // iThenticate subscription (which checks against a much larger index and
   // requires paid credentials this environment doesn't have); see
   // docs/standards.md for the scope note.
-  plagiarismScore    Float?
-  similarityReport   String?   // JSON: [{articleId, title, score}] top in-corpus matches
+  plagiarismScore     Float?
+  similarityReport    String? // JSON: [{articleId, title, score}] top in-corpus matches
   similarityCheckedAt DateTime?
 
   // LLM-assisted checks (src/lib/manuscript-checks.ts) — both optional,
   // author/editor-triggered, never run silently.
-  laySummary            String?
-  aiKeywordSuggestions  String?   // JSON array of suggested keyword strings
-  statisticalFlags      String?   // JSON array of {flag, severity, explanation}
-  statisticalCheckedAt  DateTime?
+  laySummary           String?
+  aiKeywordSuggestions String? // JSON array of suggested keyword strings
+  statisticalFlags     String? // JSON array of {flag, severity, explanation}
+  statisticalCheckedAt DateTime?
 
   // Funders — JSON array of {name, id?} (id = a Crossref Open Funder
   // Registry / ROR identifier where known). Lets authors under a funder
   // mandate (e.g. NIH, Plan S signatories) prove compliance through
   // deposited metadata.
-  funders       String?
+  funders String?
 
   // Individual APC fee waiver (Plan S requires waivers be genuinely
   // available on request, not just theoretically offered)
@@ -200,32 +202,32 @@ model Article {
   apcWaiverStatus    String  @default("NONE") // NONE | REQUESTED | APPROVED | DENIED
 
   // Crossref deposit tracking
-  crossrefBatchId   String?  // Crossref-assigned batch ID after successful deposit
+  crossrefBatchId     String? // Crossref-assigned batch ID after successful deposit
   crossrefDepositedAt DateTime?
-  crossrefDepositLog String? // JSON-stringified response / error log
+  crossrefDepositLog  String? // JSON-stringified response / error log
 
   // Zenodo deposit tracking — the free, real-DOI alternative used for the
   // article's own DOI when no paid Crossref membership exists yet (see
   // src/lib/zenodo.ts's depositArticleToZenodo). Distinct from the
   // per-dataset DatasetLink.zenodoDepositId, which is for supplementary
   // datasets, not the article's own record.
-  zenodoRecordId    String?
-  zenodoDepositLog  String? // JSON-stringified response / error log
+  zenodoRecordId   String?
+  zenodoDepositLog String? // JSON-stringified response / error log
 
-  submittedAt   DateTime?
-  acceptedAt    DateTime?
-  publishedAt   DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  submittedAt DateTime?
+  acceptedAt  DateTime?
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   // Citation counts (mock analytics)
-  views         Int      @default(0)
-  downloads     Int      @default(0)
-  citations     Int      @default(0)
+  views     Int @default(0)
+  downloads Int @default(0)
+  citations Int @default(0)
 
-  journal       Journal  @relation(fields: [journalId], references: [id])
-  issue         Issue?   @relation(fields: [issueId], references: [id])
-  author        User?    @relation("AuthorArticles", fields: [correspondingAuthorId], references: [id])
+  journal       Journal                @relation(fields: [journalId], references: [id])
+  issue         Issue?                 @relation(fields: [issueId], references: [id])
+  author        User?                  @relation("AuthorArticles", fields: [correspondingAuthorId], references: [id])
   reviews       Review[]
   decisions     EditorialDecision[]
   invoices      Invoice[]
@@ -236,6 +238,17 @@ model Article {
   triageReport  EditorialTriageReport?
   corrections   Correction[]
   references    Reference[]
+
+  // Composite indexes mirror the actual query shapes used across the app:
+  // public/browse listing and the dashboard queue both filter by status
+  // (and often journal/discipline) then sort by publishedAt — a single-
+  // column index on status alone still forces a sort step at scale.
+  @@index([status, publishedAt])
+  @@index([journalId, publishedAt])
+  @@index([discipline, publishedAt])
+  @@index([issueId])
+  @@index([correspondingAuthorId])
+  @@index([doi])
 }
 
 // ---------------------------------------------------------------------------
@@ -249,23 +262,23 @@ model Article {
 // has already been downloaded.
 // ---------------------------------------------------------------------------
 model Correction {
-  id            String   @id @default(cuid())
-  articleId     String
-  type          String   // CORRIGENDUM | ERRATUM | EXPRESSION_OF_CONCERN | RETRACTION
-  title         String
-  description   String
-  doi           String?  // DOI minted for this correction/retraction notice itself
-  issuedById    String
-  issuedAt      DateTime @default(now())
+  id          String   @id @default(cuid())
+  articleId   String
+  type        String // CORRIGENDUM | ERRATUM | EXPRESSION_OF_CONCERN | RETRACTION
+  title       String
+  description String
+  doi         String? // DOI minted for this correction/retraction notice itself
+  issuedById  String
+  issuedAt    DateTime @default(now())
 
   // Crossmark / Crossref update registration
   crossmarkRegisteredAt DateTime?
-  crossrefDepositLog    String?  // JSON-stringified deposit response, mirrors Article's own field
+  crossrefDepositLog    String? // JSON-stringified deposit response, mirrors Article's own field
 
-  createdAt     DateTime @default(now())
+  createdAt DateTime @default(now())
 
-  article       Article  @relation(fields: [articleId], references: [id])
-  issuedBy      User     @relation(fields: [issuedById], references: [id])
+  article  Article @relation(fields: [articleId], references: [id])
+  issuedBy User    @relation(fields: [issuedById], references: [id])
 }
 
 // ---------------------------------------------------------------------------
@@ -275,97 +288,109 @@ model Correction {
 // findable before publication.
 // ---------------------------------------------------------------------------
 model Reference {
-  id             String    @id @default(cuid())
-  articleId      String
-  rawText        String    // the citation as pasted by the author
-  status         String    @default("PENDING") // PENDING | VALID | NOT_FOUND | AMBIGUOUS
-  doi            String?   // resolved DOI, if found
-  resolvedTitle  String?   // title OpenAlex matched it to
-  openAlexId     String?
-  checkedAt      DateTime?
-  createdAt      DateTime  @default(now())
+  id            String    @id @default(cuid())
+  articleId     String
+  rawText       String // the citation as pasted by the author
+  status        String    @default("PENDING") // PENDING | VALID | NOT_FOUND | AMBIGUOUS
+  doi           String? // resolved DOI, if found
+  resolvedTitle String? // title OpenAlex matched it to
+  openAlexId    String?
+  checkedAt     DateTime?
+  createdAt     DateTime  @default(now())
 
-  article        Article   @relation(fields: [articleId], references: [id])
+  article Article @relation(fields: [articleId], references: [id])
+
+  @@index([articleId])
 }
 
 // ---------------------------------------------------------------------------
 // Workflow & Peer Review Service
 // ---------------------------------------------------------------------------
 model Review {
-  id            String   @id @default(cuid())
-  articleId     String
-  reviewerId    String
+  id         String    @id @default(cuid())
+  articleId  String
+  reviewerId String
   // INVITED | ACCEPTED | DECLINED | IN_PROGRESS | COMPLETED
-  status        String   @default("INVITED")
-  dueDate       DateTime?
+  status     String    @default("INVITED")
+  dueDate    DateTime?
 
   // Review form (flexible, discipline-agnostic)
-  overallScore  Int?     // 1-5
-  recommendation String? // ACCEPT | MINOR_REVISIONS | MAJOR_REVISIONS | REJECT
-  confidence    Int?     // 1-5
-  commentsToAuthor  String?
-  commentsToEditor  String?
+  overallScore       Int? // 1-5
+  recommendation     String? // ACCEPT | MINOR_REVISIONS | MAJOR_REVISIONS | REJECT
+  confidence         Int? // 1-5
+  commentsToAuthor   String?
+  commentsToEditor   String?
   conflictOfInterest Boolean @default(false)
 
-  completedAt   DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   // Open peer review: set to true when article is published with openReview enabled
-  madePublic    Boolean  @default(false)
+  madePublic Boolean @default(false)
 
-  article       Article  @relation(fields: [articleId], references: [id])
-  reviewer      User     @relation("ReviewerReviews", fields: [reviewerId], references: [id])
+  article  Article @relation(fields: [articleId], references: [id])
+  reviewer User    @relation("ReviewerReviews", fields: [reviewerId], references: [id])
+
+  @@index([articleId])
+  @@index([reviewerId, status])
 }
 
 // ---------------------------------------------------------------------------
 // Editorial decision log
 // ---------------------------------------------------------------------------
 model EditorialDecision {
-  id          String   @id @default(cuid())
-  articleId   String
-  editorId    String
-  decision    String   // ASSIGN_REVIEWERS | REQUEST_REVISIONS | ACCEPT | REJECT | SEND_TO_PRODUCTION
-  note        String?
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  articleId String
+  editorId  String
+  decision  String // ASSIGN_REVIEWERS | REQUEST_REVISIONS | ACCEPT | REJECT | SEND_TO_PRODUCTION
+  note      String?
+  createdAt DateTime @default(now())
 
-  article     Article  @relation(fields: [articleId], references: [id])
-  editor      User     @relation(fields: [editorId], references: [id])
+  article Article @relation(fields: [articleId], references: [id])
+  editor  User    @relation(fields: [editorId], references: [id])
+
+  @@index([articleId])
 }
 
 // ---------------------------------------------------------------------------
 // Billing & Subscription Service (Stripe-style mock)
 // ---------------------------------------------------------------------------
 model Subscription {
-  id           String   @id @default(cuid())
-  userId       String
-  plan         String   // READER_MONTHLY | READER_YEARLY | INSTITUTIONAL
-  status       String   @default("ACTIVE") // ACTIVE | CANCELED | PAST_DUE | TRIALING
-  provider     String?  // stripe | paypal | paymongo | xendit | lemonsqueezy
-  stripeSubId  String?  // provider's session/subscription reference (name predates multi-gateway support)
+  id               String    @id @default(cuid())
+  userId           String
+  plan             String // READER_MONTHLY | READER_YEARLY | INSTITUTIONAL
+  status           String    @default("ACTIVE") // ACTIVE | CANCELED | PAST_DUE | TRIALING
+  provider         String? // stripe | paypal | paymongo | xendit | lemonsqueezy
+  stripeSubId      String? // provider's session/subscription reference (name predates multi-gateway support)
   currentPeriodEnd DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  user         User     @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
 }
 
 model Invoice {
-  id            String   @id @default(cuid())
-  userId        String
-  articleId     String?
-  type          String   // APC | SUBSCRIPTION | INSTITUTIONAL
-  amount        Float
-  currency      String   @default("USD")
-  status        String   @default("OPEN") // OPEN | PAID | VOID | REFUNDED
-  provider      String?  // stripe | paypal | paymongo | xendit | lemonsqueezy
+  id              String    @id @default(cuid())
+  userId          String
+  articleId       String?
+  type            String // APC | SUBSCRIPTION | INSTITUTIONAL
+  amount          Float
+  currency        String    @default("USD")
+  status          String    @default("OPEN") // OPEN | PAID | VOID | REFUNDED
+  provider        String? // stripe | paypal | paymongo | xendit | lemonsqueezy
   stripeInvoiceId String? // provider's session/charge reference (name predates multi-gateway support)
-  metadata      String?  // JSON — e.g. { "plan": "READER_YEARLY" } for SUBSCRIPTION invoices
-  paidAt        DateTime?
-  createdAt     DateTime @default(now())
+  metadata        String? // JSON — e.g. { "plan": "READER_YEARLY" } for SUBSCRIPTION invoices
+  paidAt          DateTime?
+  createdAt       DateTime  @default(now())
 
-  user          User     @relation(fields: [userId], references: [id])
-  article       Article? @relation(fields: [articleId], references: [id])
+  user    User     @relation(fields: [userId], references: [id])
+  article Article? @relation(fields: [articleId], references: [id])
+
+  @@index([userId])
+  @@index([articleId])
 }
 
 // ---------------------------------------------------------------------------
@@ -374,100 +399,111 @@ model Invoice {
 model Notification {
   id        String   @id @default(cuid())
   userId    String
-  type      String   // INFO | SUCCESS | WARNING | ERROR
+  type      String // INFO | SUCCESS | WARNING | ERROR
   title     String
   message   String
   read      Boolean  @default(false)
   articleId String?
   createdAt DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id])
-  article   Article? @relation(fields: [articleId], references: [id])
+  user    User     @relation(fields: [userId], references: [id])
+  article Article? @relation(fields: [articleId], references: [id])
+
+  @@index([userId, read, createdAt])
+  @@index([articleId])
 }
 
 // ---------------------------------------------------------------------------
 // Audit Log (cross-service event sourcing)
 // ---------------------------------------------------------------------------
 model AuditLog {
-  id        String   @id @default(cuid())
-  userId    String?
-  action    String   // SUBMIT | ASSIGN_REVIEWER | SUBMIT_REVIEW | ACCEPT | REJECT | PUBLISH | DOI_MINT | DOI_PUBLISH | PAYMENT_RECEIVED | CROSSREF_DEPOSIT | GALLEY_GENERATED
-  entityType String  // ARTICLE | REVIEW | INVOICE | SUBSCRIPTION | USER
-  entityId  String
-  articleId String?
-  metadata  String?  // JSON string
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String // SUBMIT | ASSIGN_REVIEWER | SUBMIT_REVIEW | ACCEPT | REJECT | PUBLISH | DOI_MINT | DOI_PUBLISH | PAYMENT_RECEIVED | CROSSREF_DEPOSIT | GALLEY_GENERATED
+  entityType String // ARTICLE | REVIEW | INVOICE | SUBSCRIPTION | USER
+  entityId   String
+  articleId  String?
+  metadata   String? // JSON string
+  createdAt  DateTime @default(now())
 
-  user      User?    @relation(fields: [userId], references: [id])
-  article   Article? @relation(fields: [articleId], references: [id])
+  user    User?    @relation(fields: [userId], references: [id])
+  article Article? @relation(fields: [articleId], references: [id])
+
+  @@index([articleId, createdAt])
+  @@index([userId, createdAt])
 }
 
 // ---------------------------------------------------------------------------
 // Storage Service — tracks every file in the three S3 buckets
 // ---------------------------------------------------------------------------
 model StorageObject {
-  id           String   @id @default(cuid())
-  bucket       String   // raw-submissions | anonymized-manuscripts | published-galleys
-  key          String   @unique
-  fileName     String
-  contentType  String
-  sizeBytes    Int
-  uploadStatus String   @default("PENDING") // PENDING | UPLOADED | FAILED
-  uploadedBy   String?  // user id
-  articleId    String?
+  id               String    @id @default(cuid())
+  bucket           String // raw-submissions | anonymized-manuscripts | published-galleys
+  key              String    @unique
+  fileName         String
+  contentType      String
+  sizeBytes        Int
+  uploadStatus     String    @default("PENDING") // PENDING | UPLOADED | FAILED
+  uploadedBy       String? // user id
+  articleId        String?
   // Pre-signed URL metadata
-  presignToken String?  @unique
+  presignToken     String?   @unique
   presignExpiresAt DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([articleId])
 }
 
 // ---------------------------------------------------------------------------
 // Galley Job — tracks Pandoc conversion jobs from the production worker
 // ---------------------------------------------------------------------------
 model GalleyJob {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   articleId    String
-  inputKey     String   // storage key of source DOCX/MD
-  status       String   @default("QUEUED") // QUEUED | PROCESSING | COMPLETED | FAILED
+  inputKey     String // storage key of source DOCX/MD
+  status       String    @default("QUEUED") // QUEUED | PROCESSING | COMPLETED | FAILED
   htmlKey      String?
   pdfKey       String?
   jatsKey      String?
-  workerLog    String?  // JSON-stringified worker output
+  workerLog    String? // JSON-stringified worker output
   errorMessage String?
   startedAt    DateTime?
   completedAt  DateTime?
-  createdAt    DateTime @default(now())
+  createdAt    DateTime  @default(now())
+
+  @@index([status, createdAt])
+  @@index([articleId])
 }
 
 // ---------------------------------------------------------------------------
 // COUNTER 5 Usage Events — raw event log for SUSHI-compatible reporting
 // ---------------------------------------------------------------------------
 model CounterEvent {
-  id           String   @id @default(cuid())
-  articleId    String?
-  userId       String?
+  id            String   @id @default(cuid())
+  articleId     String?
+  userId        String?
   // Metric_Type: Total_Item_Investigations | Total_Item_Requests | Unique_Item_Investigations | Unique_Item_Requests
-  metricType   String
+  metricType    String
   // Access_Method: Regular | TDM
-  accessMethod String   @default("Regular")
+  accessMethod  String   @default("Regular")
   // Access_Type: OA | Controlled
-  accessType   String   @default("OA")
+  accessType    String   @default("OA")
   // Section_Type: Article | Search|TOC | Publication
-  sectionType  String   @default("Article")
+  sectionType   String   @default("Article")
   // YOP = Year of Publication
-  yop          Int?
+  yop           Int?
   // Identifier
-  doi          String?
-  isbn         String?
-  issn         String?
+  doi           String?
+  isbn          String?
+  issn          String?
   // Requesting institution (for institutional subscribers)
   institutionId String?
   // Session/user fingerprint for unique deduplication
-  sessionId    String?
-  userAgent    String?
-  ipAddress    String?
-  createdAt    DateTime @default(now())
+  sessionId     String?
+  userAgent     String?
+  ipAddress     String?
+  createdAt     DateTime @default(now())
 
   @@index([articleId, createdAt])
   @@index([metricType, createdAt])
@@ -477,100 +513,102 @@ model CounterEvent {
 // PREMIUM: Institutional IP Authentication
 // ---------------------------------------------------------------------------
 model Institution {
-  id              String   @id @default(cuid())
-  name            String
-  domain          String?  // e.g. "harvard.edu"
-  country         String?
+  id                String    @id @default(cuid())
+  name              String
+  domain            String? // e.g. "harvard.edu"
+  country           String?
   // Research Organization Registry ID (e.g. "01an7q238") — the persistent
   // institutional identifier now expected by Crossref/DataCite/ORCID
   // metadata in place of free-text affiliation strings.
-  rorId           String?
+  rorId             String?
   // IP ranges in CIDR notation, comma-separated (e.g. "128.103.0.0/16,140.247.0.0/16")
-  ipRanges        String
+  ipRanges          String
   // SSO / Shibboleth entity ID (optional)
-  ssoEntityId     String?
-  ssoMetadataUrl  String?
+  ssoEntityId       String?
+  ssoMetadataUrl    String?
   // Subscription details
-  plan            String   @default("INSTITUTIONAL") // INSTITUTIONAL | TRANSFORMATIVE
-  status          String   @default("ACTIVE") // ACTIVE | EXPIRED | TRIALING
-  currentPeriodEnd DateTime?
+  plan              String    @default("INSTITUTIONAL") // INSTITUTIONAL | TRANSFORMATIVE
+  status            String    @default("ACTIVE") // ACTIVE | EXPIRED | TRIALING
+  currentPeriodEnd  DateTime?
   // Transformative agreement: APC quota for authors from this institution
-  apcQuota        Int      @default(0)
-  apcUsed         Int      @default(0)
+  apcQuota          Int       @default(0)
+  apcUsed           Int       @default(0)
   // COUNTER 5 customer ID for SUSHI report slicing
   counterCustomerId String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
-  users           User[]
-  datasets        DatasetLink[]
+  users    User[]
+  datasets DatasetLink[]
 }
 
 // ---------------------------------------------------------------------------
 // PREMIUM: Zenodo / OSF / Dryad Data Deposit Integration
 // ---------------------------------------------------------------------------
 model DatasetLink {
-  id            String   @id @default(cuid())
-  articleId     String
-  repository    String   // ZENODO | OSF | DRYAD | FIGSHARE | GITHUB
-  datasetDoi    String?  // e.g. 10.5281/zenodo.1234567
-  datasetUrl    String
-  datasetTitle  String
-  depositorId   String
+  id              String   @id @default(cuid())
+  articleId       String
+  repository      String // ZENODO | OSF | DRYAD | FIGSHARE | GITHUB
+  datasetDoi      String? // e.g. 10.5281/zenodo.1234567
+  datasetUrl      String
+  datasetTitle    String
+  depositorId     String
   // Relation type per Crossref: isSupplementedBy | isReferencedBy | isSourceOf
-  relationType  String   @default("isSupplementedBy")
+  relationType    String   @default("isSupplementedBy")
   // Zenodo deposit metadata
   zenodoDepositId String?
   zenodoConceptId String?
-  createdAt     DateTime @default(now())
+  createdAt       DateTime @default(now())
 
-  article       Article  @relation(fields: [articleId], references: [id])
+  article       Article      @relation(fields: [articleId], references: [id])
   institution   Institution? @relation(fields: [institutionId], references: [id])
   institutionId String?
+
+  @@index([articleId])
 }
 
 // ---------------------------------------------------------------------------
 // PREMIUM: Semantic Search Embeddings
 // ---------------------------------------------------------------------------
 model ArticleEmbedding {
-  id            String   @id @default(cuid())
-  articleId     String   @unique
+  id         String   @id @default(cuid())
+  articleId  String   @unique
   // Embedding vector stored as JSON array of floats (1536 dims for text-embedding-3-small)
-  embedding     String   // JSON stringified float array
-  model         String   @default("text-embedding-3-small")
-  textHash      String   // SHA-256 of the embedded text (for cache invalidation)
-  dimensions    Int      @default(1536)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  embedding  String // JSON stringified float array
+  model      String   @default("text-embedding-3-small")
+  textHash   String // SHA-256 of the embedded text (for cache invalidation)
+  dimensions Int      @default(1536)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  article       Article  @relation(fields: [articleId], references: [id])
+  article Article @relation(fields: [articleId], references: [id])
 }
 
 // ---------------------------------------------------------------------------
 // PREMIUM: LLM-Assisted Editorial Triage Report
 // ---------------------------------------------------------------------------
 model EditorialTriageReport {
-  id            String   @id @default(cuid())
-  articleId     String   @unique
+  id                     String   @id @default(cuid())
+  articleId              String   @unique
   // Scope fit score 0-100
-  scopeFitScore Int
-  scopeFitReason String
+  scopeFitScore          Int
+  scopeFitReason         String
   // Methodological flags
-  methodologyFlags String  // JSON array of {flag, severity, explanation}
+  methodologyFlags       String // JSON array of {flag, severity, explanation}
   // Suggested reviewers (JSON array of {userId, name, matchScore, reason})
-  suggestedReviewers String
+  suggestedReviewers     String
   // Recommended review model
   recommendedReviewModel String
   // 3-sentence summary
-  summary       String
+  summary                String
   // Predicted impact (1-5 stars)
-  predictedImpact Int
+  predictedImpact        Int
   // Risk flags (plagiarism risk, ethics concerns, novelty)
-  riskFlags     String   // JSON array
+  riskFlags              String // JSON array
   // Full LLM response (for audit)
-  rawResponse   String
-  model         String   @default("glm-4")
-  createdAt     DateTime @default(now())
+  rawResponse            String
+  model                  String   @default("glm-4")
+  createdAt              DateTime @default(now())
 
-  article       Article  @relation(fields: [articleId], references: [id])
+  article Article @relation(fields: [articleId], references: [id])
 }
