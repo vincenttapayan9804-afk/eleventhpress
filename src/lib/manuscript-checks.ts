@@ -17,6 +17,8 @@
 import { db } from "@/lib/db";
 import { chatJSON, isLLMAvailable } from "@/lib/llm";
 import { generateEmbedding } from "@/lib/embeddings";
+import { cosineSimilarity } from "@/lib/vector-math";
+import { ensurePgvector, vectorLiteral } from "@/lib/pgvector";
 
 // ---------------------------------------------------------------------------
 // Similarity check
@@ -45,6 +47,37 @@ export async function checkSimilarity(
 ): Promise<SimilarityResult> {
   const queryEmbedding = await generateEmbedding(text);
 
+  if (await ensurePgvector()) {
+    try {
+      const literal = vectorLiteral(queryEmbedding);
+      const rows = excludeArticleId
+        ? await db.$queryRaw<{ articleId: string; title: string; score: number }[]>`
+            SELECT ve.article_id AS "articleId", a.title,
+                   1 - (ve.embedding <=> ${literal}::vector) AS score
+            FROM vec.article_embedding ve
+            JOIN public."Article" a ON a.id = ve.article_id
+            WHERE ve.article_id != ${excludeArticleId}
+            ORDER BY ve.embedding <=> ${literal}::vector ASC
+            LIMIT 3
+          `
+        : await db.$queryRaw<{ articleId: string; title: string; score: number }[]>`
+            SELECT ve.article_id AS "articleId", a.title,
+                   1 - (ve.embedding <=> ${literal}::vector) AS score
+            FROM vec.article_embedding ve
+            JOIN public."Article" a ON a.id = ve.article_id
+            ORDER BY ve.embedding <=> ${literal}::vector ASC
+            LIMIT 3
+          `;
+      const scored = rows
+        .map((r) => ({ articleId: r.articleId, title: r.title, score: Math.round(Math.max(0, r.score) * 100) }))
+        .filter((m) => m.score > 0);
+      return { score: scored[0]?.score ?? 0, matches: scored };
+    } catch (e) {
+      console.error("[manuscript-checks] pgvector checkSimilarity failed, falling back to in-memory scan:", e);
+    }
+  }
+
+  // Fallback: unbounded in-memory scan, unchanged from before pgvector.
   const allEmbeddings = await db.articleEmbedding.findMany({
     where: excludeArticleId ? { articleId: { not: excludeArticleId } } : undefined,
     include: { article: { select: { id: true, title: true } } },
@@ -64,18 +97,6 @@ export async function checkSimilarity(
     score: scored[0]?.score ?? 0,
     matches: scored,
   };
-}
-
-function cosineSimilarity(a: number[], b: number[]): number {
-  if (a.length !== b.length) return 0;
-  let dot = 0, magA = 0, magB = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    magA += a[i] * a[i];
-    magB += b[i] * b[i];
-  }
-  const denom = Math.sqrt(magA) * Math.sqrt(magB);
-  return denom === 0 ? 0 : Math.max(0, dot / denom);
 }
 
 // ---------------------------------------------------------------------------

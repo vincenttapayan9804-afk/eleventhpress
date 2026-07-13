@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { generateEmbedding } from "@/lib/embeddings";
+import { cosineSimilarity } from "@/lib/vector-math";
 
 /**
  * GET /api/articles/assign-reviewer?articleId=...
@@ -72,18 +73,6 @@ export async function GET(req: NextRequest) {
   ).sort((a, b) => b.matchScore - a.matchScore);
 
   return NextResponse.json({ reviewers: scored, articleDiscipline: article.discipline, articleKeywords });
-}
-
-function cosineSimilarity(a: number[], b: number[]): number {
-  if (a.length !== b.length) return 0;
-  let dot = 0, magA = 0, magB = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    magA += a[i] * a[i];
-    magB += b[i] * b[i];
-  }
-  const denom = Math.sqrt(magA) * Math.sqrt(magB);
-  return denom === 0 ? 0 : Math.max(0, dot / denom);
 }
 
 export async function POST(req: NextRequest) {
