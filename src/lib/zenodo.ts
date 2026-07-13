@@ -121,8 +121,49 @@ export async function depositToZenodo(
     }
     const deposition = await createRes.json();
     const depositionId = deposition.id;
+    const bucketUrl: string | undefined = deposition.links?.bucket;
 
-    // 2. Upload metadata
+    // 2. Upload a file — Zenodo will not publish an empty deposition, so
+    // this step is mandatory. The dataset form collects only metadata (no
+    // file input), so synthesize a manifest describing the dataset as the
+    // deposited artifact, same fallback pattern used when an article has no
+    // galley/manuscript file available (see depositPublishedArticleToZenodo).
+    if (!bucketUrl) {
+      return {
+        ok: false,
+        mode: "live",
+        datasetDoi: null,
+        datasetUrl: "",
+        zenodoDepositId: String(depositionId),
+        zenodoConceptId: null,
+        message: "Zenodo deposition had no upload bucket link",
+      };
+    }
+    const manifest = Buffer.from(
+      `${input.title}\n\n${input.description}\n\nKeywords: ${input.keywords.join(", ")}\nLicense: ${input.license}\nAccess: ${input.accessRight}`,
+      "utf-8"
+    );
+    const uploadRes = await fetch(
+      `${bucketUrl}/${encodeURIComponent(input.title.slice(0, 60) || "dataset")}.txt?access_token=${token}`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/octet-stream" },
+        body: manifest as any,
+      }
+    );
+    if (!uploadRes.ok) {
+      return {
+        ok: false,
+        mode: "live",
+        datasetDoi: null,
+        datasetUrl: "",
+        zenodoDepositId: String(depositionId),
+        zenodoConceptId: null,
+        message: `Zenodo file upload failed: ${uploadRes.status} — ${extractZenodoErrorReason(await uploadRes.text())}`,
+      };
+    }
+
+    // 3. Upload metadata
     const metadataRes = await fetch(`${apiUrl}/${depositionId}?access_token=${token}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -162,7 +203,7 @@ export async function depositToZenodo(
     }
     const updated = await metadataRes.json();
 
-    // 3. Publish
+    // 4. Publish
     const publishRes = await fetch(`${apiUrl}/${depositionId}/actions/publish?access_token=${token}`, {
       method: "POST",
     });
