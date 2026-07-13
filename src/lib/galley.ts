@@ -8,6 +8,8 @@
  * jobs from a Kafka queue, calling Pandoc + LaTeX/WeasyPrint, and
  * writing galleys to S3.
  */
+// Must be imported before pdfjs-dist — see the file itself for why.
+import "./pdfjs-node-polyfill";
 import { spawn } from "child_process";
 import { promises as fs } from "fs";
 import os from "os";
