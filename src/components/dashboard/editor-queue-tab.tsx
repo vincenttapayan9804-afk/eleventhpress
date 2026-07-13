@@ -265,14 +265,14 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
 
   return (
     <Dialog open={!!article} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[88vh] max-w-3xl overflow-hidden">
+      <DialogContent className="flex max-h-[90vh] max-w-2xl flex-col overflow-hidden">
         <DialogHeader>
-          <DialogTitle className="font-display text-xl">
+          <DialogTitle className="break-words font-display text-lg">
             Editorial control · {article.title}
           </DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[60vh] pr-3 epip-scroll">
+        <ScrollArea className="max-h-[55vh] flex-1 pr-3 epip-scroll">
           <div className="space-y-5">
             {/* Article meta */}
             <div className="grid gap-3 text-xs sm:grid-cols-2">
@@ -530,31 +530,41 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
                   );
                 })}
               </div>
-
               {action && (
-                <div className="mt-3 rounded-md border border-primary/30 bg-primary/5 p-3">
-                  <Label className="text-xs">Editorial note (optional)</Label>
-                  <Textarea
-                    rows={2}
-                    className="mt-1.5"
-                    placeholder="Add an editorial note that will be logged in the audit trail…"
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                  />
-                  <div className="mt-2 flex justify-end gap-2">
-                    <Button size="sm" variant="ghost" onClick={() => { setAction(null); setNote(""); }}>
-                      Cancel
-                    </Button>
-                    <Button size="sm" onClick={applyAction} disabled={loading}>
-                      {loading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
-                      Confirm {ACTIONS.find(a => a.key === action)?.label.toLowerCase()}
-                    </Button>
-                  </div>
-                </div>
+                <p className="mt-2 text-[0.7rem] text-muted-foreground">
+                  Selected: <strong>{ACTIONS.find((a) => a.key === action)?.label}</strong> — add an
+                  optional note and confirm below.
+                </p>
               )}
             </div>
           </div>
         </ScrollArea>
+
+        {/* Confirm bar — deliberately outside the scrollable area so it's
+            always visible once an action is selected, regardless of scroll
+            position (previously buried at the bottom of the scroll body,
+            which made the confirm click easy to miss). */}
+        {action && (
+          <div className="flex-shrink-0 border-t border-border bg-primary/5 p-3">
+            <Label className="text-xs">Editorial note (optional)</Label>
+            <Textarea
+              rows={2}
+              className="mt-1.5"
+              placeholder="Add an editorial note that will be logged in the audit trail…"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+            <div className="mt-2 flex justify-end gap-2">
+              <Button size="sm" variant="ghost" onClick={() => { setAction(null); setNote(""); }}>
+                Cancel
+              </Button>
+              <Button size="sm" onClick={applyAction} disabled={loading}>
+                {loading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
+                Confirm {ACTIONS.find(a => a.key === action)?.label.toLowerCase()}
+              </Button>
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
