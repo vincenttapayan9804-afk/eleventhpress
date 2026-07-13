@@ -79,6 +79,13 @@ async function fileExists(p: string): Promise<boolean> {
   try { await fs.access(p); return true; } catch { return false; }
 }
 
+/** Collapses copy-pasted whitespace runs (tabs, repeated spaces, stray
+ * newlines) into single spaces — submitted titles/abstracts often carry
+ * this from Word/Docs paste and it renders as visible garbage otherwise. */
+function normalizeWhitespace(s: string): string {
+  return (s || "").replace(/\s+/g, " ").trim();
+}
+
 function escapeXml(s: string): string {
   return String(s || "")
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
@@ -107,6 +114,17 @@ export async function generateGalleys(
     year: number;
   }
 ): Promise<GalleyResult> {
+  // Submitted titles/abstracts often carry copy-pasted whitespace (tabs,
+  // repeated spaces, trailing newlines from Word/Docs) that renders as
+  // visible garbage in the galley — collapse it once, up front, so every
+  // downstream render (masthead, PDF body, HTML) sees clean text.
+  meta = {
+    ...meta,
+    title: normalizeWhitespace(meta.title),
+    abstract: normalizeWhitespace(meta.abstract),
+    keywords: normalizeWhitespace(meta.keywords),
+  };
+
   const log: string[] = [];
   const jobId = crypto.randomBytes(6).toString("hex");
   log.push(`[${new Date().toISOString()}] Starting galley generation job ${jobId}`);
@@ -144,6 +162,12 @@ year: ${meta.year}
   let htmlContent = "";
   let pdfBuffer: Buffer | null = null;
   let jatsContent = "";
+  // True only when Pandoc actually converted the manuscript, i.e. htmlContent
+  // holds real body text beyond the title/authors/abstract/keywords already
+  // rendered as their own PDF sections below. The fallback HTML is nothing
+  // but a restatement of that same metadata — feeding it into the PDF's
+  // "Body" section too would just duplicate everything a second time.
+  let hasConvertedManuscriptBody = false;
 
   // 1. HTML galley via Pandoc
   try {
@@ -159,14 +183,17 @@ year: ${meta.year}
     if (r.code === 0 && await fileExists(htmlPath)) {
       htmlContent = await fs.readFile(htmlPath, "utf-8");
       htmlContent = injectBrand(htmlContent, meta);
+      hasConvertedManuscriptBody = true;
     } else {
-      // Fallback HTML
-      htmlContent = `<!DOCTYPE html><html><head><title>${escapeXml(meta.title)}</title></head><body><h1>${escapeXml(meta.title)}</h1><div class="abstract"><p>${escapeXml(meta.abstract)}</p></div></body></html>`;
+      // Fallback HTML — this is the actual production path on Vercel
+      // (pandoc isn't installed there), so it needs the same branding as
+      // the pandoc-success path, not a bare unstyled shell.
+      htmlContent = buildFallbackHtml(meta);
       log.push("HTML galley built via fallback");
     }
   } catch (e: any) {
     log.push(`HTML error: ${e.message}`);
-    htmlContent = `<!DOCTYPE html><html><body><h1>${escapeXml(meta.title)}</h1><p>${escapeXml(meta.abstract)}</p></body></html>`;
+    htmlContent = buildFallbackHtml(meta);
   }
 
   // 2. PDF galley via WeasyPrint, when available (higher-fidelity HTML/CSS
@@ -193,7 +220,7 @@ year: ${meta.year}
   // placeholder file.
   if (!pdfBuffer) {
     try {
-      pdfBuffer = await renderPdfKitGalley(meta, htmlContent);
+      pdfBuffer = await renderPdfKitGalley(meta, hasConvertedManuscriptBody ? htmlContent : "");
       log.push(`PDF galley built via in-process PDFKit renderer (${pdfBuffer.length} bytes)`);
     } catch (e: any) {
       log.push(`PDFKit error: ${e.message}`);
@@ -263,6 +290,32 @@ function injectBrand(html: string, meta: any): string {
   return html.replace(/<body>/, `<body>${header}`);
 }
 
+/** Branded HTML galley used whenever Pandoc isn't available — the actual
+ * production path on Vercel (no system binaries there), so it needs the
+ * same masthead/styling as the Pandoc-success path rather than a bare
+ * unstyled shell. */
+function buildFallbackHtml(meta: any): string {
+  const authors = safeParseAuthors(meta.authors);
+  const authorLine = authors.map((a: any) => escapeXml(a.name)).filter(Boolean).join(", ");
+  const affiliations = Array.from(new Set(authors.map((a: any) => a.affiliation).filter(Boolean)));
+  const doc = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>${escapeXml(meta.title)}</title>
+<style>${EPIP_CSS}</style>
+</head>
+<body>
+<h1>${escapeXml(meta.title)}</h1>
+${authorLine ? `<p><strong>${authorLine}</strong></p>` : ""}
+${affiliations.length ? `<p style="font-size: 0.85em; color: #555;">${affiliations.map(escapeXml).join(" · ")}</p>` : ""}
+<div class="abstract"><p>${escapeXml(meta.abstract)}</p></div>
+${meta.keywords ? `<p><em>Keywords: ${escapeXml(meta.keywords)}</em></p>` : ""}
+</body>
+</html>`;
+  return injectBrand(doc, meta);
+}
+
 function buildFallbackJats(meta: any): string {
   const authors = JSON.parse(meta.authors || "[]");
   const authorXml = authors.map((a: any, i: number) => `
@@ -323,8 +376,12 @@ const BRAND_GOLD = "#c9a55c";
 const BRAND_INK = "#2a1f1a";
 
 /** Strips tags/entities down to readable body text for the PDF body flow. */
-function htmlToPlainText(html: string, stripLeadingTitle?: string): string {
+function htmlToPlainText(html: string, stripLeadingParagraphs: (string | undefined)[] = []): string {
   let text = html
+    // <head> (title/meta/style) has no visible content — must be dropped
+    // entirely, not just <header>, or its <title> text leaks into the body
+    // right before the visible <h1>, producing a concatenated double title.
+    .replace(/<head[\s\S]*?<\/head>/gi, "")
     .replace(/<header[\s\S]*?<\/header>/gi, "")
     .replace(/<style[\s\S]*?<\/style>/gi, "")
     .replace(/<\/(p|div|h1|h2|h3|h4|li|tr|blockquote)>/gi, "\n\n")
@@ -335,16 +392,25 @@ function htmlToPlainText(html: string, stripLeadingTitle?: string): string {
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
     .replace(/&#39;/g, "'")
-    .replace(/\n[ \t]+/g, "\n")
+    .replace(/[ \t]+/g, " ")
+    .replace(/ *\n */g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
-  if (stripLeadingTitle) {
-    const lines = text.split("\n");
-    if (lines[0]?.trim().toLowerCase() === stripLeadingTitle.trim().toLowerCase()) {
-      text = lines.slice(1).join("\n").trim();
+  // Drop leading paragraphs that just repeat content already rendered
+  // above (title, abstract) — the fallback HTML (the actual production
+  // path when Pandoc isn't installed) is nothing but title + abstract, so
+  // without this the body section is a verbatim duplicate of the header.
+  const normalize = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
+  const stripSet = new Set(stripLeadingParagraphs.filter(Boolean).map((s) => normalize(s as string)));
+  if (stripSet.size) {
+    const paragraphs = text.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
+    while (paragraphs.length && stripSet.has(normalize(paragraphs[0]))) {
+      paragraphs.shift();
     }
+    text = paragraphs.join("\n\n");
   }
   return text;
 }
@@ -413,7 +479,7 @@ function renderPdfKitGalley(meta: any, htmlContent: string): Promise<Buffer> {
       }
 
       // Body
-      const bodyText = htmlToPlainText(htmlContent, meta.title);
+      const bodyText = htmlToPlainText(htmlContent, [meta.title, meta.abstract]);
       if (bodyText) {
         doc.font("Helvetica").fontSize(10).fillColor(BRAND_INK).text(bodyText, { align: "left" });
       }
