@@ -10,13 +10,18 @@
  */
 import { spawn } from "child_process";
 import { promises as fs } from "fs";
+import os from "os";
 import path from "path";
 import crypto from "crypto";
 import PDFDocument from "pdfkit";
 import { putObject } from "@/lib/storage";
 
-const PROJECT_ROOT = process.cwd();
-const TEMP_DIR = path.join(PROJECT_ROOT, "storage", "tmp");
+// Vercel serverless functions ship a read-only deployment bundle — only
+// os.tmpdir() (/tmp) is writable at runtime. A project-relative path here
+// throws EROFS on every publish, which the caller swallows into a silent
+// placeholder-galley fallback (dead download links) rather than a visible
+// error.
+const TEMP_DIR = path.join(os.tmpdir(), "epip-galley");
 
 const EPIP_CSS = `
 @page {
@@ -433,7 +438,7 @@ function renderPdfKitGalley(meta: any, htmlContent: string): Promise<Buffer> {
 }
 
 /** Absolute last resort — a minimal but still valid, openable PDF. */
-function renderMinimalErrorPdf(meta: any): Promise<Buffer> {
+export function renderMinimalErrorPdf(meta: { title: string }): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     try {
       const doc = new PDFDocument({ size: "A4", margins: { top: 72, bottom: 72, left: 72, right: 72 } });

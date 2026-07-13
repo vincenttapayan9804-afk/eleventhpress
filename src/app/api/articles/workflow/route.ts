@@ -4,8 +4,8 @@ import { getSessionFromHeaders } from "@/lib/auth";
 import type { ArticleStatus } from "@/lib/article";
 import { depositToCrossref } from "@/lib/crossref";
 import { depositPublishedArticleToZenodo, zenodoLiveMode } from "@/lib/zenodo";
-import { getObject } from "@/lib/storage";
-import { generateGalleys } from "@/lib/galley";
+import { getObject, putObject } from "@/lib/storage";
+import { generateGalleys, renderMinimalErrorPdf } from "@/lib/galley";
 import { APP_BASE_URL } from "@/lib/site";
 import { APC_USD } from "@/lib/pricing";
 
@@ -134,15 +134,23 @@ export async function POST(req: NextRequest) {
           );
         }
       } catch (e: any) {
+        console.error(`[workflow] Galley generation failed for article ${articleId}:`, e);
         publishEvents.push(`Galley generation failed: ${e.message}`);
-        // Fall back to placeholder galley keys so the article is still reachable.
+        // Fall back to placeholder galley keys — and actually write content
+        // at those keys, since a key with nothing behind it is a dead
+        // download link for readers.
         const suffix = updated.doi?.split(".").pop() || Math.floor(Math.random() * 90000) + 10000;
+        const pdfKey = `published-galleys/${suffix}.pdf`;
+        const htmlKey = `published-galleys/${suffix}.html`;
+        const placeholderHtml = `<!DOCTYPE html><html><body><h1>${updated.title}</h1><p>${updated.abstract}</p><p><em>Galley rendering is temporarily unavailable; this is a plain-text fallback.</em></p></body></html>`;
+        const placeholderPdf = await renderMinimalErrorPdf({ title: updated.title });
+        await Promise.all([
+          putObject(htmlKey, Buffer.from(placeholderHtml, "utf-8"), "text/html; charset=utf-8"),
+          putObject(pdfKey, placeholderPdf, "application/pdf"),
+        ]);
         await db.article.update({
           where: { id: articleId },
-          data: {
-            galleyPdfKey: `published-galleys/${suffix}.pdf`,
-            galleyHtmlKey: `published-galleys/${suffix}.html`,
-          },
+          data: { galleyPdfKey: pdfKey, galleyHtmlKey: htmlKey },
         });
       }
 
