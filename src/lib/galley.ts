@@ -14,7 +14,30 @@ import os from "os";
 import path from "path";
 import crypto from "crypto";
 import PDFDocument from "pdfkit";
+import mammoth from "mammoth";
+// @ts-ignore — pdfjs-dist ships types for its ESM entry but not always
+// resolved cleanly under this project's moduleResolution; the runtime
+// import is what matters here.
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
+import WordExtractor from "word-extractor";
+import sanitizeHtml from "sanitize-html";
+import { marked } from "marked";
 import { putObject } from "@/lib/storage";
+
+// Manuscript content embedded in reader-facing pages (the HTML galley and
+// the public article page) must be sanitized — a malicious "manuscript"
+// upload (.html, .tex-as-html, or a crafted docx) is otherwise a stored-XSS
+// vector against every visitor of a published article.
+const MANUSCRIPT_SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
+  allowedTags: [
+    "p", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li",
+    "strong", "b", "em", "i", "u", "s", "br", "hr",
+    "table", "thead", "tbody", "tr", "th", "td",
+    "blockquote", "a", "sup", "sub", "code", "pre", "figure", "figcaption", "img",
+  ],
+  allowedAttributes: { a: ["href"], img: ["src", "alt"] },
+  allowedSchemes: ["http", "https", "mailto"],
+};
 
 // Vercel serverless functions ship a read-only deployment bundle — only
 // os.tmpdir() (/tmp) is writable at runtime. A project-relative path here
@@ -93,6 +116,97 @@ function escapeXml(s: string): string {
     .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "");
 }
 
+/** Wraps blank-line-delimited plain text into paragraphs, HTML-escaped. */
+function plainTextToHtml(text: string): string | null {
+  const paragraphs = text
+    .split(/\r?\n\s*\r?\n/)
+    .map((p) => normalizeWhitespace(p))
+    .filter(Boolean);
+  if (!paragraphs.length) return null;
+  return paragraphs.map((p) => `<p>${escapeXml(p)}</p>`).join("\n");
+}
+
+/** Minimal LaTeX → readable-text stripping — not a full LaTeX renderer,
+ * just enough to surface the actual written content instead of raw
+ * commands (\section, \textbf, comments, preamble). */
+function stripLatexToText(tex: string): string {
+  return tex
+    .replace(/%.*$/gm, "") // comments
+    .replace(/\\(documentclass|usepackage|input|include)\{[^}]*\}/g, "")
+    .replace(/\\begin\{document\}/g, "").replace(/\\end\{document\}/g, "")
+    .replace(/\\(section|subsection|subsubsection)\*?\{([^}]*)\}/g, "\n\n$2\n")
+    .replace(/\\(textbf|textit|emph)\{([^}]*)\}/g, "$2")
+    .replace(/\\[a-zA-Z]+(\{[^}]*\})?/g, "") // remaining commands
+    .replace(/[{}]/g, "");
+}
+
+/**
+ * Extracts the manuscript's real body content as sanitized HTML, format by
+ * format, entirely in-process (pure JS — no pandoc/LaTeX/system binaries,
+ * which aren't available on Vercel). Returns null when the format isn't
+ * recognized or extraction fails, in which case the caller falls back to a
+ * metadata-only page rather than a broken one.
+ */
+/** Extracts plain text from a PDF manuscript via pdfjs-dist (the same
+ * engine behind Firefox's PDF viewer) — pure JS/WASM, no system binaries,
+ * so it works on Vercel's serverless runtime. */
+async function extractPdfText(buffer: Buffer): Promise<string | null> {
+  try {
+    const loadingTask = pdfjsLib.getDocument({
+      data: new Uint8Array(buffer),
+      verbosity: pdfjsLib.VerbosityLevel.ERRORS, // suppress non-fatal font warnings
+    });
+    const doc = await loadingTask.promise;
+    const pageTexts: string[] = [];
+    for (let i = 1; i <= doc.numPages; i++) {
+      const page = await doc.getPage(i);
+      const content = await page.getTextContent();
+      pageTexts.push(content.items.map((item: any) => item.str || "").join(" "));
+    }
+    await loadingTask.destroy();
+    return pageTexts.join("\n\n") || null;
+  } catch {
+    return null;
+  }
+}
+
+async function extractManuscriptBody(buffer: Buffer, filename: string): Promise<string | null> {
+  const ext = filename.split(".").pop()?.toLowerCase() || "";
+  try {
+    if (ext === "docx") {
+      const result = await mammoth.convertToHtml({ buffer });
+      const html = sanitizeHtml(result.value, MANUSCRIPT_SANITIZE_OPTIONS).trim();
+      return html || null;
+    }
+    if (ext === "doc") {
+      const extractor = new WordExtractor();
+      const doc = await extractor.extract(buffer);
+      return plainTextToHtml(doc.getBody());
+    }
+    if (ext === "pdf") {
+      const text = await extractPdfText(buffer);
+      return text ? plainTextToHtml(text) : null;
+    }
+    if (ext === "md" || ext === "markdown") {
+      const html = sanitizeHtml(await marked.parse(buffer.toString("utf-8")), MANUSCRIPT_SANITIZE_OPTIONS).trim();
+      return html || null;
+    }
+    if (ext === "html" || ext === "htm") {
+      const html = sanitizeHtml(buffer.toString("utf-8"), MANUSCRIPT_SANITIZE_OPTIONS).trim();
+      return html || null;
+    }
+    if (ext === "tex") {
+      return plainTextToHtml(stripLatexToText(buffer.toString("utf-8")));
+    }
+    if (ext === "txt") {
+      return plainTextToHtml(buffer.toString("utf-8"));
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 /**
  * Generate HTML, PDF, and JATS galleys from a manuscript.
  */
@@ -162,12 +276,19 @@ year: ${meta.year}
   let htmlContent = "";
   let pdfBuffer: Buffer | null = null;
   let jatsContent = "";
-  // True only when Pandoc actually converted the manuscript, i.e. htmlContent
-  // holds real body text beyond the title/authors/abstract/keywords already
-  // rendered as their own PDF sections below. The fallback HTML is nothing
-  // but a restatement of that same metadata — feeding it into the PDF's
-  // "Body" section too would just duplicate everything a second time.
-  let hasConvertedManuscriptBody = false;
+  // Holds *only* the manuscript's real body content (never the full page
+  // with masthead/title/authors/abstract/keywords already rendered as
+  // their own PDF sections above it) — feeding the full page in here would
+  // duplicate all of that. Empty means metadata-only (nothing to add).
+  let pdfBodySource = "";
+
+  // Extract the manuscript's real body content in-process (pure JS — no
+  // pandoc/LaTeX/system binaries, which aren't available on Vercel). Runs
+  // regardless of Pandoc's own attempt below so it's ready as the primary
+  // fallback the moment Pandoc is unavailable, rather than a metadata-only
+  // page pretending nothing was submitted.
+  const extractedBody = await extractManuscriptBody(manuscriptContent, manuscriptName);
+  log.push(extractedBody ? `Extracted real manuscript body (${extractedBody.length} chars, .${ext})` : `No body extracted for .${ext} — will use metadata-only page if Pandoc is also unavailable`);
 
   // 1. HTML galley via Pandoc
   try {
@@ -181,19 +302,23 @@ year: ${meta.year}
     log.push(`pandoc HTML: exit ${r.code}${r.stderr ? " | " + r.stderr.slice(0, 200) : ""}`);
 
     if (r.code === 0 && await fileExists(htmlPath)) {
-      htmlContent = await fs.readFile(htmlPath, "utf-8");
-      htmlContent = injectBrand(htmlContent, meta);
-      hasConvertedManuscriptBody = true;
+      const pandocBody = await fs.readFile(htmlPath, "utf-8");
+      htmlContent = injectBrand(pandocBody, meta);
+      pdfBodySource = pandocBody;
+    } else if (extractedBody) {
+      htmlContent = buildFallbackHtml(meta, extractedBody);
+      pdfBodySource = extractedBody;
+      log.push("HTML galley built from extracted manuscript body");
     } else {
-      // Fallback HTML — this is the actual production path on Vercel
-      // (pandoc isn't installed there), so it needs the same branding as
-      // the pandoc-success path, not a bare unstyled shell.
+      // Last resort — Pandoc unavailable AND the format has no in-process
+      // extractor (or extraction failed): same branding, metadata only.
       htmlContent = buildFallbackHtml(meta);
-      log.push("HTML galley built via fallback");
+      log.push("HTML galley built via metadata-only fallback");
     }
   } catch (e: any) {
     log.push(`HTML error: ${e.message}`);
-    htmlContent = buildFallbackHtml(meta);
+    htmlContent = extractedBody ? buildFallbackHtml(meta, extractedBody) : buildFallbackHtml(meta);
+    pdfBodySource = extractedBody || "";
   }
 
   // 2. PDF galley via WeasyPrint, when available (higher-fidelity HTML/CSS
@@ -220,7 +345,7 @@ year: ${meta.year}
   // placeholder file.
   if (!pdfBuffer) {
     try {
-      pdfBuffer = await renderPdfKitGalley(meta, hasConvertedManuscriptBody ? htmlContent : "");
+      pdfBuffer = await renderPdfKitGalley(meta, pdfBodySource);
       log.push(`PDF galley built via in-process PDFKit renderer (${pdfBuffer.length} bytes)`);
     } catch (e: any) {
       log.push(`PDFKit error: ${e.message}`);
@@ -238,11 +363,11 @@ year: ${meta.year}
     if (r.code === 0 && await fileExists(jatsPath)) {
       jatsContent = await fs.readFile(jatsPath, "utf-8");
     } else {
-      jatsContent = buildFallbackJats(meta);
+      jatsContent = buildFallbackJats(meta, extractedBody);
       log.push("JATS built via fallback");
     }
   } catch (e: any) {
-    jatsContent = buildFallbackJats(meta);
+    jatsContent = buildFallbackJats(meta, extractedBody);
     log.push(`JATS error: ${e.message}, using fallback`);
   }
 
@@ -294,7 +419,11 @@ function injectBrand(html: string, meta: any): string {
  * production path on Vercel (no system binaries there), so it needs the
  * same masthead/styling as the Pandoc-success path rather than a bare
  * unstyled shell. */
-function buildFallbackHtml(meta: any): string {
+/** Branded HTML galley used whenever Pandoc isn't available — the actual
+ * production path on Vercel (no system binaries there). `bodyHtml`, when
+ * provided, is the manuscript's real extracted content (already sanitized
+ * by extractManuscriptBody); without it this renders metadata only. */
+function buildFallbackHtml(meta: any, bodyHtml?: string | null): string {
   const authors = safeParseAuthors(meta.authors);
   const authorLine = authors.map((a: any) => escapeXml(a.name)).filter(Boolean).join(", ");
   const affiliations = Array.from(new Set(authors.map((a: any) => a.affiliation).filter(Boolean)));
@@ -311,12 +440,13 @@ ${authorLine ? `<p><strong>${authorLine}</strong></p>` : ""}
 ${affiliations.length ? `<p style="font-size: 0.85em; color: #555;">${affiliations.map(escapeXml).join(" · ")}</p>` : ""}
 <div class="abstract"><p>${escapeXml(meta.abstract)}</p></div>
 ${meta.keywords ? `<p><em>Keywords: ${escapeXml(meta.keywords)}</em></p>` : ""}
+${bodyHtml ? `<div class="article-body">${bodyHtml}</div>` : ""}
 </body>
 </html>`;
   return injectBrand(doc, meta);
 }
 
-function buildFallbackJats(meta: any): string {
+function buildFallbackJats(meta: any, bodyHtml?: string | null): string {
   const authors = JSON.parse(meta.authors || "[]");
   const authorXml = authors.map((a: any, i: number) => `
     <contrib contrib-type="author" corresp="${i === 0 ? "yes" : "no"}">
@@ -362,7 +492,16 @@ ${(meta.keywords || "").split(",").map((k: string) => `        <kwd>${escapeXml(
       </kwd-group>
     </article-meta>
   </front>
-  <body><p>${escapeXml(meta.abstract)}</p></body>
+  <body>${
+    bodyHtml
+      ? htmlToPlainText(bodyHtml, [meta.title, meta.abstract])
+          .split(/\n{2,}/)
+          .map((p) => p.trim())
+          .filter(Boolean)
+          .map((p) => `<p>${escapeXml(p)}</p>`)
+          .join("\n    ")
+      : `<p>${escapeXml(meta.abstract)}</p>`
+  }</body>
   <back>
     <ref-list>
       <ref id="ref1"><citation><journal-title>Eleventh Press International Publishing</journal-title></citation></ref>

@@ -67,6 +67,7 @@ export function ArticleView() {
   const [openReviewStatus, setOpenReviewStatus] = useState<{ openReview: boolean; published: boolean } | null>(null);
   const [corrections, setCorrections] = useState<any[]>([]);
   const [references, setReferences] = useState<any[]>([]);
+  const [bodyHtml, setBodyHtml] = useState<string | null>(null);
   const canIssueCorrection = !!user && ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"].includes(user.role);
 
   useEffect(() => {
@@ -77,6 +78,7 @@ export function ArticleView() {
     setLoading(true);
     setPublicReviews(null);
     setOpenReviewStatus(null);
+    setBodyHtml(null);
     apiFetch<ArticleDetail>(`/api/articles/${articleId}`)
       .then((a) => {
         setArticle(a);
@@ -88,6 +90,11 @@ export function ArticleView() {
         apiFetch<{ references: any[] }>(`/api/articles/${articleId}/references`)
           .then((r) => setReferences(r.references || []))
           .catch(() => setReferences([]));
+        // Fetch the manuscript's real body content (extracted/converted at
+        // publish time) for inline display — replaces fabricated filler.
+        apiFetch<{ bodyHtml: string | null }>(`/api/articles/${articleId}/body`)
+          .then((r) => setBodyHtml(r.bodyHtml))
+          .catch(() => setBodyHtml(null));
         // Fetch related
         apiFetch<{ items: ArticleDetail[] }>(
           `/api/articles?discipline=${encodeURIComponent(a.discipline)}&pageSize=4`
@@ -339,33 +346,19 @@ ER  - `;
                 )}
 
                 <h2 className="mt-8 font-display text-xl font-semibold">Article body</h2>
-                <p className="mt-2 text-sm leading-relaxed text-foreground/80">
-                  The full typeset article body is rendered from the production galley
-                  (HTML format). In this sandbox the galley file is stored at
-                  <code className="mx-1 rounded bg-muted px-1.5 py-0.5 font-mono text-xs">{article.galleyHtmlKey || "—"}</code>
-                  on a private S3 bucket and served via short-lived pre-signed URLs.
-                  Click the “Download PDF” button on the right to request a galley
-                  URL — the gateway will verify your subscription status before
-                  issuing the link.
-                </p>
-
-                <h3 className="mt-6 font-display text-lg font-semibold">1. Introduction</h3>
-                <p className="mt-2 text-sm leading-relaxed text-foreground/80">
-                  {article.abstract.split(".")[0]}. This section would normally
-                  contextualise the work against the prior literature, articulate
-                  the gap addressed, and state the contributions. The platform’s
-                  production service converts the accepted manuscript to JATS XML,
-                  HTML, and PDF galleys using Pandoc with a journal-specific
-                  CSS template, ensuring typographic consistency across volumes.
-                </p>
-
-                <h3 className="mt-6 font-display text-lg font-semibold">2. Methods</h3>
-                <p className="mt-2 text-sm leading-relaxed text-foreground/80">
-                  Methodological detail is preserved verbatim from the accepted
-                  manuscript. Equations are rendered with KaTeX, figures with the
-                  journal brand footer, and supplementary materials are linked
-                  from the article landing page.
-                </p>
+                {bodyHtml ? (
+                  <div
+                    className="mt-2 text-sm leading-relaxed text-foreground/80 [&_h1]:mt-6 [&_h1]:font-display [&_h1]:text-lg [&_h1]:font-semibold [&_h2]:mt-6 [&_h2]:font-display [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:mt-4 [&_h3]:font-semibold [&_p]:mt-2 [&_table]:mt-4 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-border [&_td]:p-1.5 [&_th]:border [&_th]:border-border [&_th]:bg-muted/50 [&_th]:p-1.5"
+                    dangerouslySetInnerHTML={{ __html: bodyHtml }}
+                  />
+                ) : (
+                  <p className="mt-2 text-sm leading-relaxed text-foreground/70 italic">
+                    The full text isn’t available for inline preview for this
+                    article (its manuscript format doesn’t support in-browser
+                    rendering, or the galley hasn’t been generated yet) — use
+                    the “Download PDF” button to read the complete article.
+                  </p>
+                )}
 
                 {references.length > 0 && (
                   <>
