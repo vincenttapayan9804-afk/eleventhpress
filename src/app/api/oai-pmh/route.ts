@@ -71,12 +71,13 @@ export async function GET(req: NextRequest) {
     if (!identifier) {
       return errorResponse(verb, "badArgument", "Missing required argument: identifier");
     }
-    const candidates = await db.article.findMany({
-      where: { status: "PUBLISHED" },
-      include: { journal: true, issue: true },
-    });
-    const article = candidates.find((a) => buildOaiId(a) === identifier);
-    if (!article) {
+    const id = parseOaiId(identifier);
+    // Direct indexed lookup by primary key, not a full-table scan — safe
+    // now that the identifier scheme is reversible (see buildOaiId).
+    const article = id
+      ? await db.article.findUnique({ where: { id }, include: { journal: true, issue: true } })
+      : null;
+    if (!article || article.status !== "PUBLISHED") {
       return errorResponse(verb, "idDoesNotExist", `No matching record for identifier: ${identifier}`);
     }
     return xmlResponse(`<?xml version="1.0" encoding="UTF-8"?>
@@ -92,41 +93,81 @@ ${buildRecordXml(article)}
   }
 
   if (verb === "ListRecords") {
-    const from = searchParams.get("from");
-    const until = searchParams.get("until");
+    const PAGE_SIZE = 100;
+    const tokenParam = searchParams.get("resumptionToken");
+    let from = searchParams.get("from");
+    let until = searchParams.get("until");
+    let cursor: { cv: string; cid: string } | null = null;
+
+    if (tokenParam) {
+      // Per OAI-PMH spec, a resumptionToken alone determines the query —
+      // any from/until on this request are ignored in favor of what's
+      // encoded in the token, so a harvester resuming a session can't
+      // accidentally shift the selective-harvesting window mid-harvest.
+      const decoded = decodeResumptionToken(tokenParam);
+      if (!decoded) {
+        return errorResponse(verb, "badResumptionToken", "The resumptionToken is invalid or expired");
+      }
+      from = decoded.from;
+      until = decoded.until;
+      cursor = decoded.cv ? { cv: decoded.cv, cid: decoded.cid! } : null;
+    }
     if ((from && !isValidOaiDate(from)) || (until && !isValidOaiDate(until))) {
       return errorResponse(verb, "badArgument", "from/until must be YYYY-MM-DD or YYYY-MM-DDThh:mm:ssZ");
     }
 
+    const where: any = { status: "PUBLISHED" };
+    if (from || until) {
+      where.publishedAt = {};
+      if (from) where.publishedAt.gte = new Date(normalizeOaiDate(from));
+      if (until) where.publishedAt.lte = new Date(normalizeOaiDate(until, true));
+    }
+    // Filtering by date range now happens in the indexed query itself
+    // (Article.status+publishedAt) instead of loading everything and
+    // filtering in JS.
+    const queryWhere = cursor
+      ? {
+          AND: [
+            where,
+            {
+              OR: [
+                { publishedAt: { lt: new Date(cursor.cv) } },
+                { publishedAt: { equals: new Date(cursor.cv) }, id: { lt: cursor.cid } },
+              ],
+            },
+          ],
+        }
+      : where;
+
     const articles = await db.article.findMany({
-      where: { status: "PUBLISHED" },
+      where: queryWhere,
       include: { journal: true, issue: true },
-      orderBy: { publishedAt: "desc" },
-      take: 100,
+      orderBy: [{ publishedAt: "desc" }, { id: "desc" }],
+      take: PAGE_SIZE,
     });
 
-    const filtered = articles.filter((a) => {
-      const datestamp = (a.publishedAt || a.createdAt).toISOString();
-      if (from && datestamp < normalizeOaiDate(from)) return false;
-      if (until && datestamp > normalizeOaiDate(until, true)) return false;
-      return true;
-    });
-
-    if (filtered.length === 0) {
+    if (articles.length === 0) {
+      // Only reachable on a resumptionToken continuation (we only issue a
+      // token when a full page was returned) — treated the same as no
+      // matching records at all, since <ListRecords> requires at least one
+      // <record> child to be valid.
       return errorResponse(verb, "noRecordsMatch", "No records match the given selective-harvesting criteria");
     }
 
-    const records = filtered.map(buildRecordXml).join("\n");
-    return xmlResponse(`<?xml version="1.0" encoding="UTF-8"?>
-<OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/ http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd">
-  <responseDate>${new Date().toISOString()}</responseDate>
-  <request verb="ListRecords" metadataPrefix="oai_dc">${BASE_URL}</request>
-  <ListRecords>
-${records}
-  </ListRecords>
-</OAI-PMH>`);
+    const completeListSize = await db.article.count({ where });
+    const last = articles[articles.length - 1];
+    const hasMore = articles.length === PAGE_SIZE;
+    const nextToken = hasMore
+      ? encodeResumptionToken({
+          cv: (last.publishedAt || last.createdAt).toISOString(),
+          cid: last.id,
+          from,
+          until,
+        })
+      : null;
+
+    const records = articles.map(buildRecordXml).join("\n");
+    return xmlResponse(listRecordsXml(records, nextToken, completeListSize));
   }
 
   if (verb === "ListSets") {
@@ -163,8 +204,60 @@ ${sets}
 // in sync and GetRecord isn't incorrectly wrapped in <ListRecords>.
 // ---------------------------------------------------------------------------
 
-function buildOaiId(a: { doi: string | null; id: string }): string {
-  return `oai:${APP_HOST}:${a.doi?.replace(/\./g, "/") || a.id}`;
+// Identifier is the article's own primary key, not a mangled DOI. The
+// previous scheme (dots-to-slashes on the DOI) was lossy for any DOI that
+// itself contains a slash (e.g. Zenodo/DataCite DOIs like
+// "10.5072/zenodo.563298") and couldn't be reversed, which is why
+// GetRecord previously had to load every published article and recompute
+// buildOaiId() on each one just to find a string match — an O(n) scan on
+// every lookup. Using the id directly makes the identifier reversible (see
+// parseOaiId) and the lookup a single indexed query. Made pre-launch, before
+// any external harvester could have indexed the old scheme.
+function buildOaiId(a: { id: string }): string {
+  return `oai:${APP_HOST}:${a.id}`;
+}
+
+function parseOaiId(identifier: string): string | null {
+  const prefix = `oai:${APP_HOST}:`;
+  if (!identifier.startsWith(prefix)) return null;
+  const id = identifier.slice(prefix.length);
+  return id || null;
+}
+
+// ---------------------------------------------------------------------------
+// ListRecords resumptionToken — a base64url-encoded keyset cursor
+// (publishedAt + id, mirroring the same tuple-comparison pagination used by
+// /api/articles) plus the original selective-harvesting window, so a
+// harvester can page through arbitrarily many records at constant cost per
+// page instead of the endpoint silently truncating at a fixed 100 records.
+// ---------------------------------------------------------------------------
+function encodeResumptionToken(t: { cv: string; cid: string; from: string | null; until: string | null }): string {
+  return Buffer.from(JSON.stringify(t)).toString("base64url");
+}
+function decodeResumptionToken(s: string): { cv: string; cid: string | null; from: string | null; until: string | null } | null {
+  try {
+    const parsed = JSON.parse(Buffer.from(s, "base64url").toString("utf-8"));
+    if (parsed && typeof parsed.cv === "string") return parsed;
+  } catch {}
+  return null;
+}
+
+function listRecordsXml(records: string, resumptionToken: string | null, completeListSize?: number): string {
+  const tokenAttrs = completeListSize !== undefined ? ` completeListSize="${completeListSize}"` : "";
+  const tokenEl = resumptionToken
+    ? `<resumptionToken${tokenAttrs}>${resumptionToken}</resumptionToken>`
+    : `<resumptionToken${tokenAttrs}/>`;
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/ http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd">
+  <responseDate>${new Date().toISOString()}</responseDate>
+  <request verb="ListRecords" metadataPrefix="oai_dc">${BASE_URL}</request>
+  <ListRecords>
+${records}
+  ${tokenEl}
+  </ListRecords>
+</OAI-PMH>`;
 }
 
 function buildRecordXml(a: any): string {

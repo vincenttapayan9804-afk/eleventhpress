@@ -35,6 +35,14 @@ export function BrowseView() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  // Cursor-based navigation (constant-time regardless of corpus size, unlike
+  // OFFSET-based paging) — `page`/`totalPages` stay purely for the
+  // "Page X of Y" label and button disabled-state, matching prior UX exactly;
+  // the actual fetch is driven by these cursors, not the page number.
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [cursorDir, setCursorDir] = useState<"next" | "prev">("next");
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [prevCursor, setPrevCursor] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [discipline, setDiscipline] = useState("ALL");
   const [sort, setSort] = useState("newest");
@@ -68,26 +76,52 @@ export function BrowseView() {
         const scores: Record<string, { score: number; matchType: string }> = {};
         for (const r of res.results) scores[r.id] = { score: r.score, matchType: r.matchType };
         setSemanticScores(scores);
+        setNextCursor(null);
+        setPrevCursor(null);
         return;
       }
       setSemanticScores({});
       const params = new URLSearchParams({ sort, page: String(page), pageSize: "12" });
       if (q.trim()) params.set("q", q.trim());
       if (discipline !== "ALL") params.set("discipline", discipline);
-      const res = await apiFetch<{ items: any[]; total: number; totalPages: number }>(`/api/articles?${params}`);
+      if (cursor) {
+        params.set("cursor", cursor);
+        params.set("dir", cursorDir);
+      }
+      const res = await apiFetch<{ items: any[]; total: number; totalPages: number; nextCursor: string | null; prevCursor: string | null }>(`/api/articles?${params}`);
       setItems(res.items);
       setTotal(res.total);
       setTotalPages(res.totalPages);
+      setNextCursor(res.nextCursor);
+      setPrevCursor(res.prevCursor);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
-  }, [q, discipline, sort, page, semanticMode]);
+  }, [q, discipline, sort, page, semanticMode, cursor, cursorDir]);
 
   useEffect(() => {
     const t = setTimeout(fetchArticles, 250);
     return () => clearTimeout(t);
   }, [fetchArticles]);
 
-  useEffect(() => { setPage(1); }, [q, discipline, sort]);
+  useEffect(() => { setPage(1); setCursor(null); }, [q, discipline, sort]);
+
+  function goNext() {
+    if (!nextCursor) return;
+    setCursor(nextCursor);
+    setCursorDir("next");
+    setPage((p) => p + 1);
+  }
+  function goPrev() {
+    if (page <= 1) return;
+    if (page === 2) {
+      // Back to page 1 — no cursor needed, avoids any boundary edge case.
+      setCursor(null);
+    } else if (prevCursor) {
+      setCursor(prevCursor);
+      setCursorDir("prev");
+    }
+    setPage((p) => Math.max(1, p - 1));
+  }
 
   // Aggregate keywords from results for the 3D cluster
   const clusterKeywords = items.slice(0, 6).flatMap(a =>
@@ -125,7 +159,7 @@ export function BrowseView() {
               variant={semanticMode ? "default" : "outline"}
               size="sm"
               className="btn-royal-glow h-11"
-              onClick={() => { setSemanticMode(!semanticMode); setPage(1); }}
+              onClick={() => { setSemanticMode(!semanticMode); setPage(1); setCursor(null); }}
             >
               <Sparkles className="mr-1.5 h-3.5 w-3.5" />
               {semanticMode ? t("semantic") : t("lexical")}
@@ -246,11 +280,11 @@ export function BrowseView() {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="mt-10 flex items-center justify-center gap-3">
-          <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage((p) => Math.max(1, p - 1))} className="glass">
+          <Button variant="outline" size="sm" disabled={page === 1} onClick={goPrev} className="glass">
             <ChevronLeft className="h-4 w-4" /> Prev
           </Button>
           <span className="px-4 text-sm text-muted-foreground">Page <strong className="text-foreground">{page}</strong> of {totalPages}</span>
-          <Button variant="outline" size="sm" disabled={page === totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))} className="glass">
+          <Button variant="outline" size="sm" disabled={page === totalPages} onClick={goNext} className="glass">
             Next <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
