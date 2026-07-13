@@ -15,6 +15,8 @@
  * mock DOI so the full UI flow works end-to-end.
  */
 import { db } from "@/lib/db";
+import { getObject } from "@/lib/storage";
+import { parseAuthors } from "@/lib/article";
 
 const ZENODO_API = "https://zenodo.org/api/deposit/depositions";
 const ZENODO_SANDBOX_API = "https://sandbox.zenodo.org/api/deposit/depositions";
@@ -210,7 +212,7 @@ export interface ZenodoArticleDepositInput {
   abstract: string;
   creators: { name: string; affiliation?: string; orcid?: string }[];
   keywords: string[];
-  license: string; // e.g. "cc-by-4.0" — Zenodo's license API expects lowercase SPDX-ish ids
+  license: string; // e.g. "CC-BY-4.0" — must match Zenodo's controlled vocabulary id exactly
   journalTitle: string;
   journalVolume?: string;
   journalIssue?: string;
@@ -392,4 +394,81 @@ export async function depositArticleToZenodo(
       rawLog: JSON.stringify({ step: "exception", message: e.message }),
     };
   }
+}
+
+/**
+ * Looks up an article, assembles the deposit payload (galley PDF, falling
+ * back to the raw manuscript, falling back to a minimal synthesized text
+ * file), deposits it to Zenodo, and persists the result on the Article row.
+ * Shared by both the publish workflow (automatic, on PUBLISH) and the
+ * manual "Deposit to Zenodo" retry button (for when the automatic deposit
+ * failed and an editor wants to retry after a fix, without re-running the
+ * whole publish pipeline).
+ */
+export async function depositPublishedArticleToZenodo(
+  articleId: string
+): Promise<ZenodoArticleDepositOutput> {
+  const article = await db.article.findUnique({
+    where: { id: articleId },
+    include: { journal: true, issue: true },
+  });
+  if (!article) {
+    return {
+      ok: false,
+      mode: "live",
+      doi: null,
+      recordUrl: "",
+      zenodoRecordId: null,
+      message: "Article not found",
+      rawLog: JSON.stringify({ step: "lookup" }),
+    };
+  }
+
+  let fileBuffer: Buffer | null = article.galleyPdfKey ? await getObject(article.galleyPdfKey) : null;
+  let fileName = article.galleyPdfKey?.split("/").pop() || `${article.id}.pdf`;
+  let fileContentType = "application/pdf";
+  if (!fileBuffer) {
+    fileBuffer = article.manuscriptKey ? await getObject(article.manuscriptKey) : null;
+    fileName = article.manuscriptKey?.split("/").pop() || `${article.id}.md`;
+    fileContentType = "text/markdown";
+  }
+  if (!fileBuffer) {
+    fileBuffer = Buffer.from(
+      `${article.title}\n\n${article.abstract}\n\nPublished by ${article.journal?.name || "Eleventh Press International Publishing"}.`,
+      "utf-8"
+    );
+    fileName = `${article.id}.txt`;
+    fileContentType = "text/plain";
+  }
+
+  const authors = parseAuthors(article.authors);
+  const deposit = await depositArticleToZenodo({
+    articleId: article.id,
+    title: article.title,
+    abstract: article.abstract,
+    creators: authors.map((a) => ({ name: a.name, affiliation: a.affiliation, orcid: a.orcid })),
+    keywords: article.keywords.split(",").map((k) => k.trim()).filter(Boolean),
+    // Platform-wide policy is fully open access — CC-BY-4.0 is the default
+    // license for every Zenodo deposit rather than a per-article field.
+    // Must match Zenodo's controlled vocabulary id exactly (uppercase).
+    license: "CC-BY-4.0",
+    journalTitle: article.journal?.name || "Eleventh Press International Publishing",
+    journalVolume: article.issue?.volume ? String(article.issue.volume) : undefined,
+    journalIssue: article.issue?.issueNumber ? String(article.issue.issueNumber) : undefined,
+    publicationDate: (article.publishedAt || new Date()).toISOString().slice(0, 10),
+    fileBuffer,
+    fileName,
+    fileContentType,
+  });
+
+  await db.article.update({
+    where: { id: articleId },
+    data: {
+      ...(deposit.ok && deposit.doi ? { doi: deposit.doi, doiStatus: "PUBLISHED" } : {}),
+      zenodoRecordId: deposit.zenodoRecordId,
+      zenodoDepositLog: deposit.rawLog,
+    },
+  });
+
+  return deposit;
 }

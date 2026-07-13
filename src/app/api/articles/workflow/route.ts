@@ -3,12 +3,11 @@ import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import type { ArticleStatus } from "@/lib/article";
 import { depositToCrossref } from "@/lib/crossref";
-import { depositArticleToZenodo, zenodoLiveMode } from "@/lib/zenodo";
+import { depositPublishedArticleToZenodo, zenodoLiveMode } from "@/lib/zenodo";
 import { getObject } from "@/lib/storage";
 import { generateGalleys } from "@/lib/galley";
 import { APP_BASE_URL } from "@/lib/site";
 import { APC_USD } from "@/lib/pricing";
-import { parseAuthors } from "@/lib/article";
 
 /**
  * POST /api/articles/workflow
@@ -157,51 +156,13 @@ export async function POST(req: NextRequest) {
       {
         try {
           if (zenodoLiveMode()) {
-            let fileBuffer: Buffer | null = generatedPdfKey ? await getObject(generatedPdfKey) : null;
-            let fileName = generatedPdfKey?.split("/").pop() || `${updated.id}.pdf`;
-            let fileContentType = "application/pdf";
-            if (!fileBuffer) {
-              fileBuffer = article.manuscriptKey ? await getObject(article.manuscriptKey) : null;
-              fileName = article.manuscriptKey?.split("/").pop() || `${updated.id}.md`;
-              fileContentType = "text/markdown";
-            }
-            if (!fileBuffer) {
-              fileBuffer = Buffer.from(synthesiseMarkdown(updated), "utf-8");
-              fileName = `${updated.id}.md`;
-              fileContentType = "text/markdown";
-            }
-
-            const authors = parseAuthors(updated.authors);
-            const deposit = await depositArticleToZenodo({
-              articleId: updated.id,
-              title: updated.title,
-              abstract: updated.abstract,
-              creators: authors.map((a) => ({ name: a.name, affiliation: a.affiliation, orcid: a.orcid })),
-              keywords: updated.keywords.split(",").map((k) => k.trim()).filter(Boolean),
-              // Platform-wide policy is fully open access — see docs/standards.md
-              // and the site's stated OA policy — so CC-BY 4.0 is the default
-              // license for every Zenodo deposit rather than a per-article field.
-              license: "cc-by-4.0",
-              journalTitle: article.journal?.name || "Eleventh Press International Publishing",
-              journalVolume: article.issue?.volume ? String(article.issue.volume) : undefined,
-              journalIssue: article.issue?.issueNumber ? String(article.issue.issueNumber) : undefined,
-              publicationDate: (updated.publishedAt || new Date()).toISOString().slice(0, 10),
-              fileBuffer,
-              fileName,
-              fileContentType,
-            });
-
-            await db.article.update({
-              where: { id: articleId },
-              data: {
-                ...(deposit.ok && deposit.doi ? { doi: deposit.doi, doiStatus: "PUBLISHED" } : {}),
-                zenodoRecordId: deposit.zenodoRecordId,
-                zenodoDepositLog: deposit.rawLog,
-              },
-            });
+            // Galleys were already generated and persisted above, so this
+            // fetch sees the current galleyPdfKey and falls back to the raw
+            // manuscript / a synthesized text file if neither exists.
+            const deposit = await depositPublishedArticleToZenodo(updated.id);
             if (deposit.ok && deposit.doi) finalDoi = deposit.doi;
             publishEvents.push(
-              `Zenodo deposit ${deposit.ok ? "succeeded" : "failed"} (mode=${deposit.mode}${deposit.doi ? `, doi=${deposit.doi}` : ""})`
+              `Zenodo deposit ${deposit.ok ? "succeeded" : "failed"} (mode=${deposit.mode}${deposit.doi ? `, doi=${deposit.doi}` : ""}${!deposit.ok ? `: ${deposit.message}` : ""})`
             );
 
             await db.auditLog.create({
@@ -217,6 +178,7 @@ export async function POST(req: NextRequest) {
                   mode: deposit.mode,
                   doi: deposit.doi,
                   recordUrl: deposit.recordUrl,
+                  message: deposit.message,
                 }),
               },
             });
@@ -259,6 +221,7 @@ export async function POST(req: NextRequest) {
                   mode: deposit.mode,
                   batchId: deposit.batchId,
                   status: deposit.status,
+                  statusText: deposit.statusText,
                   endpoint: deposit.endpoint,
                 }),
               },

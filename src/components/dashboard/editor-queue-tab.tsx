@@ -45,6 +45,7 @@ import {
   EyeOff,
   FileDown,
   Globe2,
+  Database,
 } from "lucide-react";
 
 interface Props {
@@ -204,6 +205,7 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
   const [openAssigner, setOpenAssigner] = useState(false);
   const [togglingOpenReview, setTogglingOpenReview] = useState(false);
   const [depositingCrossref, setDepositingCrossref] = useState(false);
+  const [depositingZenodo, setDepositingZenodo] = useState(false);
   const [generatingGalley, setGeneratingGalley] = useState(false);
 
   if (!article) return null;
@@ -339,9 +341,37 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
                   </Button>
                 </div>
 
-                {/* Production: Crossref deposit + Galley generation (for accepted/published articles) */}
+                {/* Production: Zenodo/Crossref deposit + Galley generation (for accepted/published articles) */}
                 {(article.status === "ACCEPTED" || article.status === "IN_PRODUCTION" || article.status === "PUBLISHED") && (
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={depositingZenodo}
+                      onClick={async () => {
+                        setDepositingZenodo(true);
+                        try {
+                          const result = await apiFetch<{ ok: boolean; message: string; doi: string | null }>(
+                            "/api/zenodo/deposit",
+                            { method: "POST", body: JSON.stringify({ articleId: article.id }) }
+                          );
+                          if (result.ok) {
+                            toast.success("Zenodo deposit succeeded", { description: result.message });
+                          } else {
+                            toast.error("Zenodo deposit failed", { description: result.message });
+                          }
+                          onRefresh();
+                          onClose();
+                        } catch (e: any) {
+                          toast.error(e.message);
+                        } finally {
+                          setDepositingZenodo(false);
+                        }
+                      }}
+                    >
+                      {depositingZenodo ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Database className="mr-1 h-3 w-3" />}
+                      Deposit to Zenodo
+                    </Button>
                     <Button
                       size="sm"
                       variant="outline"
