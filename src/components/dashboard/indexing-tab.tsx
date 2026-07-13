@@ -53,6 +53,7 @@ export function IndexingTab() {
   const [oaiPmhXml, setOaiPmhXml] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [crossrefLive, setCrossrefLive] = useState<boolean>(false);
+  const [zenodoLive, setZenodoLive] = useState<boolean>(false);
   const [selectedArticleId, setSelectedArticleId] = useState<string>("");
   const [previewXml, setPreviewXml] = useState<string>("");
   const [depositing, setDepositing] = useState(false);
@@ -65,16 +66,18 @@ export function IndexingTab() {
   async function load() {
     setLoading(true);
     try {
-      const [logRes, oaiRes, liveRes, issuesRes] = await Promise.all([
+      const [logRes, oaiRes, liveRes, zenodoRes, issuesRes] = await Promise.all([
         apiFetch<{ logs: CrossrefLog[]; published: any[] }>("/api/crossref-log"),
         fetch("/api/oai-pmh?verb=ListRecords&metadataPrefix=oai_dc").then((r) => r.text()),
         apiFetch<{ liveMode: boolean }>("/api/crossref/deposit"),
+        apiFetch<{ liveMode: boolean }>("/api/zenodo/status"),
         apiFetch<{ items: any[] }>("/api/issues"),
       ]);
       setLogs(logRes.logs);
       setPublished(logRes.published);
       setOaiPmhXml(oaiRes);
       setCrossrefLive(liveRes.liveMode);
+      setZenodoLive(zenodoRes.liveMode);
       if (logRes.published.length > 0 && !selectedArticleId) {
         setSelectedArticleId(logRes.published[0].id);
       }
@@ -153,8 +156,8 @@ export function IndexingTab() {
               <p className="font-display text-base font-semibold">Indexing &amp; discovery engine</p>
               <p className="mt-1 text-xs text-muted-foreground">
                 This panel surfaces the real-time state of the Indexing Service. Every publication
-                triggers async events that (1) deposit metadata with Crossref, (2) refresh the
-                OAI-PMH 2.0 Dublin Core feed harvested by Scopus / WoS, and (3) emit
+                triggers async events that (1) mint a DOI, (2) refresh the OAI-PMH 2.0 Dublin Core
+                feed harvested by BASE / CORE, and (3) emit
                 <code className="mx-1 font-mono">citation_*</code> meta tags for Google Scholar’s
                 crawler.
               </p>
@@ -163,6 +166,33 @@ export function IndexingTab() {
               <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
               Refresh
             </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* DOI provider status */}
+      <Card className={`paper-card ${zenodoLive ? "border-emerald-300" : "border-amber-300"}`}>
+        <CardContent className="p-4">
+          <div className="flex items-start gap-3">
+            {zenodoLive ? (
+              <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-600" />
+            ) : (
+              <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
+            )}
+            <div>
+              <p className="text-sm font-medium">
+                DOI provider: {zenodoLive ? "Zenodo (real, free DOI — live)" : "Simulation only"}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {zenodoLive
+                  ? "ZENODO_TOKEN is configured. Publishing an article deposits it to Zenodo and mints a real, permanently-resolving DOI at no cost — automatically harvested by OpenAIRE, and surfaced in BASE/CORE."
+                  : "No ZENODO_TOKEN is set, so publishing only simulates a DOI deposit — the resulting DOI will not resolve. Set ZENODO_TOKEN (free, from zenodo.org → Applications → Personal access tokens) to mint real DOIs on publish, at zero cost."}
+                {" "}
+                {crossrefLive
+                  ? "Crossref credentials are also configured, but are unused while Zenodo is active — Crossref is only used as a fallback simulation when ZENODO_TOKEN is absent."
+                  : ""}
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
