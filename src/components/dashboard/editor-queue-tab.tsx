@@ -17,6 +17,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import {
   STATUS_LABELS,
@@ -263,6 +264,15 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
     }
   }
 
+  const visibleActions = ACTIONS.filter((a) => {
+    if (article.status === "SUBMITTED") return ["SEND_TO_REVIEW", "REJECT"].includes(a.key);
+    if (article.status === "UNDER_REVIEW") return ["REQUEST_REVISIONS", "ACCEPT", "REJECT"].includes(a.key);
+    if (article.status === "REVISIONS_REQUIRED") return ["ACCEPT", "REJECT"].includes(a.key);
+    if (article.status === "ACCEPTED") return a.key === "SEND_TO_PRODUCTION";
+    if (article.status === "IN_PRODUCTION") return a.key === "PUBLISH";
+    return false; // PUBLISHED, REJECTED, WITHDRAWN — no further transitions
+  });
+
   return (
     <Dialog open={!!article} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="flex max-h-[90vh] max-w-2xl flex-col overflow-hidden">
@@ -272,278 +282,298 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
           </DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[55vh] flex-1 pr-3 epip-scroll">
-          <div className="space-y-5">
-            {/* Article meta */}
-            <div className="grid gap-3 text-xs sm:grid-cols-2">
-              <MetaRow label="Discipline" value={
-                <Badge variant="outline" className={`border ${DISCIPLINE_COLORS[article.discipline]}`}>
-                  {article.discipline}
-                </Badge>
-              } />
-              <MetaRow label="Status" value={
-                <Badge variant="outline" className={`border ${STATUS_COLORS[article.status as ArticleStatus]}`}>
-                  {STATUS_LABELS[article.status as ArticleStatus]}
-                </Badge>
-              } />
-              <MetaRow label="DOI" value={<code className="font-mono">{article.doi || "—"}</code>} />
-              <MetaRow label="Review model" value={article.reviewModel.replace("_", " ")} />
-              <MetaRow label="Similarity score" value={`${article.plagiarismScore ?? "—"}% (in-corpus)`} />
-              <MetaRow label="Submitted" value={article.submittedAt ? new Date(article.submittedAt).toLocaleString() : "—"} />
-            </div>
+        <Tabs defaultValue="workflow" className="flex min-h-0 flex-1 flex-col">
+          <TabsList className="grid w-full flex-shrink-0 grid-cols-4">
+            <TabsTrigger value="workflow">
+              Workflow{visibleActions.length > 0 ? ` (${visibleActions.length})` : ""}
+            </TabsTrigger>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="reviewers">
+              Reviewers{article.reviews.length > 0 ? ` (${article.reviews.length})` : ""}
+            </TabsTrigger>
+            <TabsTrigger value="checks">AI &amp; checks</TabsTrigger>
+          </TabsList>
 
-            <Separator />
-
-            {/* Abstract */}
-            <div>
-              <p className="eyebrow mb-1">Abstract</p>
-              <p className="text-xs leading-relaxed text-foreground/80">{article.abstract}</p>
-            </div>
-
-            {/* Reviewer assignment */}
-            <div>
-              <div className="flex items-center justify-between">
-                <p className="eyebrow">Assigned reviewers</p>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    setOpenAssigner(true);
-                    loadReviewers();
-                  }}
-                >
-                  <UserCheck className="mr-1.5 h-3.5 w-3.5" /> Invite reviewer
-                </Button>
-              </div>
-              {article.reviews.length === 0 ? (
-                <p className="mt-2 rounded-md border border-dashed border-border p-3 text-xs text-muted-foreground">
-                  No reviewers assigned yet. The Manuscript Service has already generated an
-                  anonymised PDF for double-blind review.
-                </p>
-              ) : (
-                <div className="mt-2 space-y-2">
-                  {article.reviews.map((r: any) => (
-                    <div key={r.id} className="rounded-md border border-border p-3">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium">{r.reviewer?.fullName}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {r.reviewer?.affiliation}
-                          </p>
-                        </div>
-                        <Badge variant="outline" className="font-mono text-[0.6rem]">
-                          {r.status}
-                        </Badge>
-                      </div>
-                      {r.recommendation && (
-                        <div className="mt-2 border-t border-border pt-2 text-xs">
-                          <p className="text-muted-foreground">
-                            Recommendation: <strong className="text-foreground">{r.recommendation.replace(/_/g, " ")}</strong>
-                          </p>
-                          <p className="text-muted-foreground">Overall score: {r.overallScore}/5 · Confidence: {r.confidence}/5</p>
-                          {r.commentsToEditor && (
-                            <p className="mt-1 italic text-foreground/80">
-                              “{r.commentsToEditor}”
-                            </p>
-                          )}
-                        </div>
-                      )}
+          {/* Workflow — first tab, so the actions editors need most are
+              reachable in one click instead of buried at the bottom of a
+              long scroll behind reviewers/triage/checks content. */}
+          <TabsContent value="workflow" className="mt-3 min-h-0 flex-1">
+            <ScrollArea className="h-[48vh] pr-3 epip-scroll">
+              <div className="space-y-4">
+                {/* Open peer review */}
+                <div className="flex items-center justify-between rounded-md border border-border p-3">
+                  <div className="flex items-center gap-2">
+                    {article.openReview ? <Eye className="h-4 w-4 text-primary" /> : <EyeOff className="h-4 w-4 text-muted-foreground" />}
+                    <div>
+                      <p className="font-display text-sm font-semibold">Open peer review</p>
+                      <p className="text-xs text-muted-foreground">
+                        {article.openReview
+                          ? "Completed reviews are public on the article page."
+                          : "Reviews are visible only to the editorial team."}
+                      </p>
                     </div>
-                  ))}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant={article.openReview ? "default" : "outline"}
+                    disabled={togglingOpenReview}
+                    onClick={async () => {
+                      setTogglingOpenReview(true);
+                      try {
+                        await apiFetch("/api/articles/open-review", {
+                          method: "POST",
+                          body: JSON.stringify({ articleId: article.id, openReview: !article.openReview }),
+                        });
+                        toast.success(article.openReview ? "Open review disabled" : "Open review enabled");
+                        onRefresh();
+                        onClose();
+                      } catch (e: any) {
+                        toast.error(e.message);
+                      } finally {
+                        setTogglingOpenReview(false);
+                      }
+                    }}
+                  >
+                    {togglingOpenReview && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+                    {article.openReview ? "Disable" : "Enable"}
+                  </Button>
                 </div>
-              )}
 
-              {/* Reviewer pool */}
-              {openAssigner && (
-                <div className="mt-3 rounded-md border border-border bg-muted/30 p-3">
-                  <p className="mb-2 text-xs font-medium">Suggested reviewers (ranked by keyword match)</p>
-                  <div className="space-y-1.5">
-                    {reviewers.slice(0, 6).map((r) => (
-                      <div key={r.id} className="flex items-center justify-between rounded border border-border bg-card p-2 text-xs">
-                        <div>
-                          <p className="font-medium">{r.fullName}</p>
-                          <p className="text-[0.65rem] text-muted-foreground">
-                            {r.affiliation} · Expertise: {r.expertise || "—"}
-                          </p>
+                {/* Production: Crossref deposit + Galley generation (for accepted/published articles) */}
+                {(article.status === "ACCEPTED" || article.status === "IN_PRODUCTION" || article.status === "PUBLISHED") && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={depositingCrossref}
+                      onClick={async () => {
+                        setDepositingCrossref(true);
+                        try {
+                          await apiFetch("/api/crossref/deposit", {
+                            method: "POST",
+                            body: JSON.stringify({ articleId: article.id }),
+                          });
+                          toast.success("Crossref deposit submitted");
+                          onRefresh();
+                          onClose();
+                        } catch (e: any) {
+                          toast.error(e.message);
+                        } finally {
+                          setDepositingCrossref(false);
+                        }
+                      }}
+                    >
+                      {depositingCrossref ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Globe2 className="mr-1 h-3 w-3" />}
+                      Deposit to Crossref
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={generatingGalley}
+                      onClick={async () => {
+                        setGeneratingGalley(true);
+                        try {
+                          await apiFetch("/api/galley/generate", {
+                            method: "POST",
+                            body: JSON.stringify({ articleId: article.id }),
+                          });
+                          toast.success("Galleys generated (HTML + PDF + JATS)");
+                          onRefresh();
+                          onClose();
+                        } catch (e: any) {
+                          toast.error(e.message);
+                        } finally {
+                          setGeneratingGalley(false);
+                        }
+                      }}
+                    >
+                      {generatingGalley ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <FileDown className="mr-1 h-3 w-3" />}
+                      Generate galleys
+                    </Button>
+                  </div>
+                )}
+
+                <Separator />
+
+                {/* Workflow actions */}
+                <div>
+                  <p className="eyebrow mb-2">Workflow actions</p>
+                  {visibleActions.length === 0 ? (
+                    <p className="rounded-md border border-dashed border-border p-3 text-xs text-muted-foreground">
+                      No further transitions — this article is {STATUS_LABELS[article.status as ArticleStatus].toLowerCase()}.
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      {visibleActions.map((a) => (
+                        <Button
+                          key={a.key}
+                          variant={action === a.key ? "default" : "outline"}
+                          size="sm"
+                          className="justify-start"
+                          onClick={() => setAction(a.key)}
+                        >
+                          <a.icon className="mr-1.5 h-3.5 w-3.5" /> {a.label}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                  {action && (
+                    <p className="mt-2 text-[0.7rem] text-muted-foreground">
+                      Selected: <strong>{ACTIONS.find((a) => a.key === action)?.label}</strong> — add an
+                      optional note and confirm below.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </ScrollArea>
+          </TabsContent>
+
+          {/* Overview */}
+          <TabsContent value="overview" className="mt-3 min-h-0 flex-1">
+            <ScrollArea className="h-[48vh] pr-3 epip-scroll">
+              <div className="space-y-4">
+                <div className="grid gap-3 text-xs sm:grid-cols-2">
+                  <MetaRow label="Discipline" value={
+                    <Badge variant="outline" className={`border ${DISCIPLINE_COLORS[article.discipline]}`}>
+                      {article.discipline}
+                    </Badge>
+                  } />
+                  <MetaRow label="Status" value={
+                    <Badge variant="outline" className={`border ${STATUS_COLORS[article.status as ArticleStatus]}`}>
+                      {STATUS_LABELS[article.status as ArticleStatus]}
+                    </Badge>
+                  } />
+                  <MetaRow label="DOI" value={<code className="break-all font-mono">{article.doi || "—"}</code>} />
+                  <MetaRow label="Review model" value={article.reviewModel.replace("_", " ")} />
+                  <MetaRow label="Similarity score" value={`${article.plagiarismScore ?? "—"}% (in-corpus)`} />
+                  <MetaRow label="Submitted" value={article.submittedAt ? new Date(article.submittedAt).toLocaleString() : "—"} />
+                </div>
+
+                <Separator />
+
+                <div>
+                  <p className="eyebrow mb-1">Abstract</p>
+                  <p className="text-xs leading-relaxed text-foreground/80">{article.abstract}</p>
+                </div>
+              </div>
+            </ScrollArea>
+          </TabsContent>
+
+          {/* Reviewers */}
+          <TabsContent value="reviewers" className="mt-3 min-h-0 flex-1">
+            <ScrollArea className="h-[48vh] pr-3 epip-scroll">
+              <div>
+                <div className="flex items-center justify-between">
+                  <p className="eyebrow">Assigned reviewers</p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setOpenAssigner(true);
+                      loadReviewers();
+                    }}
+                  >
+                    <UserCheck className="mr-1.5 h-3.5 w-3.5" /> Invite reviewer
+                  </Button>
+                </div>
+                {article.reviews.length === 0 ? (
+                  <p className="mt-2 rounded-md border border-dashed border-border p-3 text-xs text-muted-foreground">
+                    No reviewers assigned yet. The Manuscript Service has already generated an
+                    anonymised PDF for double-blind review.
+                  </p>
+                ) : (
+                  <div className="mt-2 space-y-2">
+                    {article.reviews.map((r: any) => (
+                      <div key={r.id} className="rounded-md border border-border p-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium">{r.reviewer?.fullName}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {r.reviewer?.affiliation}
+                            </p>
+                          </div>
+                          <Badge variant="outline" className="font-mono text-[0.6rem]">
+                            {r.status}
+                          </Badge>
                         </div>
-                        <div className="flex items-center gap-2">
-                          {r.matchScore > 0 && (
-                            <Badge variant="outline" className="font-mono text-[0.55rem]">
-                              match {r.matchScore}
-                            </Badge>
-                          )}
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7"
-                            disabled={assigningReviewer === r.id}
-                            onClick={() => assignReviewer(r.id)}
-                          >
-                            {assigningReviewer === r.id ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <>
-                                <Users className="mr-1 h-3 w-3" /> Invite
-                              </>
+                        {r.recommendation && (
+                          <div className="mt-2 border-t border-border pt-2 text-xs">
+                            <p className="text-muted-foreground">
+                              Recommendation: <strong className="text-foreground">{r.recommendation.replace(/_/g, " ")}</strong>
+                            </p>
+                            <p className="text-muted-foreground">Overall score: {r.overallScore}/5 · Confidence: {r.confidence}/5</p>
+                            {r.commentsToEditor && (
+                              <p className="mt-1 italic text-foreground/80">
+                                “{r.commentsToEditor}”
+                              </p>
                             )}
-                          </Button>
-                        </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
-            </div>
+                )}
 
-            <Separator />
-
-            {/* AI Editorial Triage */}
-            <TriagePanel articleId={article.id} />
-
-            <Separator />
-
-            {/* Manuscript checks: similarity, statistical sanity, references */}
-            <ManuscriptChecksPanel articleId={article.id} />
-
-            <Separator />
-
-            {/* Open peer review toggle + Production actions */}
-            <div className="space-y-3">
-              {/* Open peer review */}
-              <div className="flex items-center justify-between rounded-md border border-border p-3">
-                <div className="flex items-center gap-2">
-                  {article.openReview ? <Eye className="h-4 w-4 text-primary" /> : <EyeOff className="h-4 w-4 text-muted-foreground" />}
-                  <div>
-                    <p className="font-display text-sm font-semibold">Open peer review</p>
-                    <p className="text-xs text-muted-foreground">
-                      {article.openReview
-                        ? "Completed reviews are public on the article page."
-                        : "Reviews are visible only to the editorial team."}
-                    </p>
+                {/* Reviewer pool */}
+                {openAssigner && (
+                  <div className="mt-3 rounded-md border border-border bg-muted/30 p-3">
+                    <p className="mb-2 text-xs font-medium">Suggested reviewers (ranked by keyword match)</p>
+                    <div className="space-y-1.5">
+                      {reviewers.slice(0, 6).map((r) => (
+                        <div key={r.id} className="flex items-center justify-between rounded border border-border bg-card p-2 text-xs">
+                          <div>
+                            <p className="font-medium">{r.fullName}</p>
+                            <p className="text-[0.65rem] text-muted-foreground">
+                              {r.affiliation} · Expertise: {r.expertise || "—"}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {r.matchScore > 0 && (
+                              <Badge variant="outline" className="font-mono text-[0.55rem]">
+                                match {r.matchScore}
+                              </Badge>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7"
+                              disabled={assigningReviewer === r.id}
+                              onClick={() => assignReviewer(r.id)}
+                            >
+                              {assigningReviewer === r.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <>
+                                  <Users className="mr-1 h-3 w-3" /> Invite
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-                <Button
-                  size="sm"
-                  variant={article.openReview ? "default" : "outline"}
-                  disabled={togglingOpenReview}
-                  onClick={async () => {
-                    setTogglingOpenReview(true);
-                    try {
-                      await apiFetch("/api/articles/open-review", {
-                        method: "POST",
-                        body: JSON.stringify({ articleId: article.id, openReview: !article.openReview }),
-                      });
-                      toast.success(article.openReview ? "Open review disabled" : "Open review enabled");
-                      onRefresh();
-                      onClose();
-                    } catch (e: any) {
-                      toast.error(e.message);
-                    } finally {
-                      setTogglingOpenReview(false);
-                    }
-                  }}
-                >
-                  {togglingOpenReview && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
-                  {article.openReview ? "Disable" : "Enable"}
-                </Button>
+                )}
               </div>
+            </ScrollArea>
+          </TabsContent>
 
-              {/* Production: Crossref deposit + Galley generation (for accepted/published articles) */}
-              {(article.status === "ACCEPTED" || article.status === "IN_PRODUCTION" || article.status === "PUBLISHED") && (
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={depositingCrossref}
-                    onClick={async () => {
-                      setDepositingCrossref(true);
-                      try {
-                        await apiFetch("/api/crossref/deposit", {
-                          method: "POST",
-                          body: JSON.stringify({ articleId: article.id }),
-                        });
-                        toast.success("Crossref deposit submitted");
-                        onRefresh();
-                        onClose();
-                      } catch (e: any) {
-                        toast.error(e.message);
-                      } finally {
-                        setDepositingCrossref(false);
-                      }
-                    }}
-                  >
-                    {depositingCrossref ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Globe2 className="mr-1 h-3 w-3" />}
-                    Deposit to Crossref
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={generatingGalley}
-                    onClick={async () => {
-                      setGeneratingGalley(true);
-                      try {
-                        await apiFetch("/api/galley/generate", {
-                          method: "POST",
-                          body: JSON.stringify({ articleId: article.id }),
-                        });
-                        toast.success("Galleys generated (HTML + PDF + JATS)");
-                        onRefresh();
-                        onClose();
-                      } catch (e: any) {
-                        toast.error(e.message);
-                      } finally {
-                        setGeneratingGalley(false);
-                      }
-                    }}
-                  >
-                    {generatingGalley ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <FileDown className="mr-1 h-3 w-3" />}
-                    Generate galleys
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            <Separator />
-
-            {/* Workflow actions */}
-            <div>
-              <p className="eyebrow mb-2">Workflow actions</p>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {ACTIONS.map((a) => {
-                  // Hide actions that don't make sense for current status
-                  if (article.status === "SUBMITTED" && !["SEND_TO_REVIEW", "REJECT"].includes(a.key)) return null;
-                  if (article.status === "UNDER_REVIEW" && !["REQUEST_REVISIONS", "ACCEPT", "REJECT"].includes(a.key)) return null;
-                  if (article.status === "REVISIONS_REQUIRED" && !["ACCEPT", "REJECT"].includes(a.key)) return null;
-                  if (article.status === "ACCEPTED" && a.key !== "SEND_TO_PRODUCTION") return null;
-                  if (article.status === "IN_PRODUCTION" && a.key !== "PUBLISH") return null;
-                  if (article.status === "PUBLISHED" || article.status === "REJECTED" || article.status === "WITHDRAWN") return null;
-                  return (
-                    <Button
-                      key={a.key}
-                      variant={action === a.key ? "default" : "outline"}
-                      size="sm"
-                      className="justify-start"
-                      onClick={() => setAction(a.key)}
-                    >
-                      <a.icon className="mr-1.5 h-3.5 w-3.5" /> {a.label}
-                    </Button>
-                  );
-                })}
+          {/* AI Editorial Triage + Manuscript checks */}
+          <TabsContent value="checks" className="mt-3 min-h-0 flex-1">
+            <ScrollArea className="h-[48vh] pr-3 epip-scroll">
+              <div className="space-y-4">
+                <TriagePanel articleId={article.id} />
+                <ManuscriptChecksPanel articleId={article.id} />
               </div>
-              {action && (
-                <p className="mt-2 text-[0.7rem] text-muted-foreground">
-                  Selected: <strong>{ACTIONS.find((a) => a.key === action)?.label}</strong> — add an
-                  optional note and confirm below.
-                </p>
-              )}
-            </div>
-          </div>
-        </ScrollArea>
+            </ScrollArea>
+          </TabsContent>
+        </Tabs>
 
-        {/* Confirm bar — deliberately outside the scrollable area so it's
-            always visible once an action is selected, regardless of scroll
-            position (previously buried at the bottom of the scroll body,
-            which made the confirm click easy to miss). */}
+        {/* Confirm bar — deliberately outside the tabs/scrollable area so
+            it's always visible once an action is selected, regardless of
+            which tab is active or scroll position (previously buried at
+            the bottom of one long scroll, which made the confirm click
+            easy to miss). */}
         {action && (
           <div className="flex-shrink-0 border-t border-border bg-primary/5 p-3">
             <Label className="text-xs">Editorial note (optional)</Label>
