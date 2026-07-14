@@ -29,6 +29,7 @@ export type DashboardTab =
   | "institutions"
   | "reader"
   | "application"
+  | "distribution"
   | "admin";
 
 interface SessionUser {

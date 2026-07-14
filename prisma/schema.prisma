@@ -60,17 +60,18 @@ model User {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  submissions          Article[]           @relation("AuthorArticles")
-  assignedReviews      Review[]            @relation("ReviewerReviews")
-  editorialDecisions   EditorialDecision[]
-  subscriptions        Subscription[]
-  invoices             Invoice[]
-  notifications        Notification[]
-  auditLogs            AuditLog[]
-  institution          Institution?        @relation(fields: [institutionId], references: [id])
-  correctionsIssued    Correction[]
-  roleApplications     RoleApplication[]   @relation("ApplicantApplications")
-  reviewedApplications RoleApplication[]   @relation("ReviewerApplications")
+  submissions            Article[]           @relation("AuthorArticles")
+  assignedReviews        Review[]            @relation("ReviewerReviews")
+  editorialDecisions     EditorialDecision[]
+  subscriptions          Subscription[]
+  invoices               Invoice[]
+  notifications          Notification[]
+  auditLogs              AuditLog[]
+  institution            Institution?        @relation(fields: [institutionId], references: [id])
+  correctionsIssued      Correction[]
+  roleApplications       RoleApplication[]   @relation("ApplicantApplications")
+  reviewedApplications   RoleApplication[]   @relation("ReviewerApplications")
+  distributionsSubmitted Distribution[]
 }
 
 // ---------------------------------------------------------------------------
@@ -238,6 +239,7 @@ model Article {
   triageReport  EditorialTriageReport?
   corrections   Correction[]
   references    Reference[]
+  distributions Distribution[]
 
   // Composite indexes mirror the actual query shapes used across the app:
   // public/browse listing and the dashboard queue both filter by status
@@ -474,6 +476,46 @@ model GalleyJob {
 
   @@index([status, createdAt])
   @@index([articleId])
+}
+
+// ---------------------------------------------------------------------------
+// Distribution — per-article syndication tracking to external platforms
+// (see src/lib/distribution.ts). One row per (articleId, platform) pair,
+// created on demand when an author/editor first generates a share package
+// for that platform. Tier reflects how much of the submission can actually
+// be automated for that platform today:
+//   A = real API publish (e.g. Blogger)
+//   B = generated submission package + prefilled metadata, human clicks submit
+//   C = no public API — generated "share kit" text only, completion is
+//       self-reported by whoever posted it manually
+// PUBLISHED articles only — distribution of unpublished work is out of scope.
+model Distribution {
+  id        String @id @default(cuid())
+  articleId String
+  platform  String // RESEARCHGATE | ACADEMIA_EDU | SUBSTACK | MEDIUM | LINKEDIN | HUBPAGES | ...
+  tier      String // A | B | C
+
+  status         String  @default("NOT_STARTED") // NOT_STARTED | PACKAGE_READY | AWAITING_AUTHOR_ACTION | SUBMITTED | LIVE | FAILED
+  packageContent String? // generated share-kit text (blurb + excerpt + canonical link) for Tier C/B
+  packageKey     String? // storage key for a generated binary package (Tier B PDFs etc.), when applicable
+  externalUrl    String?
+  externalId     String?
+
+  authorConsent Boolean   @default(false)
+  consentedAt   DateTime?
+  submittedBy   String?
+  submittedAt   DateTime?
+  notes         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  article   Article @relation(fields: [articleId], references: [id])
+  submitter User?   @relation(fields: [submittedBy], references: [id])
+
+  @@unique([articleId, platform])
+  @@index([articleId])
+  @@index([status])
 }
 
 // ---------------------------------------------------------------------------
