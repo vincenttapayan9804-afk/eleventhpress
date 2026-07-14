@@ -73,6 +73,7 @@ model User {
   reviewedApplications   RoleApplication[]   @relation("ReviewerApplications")
   distributionsSubmitted Distribution[]
   books                  Book[]
+  bookDistributionsSubmitted BookDistribution[]
 }
 
 // ---------------------------------------------------------------------------
@@ -557,11 +558,50 @@ model Book {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  author   User?         @relation(fields: [correspondingAuthorId], references: [id])
-  chapters BookArticle[]
+  author        User?              @relation(fields: [correspondingAuthorId], references: [id])
+  chapters      BookArticle[]
+  distributions BookDistribution[]
 
   @@index([status, submittedAt])
   @@index([correspondingAuthorId])
+}
+
+// Book distribution — the KDP/B&N/IngramSpark/Apple Books/Lulu/Draft2Digital/
+// Smashwords tier from the syndication plan. Draft2Digital and IngramSpark
+// are themselves aggregators (D2D alone reaches Apple Books, B&N, Kobo, and
+// Smashwords's storefront from one submission; IngramSpark covers print +
+// wide ebook distribution), so those two are Tier B (real submission flow,
+// prefilled package, human clicks submit — same treatment as arXiv/SSRN in
+// Distribution). Amazon KDP and Lulu have no public third-party publish API,
+// so they're Tier C (share-kit/manual, self-reported), same shape as
+// Distribution's ResearchGate/Academia.edu tier. Mirrors Distribution's
+// columns exactly for the same reasons (see that model's comments).
+model BookDistribution {
+  id     String @id @default(cuid())
+  bookId String
+  platform String // DRAFT2DIGITAL | INGRAMSPARK | AMAZON_KDP | LULU
+  tier   String // B | C
+
+  status         String  @default("NOT_STARTED") // NOT_STARTED | PACKAGE_READY | SUBMITTED | LIVE | FAILED
+  packageContent String? // generated metadata package JSON
+  externalUrl    String?
+  externalId     String? // ASIN / platform title id, once live
+
+  authorConsent Boolean   @default(false)
+  consentedAt   DateTime?
+  submittedBy   String?
+  submittedAt   DateTime?
+  notes         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  book      Book  @relation(fields: [bookId], references: [id])
+  submitter User? @relation(fields: [submittedBy], references: [id])
+
+  @@unique([bookId, platform])
+  @@index([bookId])
+  @@index([status])
 }
 
 // Join table compiling existing PUBLISHED articles into an
