@@ -5,8 +5,34 @@ import { apiFetch } from "@/lib/api-client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { BookOpen, Loader2, ListChecks, CheckCircle2, XCircle, Sparkles, Rocket } from "lucide-react";
+import { BookOpen, Loader2, ListChecks, CheckCircle2, XCircle, Sparkles, Rocket, DollarSign } from "lucide-react";
+
+const ROYALTY_PLATFORMS = [
+  { value: "DRAFT2DIGITAL", label: "Draft2Digital" },
+  { value: "INGRAMSPARK", label: "IngramSpark" },
+  { value: "AMAZON_KDP", label: "Amazon KDP" },
+  { value: "LULU", label: "Lulu" },
+  { value: "ALL", label: "All platforms (combined)" },
+];
 
 const STATUS_BADGE: Record<string, string> = {
   SUBMITTED: "bg-blue-100 text-blue-800",
@@ -37,6 +63,107 @@ const ACTION_LABELS: Record<string, string> = {
   SEND_TO_PRODUCTION: "Generate EPUB/PDF & send to production",
   PUBLISH: "Publish",
 };
+
+function RecordRoyaltyDialog({ book }: { book: any }) {
+  const [open, setOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [form, setForm] = useState({
+    platform: "DRAFT2DIGITAL",
+    periodStart: "",
+    periodEnd: "",
+    unitsSold: "0",
+    grossRevenue: "0",
+    notes: "",
+  });
+
+  async function submit() {
+    if (!form.periodStart || !form.periodEnd) {
+      toast.error("Period start and end are required");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await apiFetch(`/api/books/${book.id}/royalties`, {
+        method: "POST",
+        body: JSON.stringify({
+          platform: form.platform,
+          periodStart: form.periodStart,
+          periodEnd: form.periodEnd,
+          unitsSold: parseInt(form.unitsSold, 10) || 0,
+          grossRevenue: parseFloat(form.grossRevenue) || 0,
+          notes: form.notes || undefined,
+        }),
+      });
+      toast.success("Royalty statement recorded");
+      setOpen(false);
+      setForm({ platform: "DRAFT2DIGITAL", periodStart: "", periodEnd: "", unitsSold: "0", grossRevenue: "0", notes: "" });
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="outline">
+          <DollarSign className="mr-1.5 h-3.5 w-3.5" /> Record royalty statement
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Record a royalty statement — {book.title}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <Label>Platform</Label>
+            <Select value={form.platform} onValueChange={(v) => setForm((f) => ({ ...f, platform: v }))}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {ROYALTY_PLATFORMS.map((p) => (
+                  <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Period start</Label>
+              <Input type="date" value={form.periodStart} onChange={(e) => setForm((f) => ({ ...f, periodStart: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Period end</Label>
+              <Input type="date" value={form.periodEnd} onChange={(e) => setForm((f) => ({ ...f, periodEnd: e.target.value }))} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Units sold</Label>
+              <Input type="number" min="0" step="1" value={form.unitsSold} onChange={(e) => setForm((f) => ({ ...f, unitsSold: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Gross revenue (USD)</Label>
+              <Input type="number" min="0" step="0.01" value={form.grossRevenue} onChange={(e) => setForm((f) => ({ ...f, grossRevenue: e.target.value }))} />
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Author's share: {book.royaltySharePercent ?? 70}% — transcribe figures from the platform's own sales dashboard.
+          </p>
+          <div>
+            <Label>Notes (optional)</Label>
+            <Textarea rows={2} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button onClick={submit} disabled={submitting}>
+            {submitting && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />} Record
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export function BookAcquisitionsTab() {
   const [books, setBooks] = useState<any[] | null>(null);
@@ -115,6 +242,7 @@ export function BookAcquisitionsTab() {
                     {ACTION_LABELS[label]}
                   </Button>
                 ))}
+                {b.status === "PUBLISHED" && <RecordRoyaltyDialog book={b} />}
               </div>
             </CardContent>
           </Card>

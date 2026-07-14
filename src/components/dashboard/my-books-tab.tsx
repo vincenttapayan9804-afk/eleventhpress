@@ -40,8 +40,12 @@ import {
   CheckCircle2,
   Link as LinkIcon,
   ExternalLink,
+  Lock,
+  DollarSign,
 } from "lucide-react";
 import { BOOK_PLATFORMS, type BookDistributionPackage } from "@/lib/book-distribution";
+import { DISTRIBUTION_PACKAGE_BOOK_USD } from "@/lib/pricing";
+import { PaymentProviderPicker } from "@/components/billing/payment-provider-picker";
 
 const FORMATS = [
   { value: "MONOGRAPH", label: "Monograph (single manuscript)" },
@@ -86,6 +90,23 @@ function BookDistribution({ book }: { book: any }) {
   const [pkgViewFor, setPkgViewFor] = useState<string | null>(null);
   const [urlDrafts, setUrlDrafts] = useState<Record<string, string>>({});
   const [consentChecked, setConsentChecked] = useState<Record<string, boolean>>({});
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [purchasing, setPurchasing] = useState(false);
+  const isPaid = !!book.distributionPackagePaidAt;
+
+  async function checkoutDistributionPackage(providerId: string) {
+    setPurchasing(true);
+    try {
+      const { redirectUrl } = await apiFetch<{ redirectUrl: string }>("/api/billing/checkout", {
+        method: "POST",
+        body: JSON.stringify({ kind: "DISTRIBUTION_PACKAGE", target: "BOOK", targetId: book.id, provider: providerId }),
+      });
+      window.location.href = redirectUrl;
+    } catch (e: any) {
+      toast.error("Checkout failed", { description: e.message });
+      setPurchasing(false);
+    }
+  }
 
   async function load() {
     setLoading(true);
@@ -146,8 +167,9 @@ function BookDistribution({ book }: { book: any }) {
           pkg = item.packageContent ? JSON.parse(item.packageContent) : null;
         } catch {}
 
+        const needsPurchase = platform.tier === "B" && !isPaid;
         const needsConsent = platform.tier === "B" && !item.authorConsent;
-        const canGenerate = !needsConsent || consentChecked[item.platform];
+        const canGenerate = !needsPurchase && (!needsConsent || consentChecked[item.platform]);
 
         return (
           <div key={item.platform} className="rounded-md border p-3">
@@ -158,9 +180,15 @@ function BookDistribution({ book }: { book: any }) {
                 <Badge className={DIST_STATUS_BADGE[item.status] || ""}>{item.status.replace(/_/g, " ")}</Badge>
               </div>
               <div className="flex gap-2">
-                <Button size="sm" variant="outline" disabled={!canGenerate} onClick={() => generate(item.platform, consentChecked[item.platform])}>
-                  <Sparkles className="mr-1.5 h-3.5 w-3.5" /> {item.id ? "Regenerate" : "Generate"} package
-                </Button>
+                {needsPurchase ? (
+                  <Button size="sm" disabled={purchasing} onClick={() => setPickerOpen(true)}>
+                    <Lock className="mr-1.5 h-3.5 w-3.5" /> Unlock Distribution Package — ${DISTRIBUTION_PACKAGE_BOOK_USD.toFixed(0)}
+                  </Button>
+                ) : (
+                  <Button size="sm" variant="outline" disabled={!canGenerate} onClick={() => generate(item.platform, consentChecked[item.platform])}>
+                    <Sparkles className="mr-1.5 h-3.5 w-3.5" /> {item.id ? "Regenerate" : "Generate"} package
+                  </Button>
+                )}
                 {pkg && (
                   <Button size="sm" variant="ghost" onClick={() => setPkgViewFor(pkgViewFor === item.platform ? null : item.platform)}>
                     {pkgViewFor === item.platform ? "Hide" : "View"} package
@@ -170,8 +198,13 @@ function BookDistribution({ book }: { book: any }) {
             </div>
             <p className="mt-1 text-xs text-muted-foreground">{platform.postingHint}</p>
             {platform.coverage && <p className="mt-0.5 text-xs text-muted-foreground italic">{platform.coverage}</p>}
+            {needsPurchase && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                One-time fee unlocks both Draft2Digital and IngramSpark package generation for this book.
+              </p>
+            )}
 
-            {needsConsent && (
+            {!needsPurchase && needsConsent && (
               <div className="mt-2 flex items-start gap-2 rounded-md bg-amber-50 p-2">
                 <Checkbox
                   id={`book-consent-${book.id}-${item.platform}`}
@@ -234,6 +267,58 @@ function BookDistribution({ book }: { book: any }) {
           </div>
         );
       })}
+      <PaymentProviderPicker
+        open={pickerOpen}
+        onOpenChange={(open) => !open && setPickerOpen(false)}
+        onSelect={checkoutDistributionPackage}
+        busy={purchasing}
+      />
+    </div>
+  );
+}
+
+const ROYALTY_PLATFORM_LABEL: Record<string, string> = {
+  DRAFT2DIGITAL: "Draft2Digital",
+  INGRAMSPARK: "IngramSpark",
+  AMAZON_KDP: "Amazon KDP",
+  LULU: "Lulu",
+  ALL: "All platforms (combined)",
+};
+
+function RoyaltySummary({ book }: { book: any }) {
+  const [data, setData] = useState<{ statements: any[]; totals: any } | null>(null);
+
+  useEffect(() => {
+    apiFetch(`/api/books/${book.id}/royalties`)
+      .then((res: any) => setData(res))
+      .catch(() => {});
+  }, [book.id]);
+
+  if (!data) return <p className="text-xs text-muted-foreground">Loading royalty statements…</p>;
+  if (data.statements.length === 0) {
+    return <p className="text-xs text-muted-foreground">No royalty statements recorded yet — editorial staff record these once sales data is available from the distributor.</p>;
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-4 rounded-md bg-muted/50 p-3 text-sm">
+        <div><span className="font-medium">{data.totals.unitsSold}</span> <span className="text-xs text-muted-foreground">units sold</span></div>
+        <div><span className="font-medium">${data.totals.grossRevenue.toFixed(2)}</span> <span className="text-xs text-muted-foreground">gross revenue</span></div>
+        <div><span className="font-medium">${data.totals.authorPayout.toFixed(2)}</span> <span className="text-xs text-muted-foreground">payable to you</span></div>
+      </div>
+      <div className="space-y-1">
+        {data.statements.map((s) => (
+          <div key={s.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-2 text-xs">
+            <span className="font-medium">{ROYALTY_PLATFORM_LABEL[s.platform] || s.platform}</span>
+            <span className="text-muted-foreground">
+              {new Date(s.periodStart).toLocaleDateString()} – {new Date(s.periodEnd).toLocaleDateString()}
+            </span>
+            <span>{s.unitsSold} units</span>
+            <span>${s.grossRevenue.toFixed(2)} gross</span>
+            <span className="font-medium text-emerald-700">${s.authorPayout.toFixed(2)} to you</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -483,14 +568,20 @@ export function MyBooksTab() {
                 )}
                 {b.status === "PUBLISHED" && (
                   <Button size="sm" variant="ghost" onClick={() => setExpandedBookId(expandedBookId === b.id ? null : b.id)}>
-                    Distribution {expandedBookId === b.id ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />}
+                    Distribution &amp; royalties {expandedBookId === b.id ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />}
                   </Button>
                 )}
               </div>
             </CardContent>
             {expandedBookId === b.id && (
-              <CardContent className="border-t p-4 pt-4">
+              <CardContent className="space-y-4 border-t p-4 pt-4">
                 <BookDistribution book={b} />
+                <div>
+                  <p className="mb-2 flex items-center gap-1.5 text-sm font-medium">
+                    <DollarSign className="h-4 w-4" /> Royalties
+                  </p>
+                  <RoyaltySummary book={b} />
+                </div>
               </CardContent>
             )}
           </Card>

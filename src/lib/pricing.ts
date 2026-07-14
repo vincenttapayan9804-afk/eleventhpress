@@ -26,3 +26,11 @@ export const SUBSCRIPTION_PLAN_LABELS: Record<SubscriptionPlan, string> = {
   READER_YEARLY: "Yearly",
   INSTITUTIONAL: "Institutional (per year)",
 };
+
+// One-time Distribution Package add-on (src/lib/distribution.ts /
+// src/lib/book-distribution.ts) — unlocks Tier B professional-grade
+// submission packages (arXiv/SSRN for articles, Draft2Digital/IngramSpark
+// for books). Tier C self-serve share kits and Tier A Blogger auto-publish
+// stay free — this only gates the higher-effort, higher-value formatting.
+export const DISTRIBUTION_PACKAGE_ARTICLE_USD = 19.0;
+export const DISTRIBUTION_PACKAGE_BOOK_USD = 29.0;

@@ -154,6 +154,12 @@ export async function POST(req: NextRequest) {
 
   let hasConsent = false;
   if (platformDef.tier === "B") {
+    if (!article.distributionPackagePaidAt) {
+      return NextResponse.json(
+        { error: "The Distribution Package must be purchased before generating a preprint submission package for this article." },
+        { status: 402 }
+      );
+    }
     const existing = await db.distribution.findUnique({ where: { articleId_platform: { articleId, platform } } });
     hasConsent = !!consent || !!existing?.authorConsent;
     if (!hasConsent) {
