@@ -774,9 +774,13 @@ function MetaTile({ icon: Icon, label, value }: { icon: any; label: string; valu
 }
 
 /**
- * HeadMetas — since Next.js metadata API doesn't run in client components,
- * we inject <meta> tags directly into the DOM. Google Scholar's crawler
- * will read these on the public article page.
+ * HeadMetas — a defense-in-depth duplicate of the tags src/app/article/[id]/
+ * page.tsx's generateMetadata() already renders server-side for the real,
+ * crawlable article URL. That server route is the authoritative surface
+ * now (this client-side DOM injection is invisible to any crawler that
+ * doesn't execute JavaScript, which is exactly the gap the server route
+ * fixes) — this only still matters for the case where a visitor navigates
+ * to this view client-side, inside the SPA, without a fresh page load.
  */
 function HeadMetas({ article, authors }: { article: ArticleDetail; authors: any[] }) {
   useEffect(() => {
@@ -801,14 +805,22 @@ function HeadMetas({ article, authors }: { article: ArticleDetail; authors: any[
     // window.location.origin (not a hardcoded domain) so this is always
     // correct for whatever host is actually serving the page.
     push("citation_abstract_html_url", `${window.location.origin}/article/${article.id}`);
-    // citation_pdf_url intentionally omitted: Google Scholar requires the
-    // PDF be fetchable with no login wall, but the real galley route
-    // (/api/articles/[id]/galley) requires auth and, for READER accounts,
-    // an active subscription. Pointing Scholar's crawler at an auth-gated
-    // URL would fail indexing outright, so there's nothing correct to put
-    // here until published articles have a genuinely public download path.
+
+    // Published-article galleys are now genuinely public (no auth wall —
+    // see the updated /api/articles/[id]/galley route), so this can safely
+    // resolve and publish the real download URL Google Scholar requires.
+    let cancelled = false;
+    if (article.galleyPdfKey) {
+      apiFetch<{ url: string }>(`/api/articles/${article.id}/galley?format=pdf`)
+        .then((r) => {
+          if (cancelled) return;
+          push("citation_pdf_url", r.url);
+        })
+        .catch(() => {});
+    }
 
     return () => {
+      cancelled = true;
       tags.forEach((t) => t.remove());
     };
   }, [article, authors]);

@@ -240,7 +240,7 @@ function getRoleTagline(role: string): string {
     case "AUTHOR":
       return "Submit manuscripts, track their progress, and pay Article Processing Charges.";
     case "READER":
-      return "Manage your subscription and access the full PDF galleys of every published article.";
+      return "PDF galleys of every published article are free — manage your subscription for bundled downloads and other convenience features.";
     default:
       return "";
   }

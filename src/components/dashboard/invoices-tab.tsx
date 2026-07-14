@@ -116,9 +116,9 @@ export function InvoicesTab({ invoices, subscription, onRefresh }: Props) {
               <div className="rounded-md border border-border bg-muted/30 p-4 text-xs text-muted-foreground">
                 <p className="font-medium text-foreground">How reader access works</p>
                 <p className="mt-1">
-                  The API Gateway intercepts every request to a full PDF. It verifies your JWT,
-                  queries this subscription record, and either issues a short-lived S3 pre-signed URL
-                  or returns <code className="font-mono">402 Payment Required</code>.
+                  Every published article's PDF is genuinely open access — this subscription
+                  doesn't gate anything. It unlocks bundled/batch downloads, saved reading
+                  lists, and early access to accepted-in-production articles instead.
                 </p>
               </div>
             </div>
