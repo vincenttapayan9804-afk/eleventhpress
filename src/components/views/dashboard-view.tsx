@@ -28,6 +28,8 @@ import {
   UserCircle,
   ShieldCheck,
   Share2,
+  BookOpen,
+  Library as LibraryIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -46,6 +48,8 @@ import { CounterTab } from "@/components/dashboard/counter-tab";
 import { InstitutionsTab } from "@/components/dashboard/institutions-tab";
 import { ApplicationTab } from "@/components/dashboard/application-tab";
 import { DistributionTab } from "@/components/dashboard/distribution-tab";
+import { MyBooksTab } from "@/components/dashboard/my-books-tab";
+import { BookAcquisitionsTab } from "@/components/dashboard/book-acquisitions-tab";
 import { useLiveDashboard } from "@/hooks/use-live-dashboard";
 
 interface DashboardData {
@@ -115,6 +119,8 @@ export function DashboardView() {
     { key: "institutions", label: "Institutions", icon: Building2, roles: ["SUPER_ADMIN", "EDITOR", "READER"] },
     { key: "application", label: "Role application", icon: FilePlus2, roles: ["READER", "AUTHOR"] },
     { key: "distribution", label: "Article distribution", icon: Share2, roles: ["AUTHOR", "SUPER_ADMIN"] },
+    { key: "myBooks", label: "My books", icon: BookOpen, roles: ["AUTHOR", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"] },
+    { key: "bookAcquisitions", label: "Book acquisitions", icon: LibraryIcon, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"] },
     { key: "reader", label: "Subscription", icon: Library, roles: ["READER", "AUTHOR", "REVIEWER", "SUPER_ADMIN"] },
     { key: "admin", label: "Admin & audit", icon: Users, roles: ["SUPER_ADMIN"] },
   ];
@@ -266,6 +272,8 @@ export function DashboardView() {
           {dashboardTab === "institutions" && <InstitutionsTab />}
           {dashboardTab === "application" && <ApplicationTab onRefresh={loadDashboard} />}
           {dashboardTab === "distribution" && <DistributionTab submissions={data.submissions || []} />}
+          {dashboardTab === "myBooks" && <MyBooksTab />}
+          {dashboardTab === "bookAcquisitions" && <BookAcquisitionsTab />}
           {dashboardTab === "reader" && <ReaderTab subscription={data.subscription} onRefresh={loadDashboard} />}
           {dashboardTab === "admin" && <AdminTab audit={data.recentAudit || []} stats={data.stats} />}
         </div>

@@ -30,6 +30,8 @@ export type DashboardTab =
   | "reader"
   | "application"
   | "distribution"
+  | "myBooks"
+  | "bookAcquisitions"
   | "admin";
 
 interface SessionUser {
