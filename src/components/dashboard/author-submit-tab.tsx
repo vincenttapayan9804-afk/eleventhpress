@@ -293,12 +293,12 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
           </div>
           <h2 className="mt-4 font-display text-2xl font-semibold">Submission received</h2>
           <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-            Your manuscript has entered the editorial pipeline. A draft Crossref DOI has been
-            minted, the manuscript has been stored in the <code className="font-mono text-xs">raw-submissions</code> bucket,
+            Your manuscript has entered the editorial pipeline. A tracking reference has been
+            assigned, the manuscript has been stored in the <code className="font-mono text-xs">raw-submissions</code> bucket,
             and the editorial office has been notified.
           </p>
           <div className="mx-auto mt-6 max-w-md rounded-md border border-border bg-muted/30 p-4 text-left text-sm">
-            <Row label="Draft DOI" value={<code className="font-mono text-xs">{result.doi}</code>} />
+            <Row label="Tracking reference" value={<code className="font-mono text-xs">{result.doi}</code>} />
             <Row label="Similarity score" value={`${result.plagiarismScore}% (in-corpus)`} />
             <Row label="Workflow status" value={<Badge variant="outline" className="font-mono text-[0.6rem]">{result.status}</Badge>} />
             <Row label="Review model" value={form.reviewModel.replace("_", " ")} />
@@ -329,10 +329,10 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
             Submit a manuscript
           </h2>
           <p className="text-sm text-muted-foreground">
-            Complete the three-step form below. A draft Crossref DOI will be minted upon
-            submission, the manuscript is uploaded to private S3-style storage via a
-            pre-signed PUT URL, and an in-corpus similarity check runs against every
-            other article already in the journal.
+            Complete the three-step form below. A tracking reference is assigned upon
+            submission (your real, permanently-resolving DOI is minted upon publication), the
+            manuscript is uploaded to private S3-style storage via a pre-signed PUT URL, and an
+            in-corpus similarity check runs against every other article already in the journal.
           </p>
         </CardHeader>
         <CardContent>
@@ -683,7 +683,7 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
                   <Sparkles className="h-4 w-4 text-primary" /> What happens next?
                 </p>
                 <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-                  <li>· A draft Crossref DOI is minted (you can put it on your CV immediately).</li>
+                  <li>· A tracking reference is assigned (your real DOI is minted upon publication).</li>
                   <li>· The manuscript is uploaded to private S3-style storage with a pre-signed PUT URL.</li>
                   <li>· An in-corpus similarity check runs against every other article already in the journal.</li>
                   <li>· If double-blind, an anonymised copy of your PDF is created for reviewers.</li>

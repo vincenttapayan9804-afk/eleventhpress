@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DOI_REGISTRAR } from "@/lib/site";
 import {
   Tabs,
   TabsContent,
@@ -51,7 +52,7 @@ const BLOGS: Reading[] = [
     excerpt: "USD 97 sounds arbitrary until you see what it actually funds — editorial handling, DOI registration, typesetting, and permanent hosting.",
     meta: "Editorial Team · 4 min read",
     body: [
-      "An Article Processing Charge often reads as an abstract toll on publishing. In practice it funds four concrete things: editorial and peer-review coordination, DOI registration with Crossref, production (typesetting into PDF/HTML/JATS), and indefinite open-access hosting.",
+      `An Article Processing Charge often reads as an abstract toll on publishing. In practice it funds four concrete things: editorial and peer-review coordination, DOI registration with ${DOI_REGISTRAR}, production (typesetting into PDF/HTML/JATS), and indefinite open-access hosting.`,
       "It's charged once, only after acceptance — never at submission, and never as a condition of getting reviewed. If a reviewer's decision and an author's ability to pay were linked in any way, the review process would be compromised, so we keep waiver requests and peer-review outcomes handled by entirely separate parts of the editorial office.",
       "If the fee is a genuine barrier, ask for a waiver before you assume you can't publish with us — see the APC Waiver guide below.",
     ],

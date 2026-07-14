@@ -10,6 +10,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Mail } from "lucide-react";
+import { DOI_REGISTRAR } from "@/lib/site";
 
 const FAQS: { q: string; a: string }[] = [
   {
@@ -45,8 +46,8 @@ const FAQS: { q: string; a: string }[] = [
     a: "Create an author account, then use the \"Submit\" tab in your dashboard to upload your manuscript along with metadata (title, abstract, keywords, discipline, author list, and — where applicable — funder information and dataset links). You'll be able to track your submission through every stage of the review and production workflow from the same dashboard.",
   },
   {
-    q: "Is my published article indexed anywhere (Google Scholar, Crossref, etc.)?",
-    a: "Every published article is assigned a Crossref DOI and exposed through our OAI-PMH 2.0 endpoint, which harvesters use to pull structured metadata. Google Scholar crawls the site automatically — journals cannot manually push content into a Scholar or Scopus index; those systems pull from the metadata a journal exposes once discovered.",
+    q: "Is my published article indexed anywhere (Google Scholar, DOI registries, etc.)?",
+    a: `Every published article is assigned a real, permanently-resolving ${DOI_REGISTRAR} DOI and exposed through our OAI-PMH 2.0 endpoint, which harvesters (including OpenAIRE, BASE, and CORE) use to pull structured metadata. Google Scholar crawls the site automatically — journals cannot manually push content into a Scholar or Scopus index; those systems pull from the metadata a journal exposes once discovered.`,
   },
   {
     q: "How do I request a correction, retraction, or report a concern about a published article?",

@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { DOI_REGISTRAR } from "@/lib/site";
 import {
   BookOpen,
   ShieldCheck,
@@ -63,7 +64,7 @@ export function AboutView() {
           <p>
             We operate a double-blind peer-review process by default and offer open and
             single-blind tracks where disciplinary norms warrant. All published articles
-            are assigned a Crossref DOI at submission (in draft form) and activated upon
+            are assigned a real, permanently-resolving {DOI_REGISTRAR} DOI upon
             publication. The journal’s content is indexed via an OAI-PMH 2.0 endpoint that
             exposes Dublin Core records for harvester consumption by Scopus and Web of
             Science, and is automatically crawled by Google Scholar.
@@ -180,8 +181,8 @@ export function AboutView() {
               />
               <IndexItem
                 icon={FileText}
-                title="Crossref DOI"
-                desc="Draft DOI minted at submission; activated via HTTP POST to the Crossref API upon publication."
+                title={`${DOI_REGISTRAR} DOI`}
+                desc={`A real, permanently-resolving DOI is minted via the ${DOI_REGISTRAR} API upon publication.`}
               />
             </div>
             <div className="mt-4">
@@ -291,7 +292,7 @@ const ARCHITECTURE = [
   },
   {
     name: "DOI & Metadata",
-    description: "Crossref API integration. Draft DOI on submit, published DOI on accept.",
+    description: `${DOI_REGISTRAR} API integration. DOI minted on publication.`,
     icon: FileText,
     db: "PostgreSQL",
   },

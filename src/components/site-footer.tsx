@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useApp } from "@/lib/store";
 import { Globe, ShieldCheck } from "lucide-react";
+import { DOI_REGISTRAR } from "@/lib/site";
 
 export function SiteFooter() {
   const setView = useApp((s) => s.setView);
@@ -21,7 +22,7 @@ export function SiteFooter() {
                     Eleventh Press International Publishing
                   </p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {t("tagline")}
+                    {t("tagline", { registrar: DOI_REGISTRAR })}
                   </p>
                 </div>
               </div>
@@ -51,7 +52,7 @@ export function SiteFooter() {
               <ul className="space-y-2.5 text-sm text-muted-foreground">
                 <li>{t("policyOpenAccess")}</li>
                 <li>{t("policyPeerReview")}</li>
-                <li>{t("policyCrossref")}</li>
+                <li>{t("policyCrossref", { registrar: DOI_REGISTRAR })}</li>
                 <li>{t("policyGdpr")}</li>
                 <li>{t("policyPci")}</li>
               </ul>
@@ -67,7 +68,7 @@ export function SiteFooter() {
               >
                 <ShieldCheck className="h-3 w-3" /> Admin Portal
               </button>
-              <p className="font-mono">{t("indexedLine")}</p>
+              <p className="font-mono">{t("indexedLine", { registrar: DOI_REGISTRAR })}</p>
             </div>
           </div>
         </div>

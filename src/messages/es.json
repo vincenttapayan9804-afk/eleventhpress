@@ -17,7 +17,7 @@
     "brandTagline": "Editorial Internacional"
   },
   "footer": {
-    "tagline": "Revisión por pares · Acceso abierto · Registrado en Crossref · OAI-PMH 2.0",
+    "tagline": "Revisión por pares · Acceso abierto · Registrado en {registrar} · OAI-PMH 2.0",
     "description": "Una revista multidisciplinaria de rigor editorial inflexible, que publica investigación original en ciencias naturales, ingeniería, ciencias sociales y humanidades. Lujo académico y autoridad científica en un mismo lugar.",
     "issnLine": "ISSN 2945-1138 · Prefijo de editor 10.52011 · Oficina editorial: Londres, Reino Unido",
     "exploreLabel": "Explorar",
@@ -31,17 +31,17 @@
     "policiesLabel": "Políticas",
     "policyOpenAccess": "Acceso abierto (CC BY 4.0)",
     "policyPeerReview": "Revisión por pares a doble ciego",
-    "policyCrossref": "Registro de DOI en Crossref",
+    "policyCrossref": "Registro de DOI en {registrar}",
     "policyGdpr": "Cumple con GDPR / CCPA",
     "policyPci": "PCI-DSS en todas las pasarelas de pago",
     "copyright": "© {year} Eleventh Press International Publishing. Todos los artículos se publican bajo CC BY 4.0 salvo que se indique lo contrario.",
-    "indexedLine": "Indexado en: Google Scholar · Crossref · OAI-PMH · DOAJ"
+    "indexedLine": "Indexado en: Google Scholar · {registrar} · OAI-PMH · DOAJ"
   },
   "home": {
     "issueLine": "Volumen 4 · Número 2 · 2024 · ISSN 2945-1138",
     "headline1": "Donde las disciplinas",
     "headline2": "convergen",
-    "description": "Eleventh Press International Publishing es una revista multidisciplinaria de acceso abierto y revisión por pares. Un flujo editorial riguroso, registro de DOI en Crossref e indexación OAI-PMH 2.0, diseñados para una difusión científica de alto rendimiento.",
+    "description": "Eleventh Press International Publishing es una revista multidisciplinaria de acceso abierto y revisión por pares. Un flujo editorial riguroso, registro de DOI en {registrar} e indexación OAI-PMH 2.0, diseñados para una difusión científica de alto rendimiento.",
     "searchPlaceholder": "Buscar artículos, autores, palabras clave…",
     "searchButton": "Buscar",
     "browseAll": "Ver todos los artículos",

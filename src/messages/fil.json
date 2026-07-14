@@ -17,7 +17,7 @@
     "brandTagline": "International Publishing"
   },
   "footer": {
-    "tagline": "Peer-reviewed · Open access · Rehistrado sa Crossref · OAI-PMH 2.0",
+    "tagline": "Peer-reviewed · Open access · Rehistrado sa {registrar} · OAI-PMH 2.0",
     "description": "Isang multidisciplinary na journal na may mahigpit na editorial standards, naglalathala ng orihinal na pananaliksik sa natural sciences, engineering, social sciences, at humanities. Kombinasyon ng akademikong prestihiyo at siyentipikong awtoridad.",
     "issnLine": "ISSN 2945-1138 · Publisher prefix 10.52011 · Editorial office: London, United Kingdom",
     "exploreLabel": "Galugarin",
@@ -31,17 +31,17 @@
     "policiesLabel": "Mga Patakaran",
     "policyOpenAccess": "Open access (CC BY 4.0)",
     "policyPeerReview": "Double-blind peer review",
-    "policyCrossref": "Crossref DOI deposit",
+    "policyCrossref": "{registrar} DOI deposit",
     "policyGdpr": "Sumusunod sa GDPR / CCPA",
     "policyPci": "PCI-DSS sa lahat ng payment gateway",
     "copyright": "© {year} Eleventh Press International Publishing. Ang lahat ng artikulo ay nailathala sa ilalim ng CC BY 4.0 maliban na lang kung nakasaad.",
-    "indexedLine": "Naka-index sa: Google Scholar · Crossref · OAI-PMH · DOAJ"
+    "indexedLine": "Naka-index sa: Google Scholar · {registrar} · OAI-PMH · DOAJ"
   },
   "home": {
     "issueLine": "Volume 4 · Isyu 2 · 2024 · ISSN 2945-1138",
     "headline1": "Kung saan nagtatagpo",
     "headline2": "ang mga disiplina",
-    "description": "Ang Eleventh Press International Publishing ay isang peer-reviewed, open-access na multidisciplinary journal. Mahigpit na editorial workflow, Crossref DOI registration, at OAI-PMH 2.0 indexing — dinisenyo para sa mataas na antas ng scholarly discovery.",
+    "description": "Ang Eleventh Press International Publishing ay isang peer-reviewed, open-access na multidisciplinary journal. Mahigpit na editorial workflow, {registrar} DOI registration, at OAI-PMH 2.0 indexing — dinisenyo para sa mataas na antas ng scholarly discovery.",
     "searchPlaceholder": "Maghanap ng artikulo, may-akda, keyword…",
     "searchButton": "Maghanap",
     "browseAll": "Tingnan lahat ng artikulo",
