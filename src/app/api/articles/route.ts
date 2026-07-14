@@ -143,5 +143,11 @@ export async function GET(req: NextRequest) {
     totalPages: Math.max(1, Math.ceil(total / pageSize)),
     nextCursor: items.length === pageSize ? nextCursor : null,
     prevCursor,
+  }, {
+    // Fully public, unauthenticated, identical for every visitor per query
+    // string (status is hardcoded to PUBLISHED above) — safe for Vercel's
+    // CDN to cache at the edge. Short TTL keeps a newly published article
+    // showing up within seconds rather than serving a genuinely stale list.
+    headers: { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=300" },
   });
 }
