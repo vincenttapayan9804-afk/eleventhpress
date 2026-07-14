@@ -89,7 +89,7 @@ export function FaqsView() {
         ))}
       </Accordion>
 
-      <section className="mt-14 rounded-md border border-border bg-card p-8 text-center">
+      <section className="paper-card mt-14 p-8 text-center">
         <p className="eyebrow">{t("stillHaveQuestions")}</p>
         <h2 className="mt-2 font-display text-2xl font-semibold">{t("contactHeadline")}</h2>
         <div className="mt-5 flex flex-wrap justify-center gap-3">

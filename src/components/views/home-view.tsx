@@ -93,8 +93,8 @@ export function HomeView() {
           />
           {/* Dark vignette on the left for text contrast */}
           <div className="absolute inset-0 bg-gradient-to-r from-[oklch(0.14_0.02_285/0.88)] via-[oklch(0.14_0.02_285/0.45)] to-transparent" />
-          {/* Bottom fade to pearlescent */}
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[oklch(0.992_0.004_285)]" />
+          {/* Bottom fade to the royal purple page canvas */}
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />
           {/* Top subtle darkening */}
           <div className="absolute inset-0 bg-gradient-to-b from-[oklch(0.14_0.02_285/0.5)] via-transparent to-transparent" />
         </div>
@@ -173,7 +173,7 @@ export function HomeView() {
       {/* ════════════════════════════════════════════════════════════════
           SYNDICATION NETWORK — motion wordmark carousel
           ════════════════════════════════════════════════════════════════ */}
-      <section className="border-y border-[oklch(0.76_0.11_294/0.1)] bg-[oklch(0.97_0.006_285)] py-14">
+      <section className="border-y border-[oklch(0.76_0.11_294/0.15)] py-14">
         <div className="mx-auto max-w-7xl px-4 text-center sm:px-6 lg:px-8">
           <p className="eyebrow">Where your work travels</p>
           <h2 className="mt-2 font-display text-2xl font-semibold sm:text-3xl">
@@ -186,15 +186,15 @@ export function HomeView() {
         </div>
         <div className="relative mt-10 overflow-hidden">
           {/* Edge fades so the marquee reads as continuous, not cropped */}
-          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-16 bg-gradient-to-r from-[oklch(0.97_0.006_285)] to-transparent sm:w-32" />
-          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16 bg-gradient-to-l from-[oklch(0.97_0.006_285)] to-transparent sm:w-32" />
+          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-16 bg-gradient-to-r from-background to-transparent sm:w-32" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16 bg-gradient-to-l from-background to-transparent sm:w-32" />
           <div className="flex w-max animate-marquee">
             {[0, 1].map((copy) => (
               <div key={copy} className="flex shrink-0 items-center" aria-hidden={copy === 1}>
                 {SYNDICATION_PARTNERS.map((name) => (
                   <span
                     key={`${copy}-${name}`}
-                    className="mx-8 whitespace-nowrap font-display text-xl font-semibold text-foreground/60 transition-colors hover:text-[oklch(0.42_0.18_295)] sm:text-2xl"
+                    className="mx-8 whitespace-nowrap font-display text-xl font-semibold text-foreground/60 transition-colors hover:text-[oklch(0.86_0.07_292)] sm:text-2xl"
                   >
                     {name}
                   </span>
@@ -237,8 +237,9 @@ export function HomeView() {
                       className="absolute inset-0 h-full w-full object-cover opacity-60 transition-opacity duration-500 group-hover:opacity-85 group-hover:scale-105"
                       style={{ transitionTimingFunction: "var(--ease-luxury)" }}
                     />
-                    {/* Gradient overlay for text contrast */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-[oklch(0.992_0.004_285/0.95)] via-[oklch(0.992_0.004_285/0.4)] to-[oklch(0.992_0.004_285/0.15)]" />
+                    {/* Gradient overlay for text contrast — fades to the royal
+                        purple canvas so the light discipline label reads clearly */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/45 to-background/15" />
                     {/* Content */}
                     <div className="relative z-10 flex h-full flex-col justify-end p-5">
                       <div className="flex items-center gap-2 mb-2">
