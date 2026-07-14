@@ -81,6 +81,7 @@ model User {
   distributionsSubmitted Distribution[]
   books                  Book[]
   bookDistributionsSubmitted BookDistribution[]
+  royaltyStatementsRecorded  RoyaltyStatement[]
 }
 
 // ---------------------------------------------------------------------------
@@ -198,6 +199,11 @@ model Article {
   aiKeywordSuggestions String? // JSON array of suggested keyword strings
   statisticalFlags     String? // JSON array of {flag, severity, explanation}
   statisticalCheckedAt DateTime?
+
+  // Paid Distribution Package (revenue Phase 6) — unlocks Tier B
+  // (arXiv/SSRN) submission package generation in src/lib/distribution.ts.
+  // Tier C share kits and Tier A Blogger auto-publish stay free.
+  distributionPackagePaidAt DateTime?
 
   // Funders — JSON array of {name, id?} (id = a Crossref Open Funder
   // Registry / ROR identifier where known). Lets authors under a funder
@@ -388,7 +394,8 @@ model Invoice {
   id              String    @id @default(cuid())
   userId          String
   articleId       String?
-  type            String // APC | SUBSCRIPTION | INSTITUTIONAL
+  bookId          String?
+  type            String // APC | SUBSCRIPTION | INSTITUTIONAL | DISTRIBUTION_PACKAGE
   amount          Float
   currency        String    @default("USD")
   status          String    @default("OPEN") // OPEN | PAID | VOID | REFUNDED
@@ -400,9 +407,11 @@ model Invoice {
 
   user    User     @relation(fields: [userId], references: [id])
   article Article? @relation(fields: [articleId], references: [id])
+  book    Book?    @relation(fields: [bookId], references: [id])
 
   @@index([userId])
   @@index([articleId])
+  @@index([bookId])
 }
 
 // ---------------------------------------------------------------------------
@@ -565,12 +574,59 @@ model Book {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  author        User?              @relation(fields: [correspondingAuthorId], references: [id])
-  chapters      BookArticle[]
-  distributions BookDistribution[]
+  // Paid Distribution Package (revenue Phase 6) — unlocks Tier B
+  // (Draft2Digital/IngramSpark) distribution package generation. Tier C
+  // (Amazon KDP/Lulu) share kits stay free.
+  distributionPackagePaidAt DateTime?
+
+  // Author's share of net royalties from aggregator sales (Draft2Digital/
+  // IngramSpark), as a percentage — set at acceptance, editable by staff.
+  // Snapshotted onto each RoyaltyStatement at recording time so a later
+  // change to this default never rewrites a past statement's numbers.
+  royaltySharePercent Float? @default(70)
+
+  author            User?              @relation(fields: [correspondingAuthorId], references: [id])
+  chapters          BookArticle[]
+  distributions     BookDistribution[]
+  royaltyStatements RoyaltyStatement[]
+  invoices          Invoice[]
 
   @@index([status, submittedAt])
   @@index([correspondingAuthorId])
+}
+
+// Self-reported royalty statements for book sales through the aggregator
+// accounts (Draft2Digital/IngramSpark/Amazon KDP/Lulu). EPIP has no API
+// access to these platforms' actual sales/royalty reporting (a much deeper
+// integration than the submission flow built in Phase 4), so this is staff
+// manually transcribing figures from each platform's own dashboard — same
+// honesty pattern as Distribution/BookDistribution's self-reported LIVE
+// status. One row per reporting period per platform (or "ALL" if a staff
+// member is recording a combined total rather than a per-platform figure).
+model RoyaltyStatement {
+  id          String   @id @default(cuid())
+  bookId      String
+  platform    String // DRAFT2DIGITAL | INGRAMSPARK | AMAZON_KDP | LULU | ALL
+  periodStart DateTime
+  periodEnd   DateTime
+
+  unitsSold    Int   @default(0)
+  grossRevenue Float @default(0)
+
+  // Snapshot of Book.royaltySharePercent at the time this statement was
+  // recorded, and the computed payout — both stored (not recomputed live)
+  // so a later change to the book's royalty terms never rewrites history.
+  royaltySharePercent Float
+  authorPayout        Float
+
+  notes      String?
+  recordedBy String
+  recordedAt DateTime @default(now())
+
+  book     Book @relation(fields: [bookId], references: [id])
+  recorder User @relation(fields: [recordedBy], references: [id])
+
+  @@index([bookId])
 }
 
 // Book distribution — the KDP/B&N/IngramSpark/Apple Books/Lulu/Draft2Digital/

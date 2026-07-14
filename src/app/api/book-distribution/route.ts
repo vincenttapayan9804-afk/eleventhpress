@@ -88,6 +88,12 @@ export async function POST(req: NextRequest) {
 
   let hasConsent = false;
   if (platformDef.tier === "B") {
+    if (!book.distributionPackagePaidAt) {
+      return NextResponse.json(
+        { error: "The Distribution Package must be purchased before generating a wide-distribution submission package for this book." },
+        { status: 402 }
+      );
+    }
     const existing = await db.bookDistribution.findUnique({ where: { bookId_platform: { bookId, platform } } });
     hasConsent = !!consent || !!existing?.authorConsent;
     if (!hasConsent) {

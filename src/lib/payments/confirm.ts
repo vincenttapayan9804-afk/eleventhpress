@@ -4,8 +4,8 @@
  * there's exactly one code path for "what happens when money arrives"
  * regardless of which of the 5 gateways (or simulation) sent it.
  *
- * referenceId format: "apc:<invoiceId>" | "sub:<invoiceId>" — set when the
- * checkout session is created in /api/billing/checkout.
+ * referenceId format: "apc:<invoiceId>" | "sub:<invoiceId>" | "dist:<invoiceId>"
+ * — set when the checkout session is created in /api/billing/checkout.
  */
 import { db } from "@/lib/db";
 import { SUBSCRIPTION_PLAN_DURATIONS, type SubscriptionPlan } from "@/lib/pricing";
@@ -19,11 +19,11 @@ export interface ConfirmPaymentInput {
 
 export async function confirmPayment({ referenceId, provider, providerRef }: ConfirmPaymentInput): Promise<void> {
   const [kind, invoiceId] = referenceId.split(":");
-  if (!invoiceId || (kind !== "apc" && kind !== "sub")) {
+  if (!invoiceId || (kind !== "apc" && kind !== "sub" && kind !== "dist")) {
     throw new Error(`Malformed payment referenceId: ${referenceId}`);
   }
 
-  const invoice = await db.invoice.findUnique({ where: { id: invoiceId }, include: { article: true } });
+  const invoice = await db.invoice.findUnique({ where: { id: invoiceId }, include: { article: true, book: true } });
   if (!invoice) throw new Error(`Invoice not found for referenceId ${referenceId}`);
 
   // Idempotency: webhooks can be redelivered, and the simulated "Pay" button
@@ -92,6 +92,34 @@ export async function confirmPayment({ referenceId, provider, providerRef }: Con
         message: `Your ${plan.replace(/_/g, " ").toLowerCase()} subscription is now active. Payment of USD ${invoice.amount.toFixed(2)} received via ${provider}.`,
       },
     });
+    return;
+  }
+
+  if (kind === "dist") {
+    if (invoice.articleId) {
+      await db.article.update({ where: { id: invoice.articleId }, data: { distributionPackagePaidAt: new Date() } });
+      await db.notification.create({
+        data: {
+          userId: invoice.userId,
+          type: "SUCCESS",
+          title: "Distribution Package Unlocked",
+          message: `Preprint distribution (arXiv/SSRN) is now unlocked for "${invoice.article?.title}". Payment of USD ${invoice.amount.toFixed(2)} received via ${provider}.`,
+          articleId: invoice.articleId,
+        },
+      });
+    } else if (invoice.bookId) {
+      await db.book.update({ where: { id: invoice.bookId }, data: { distributionPackagePaidAt: new Date() } });
+      await db.notification.create({
+        data: {
+          userId: invoice.userId,
+          type: "SUCCESS",
+          title: "Distribution Package Unlocked",
+          message: `Wide book distribution (Draft2Digital/IngramSpark) is now unlocked for "${invoice.book?.title}". Payment of USD ${invoice.amount.toFixed(2)} received via ${provider}.`,
+        },
+      });
+    } else {
+      throw new Error(`Distribution Package invoice ${invoiceId} has neither an articleId nor a bookId`);
+    }
   }
 }
 

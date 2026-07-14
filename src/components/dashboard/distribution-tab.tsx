@@ -12,7 +12,9 @@ import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { PLATFORMS, type ShareKit, type SubmissionPackage } from "@/lib/distribution";
-import { Share2, Sparkles, Copy, CheckCircle2, Link as LinkIcon, ChevronDown, ChevronUp, ExternalLink, Zap } from "lucide-react";
+import { DISTRIBUTION_PACKAGE_ARTICLE_USD } from "@/lib/pricing";
+import { PaymentProviderPicker } from "@/components/billing/payment-provider-picker";
+import { Share2, Sparkles, Copy, CheckCircle2, Link as LinkIcon, ChevronDown, ChevronUp, ExternalLink, Zap, Lock } from "lucide-react";
 
 interface Props {
   submissions: any[];
@@ -39,6 +41,23 @@ function ArticleDistribution({ article, bloggerBlogUrl, token }: { article: any;
   const [urlDrafts, setUrlDrafts] = useState<Record<string, string>>({});
   const [consentChecked, setConsentChecked] = useState<Record<string, boolean>>({});
   const [publishing, setPublishing] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [purchasing, setPurchasing] = useState(false);
+  const isPaid = !!article.distributionPackagePaidAt;
+
+  async function checkoutDistributionPackage(providerId: string) {
+    setPurchasing(true);
+    try {
+      const { redirectUrl } = await apiFetch<{ redirectUrl: string }>("/api/billing/checkout", {
+        method: "POST",
+        body: JSON.stringify({ kind: "DISTRIBUTION_PACKAGE", target: "ARTICLE", targetId: article.id, provider: providerId }),
+      });
+      window.location.href = redirectUrl;
+    } catch (e: any) {
+      toast.error("Checkout failed", { description: e.message });
+      setPurchasing(false);
+    }
+  }
 
   async function load() {
     setLoading(true);
@@ -127,8 +146,9 @@ function ArticleDistribution({ article, bloggerBlogUrl, token }: { article: any;
               kit = item.packageContent ? JSON.parse(item.packageContent) : null;
             } catch {}
 
+            const needsPurchase = platform.tier === "B" && !isPaid;
             const needsConsent = platform.tier === "B" && !item.authorConsent;
-            const canGenerate = !needsConsent || consentChecked[item.platform];
+            const canGenerate = !needsPurchase && (!needsConsent || consentChecked[item.platform]);
 
             if (platform.tier === "A") {
               return (
@@ -179,9 +199,15 @@ function ArticleDistribution({ article, bloggerBlogUrl, token }: { article: any;
                     <Badge className={STATUS_BADGE[item.status] || ""}>{item.status.replace(/_/g, " ")}</Badge>
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" variant="outline" disabled={!canGenerate} onClick={() => generate(item.platform, consentChecked[item.platform])}>
-                      <Sparkles className="mr-1.5 h-3.5 w-3.5" /> {item.id ? "Regenerate" : "Generate"} package
-                    </Button>
+                    {needsPurchase ? (
+                      <Button size="sm" disabled={purchasing} onClick={() => setPickerOpen(true)}>
+                        <Lock className="mr-1.5 h-3.5 w-3.5" /> Unlock Distribution Package — ${DISTRIBUTION_PACKAGE_ARTICLE_USD.toFixed(0)}
+                      </Button>
+                    ) : (
+                      <Button size="sm" variant="outline" disabled={!canGenerate} onClick={() => generate(item.platform, consentChecked[item.platform])}>
+                        <Sparkles className="mr-1.5 h-3.5 w-3.5" /> {item.id ? "Regenerate" : "Generate"} package
+                      </Button>
+                    )}
                     {kit && (
                       <Button size="sm" variant="ghost" onClick={() => setKitViewFor(kitViewFor === item.platform ? null : item.platform)}>
                         {kitViewFor === item.platform ? "Hide" : "View"} package
@@ -190,8 +216,13 @@ function ArticleDistribution({ article, bloggerBlogUrl, token }: { article: any;
                   </div>
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">{platform.postingHint}</p>
+                {needsPurchase && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    One-time fee unlocks both arXiv and SSRN package generation for this article.
+                  </p>
+                )}
 
-                {needsConsent && (
+                {!needsPurchase && needsConsent && (
                   <div className="mt-2 flex items-start gap-2 rounded-md bg-amber-50 p-2">
                     <Checkbox
                       id={`consent-${article.id}-${item.platform}`}
@@ -283,6 +314,12 @@ function ArticleDistribution({ article, bloggerBlogUrl, token }: { article: any;
           })}
         </CardContent>
       )}
+      <PaymentProviderPicker
+        open={pickerOpen}
+        onOpenChange={(open) => !open && setPickerOpen(false)}
+        onSelect={checkoutDistributionPackage}
+        busy={purchasing}
+      />
     </Card>
   );
 }
