@@ -1,6 +1,6 @@
 /// <reference types="bun-types" />
 import { describe, test, expect } from "bun:test";
-import { buildShareKit, getPlatform, PLATFORMS } from "@/lib/distribution";
+import { buildShareKit, buildSubmissionPackage, guessArxivCategory, getPlatform, PLATFORMS } from "@/lib/distribution";
 
 const ARTICLE = {
   id: "art-1",
@@ -11,17 +11,64 @@ const ARTICLE = {
     { name: "Alan Turing", affiliation: "Bletchley Park" },
   ]),
   discipline: "Mathematics",
+  keywords: "primes, number theory",
+  doi: "10.5281/zenodo.123456",
   journalName: "Eleventh Press Journal of Mathematics",
 };
 
 describe("PLATFORMS / getPlatform", () => {
-  test("every Phase 1 platform is Tier C", () => {
-    for (const p of PLATFORMS) expect(p.tier).toBe("C");
+  test("Tier C platforms have no consent requirement or submit URL", () => {
+    for (const p of PLATFORMS.filter((p) => p.tier === "C")) {
+      expect(p.consentText).toBeUndefined();
+      expect(p.submitUrl).toBeUndefined();
+    }
+  });
+
+  test("Tier B platforms (arXiv, SSRN) require consent and have a submit URL", () => {
+    const tierB = PLATFORMS.filter((p) => p.tier === "B");
+    expect(tierB.map((p) => p.id).sort()).toEqual(["ARXIV", "SSRN"]);
+    for (const p of tierB) {
+      expect(p.consentText).toBeTruthy();
+      expect(p.submitUrl).toBeTruthy();
+    }
   });
 
   test("getPlatform resolves a known id and returns undefined for an unknown one", () => {
     expect(getPlatform("RESEARCHGATE")?.label).toBe("ResearchGate");
+    expect(getPlatform("ARXIV")?.tier).toBe("B");
     expect(getPlatform("NOT_A_PLATFORM")).toBeUndefined();
+  });
+});
+
+describe("guessArxivCategory", () => {
+  test("maps a known discipline case-insensitively", () => {
+    expect(guessArxivCategory("Mathematics")).toBe("math.GM");
+    expect(guessArxivCategory("physics")).toBe("physics.gen-ph");
+  });
+
+  test("returns null for an unmapped discipline", () => {
+    expect(guessArxivCategory("Underwater Basket Weaving")).toBeNull();
+  });
+});
+
+describe("buildSubmissionPackage", () => {
+  test("includes title, formatted authors with affiliations, abstract, and the article's DOI in the comment", () => {
+    const pkg = buildSubmissionPackage(ARTICLE, "ARXIV");
+    expect(pkg.title).toBe(ARTICLE.title);
+    expect(pkg.authors).toBe("Ada Lovelace (Analytical Engine Institute); Alan Turing (Bletchley Park)");
+    expect(pkg.abstract).toBe(ARTICLE.abstract);
+    expect(pkg.comment).toContain(ARTICLE.doi);
+    expect(pkg.comment).toContain(ARTICLE.journalName);
+  });
+
+  test("suggests an arXiv category only for the ARXIV platform, not SSRN", () => {
+    expect(buildSubmissionPackage(ARTICLE, "ARXIV").suggestedCategory).toBe("math.GM");
+    expect(buildSubmissionPackage(ARTICLE, "SSRN").suggestedCategory).toBeNull();
+  });
+
+  test("falls back to discipline as keywords when the article has none", () => {
+    const pkg = buildSubmissionPackage({ ...ARTICLE, keywords: undefined }, "ARXIV");
+    expect(pkg.keywords).toBe(ARTICLE.discipline);
   });
 });
 
