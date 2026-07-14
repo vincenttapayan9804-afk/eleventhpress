@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/galley-sweep",
+      "schedule": "0 0 * * *"
+    }
+  ]
+}

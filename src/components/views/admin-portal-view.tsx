@@ -36,6 +36,8 @@ import {
   CreditCard,
   Search,
   RefreshCw,
+  FileDown,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -52,6 +54,17 @@ interface AdminUser {
 interface SearchIndexStatus {
   pgvectorReady: boolean;
   rowCount: number;
+}
+
+interface GalleyJobRow {
+  id: string;
+  articleId: string;
+  articleTitle: string | null;
+  status: string;
+  errorMessage: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
 }
 
 interface RoleApp {
@@ -185,6 +198,9 @@ function AdminDashboard() {
   const [searchIndex, setSearchIndex] = useState<SearchIndexStatus | null>(null);
   const [searchIndexLoading, setSearchIndexLoading] = useState(true);
   const [searchIndexError, setSearchIndexError] = useState(false);
+  const [galleyJobs, setGalleyJobs] = useState<GalleyJobRow[]>([]);
+  const [galleyJobsLoading, setGalleyJobsLoading] = useState(true);
+  const [retryingJobId, setRetryingJobId] = useState<string | null>(null);
 
   const loadSearchIndex = useCallback(async () => {
     setSearchIndexLoading(true);
@@ -198,6 +214,31 @@ function AdminDashboard() {
       setSearchIndexLoading(false);
     }
   }, []);
+
+  const loadGalleyJobs = useCallback(async () => {
+    setGalleyJobsLoading(true);
+    try {
+      const res = await apiFetch<{ jobs: GalleyJobRow[] }>("/api/admin/galley-jobs");
+      setGalleyJobs(res.jobs);
+    } catch (e: any) {
+      toast.error("Failed to load galley jobs", { description: e.message });
+    } finally {
+      setGalleyJobsLoading(false);
+    }
+  }, []);
+
+  async function retryGalleyJob(jobId: string) {
+    setRetryingJobId(jobId);
+    try {
+      await apiFetch(`/api/admin/galley-jobs/${jobId}/retry`, { method: "POST" });
+      toast.success("Galley job retried");
+      loadGalleyJobs();
+    } catch (e: any) {
+      toast.error("Retry failed", { description: e.message });
+    } finally {
+      setRetryingJobId(null);
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -221,7 +262,8 @@ function AdminDashboard() {
   useEffect(() => {
     load();
     loadSearchIndex();
-  }, [load, loadSearchIndex]);
+    loadGalleyJobs();
+  }, [load, loadSearchIndex, loadGalleyJobs]);
 
   async function changeRole(userId: string, role: string) {
     setSavingId(userId);
@@ -344,6 +386,68 @@ function AdminDashboard() {
                 </span>
               )}
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Galley Jobs */}
+        <Card className="paper-card">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileDown className="h-4 w-4 text-primary" />
+                <p className="eyebrow">Galley Generation Jobs</p>
+              </div>
+              <Button variant="ghost" size="sm" onClick={loadGalleyJobs} disabled={galleyJobsLoading}>
+                <RefreshCw className={`h-3.5 w-3.5 ${galleyJobsLoading ? "animate-spin" : ""}`} />
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Recent HTML/PDF/JATS galley builds. A daily sweep automatically retries any job
+              that never completed (e.g. a crashed request); failed jobs can also be retried
+              manually here.
+            </p>
+          </CardHeader>
+          <CardContent>
+            {galleyJobsLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              </div>
+            ) : galleyJobs.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">No galley jobs yet.</p>
+            ) : (
+              <ScrollArea className="h-80 pr-3 epip-scroll">
+                <div className="space-y-2">
+                  {galleyJobs.map((j) => (
+                    <div key={j.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border p-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{j.articleTitle || j.articleId}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(j.createdAt).toLocaleString()}
+                          {j.errorMessage ? ` · ${j.errorMessage}` : ""}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <GalleyStatusBadge status={j.status} />
+                        {j.status !== "PROCESSING" && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => retryGalleyJob(j.id)}
+                            disabled={retryingJobId === j.id}
+                          >
+                            {retryingJobId === j.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <RotateCcw className="h-3.5 w-3.5" />
+                            )}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            )}
           </CardContent>
         </Card>
 
@@ -589,6 +693,21 @@ function StatTile({ label, value, color }: { label: string; value: number; color
         <p className="text-xs text-muted-foreground">{label}</p>
       </CardContent>
     </Card>
+  );
+}
+
+function GalleyStatusBadge({ status }: { status: string }) {
+  const styles: Record<string, string> = {
+    QUEUED: "border-muted-foreground/30 text-muted-foreground",
+    PROCESSING: "border-violet-300 bg-violet-50 text-violet-700",
+    COMPLETED: "border-emerald-300 bg-emerald-50 text-emerald-700",
+    FAILED: "border-rose-300 bg-rose-50 text-rose-700",
+  };
+  return (
+    <Badge variant="outline" className={`text-[0.6rem] ${styles[status] || ""}`}>
+      {status === "PROCESSING" && <Loader2 className="mr-1 h-2.5 w-2.5 animate-spin" />}
+      {status}
+    </Badge>
   );
 }
 
