@@ -26,6 +26,7 @@ const ARTICLE = {
 let galleyJobStore: Record<string, any> = {};
 let generateGalleysShouldFail = false;
 let getObjectResult: Buffer | null = Buffer.from("manuscript body", "utf-8");
+let auditLogCalls: any[] = [];
 
 const fakeDb = {
   galleyJob: {
@@ -66,7 +67,10 @@ const fakeDb = {
     update: mock(async () => ({})),
   },
   auditLog: {
-    create: mock(async () => ({})),
+    create: mock(async (args: any) => {
+      auditLogCalls.push(args);
+      return {};
+    }),
   },
 };
 
@@ -108,6 +112,7 @@ function resetAll() {
   galleyJobStore = {};
   generateGalleysShouldFail = false;
   getObjectResult = Buffer.from("manuscript body", "utf-8");
+  auditLogCalls = [];
   fakeDb.galleyJob.updateMany.mockClear();
   fakeDb.galleyJob.findUnique.mockClear();
   fakeDb.galleyJob.update.mockClear();
@@ -132,9 +137,9 @@ describe("runGalleyJob — happy path", () => {
   test("system-triggered runs (triggeredBy null) record a null userId and a system trigger tag", async () => {
     makeJob();
     await runGalleyJob("job-1", null);
-    const call = fakeDb.auditLog.create.mock.calls[0][0];
-    expect(call.data.userId).toBeNull();
-    expect(JSON.parse(call.data.metadata).trigger).toBe("system");
+    expect(auditLogCalls.length).toBe(1);
+    expect(auditLogCalls[0].data.userId).toBeNull();
+    expect(JSON.parse(auditLogCalls[0].data.metadata).trigger).toBe("system");
   });
 });
 
