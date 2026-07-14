@@ -403,11 +403,15 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
                       onClick={async () => {
                         setGeneratingGalley(true);
                         try {
-                          await apiFetch("/api/galley/generate", {
+                          const res = await apiFetch<{ deduped?: boolean }>("/api/galley/generate", {
                             method: "POST",
                             body: JSON.stringify({ articleId: article.id }),
                           });
-                          toast.success("Galleys generated (HTML + PDF + JATS)");
+                          toast.success(
+                            res.deduped
+                              ? "Galley generation already in progress for this article"
+                              : "Galleys generated (HTML + PDF + JATS)"
+                          );
                           onRefresh();
                           onClose();
                         } catch (e: any) {
