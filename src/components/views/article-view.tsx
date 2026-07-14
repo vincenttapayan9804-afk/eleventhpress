@@ -248,7 +248,7 @@ ER  - `;
           <Badge variant="outline" className="border-[oklch(0.76_0.11_294/0.3)] bg-[oklch(0.93_0.04_290)] text-[oklch(0.42_0.18_295)]">
             {article.discipline}
           </Badge>
-          <Badge variant="outline" className="border-[oklch(0.76_0.11_294/0.2)] bg-[oklch(0.96_0.01_285)] text-[oklch(0.4_0.02_290)]">
+          <Badge variant="outline" className="border-[oklch(0.76_0.11_294/0.2)] bg-[oklch(0.96_0.01_285)] text-muted-foreground">
             {article.reviewModel.replace("_", "-")}
           </Badge>
           {openReviewStatus?.openReview && (
@@ -320,11 +320,8 @@ ER  - `;
 
       {/* Body */}
       <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_280px]">
-        {/* Main column — wrapped as a floating glass panel so the reading
-            content (and its nested muted-background info boxes) stays on
-            a light surface with correctly dark text, consistent with the
-            rest of the site, rather than sitting bare on the purple canvas */}
-        <div className="paper-card p-6 sm:p-8">
+        {/* Main column */}
+        <div>
           <Tabs defaultValue="article" className="w-full">
             <TabsList className={`grid w-full ${openReviewStatus?.openReview ? "grid-cols-4" : "grid-cols-3"}`}>
               <TabsTrigger value="article">Article</TabsTrigger>
@@ -768,7 +765,7 @@ function IssueCorrectionDialog({
 
 function MetaTile({ icon: Icon, label, value }: { icon: any; label: string; value: string }) {
   return (
-    <div className="paper-card p-3">
+    <div className="rounded-md border border-border bg-card p-3">
       <Icon className="h-3.5 w-3.5 text-primary" />
       <p className="mt-1 font-sans text-sm font-semibold">{value}</p>
       <p className="text-[0.65rem] text-muted-foreground">{label}</p>
