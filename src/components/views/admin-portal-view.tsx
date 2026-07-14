@@ -34,6 +34,8 @@ import {
   FileText,
   Sparkles,
   CreditCard,
+  Search,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -45,6 +47,11 @@ interface AdminUser {
   affiliation: string | null;
   country: string | null;
   createdAt: string;
+}
+
+interface SearchIndexStatus {
+  pgvectorReady: boolean;
+  rowCount: number;
 }
 
 interface RoleApp {
@@ -175,6 +182,22 @@ function AdminDashboard() {
   const [reviewingId, setReviewingId] = useState<string | null>(null);
   const [expandedApp, setExpandedApp] = useState<string | null>(null);
   const [reviewNote, setReviewNote] = useState("");
+  const [searchIndex, setSearchIndex] = useState<SearchIndexStatus | null>(null);
+  const [searchIndexLoading, setSearchIndexLoading] = useState(true);
+  const [searchIndexError, setSearchIndexError] = useState(false);
+
+  const loadSearchIndex = useCallback(async () => {
+    setSearchIndexLoading(true);
+    setSearchIndexError(false);
+    try {
+      const res = await apiFetch<SearchIndexStatus>("/api/search/semantic/status");
+      setSearchIndex(res);
+    } catch {
+      setSearchIndexError(true);
+    } finally {
+      setSearchIndexLoading(false);
+    }
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -197,7 +220,8 @@ function AdminDashboard() {
 
   useEffect(() => {
     load();
-  }, [load]);
+    loadSearchIndex();
+  }, [load, loadSearchIndex]);
 
   async function changeRole(userId: string, role: string) {
     setSavingId(userId);
@@ -274,6 +298,54 @@ function AdminDashboard() {
             <StatTile label="Published" value={stats.published} color="text-primary" />
           </div>
         )}
+
+        {/* Search Index Status */}
+        <Card className="paper-card">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Search className="h-4 w-4 text-primary" />
+                <p className="eyebrow">Search Index (pgvector)</p>
+              </div>
+              <Button variant="ghost" size="sm" onClick={loadSearchIndex} disabled={searchIndexLoading}>
+                <RefreshCw className={`h-3.5 w-3.5 ${searchIndexLoading ? "animate-spin" : ""}`} />
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Semantic search and manuscript similarity checks use a Postgres vector index when
+              available, and always fall back to the unindexed scan on any failure — this never
+              affects search or submission functionality either way.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap items-center gap-3">
+              {searchIndexLoading ? (
+                <Badge variant="outline" className="text-[0.65rem]">
+                  <Loader2 className="mr-1 h-3 w-3 animate-spin" /> Checking…
+                </Badge>
+              ) : searchIndexError ? (
+                <Badge variant="outline" className="border-muted-foreground/30 text-[0.65rem]">
+                  <Clock className="mr-1 h-3 w-3" /> Status unavailable
+                </Badge>
+              ) : searchIndex?.pgvectorReady ? (
+                <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-700 text-[0.65rem]">
+                  <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  Indexed — pgvector active
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700 text-[0.65rem]">
+                  <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
+                  Fallback — in-memory scan active
+                </Badge>
+              )}
+              {searchIndex && (
+                <span className="text-xs text-muted-foreground">
+                  {searchIndex.rowCount.toLocaleString()} article{searchIndex.rowCount === 1 ? "" : "s"} indexed
+                </span>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Role Applications */}
         <Card className="paper-card">
