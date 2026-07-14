@@ -72,6 +72,7 @@ model User {
   roleApplications       RoleApplication[]   @relation("ApplicantApplications")
   reviewedApplications   RoleApplication[]   @relation("ReviewerApplications")
   distributionsSubmitted Distribution[]
+  books                  Book[]
 }
 
 // ---------------------------------------------------------------------------
@@ -240,6 +241,7 @@ model Article {
   corrections   Correction[]
   references    Reference[]
   distributions Distribution[]
+  bookChapters  BookArticle[]
 
   // Composite indexes mirror the actual query shapes used across the app:
   // public/browse listing and the dashboard queue both filter by status
@@ -516,6 +518,86 @@ model Distribution {
   @@unique([articleId, platform])
   @@index([articleId])
   @@index([status])
+}
+
+// ---------------------------------------------------------------------------
+// Book publishing — a second, distinct content type alongside journal
+// articles. A Book is either a MONOGRAPH (single uploaded manuscript, its
+// own author submission) or an EDITED_VOLUME/ANTHOLOGY (compiled from
+// existing PUBLISHED articles via BookArticle, e.g. a "Best of Volume N"
+// collection) — the format determines which production path
+// src/lib/book-production.ts takes, not a separate model.
+// ---------------------------------------------------------------------------
+model Book {
+  id          String  @id @default(cuid())
+  title       String
+  subtitle    String?
+  authors     String // JSON array of {name, affiliation, orcid, email} — same shape as Article.authors
+  description String
+  category    String // e.g. Physics, Education, Multidisciplinary — free text, mirrors Article.discipline
+  format      String // MONOGRAPH | EDITED_VOLUME | ANTHOLOGY
+  isbn        String?
+  price       Float?  @default(0)
+
+  correspondingAuthorId String?
+
+  coverImageKey String?
+  manuscriptKey String? // MONOGRAPH only — source manuscript for production
+  epubKey       String? // published EPUB
+  pdfKey        String? // published print-ready PDF
+
+  // Workflow state machine — deliberately mirrors Article.status so the
+  // same editorial mental model (and AuditLog action vocabulary) applies:
+  // SUBMITTED | UNDER_REVIEW | ACCEPTED | IN_PRODUCTION | PUBLISHED | REJECTED
+  status String @default("SUBMITTED")
+
+  submittedAt DateTime  @default(now())
+  acceptedAt  DateTime?
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  author   User?         @relation(fields: [correspondingAuthorId], references: [id])
+  chapters BookArticle[]
+
+  @@index([status, submittedAt])
+  @@index([correspondingAuthorId])
+}
+
+// Join table compiling existing PUBLISHED articles into an
+// EDITED_VOLUME/ANTHOLOGY Book, in reader order.
+model BookArticle {
+  id           String @id @default(cuid())
+  bookId       String
+  articleId    String
+  chapterOrder Int    @default(0)
+
+  createdAt DateTime @default(now())
+
+  book    Book    @relation(fields: [bookId], references: [id])
+  article Article @relation(fields: [articleId], references: [id])
+
+  @@unique([bookId, articleId])
+  @@index([bookId, chapterOrder])
+}
+
+// Durable production queue for Book EPUB/PDF generation — same
+// atomic-claim pattern as GalleyJob (see src/lib/book-production.ts,
+// mirroring src/lib/galley-job.ts).
+model BookProductionJob {
+  id           String    @id @default(cuid())
+  bookId       String
+  status       String    @default("QUEUED") // QUEUED | PROCESSING | COMPLETED | FAILED
+  epubKey      String?
+  pdfKey       String?
+  workerLog    String?
+  errorMessage String?
+  startedAt    DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([status, createdAt])
+  @@index([bookId])
 }
 
 // ---------------------------------------------------------------------------

@@ -79,7 +79,16 @@ mock.module("@/lib/storage", () => ({
   getObject: mock(async () => getObjectResult),
   putObject: mock(async () => ({})),
 }));
+// Spreads in the real module's other exports (escapeXml, htmlToPlainText,
+// extractManuscriptBody, renderMinimalErrorPdf — all pure/local, no DB or
+// network access) alongside the mocked generateGalleys, rather than
+// replacing the whole module. bun:test's mock.module is global per
+// process, not scoped to this file — a bare-minimum mock here would break
+// any other test file (e.g. book-production.smoke tests) that imports
+// those other named exports from the same module path.
+const realGalley = await import("@/lib/galley");
 mock.module("@/lib/galley", () => ({
+  ...realGalley,
   generateGalleys: mock(async () => {
     if (generateGalleysShouldFail) throw new Error("mock generateGalleys failure");
     return { htmlKey: "published-galleys/x.html", pdfKey: "published-galleys/x.pdf", jatsKey: "published-galleys/x.jats.xml", log: ["done"] };

@@ -30,6 +30,21 @@ const BUCKET_RULES: Record<string, { contentTypes: string[]; maxSizeBytes: numbe
     ],
     maxSizeBytes: 10 * 1024 * 1024,
   },
+  "book-covers": {
+    contentTypes: ["image/jpeg", "image/png", "image/webp"],
+    maxSizeBytes: 5 * 1024 * 1024,
+  },
+  "book-manuscripts": {
+    contentTypes: [
+      "application/pdf",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/msword",
+      "text/markdown",
+      "text/plain",
+      "text/html",
+    ],
+    maxSizeBytes: 50 * 1024 * 1024,
+  },
 };
 
 /**

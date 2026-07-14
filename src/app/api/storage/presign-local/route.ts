@@ -27,6 +27,19 @@ const BUCKET_RULES: Record<string, { contentTypes: string[] }> = {
       "image/webp",
     ],
   },
+  "book-covers": {
+    contentTypes: ["image/jpeg", "image/png", "image/webp"],
+  },
+  "book-manuscripts": {
+    contentTypes: [
+      "application/pdf",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/msword",
+      "text/markdown",
+      "text/plain",
+      "text/html",
+    ],
+  },
 };
 const PRESIGN_TTL_MS = 10 * 60 * 1000;
 

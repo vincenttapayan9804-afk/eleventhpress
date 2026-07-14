@@ -111,7 +111,7 @@ function normalizeWhitespace(s: string): string {
   return (s || "").replace(/\s+/g, " ").trim();
 }
 
-function escapeXml(s: string): string {
+export function escapeXml(s: string): string {
   return String(s || "")
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;").replace(/'/g, "&apos;")
@@ -172,7 +172,7 @@ async function extractPdfText(buffer: Buffer): Promise<string | null> {
   }
 }
 
-async function extractManuscriptBody(buffer: Buffer, filename: string): Promise<string | null> {
+export async function extractManuscriptBody(buffer: Buffer, filename: string): Promise<string | null> {
   const ext = filename.split(".").pop()?.toLowerCase() || "";
   try {
     if (ext === "docx") {
@@ -517,7 +517,7 @@ const BRAND_GOLD = "#c9a55c";
 const BRAND_INK = "#2a1f1a";
 
 /** Strips tags/entities down to readable body text for the PDF body flow. */
-function htmlToPlainText(html: string, stripLeadingParagraphs: (string | undefined)[] = []): string {
+export function htmlToPlainText(html: string, stripLeadingParagraphs: (string | undefined)[] = []): string {
   let text = html
     // <head> (title/meta/style) has no visible content — must be dropped
     // entirely, not just <header>, or its <title> text leaks into the body
