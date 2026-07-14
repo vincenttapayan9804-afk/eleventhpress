@@ -15,7 +15,7 @@ import { useReveal } from "@/hooks/use-scroll-reveal";
 import {
   Search, ArrowRight, Sparkles, FileText, Quote, TrendingUp, Globe2,
   Atom, Microscope, Cpu, Users, BarChart3, Brain, Leaf, Calculator,
-  GraduationCap, Building2, Cog, BookOpen,
+  GraduationCap, Building2, Cog, BookOpen, Share2, ShieldCheck,
 } from "lucide-react";
 
 const DISCIPLINE_ICONS: Record<string, any> = {
@@ -289,7 +289,7 @@ export function HomeView() {
               <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground">
                 Every submission passes through an event-driven workflow: identity and access management,
                 manuscript anonymisation, peer review, APC invoicing, production, {DOI_REGISTRAR} DOI registration,
-                and OAI-PMH feed harvest.
+                OAI-PMH feed harvest, and automatic syndication once published.
               </p>
             </div>
             <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
@@ -311,6 +311,34 @@ export function HomeView() {
       </section>
 
       {/* ════════════════════════════════════════════════════════════════
+          FULL-STACK REACH — the syndication network + book publishing
+          ════════════════════════════════════════════════════════════════ */}
+      <section className="border-b border-[oklch(0.76_0.11_294/0.1)]">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+          <div className="mb-12 text-center">
+            <p className="eyebrow">Beyond the journal</p>
+            <h2 className="mt-2 font-display text-3xl font-semibold">A full-stack press, not just a publication</h2>
+            <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground">
+              Publication is the beginning of your work's reach, not the end of it. Every published
+              article becomes eligible for automatic syndication across our network — no extra
+              manuscript prep, no separate submissions.
+            </p>
+          </div>
+          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+            {REACH_FEATURES.map((f) => (
+              <div key={f.title} className="glass-panel p-6 transition-all duration-500 hover:scale-[1.03]" style={{ transitionTimingFunction: "var(--ease-luxury)" }}>
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[oklch(0.93_0.04_290)] text-[oklch(0.42_0.18_295)]">
+                  <f.icon className="h-5 w-5" />
+                </span>
+                <p className="mt-4 font-display text-base font-semibold">{f.title}</p>
+                <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{f.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ════════════════════════════════════════════════════════════════
           CTA — royal purple band
           ════════════════════════════════════════════════════════════════ */}
       <section>
@@ -324,9 +352,10 @@ export function HomeView() {
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[oklch(0.86_0.07_292)]">Submit your research</p>
                 <h2 className="mt-3 font-display text-3xl font-semibold text-white lg:text-4xl">Ready to publish?</h2>
                 <p className="mt-4 text-sm leading-relaxed text-[oklch(0.90_0.04_290)]">
-                  Authors receive a real, permanently-resolving {DOI_REGISTRAR} DOI upon publication, double-blind peer review by
-                  discipline-matched experts, and global indexing upon publication. Average time from
-                  submission to first decision: 38 days.
+                  One submission gets you double-blind peer review by discipline-matched experts, a real,
+                  permanently-resolving {DOI_REGISTRAR} DOI, genuine open-access publication, and — once
+                  published — automatic syndication across eight platforms plus eligibility for our book-publishing
+                  division. Average time from submission to first decision: 38 days.
                 </p>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row">
@@ -344,6 +373,13 @@ export function HomeView() {
     </div>
   );
 }
+
+const REACH_FEATURES = [
+  { title: "8-Platform Syndication, Automatically", description: "Blogger publishes itself the moment you approve it — genuinely, via the real Blogger API, not a link. Ready-to-post kits for ResearchGate, Academia.edu, Substack, Medium, LinkedIn, and HubPages, plus formatted preprint packages for arXiv and SSRN, all generated from the same manuscript.", icon: Share2 },
+  { title: "A Real Book-Publishing Division", description: "Compile your published articles into a genuine EPUB and print-ready PDF, or submit a standalone monograph. Distributed wide through Draft2Digital and IngramSpark — reaching Amazon KDP, Apple Books, Barnes & Noble, Kobo, and more from one submission.", icon: BookOpen },
+  { title: "Real DOIs, Genuinely Open Access", description: `Every published article gets a permanently-resolving ${DOI_REGISTRAR} DOI and is freely downloadable — no login wall, no subscription required, matching our CC BY 4.0 license and ready for Google Scholar to index.`, icon: ShieldCheck },
+  { title: "AI-Accelerated Editorial Review", description: "Plagiarism screening, statistical sanity checks, citation validation, and discipline-matched reviewer suggestions, powered by real AI analysis — built to catch what a manual read misses, not to replace peer review.", icon: Sparkles },
+];
 
 const PIPELINE_STEPS = [
   { title: "Submit & Anonymise", description: "Author uploads the manuscript to raw-submissions storage. A double-blind copy is generated automatically for reviewers.", icon: FileText },

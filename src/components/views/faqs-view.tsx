@@ -15,7 +15,7 @@ import { DOI_REGISTRAR } from "@/lib/site";
 const FAQS: { q: string; a: string }[] = [
   {
     q: "What is Eleventh Press International Publishing, and is it peer-reviewed?",
-    a: "Eleventh Press International Publishing is a peer-reviewed, open-access multidisciplinary journal covering the natural sciences, engineering, social sciences, and humanities. Every article that reaches publication has passed through our editorial screening and peer-review workflow — we don't publish unreviewed manuscripts.",
+    a: "Eleventh Press International Publishing is a Full-Stack Peer Reviewed Press & Multidisciplinary Syndication Network covering the natural sciences, engineering, social sciences, and humanities — not just a journal. Every article that reaches publication has passed through our editorial screening and peer-review workflow (we don't publish unreviewed manuscripts), and every published article becomes eligible for automatic syndication across our network and our book-publishing division.",
   },
   {
     q: "Is Eleventh Press open access? What license applies to published articles?",
@@ -48,6 +48,14 @@ const FAQS: { q: string; a: string }[] = [
   {
     q: "Is my published article indexed anywhere (Google Scholar, DOI registries, etc.)?",
     a: `Every published article is assigned a real, permanently-resolving ${DOI_REGISTRAR} DOI and exposed through our OAI-PMH 2.0 endpoint, which harvesters (including OpenAIRE, BASE, and CORE) use to pull structured metadata. Google Scholar crawls the site automatically — journals cannot manually push content into a Scholar or Scopus index; those systems pull from the metadata a journal exposes once discovered.`,
+  },
+  {
+    q: "What is the multidisciplinary syndication network, and do I have to do anything to use it?",
+    a: "Once your article is published, it's automatically eligible for syndication across eight platforms: genuine one-click auto-publish to Blogger via the real Blogger API, ready-to-post share kits for ResearchGate, Academia.edu, Substack, Medium, LinkedIn Articles, and HubPages, and prefilled preprint submission packages for arXiv and SSRN. No extra manuscript prep — every package is generated from what you already submitted. The self-serve share kits are free; the arXiv/SSRN preprint packages are a one-time $19 add-on per article, since arXiv/SSRN preprinting has policy implications a preformatted package genuinely helps with.",
+  },
+  {
+    q: "Do you publish books, not just journal articles?",
+    a: "Yes. Authors can compile their own published articles into an edited volume or anthology, or submit a standalone monograph manuscript. We generate a real EPUB3 file and a print-ready PDF and distribute wide through Draft2Digital and IngramSpark — reaching Amazon KDP, Apple Books, Barnes & Noble, Kobo, and more storefronts from a single submission — for a one-time $29 distribution fee. Amazon KDP and Lulu are also available as free, self-serve manual guides if you'd rather publish directly yourself.",
   },
   {
     q: "How do I request a correction, retraction, or report a concern about a published article?",
