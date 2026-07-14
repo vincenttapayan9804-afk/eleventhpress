@@ -70,7 +70,7 @@ const DEMO_ACCOUNTS: DemoAccount[] = [
     email: "reader@eleventhpress.org",
     password: "reader",
     label: "Reader (Subscriber)",
-    description: "Liang Wei. Active yearly subscription; can download full PDF galleys.",
+    description: "Liang Wei. Active yearly subscription — unlocks bundled downloads and early access; PDF galleys of published articles are free for everyone.",
     icon: User,
     accent: "bg-rose-100 text-rose-800 border-rose-200",
   },

@@ -30,9 +30,9 @@ const PLANS = [
     name: "Monthly Reader",
     price: 10,
     period: "month",
-    description: "Full PDF access for casual readers and visiting researchers.",
+    description: "Convenience features on top of already-free PDF access, for active readers and visiting researchers.",
     features: [
-      "Unlimited PDF downloads",
+      "Bundled/batch PDF downloads",
       "Full-text search across all articles",
       "Email alerts for new issues",
       "Cancel anytime",
@@ -189,16 +189,17 @@ export function ReaderTab({ subscription, onRefresh }: Props) {
             How reader access works
           </p>
           <p className="mt-1">
-            The API Gateway intercepts every request to a full PDF galley. It verifies the
-            user’s JWT, queries the Billing Service to confirm an active subscription, and
-            either serves a short-lived S3 pre-signed URL or returns
-            <code className="mx-1 font-mono">402 Payment Required</code>. The gateway caches
-            subscription status in Redis for 60 seconds to amortise the billing lookup.
+            Every published article is genuinely open access under CC BY 4.0 — the PDF and HTML
+            galleys are freely downloadable, no subscription or login required, no
+            login-walled URL for Google Scholar's crawler to reject. A reader subscription
+            doesn't gate anything; it unlocks convenience features on top of what's already
+            free: bundled/batch downloads, saved reading lists, and early access to
+            accepted-in-production articles ahead of final typesetting.
           </p>
           <div className="mt-3 grid gap-2 sm:grid-cols-3">
             <AccessFlow icon={Search} label="Browse" desc="Reader searches and opens article pages — always free." />
             <AccessFlow icon={Library} label="Abstract" desc="Abstracts, keywords, and metadata are always open-access." />
-            <AccessFlow icon={Download} label="PDF galley" desc="PDF download gated by subscription check." />
+            <AccessFlow icon={Download} label="PDF galley" desc="Free for everyone once published — no subscription required." />
           </div>
         </CardContent>
       </Card>

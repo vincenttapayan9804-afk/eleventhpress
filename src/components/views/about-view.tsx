@@ -217,10 +217,10 @@ export function AboutView() {
               <Users className="h-6 w-6 text-primary" />
               <p className="mt-3 font-display text-lg font-semibold">Reader subscription</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Handled by the Billing Service via your choice of payment provider.
-                The API Gateway intercepts requests to full PDFs, verifies the JWT,
-                queries billing status, and either serves a pre-signed download URL
-                or returns 402 Payment Required.
+                Handled via your choice of payment provider. This doesn't gate PDF access —
+                every published article is genuinely open access, no subscription required.
+                It unlocks convenience features instead: bundled/batch downloads, saved
+                reading lists, and early access to accepted-in-production articles.
               </p>
               <p className="mt-3 font-mono text-lg font-semibold">
                 USD 10 / mo · USD 97 / yr · USD 997 / yr (institutional)

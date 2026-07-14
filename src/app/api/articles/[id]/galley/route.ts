@@ -1,15 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { getSessionFromHeaders } from "@/lib/auth";
 import { presignGet, objectExists } from "@/lib/storage";
 
 /**
  * GET /api/articles/[id]/galley?format=pdf|html
  *
- * Returns a short-lived pre-signed download URL for the requested galley.
- * The gateway checks subscription status (Reader role must have an ACTIVE
- * subscription; Authors get free access to their own articles; Editors
- * get access to everything).
+ * Returns a download URL for the requested galley. Published articles are
+ * open access (the site claims CC BY 4.0 everywhere — hero badge, footer,
+ * About, FAQs, the APC explainer promising "indefinite open-access
+ * hosting"), so this route no longer gates the PDF/HTML behind a reader
+ * subscription: no authentication required at all for a PUBLISHED
+ * article's galley. Two things forced this, not just the OA claim: (1) a
+ * paywalled "open access" article is a real licensing inconsistency — CC
+ * BY doesn't mean much if the platform itself won't show the content
+ * without payment — and (2) Google Scholar's indexer hard-requires full
+ * text be fetchable with no login wall, which an auth-gated URL can never
+ * satisfy (see src/app/article/[id]/page.tsx's citation_pdf_url, which
+ * depends on this route being genuinely public).
+ *
+ * The reader Subscription/Invoice models and checkout flow are untouched —
+ * this only removes the gate on already-published, APC-funded content.
+ * What a reader subscription should actually grant instead (bulk/batch
+ * export, ahead-of-print early access, institutional analytics, etc.) is a
+ * product decision this change doesn't make on its own.
  */
 export async function GET(
   req: NextRequest,
@@ -22,7 +35,6 @@ export async function GET(
     return NextResponse.json({ error: "format must be pdf or html" }, { status: 400 });
   }
 
-  const session = getSessionFromHeaders(req.headers);
   const article = await db.article.findUnique({
     where: { id },
     include: { journal: true, issue: true },
@@ -37,33 +49,6 @@ export async function GET(
   const galleyKey = format === "pdf" ? article.galleyPdfKey : article.galleyHtmlKey;
   if (!galleyKey) {
     return NextResponse.json({ error: "Galley not yet generated" }, { status: 404 });
-  }
-
-  // Authorization: Reader must have an active subscription. Authors have
-  // free access to their own articles. Editors & admins get access to all.
-  if (session) {
-    const isAuthor = article.correspondingAuthorId === session.userId;
-    const isEditor = ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"].includes(session.role);
-    if (!isAuthor && !isEditor && session.role === "READER") {
-      const sub = await db.subscription.findFirst({
-        where: { userId: session.userId, status: "ACTIVE" },
-      });
-      if (!sub) {
-        return NextResponse.json(
-          {
-            error: "Payment Required",
-            code: 402,
-            message:
-              "An active reader subscription is required to download galleys. Subscribe via your dashboard to enable PDF/HTML access.",
-          },
-          { status: 402 }
-        );
-      }
-    }
-  } else {
-    // Unauthenticated request — return 401 (in production the gateway would
-    // redirect to the login page).
-    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   }
 
   // Check that the galley actually exists in storage; if not, fall back to
