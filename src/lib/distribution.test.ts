@@ -1,6 +1,6 @@
 /// <reference types="bun-types" />
 import { describe, test, expect } from "bun:test";
-import { buildShareKit, buildSubmissionPackage, guessArxivCategory, getPlatform, PLATFORMS } from "@/lib/distribution";
+import { buildShareKit, buildSubmissionPackage, buildBloggerPost, guessArxivCategory, getPlatform, PLATFORMS } from "@/lib/distribution";
 
 const ARTICLE = {
   id: "art-1",
@@ -37,6 +37,13 @@ describe("PLATFORMS / getPlatform", () => {
     expect(getPlatform("RESEARCHGATE")?.label).toBe("ResearchGate");
     expect(getPlatform("ARXIV")?.tier).toBe("B");
     expect(getPlatform("NOT_A_PLATFORM")).toBeUndefined();
+  });
+
+  test("Blogger is the only Tier A platform, with no consent requirement or submit URL", () => {
+    const tierA = PLATFORMS.filter((p) => p.tier === "A");
+    expect(tierA.map((p) => p.id)).toEqual(["BLOGGER"]);
+    expect(tierA[0].consentText).toBeUndefined();
+    expect(tierA[0].submitUrl).toBeUndefined();
   });
 });
 
@@ -97,5 +104,33 @@ describe("buildShareKit", () => {
   test("falls back to 'the authors' when the authors JSON has no usable names", () => {
     const kit = buildShareKit({ ...ARTICLE, authors: "[]" });
     expect(kit.blurb).toContain("By the authors");
+  });
+});
+
+describe("buildBloggerPost", () => {
+  test("includes the title verbatim and an HTML body with author names, journal, and a link back to the article", () => {
+    const post = buildBloggerPost(ARTICLE);
+    expect(post.title).toBe(ARTICLE.title);
+    expect(post.html).toContain("Ada Lovelace");
+    expect(post.html).toContain("Alan Turing");
+    expect(post.html).toContain(ARTICLE.journalName);
+    expect(post.html).toContain(`href="https://eleventhpress.vercel.app/article/${ARTICLE.id}"`);
+  });
+
+  test("prefers the lay summary over the raw abstract when available", () => {
+    const post = buildBloggerPost({ ...ARTICLE, laySummary: "Prime gaps get rarer, but never disappear." });
+    expect(post.html).toContain("Prime gaps get rarer, but never disappear.");
+    expect(post.html).not.toContain(ARTICLE.abstract);
+  });
+
+  test("HTML-escapes author names and journal name", () => {
+    const post = buildBloggerPost({
+      ...ARTICLE,
+      authors: JSON.stringify([{ name: "A & B <Labs>" }]),
+      journalName: 'Journal "Quotes" & Co',
+    });
+    expect(post.html).toContain("A &amp; B &lt;Labs&gt;");
+    expect(post.html).toContain("Journal &quot;Quotes&quot; &amp; Co");
+    expect(post.html).not.toContain("<Labs>");
   });
 });

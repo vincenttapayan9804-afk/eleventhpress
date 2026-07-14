@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
-import { getPlatform, buildShareKit, buildSubmissionPackage, PLATFORMS } from "@/lib/distribution";
+import { getPlatform, buildShareKit, buildSubmissionPackage, buildBloggerPost, PLATFORMS } from "@/lib/distribution";
+import { getValidAccessToken, publishPost } from "@/lib/blogger";
 
 const PRIVILEGED_ROLES = new Set(["SUPER_ADMIN", "EDITOR", "ASSOCIATE_EDITOR"]);
 
@@ -84,15 +85,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Distribution is only available for published articles" }, { status: 400 });
   }
 
-  let hasConsent = false;
-  if (platformDef.tier === "B") {
-    const existing = await db.distribution.findUnique({ where: { articleId_platform: { articleId, platform } } });
-    hasConsent = !!consent || !!existing?.authorConsent;
-    if (!hasConsent) {
-      return NextResponse.json({ error: "Author consent is required before generating a submission package for this platform" }, { status: 400 });
-    }
-  }
-
   const articleForKit = {
     id: article.id,
     title: article.title,
@@ -104,6 +96,70 @@ export async function POST(req: NextRequest) {
     laySummary: article.laySummary,
     journalName: article.journal?.name,
   };
+
+  // Tier A (Blogger): no package, no consent gate — this genuinely
+  // publishes via the Blogger API using the calling user's own connected
+  // account, using their own blog, and marks the row LIVE immediately.
+  if (platformDef.tier === "A") {
+    const actingUser = await db.user.findUnique({ where: { id: session.userId } });
+    if (!actingUser?.bloggerAccessToken || !actingUser.bloggerBlogId) {
+      return NextResponse.json(
+        { error: "Connect your Blogger account first (Distribution tab → Connect Blogger)." },
+        { status: 400 }
+      );
+    }
+
+    const post = buildBloggerPost(articleForKit);
+    const accessToken = await getValidAccessToken(actingUser, async (newToken, expiresAt) => {
+      await db.user.update({ where: { id: actingUser.id }, data: { bloggerAccessToken: newToken, bloggerTokenExpiry: expiresAt } });
+    });
+    if (!accessToken) {
+      return NextResponse.json({ error: "Your Blogger connection has expired — reconnect your account." }, { status: 400 });
+    }
+
+    try {
+      const published = await publishPost(accessToken, actingUser.bloggerBlogId, post);
+      const row = await db.distribution.upsert({
+        where: { articleId_platform: { articleId, platform } },
+        create: {
+          articleId,
+          platform,
+          tier: "A",
+          status: "LIVE",
+          packageContent: JSON.stringify(post),
+          externalUrl: published.url,
+          externalId: published.id,
+          submittedBy: session.userId,
+          submittedAt: new Date(),
+        },
+        update: {
+          status: "LIVE",
+          packageContent: JSON.stringify(post),
+          externalUrl: published.url,
+          externalId: published.id,
+          submittedBy: session.userId,
+          submittedAt: new Date(),
+        },
+      });
+      return NextResponse.json({ item: row, published });
+    } catch (e: any) {
+      const row = await db.distribution.upsert({
+        where: { articleId_platform: { articleId, platform } },
+        create: { articleId, platform, tier: "A", status: "FAILED", notes: e.message.slice(0, 500) },
+        update: { status: "FAILED", notes: e.message.slice(0, 500) },
+      });
+      return NextResponse.json({ error: `Blogger publish failed: ${e.message}`, item: row }, { status: 502 });
+    }
+  }
+
+  let hasConsent = false;
+  if (platformDef.tier === "B") {
+    const existing = await db.distribution.findUnique({ where: { articleId_platform: { articleId, platform } } });
+    hasConsent = !!consent || !!existing?.authorConsent;
+    if (!hasConsent) {
+      return NextResponse.json({ error: "Author consent is required before generating a submission package for this platform" }, { status: 400 });
+    }
+  }
 
   const kit = platformDef.tier === "B" ? buildSubmissionPackage(articleForKit, platform) : buildShareKit(articleForKit);
 

@@ -20,11 +20,24 @@
  * generated until the author affirms they have the right to preprint this
  * work and that their journal agreement permits it.
  *
- * Tier A (true API publish, e.g. Blogger) is a later phase — see the plan
- * file for the full rollout order.
+ * Tier A (Blogger) is true API automation — once an author connects their
+ * Google account (src/lib/blogger.ts), POST /api/distribution for that
+ * platform genuinely publishes the post via the Blogger API and marks the
+ * row LIVE immediately. No package, no consent checkbox, no self-reported
+ * status — the only Tier A here.
  */
 import { parseAuthors } from "@/lib/article";
 import { APP_BASE_URL } from "@/lib/site";
+
+// Local, dependency-free HTML escaper — deliberately not imported from
+// src/lib/galley.ts's escapeXml, since this module is imported by a client
+// component (distribution-tab.tsx) and galley.ts pulls in server-only PDF
+// libraries (pdfkit/fontkit/fs) that break the client bundle.
+function escapeHtml(s: string): string {
+  return String(s || "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+}
 
 export type DistributionTier = "A" | "B" | "C";
 
@@ -69,6 +82,11 @@ export const PLATFORMS: DistributionPlatform[] = [
     consentText: "I confirm I hold the right to distribute this work as a working paper, and that my agreement with this journal permits posting a preprint version to SSRN.",
     submitUrl: "https://www.ssrn.com/",
   },
+
+  // Tier A — true API automation. Connect once, then every "Publish"
+  // click here genuinely posts to the author's own blog with no further
+  // human action required.
+  { id: "BLOGGER", label: "Blogger", tier: "A", postingHint: "Connect your Google account once, then publish directly — no copy-pasting required." },
 ];
 
 export function getPlatform(id: string): DistributionPlatform | undefined {
@@ -167,4 +185,29 @@ export function buildSubmissionPackage(article: ArticleForKit, platformId: strin
     comment: `Published in ${journalName}${article.doi ? `, DOI: ${article.doi}` : ""}. Version of record: ${canonicalUrl}`,
     canonicalUrl,
   };
+}
+
+export interface BloggerPost {
+  title: string;
+  html: string;
+}
+
+/**
+ * Builds the HTML post body for the Tier A Blogger auto-publish. Pure
+ * function — no DB/network access — so it's directly unit-testable.
+ */
+export function buildBloggerPost(article: ArticleForKit): BloggerPost {
+  const authors = parseAuthors(article.authors);
+  const authorNames = authors.map((a) => a.name).filter(Boolean).join(", ") || "the authors";
+  const canonicalUrl = `${APP_BASE_URL}/article/${article.id}`;
+  const summary = (article.laySummary || article.abstract).trim();
+  const journalName = article.journalName || "Eleventh Press International Publishing";
+
+  const html = [
+    `<p><em>By ${escapeHtml(authorNames)} — published in ${escapeHtml(journalName)}</em></p>`,
+    `<p>${escapeHtml(summary)}</p>`,
+    `<p><a href="${canonicalUrl}">Read the full peer-reviewed article</a></p>`,
+  ].join("\n");
+
+  return { title: article.title, html };
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api-client";
+import { useApp } from "@/lib/store";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { PLATFORMS, type ShareKit, type SubmissionPackage } from "@/lib/distribution";
-import { Share2, Sparkles, Copy, CheckCircle2, Link as LinkIcon, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
+import { Share2, Sparkles, Copy, CheckCircle2, Link as LinkIcon, ChevronDown, ChevronUp, ExternalLink, Zap } from "lucide-react";
 
 interface Props {
   submissions: any[];
@@ -30,13 +31,14 @@ function isSubmissionPackage(kit: ShareKit | SubmissionPackage): kit is Submissi
   return "authors" in kit && "suggestedCategory" in kit;
 }
 
-function ArticleDistribution({ article }: { article: any }) {
+function ArticleDistribution({ article, bloggerBlogUrl, token }: { article: any; bloggerBlogUrl: string | null; token: string | null }) {
   const [items, setItems] = useState<any[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [kitViewFor, setKitViewFor] = useState<string | null>(null);
   const [urlDrafts, setUrlDrafts] = useState<Record<string, string>>({});
   const [consentChecked, setConsentChecked] = useState<Record<string, boolean>>({});
+  const [publishing, setPublishing] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -66,6 +68,23 @@ function ArticleDistribution({ article }: { article: any }) {
       return res;
     } catch (e: any) {
       toast.error(e.message);
+    }
+  }
+
+  async function publishBlogger() {
+    setPublishing(true);
+    try {
+      const res = await apiFetch("/api/distribution", {
+        method: "POST",
+        body: JSON.stringify({ articleId: article.id, platform: "BLOGGER" }),
+      });
+      toast.success("Published to Blogger");
+      await load();
+      return res;
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setPublishing(false);
     }
   }
 
@@ -110,6 +129,46 @@ function ArticleDistribution({ article }: { article: any }) {
 
             const needsConsent = platform.tier === "B" && !item.authorConsent;
             const canGenerate = !needsConsent || consentChecked[item.platform];
+
+            if (platform.tier === "A") {
+              return (
+                <div key={item.platform} className="rounded-md border p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{platform.label}</span>
+                      <Badge variant="outline"><Zap className="mr-1 h-3 w-3" /> Auto-publish</Badge>
+                      <Badge className={STATUS_BADGE[item.status] || ""}>{item.status.replace(/_/g, " ")}</Badge>
+                    </div>
+                    {bloggerBlogUrl ? (
+                      <Button size="sm" onClick={publishBlogger} disabled={publishing}>
+                        <Zap className="mr-1.5 h-3.5 w-3.5" /> {item.status === "LIVE" ? "Republish" : "Publish"} to Blogger
+                      </Button>
+                    ) : (
+                      <Button size="sm" variant="outline" asChild>
+                        <a href={`/api/auth/blogger?token=${encodeURIComponent(token || "")}`}>Connect Blogger</a>
+                      </Button>
+                    )}
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">{platform.postingHint}</p>
+                  {bloggerBlogUrl && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Connected blog: <a href={bloggerBlogUrl} target="_blank" rel="noopener noreferrer" className="underline">{bloggerBlogUrl}</a>
+                    </p>
+                  )}
+                  {item.externalUrl && (
+                    <div className="mt-2 flex items-center gap-2 text-xs">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+                      <a href={item.externalUrl} target="_blank" rel="noopener noreferrer" className="text-primary underline">
+                        {item.externalUrl}
+                      </a>
+                    </div>
+                  )}
+                  {item.status === "FAILED" && item.notes && (
+                    <p className="mt-2 text-xs text-red-700">{item.notes}</p>
+                  )}
+                </div>
+              );
+            }
 
             return (
               <div key={item.platform} className="rounded-md border p-3">
@@ -248,6 +307,14 @@ function Field({ label, value, onCopy }: { label: string; value: string; onCopy:
 
 export function DistributionTab({ submissions }: Props) {
   const published = submissions.filter((s) => s.status === "PUBLISHED");
+  const token = useApp((s) => s.token);
+  const [bloggerBlogUrl, setBloggerBlogUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    apiFetch<{ user: any }>("/api/auth/me")
+      .then(({ user }) => setBloggerBlogUrl(user.bloggerBlogUrl || null))
+      .catch(() => {});
+  }, []);
 
   if (published.length === 0) {
     return (
@@ -272,7 +339,7 @@ export function DistributionTab({ submissions }: Props) {
         </p>
       </div>
       {published.map((a) => (
-        <ArticleDistribution key={a.id} article={a} />
+        <ArticleDistribution key={a.id} article={a} bloggerBlogUrl={bloggerBlogUrl} token={token} />
       ))}
     </div>
   );
