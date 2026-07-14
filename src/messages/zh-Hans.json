@@ -17,7 +17,7 @@
     "brandTagline": "国际出版社"
   },
   "footer": {
-    "tagline": "同行评审 · 开放获取 · 已在 Crossref 注册 · OAI-PMH 2.0",
+    "tagline": "同行评审 · 开放获取 · 已在 {registrar} 注册 · OAI-PMH 2.0",
     "description": "一本编辑标准严谨的多学科期刊，发表自然科学、工程学、社会科学与人文学科的原创研究成果。学术的严谨与卓越兼而有之。",
     "issnLine": "ISSN 2945-1138 · 出版商前缀 10.52011 · 编辑部：英国伦敦",
     "exploreLabel": "浏览",
@@ -31,17 +31,17 @@
     "policiesLabel": "政策",
     "policyOpenAccess": "开放获取（CC BY 4.0）",
     "policyPeerReview": "双盲同行评审",
-    "policyCrossref": "Crossref DOI 注册",
+    "policyCrossref": "{registrar} DOI 注册",
     "policyGdpr": "符合 GDPR / CCPA 规定",
     "policyPci": "所有支付渠道均符合 PCI-DSS 标准",
     "copyright": "© {year} Eleventh Press International Publishing。除另有说明外，所有文章均以 CC BY 4.0 协议发布。",
-    "indexedLine": "收录于：Google Scholar · Crossref · OAI-PMH · DOAJ"
+    "indexedLine": "收录于：Google Scholar · {registrar} · OAI-PMH · DOAJ"
   },
   "home": {
     "issueLine": "第 4 卷 · 第 2 期 · 2024 年 · ISSN 2945-1138",
     "headline1": "学科交汇之处",
     "headline2": "融合共生",
-    "description": "Eleventh Press International Publishing 是一本同行评审、开放获取的多学科期刊。严谨的编辑流程、Crossref DOI 注册以及 OAI-PMH 2.0 索引，为高效的学术传播而打造。",
+    "description": "Eleventh Press International Publishing 是一本同行评审、开放获取的多学科期刊。严谨的编辑流程、{registrar} DOI 注册以及 OAI-PMH 2.0 索引，为高效的学术传播而打造。",
     "searchPlaceholder": "搜索文章、作者、关键词……",
     "searchButton": "搜索",
     "browseAll": "浏览全部文章",

@@ -6,6 +6,7 @@ import { useApp } from "@/lib/store";
 import { apiFetch } from "@/lib/api-client";
 import { ArticleListItem } from "@/lib/types";
 import { DISCIPLINES, parseAuthors } from "@/lib/article";
+import { DOI_REGISTRAR } from "@/lib/site";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -109,7 +110,7 @@ export function HomeView() {
                 <span className="bg-gradient-to-r from-[oklch(0.86_0.07_292)] via-[oklch(0.76_0.11_294)] to-[oklch(0.62_0.16_296)] bg-clip-text text-transparent">{t("headline2")}</span>.
               </h1>
               <p className="mt-7 max-w-xl text-lg leading-relaxed text-[oklch(0.93_0.01_285)] drop-shadow-[0_2px_8px_oklch(0.14_0.02_285/0.5)]">
-                {t("description")}
+                {t("description", { registrar: DOI_REGISTRAR })}
               </p>
 
               {/* Search */}
@@ -160,7 +161,7 @@ export function HomeView() {
                     <StatTile label={t("indexingSources")} value={6} icon={Globe2} />
                   </div>
                   <div className="mt-4 rounded-xl bg-[oklch(0.93_0.04_290/0.5)] px-4 py-3 text-xs text-muted-foreground">
-                    {t("indexedIn")} <strong className="text-foreground">Google Scholar</strong> · <strong className="text-foreground">Crossref</strong> · <strong className="text-foreground">OAI-PMH 2.0</strong> · <strong className="text-foreground">BASE</strong> · <strong className="text-foreground">CORE</strong> · <strong className="text-foreground">OpenAIRE</strong>
+                    {t("indexedIn")} <strong className="text-foreground">Google Scholar</strong> · <strong className="text-foreground">{DOI_REGISTRAR}</strong> · <strong className="text-foreground">OAI-PMH 2.0</strong> · <strong className="text-foreground">BASE</strong> · <strong className="text-foreground">CORE</strong> · <strong className="text-foreground">OpenAIRE</strong>
                   </div>
                 </div>
               </div>
@@ -287,7 +288,7 @@ export function HomeView() {
               <h2 className="mt-2 font-display text-3xl font-semibold">From submission to indexed publication</h2>
               <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground">
                 Every submission passes through an event-driven workflow: identity and access management,
-                manuscript anonymisation, peer review, APC invoicing, production, Crossref DOI registration,
+                manuscript anonymisation, peer review, APC invoicing, production, {DOI_REGISTRAR} DOI registration,
                 and OAI-PMH feed harvest.
               </p>
             </div>
@@ -323,7 +324,7 @@ export function HomeView() {
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[oklch(0.86_0.07_292)]">Submit your research</p>
                 <h2 className="mt-3 font-display text-3xl font-semibold text-white lg:text-4xl">Ready to publish?</h2>
                 <p className="mt-4 text-sm leading-relaxed text-[oklch(0.90_0.04_290)]">
-                  Authors receive a draft Crossref DOI at submission, double-blind peer review by
+                  Authors receive a real, permanently-resolving {DOI_REGISTRAR} DOI upon publication, double-blind peer review by
                   discipline-matched experts, and global indexing upon publication. Average time from
                   submission to first decision: 38 days.
                 </p>
@@ -348,7 +349,7 @@ const PIPELINE_STEPS = [
   { title: "Submit & Anonymise", description: "Author uploads the manuscript to raw-submissions storage. A double-blind copy is generated automatically for reviewers.", icon: FileText },
   { title: "Peer Review", description: "Editor assigns discipline-matched reviewers. Reviewers submit scores, recommendations, and confidential editor comments.", icon: Sparkles },
   { title: "Production", description: "After acceptance and APC payment, the production service renders HTML, PDF, and XML JATS galleys in the journal brand.", icon: TrendingUp },
-  { title: "Index & Publish", description: "DOI is activated at Crossref, OAI-PMH 2.0 feed is regenerated, and Google Scholar is pinged via citation meta tags.", icon: Globe2 },
+  { title: "Index & Publish", description: `DOI is minted via ${DOI_REGISTRAR}, OAI-PMH 2.0 feed is regenerated, and Google Scholar is pinged via citation meta tags.`, icon: Globe2 },
 ];
 
 function StatTile({ label, value, icon: Icon }: { label: string; value: number; icon: any }) {

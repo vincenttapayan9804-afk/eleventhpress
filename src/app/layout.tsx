@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Fraunces, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import { DOI_REGISTRAR } from "@/lib/site";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -27,13 +28,13 @@ const jetbrains = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Eleventh Press International Publishing — Academic Luxury",
   description:
-    "A peer-reviewed, open-access multidisciplinary journal of uncompromising editorial rigor. Royal purple prestige meets pearlescent clarity. Indexed via Crossref, OAI-PMH 2.0, and Google Scholar.",
+    `A peer-reviewed, open-access multidisciplinary journal of uncompromising editorial rigor. Royal purple prestige meets pearlescent clarity. Indexed via ${DOI_REGISTRAR}, OAI-PMH 2.0, and Google Scholar.`,
   keywords: [
     "Eleventh Press",
     "open access journal",
     "multidisciplinary research",
     "peer review",
-    "Crossref DOI",
+    `${DOI_REGISTRAR} DOI`,
     "OAI-PMH",
     "academic publishing",
   ],

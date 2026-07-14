@@ -5,6 +5,7 @@ import { useApp } from "@/lib/store";
 import { apiFetch } from "@/lib/api-client";
 import { ArticleDetail } from "@/lib/types";
 import { DISCIPLINE_COLORS, parseAuthors, formatCitation, CORRECTION_TYPE_LABELS, CorrectionType } from "@/lib/article";
+import { DOI_REGISTRAR } from "@/lib/site";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -409,7 +410,7 @@ ER  - `;
                   <CardContent className="p-5">
                     <Quote className="h-5 w-5 text-primary" />
                     <p className="mt-2 font-display text-3xl font-semibold">{article.citations}</p>
-                    <p className="text-xs text-muted-foreground">Crossref citation count</p>
+                    <p className="text-xs text-muted-foreground">Citation count</p>
                   </CardContent>
                 </Card>
                 <Card className="paper-card">
@@ -439,7 +440,7 @@ ER  - `;
                 <ul className="mt-2 space-y-1">
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                    Crossref DOI registered and metadata deposited
+                    {DOI_REGISTRAR} DOI registered and metadata deposited
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
@@ -748,8 +749,9 @@ function IssueCorrectionDialog({
             />
           </div>
           <p className="text-xs text-muted-foreground">
-            This mints a new DOI for the notice, deposits it to Crossref, and re-deposits the
-            original DOI with a Crossmark update pointing at it. This cannot be undone from the UI.
+            This records the notice against the article immediately. Crossref/Crossmark deposit
+            of the notice only happens once a Crossref membership is configured — see the admin
+            Crossref log for deposit status. This cannot be undone from the UI.
           </p>
           <Button onClick={submit} disabled={submitting || !title || !description} className="w-full">
             {submitting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
@@ -1076,7 +1078,7 @@ function DatasetsSection({ articleId }: { articleId: string }) {
           <p className="eyebrow">Linked datasets</p>
           <h2 className="mt-1 font-display text-2xl font-semibold">Research data</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Datasets deposited on Zenodo, OSF, Dryad, or Figshare and linked via Crossref <code className="font-mono text-xs">isSupplementedBy</code> relations.
+            Datasets deposited on Zenodo, OSF, Dryad, or Figshare and linked from this article page (also deposited as Crossref <code className="font-mono text-xs">isSupplementedBy</code> relations once a Crossref membership is active).
           </p>
         </div>
         {canDeposit && (

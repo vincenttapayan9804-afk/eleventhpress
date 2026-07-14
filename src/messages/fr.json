@@ -17,7 +17,7 @@
     "brandTagline": "Édition Internationale"
   },
   "footer": {
-    "tagline": "Évalué par les pairs · Libre accès · Enregistré auprès de Crossref · OAI-PMH 2.0",
+    "tagline": "Évalué par les pairs · Libre accès · Enregistré auprès de {registrar} · OAI-PMH 2.0",
     "description": "Une revue multidisciplinaire d'une rigueur éditoriale sans compromis, publiant des recherches originales en sciences naturelles, ingénierie, sciences sociales et sciences humaines. Le prestige académique au service de l'autorité scientifique.",
     "issnLine": "ISSN 2945-1138 · Préfixe d'éditeur 10.52011 · Bureau éditorial : Londres, Royaume-Uni",
     "exploreLabel": "Explorer",
@@ -31,17 +31,17 @@
     "policiesLabel": "Politiques",
     "policyOpenAccess": "Libre accès (CC BY 4.0)",
     "policyPeerReview": "Évaluation en double aveugle",
-    "policyCrossref": "Dépôt de DOI Crossref",
+    "policyCrossref": "Dépôt de DOI {registrar}",
     "policyGdpr": "Conforme RGPD / CCPA",
     "policyPci": "PCI-DSS sur toutes les passerelles de paiement",
     "copyright": "© {year} Eleventh Press International Publishing. Tous les articles sont publiés sous licence CC BY 4.0 sauf indication contraire.",
-    "indexedLine": "Indexé dans : Google Scholar · Crossref · OAI-PMH · DOAJ"
+    "indexedLine": "Indexé dans : Google Scholar · {registrar} · OAI-PMH · DOAJ"
   },
   "home": {
     "issueLine": "Volume 4 · Numéro 2 · 2024 · ISSN 2945-1138",
     "headline1": "Là où les disciplines",
     "headline2": "convergent",
-    "description": "Eleventh Press International Publishing est une revue multidisciplinaire en libre accès, évaluée par les pairs. Un processus éditorial rigoureux, l'enregistrement des DOI via Crossref et l'indexation OAI-PMH 2.0 — conçus pour une diffusion scientifique haute performance.",
+    "description": "Eleventh Press International Publishing est une revue multidisciplinaire en libre accès, évaluée par les pairs. Un processus éditorial rigoureux, l'enregistrement des DOI via {registrar} et l'indexation OAI-PMH 2.0 — conçus pour une diffusion scientifique haute performance.",
     "searchPlaceholder": "Rechercher des articles, auteurs, mots-clés…",
     "searchButton": "Rechercher",
     "browseAll": "Parcourir tous les articles",

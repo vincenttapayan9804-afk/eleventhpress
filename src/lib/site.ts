@@ -16,3 +16,21 @@ export const APP_BASE_URL =
 
 /** Bare hostname, for contexts that want just the host (OAI identifiers, Crossmark domain). */
 export const APP_HOST = new URL(APP_BASE_URL).host;
+
+/**
+ * The DOI registrar actually in effect for newly published articles, for
+ * every marketing/UI surface that names it (homepage trust badge, About
+ * page, article checklist, FAQs, resources). This mirrors — but does not
+ * drive — the real backend selection logic in the publish workflow
+ * (src/app/api/articles/workflow/route.ts), which already prefers a real
+ * Zenodo deposit whenever ZENODO_TOKEN is configured and only falls back to
+ * the Crossref sandbox/simulation path otherwise (src/lib/zenodo.ts,
+ * src/lib/crossref.ts). That backend selection is automatic and env-driven;
+ * this constant is not, because it's inlined into the client bundle and a
+ * secret-bearing env var can't safely gate copy there. Update this by hand
+ * to "Crossref" once a real paid Crossref membership is live and
+ * CROSSREF_USERNAME/PASSWORD are wired into the same always-deposit path
+ * src/lib/zenodo.ts's Zenodo call currently owns — same manual-update
+ * discipline as APP_BASE_URL above.
+ */
+export const DOI_REGISTRAR = "Zenodo";

@@ -564,7 +564,7 @@ export function IndexingTab() {
               </div>
               <Separator className="my-3" />
               <div className="grid gap-3 sm:grid-cols-3">
-                <StatusTile icon={CheckCircle2} label="Crossref DOI" value="Registered" ok />
+                <StatusTile icon={CheckCircle2} label="DOI registrar" value={zenodoLive ? "Zenodo (live)" : "Not yet configured"} ok={zenodoLive} />
                 <StatusTile icon={CheckCircle2} label="OAI-PMH feed" value="Live" ok />
                 <StatusTile icon={CheckCircle2} label="Sitemap" value="Updated" ok />
               </div>
