@@ -26,9 +26,9 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Eleventh Press International Publishing — Academic Luxury",
+  title: "Eleventh Press International Publishing — Full-Stack Peer Reviewed Press & Syndication Network",
   description:
-    `A peer-reviewed, open-access multidisciplinary journal of uncompromising editorial rigor. Royal purple prestige meets pearlescent clarity. Indexed via ${DOI_REGISTRAR}, OAI-PMH 2.0, and Google Scholar.`,
+    `A Full-Stack Peer Reviewed Press & Multidisciplinary Syndication Network: rigorous peer review, real ${DOI_REGISTRAR} DOIs, genuine open access, and automatic syndication across eight platforms plus a full book-publishing division — one submission, global reach. Indexed via ${DOI_REGISTRAR}, OAI-PMH 2.0, and Google Scholar.`,
   keywords: [
     "Eleventh Press",
     "open access journal",
@@ -37,18 +37,21 @@ export const metadata: Metadata = {
     `${DOI_REGISTRAR} DOI`,
     "OAI-PMH",
     "academic publishing",
+    "syndication network",
+    "book publishing",
+    "preprint distribution",
   ],
   authors: [{ name: "Eleventh Press International Publishing" }],
   openGraph: {
-    title: "Eleventh Press International Publishing",
+    title: "Eleventh Press International Publishing — A Full-Stack Peer Reviewed Press & Multidisciplinary Syndication Network",
     description:
-      "Peer-reviewed, open-access multidisciplinary journal. Academic luxury design language.",
+      "Peer review, real DOIs, genuine open access, and automatic syndication across eight platforms plus book publishing — from one submission.",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
     title: "Eleventh Press International Publishing",
-    description: "Peer-reviewed, open-access multidisciplinary journal.",
+    description: "A Full-Stack Peer Reviewed Press & Multidisciplinary Syndication Network.",
   },
 };
 

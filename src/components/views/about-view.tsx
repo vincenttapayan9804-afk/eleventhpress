@@ -29,6 +29,7 @@ import {
   Bell,
   CreditCard,
   Search,
+  Share2,
 } from "lucide-react";
 
 export function AboutView() {
@@ -38,10 +39,13 @@ export function AboutView() {
     <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
       {/* Header */}
       <div className="border-b border-border pb-8">
-        <p className="eyebrow">About the journal</p>
+        <p className="eyebrow">About Eleventh Press</p>
         <h1 className="mt-2 font-display text-4xl font-semibold sm:text-5xl">
-          Eleventh Press International Journal of Multidisciplinary Research
+          Eleventh Press International Publishing
         </h1>
+        <p className="mt-3 font-display text-lg text-royal-gradient">
+          A Full-Stack Peer Reviewed Press &amp; Multidisciplinary Syndication Network
+        </p>
         <p className="mt-3 text-sm text-muted-foreground">
           ISSN 2945-1138 · Publisher prefix 10.52011 · Est. 2021 · London, United Kingdom
         </p>
@@ -52,30 +56,72 @@ export function AboutView() {
         <h2 className="font-display text-2xl font-semibold">Aims &amp; scope</h2>
         <div className="mt-4 space-y-4 text-base leading-relaxed text-foreground/85">
           <p>
-            Eleventh Press International Publishing is committed to rigorous, transparent,
-            and rapid dissemination of scholarship. The journal welcomes original research
-            submissions spanning the natural sciences, engineering, social sciences, and
-            humanities. We deliberately cultivate a multidisciplinary remit: we believe that
-            the most consequential contemporary research questions — climate adaptation,
-            algorithmic governance, genomic medicine, urban inequality — sit athwart
-            traditional disciplinary boundaries, and that publishing venues must reflect
-            that reality.
+            Eleventh Press International Publishing is not just a journal — it's a complete
+            publishing operation built around one submission. We handle rigorous peer
+            review, real DOI registration, and genuine open-access production the way any
+            serious press should; what sets us apart is what happens next. Every published
+            article becomes eligible for automatic syndication across our multidisciplinary
+            network, and every author gains access to a full book-publishing division for
+            compiling their work — or an entirely new manuscript — into a distributed book.
+            We deliberately cultivate a multidisciplinary remit: we believe that the most
+            consequential contemporary research questions — climate adaptation, algorithmic
+            governance, genomic medicine, urban inequality — sit athwart traditional
+            disciplinary boundaries, and that a press built for the next decade of
+            scholarship should be built for reach as much as rigor.
           </p>
           <p>
             We operate a double-blind peer-review process by default and offer open and
             single-blind tracks where disciplinary norms warrant. All published articles
             are assigned a real, permanently-resolving {DOI_REGISTRAR} DOI upon
-            publication. The journal’s content is indexed via an OAI-PMH 2.0 endpoint that
-            exposes Dublin Core records for harvester consumption by Scopus and Web of
-            Science, and is automatically crawled by Google Scholar.
+            publication, and are freely downloadable with no login wall — genuine open
+            access, not open access in name only. The journal’s content is indexed via an
+            OAI-PMH 2.0 endpoint that exposes Dublin Core records for harvester consumption
+            by Scopus and Web of Science, and is automatically crawled by Google Scholar.
           </p>
           <p>
             Our editorial workflow is built on an event-driven microservices architecture:
             every state transition — from initial submission through peer review, APC
-            invoicing, production, and indexing — emits an event that downstream services
-            consume asynchronously. This decoupling allows us to scale reviewer
-            assignment, plagiarism checking, and PDF generation independently.
+            invoicing, production, indexing, and syndication — emits an event that
+            downstream services consume asynchronously. This decoupling allows us to scale
+            reviewer assignment, plagiarism checking, PDF generation, and cross-platform
+            syndication independently.
           </p>
+        </div>
+      </section>
+
+      {/* What full-stack means */}
+      <section className="mt-12">
+        <h2 className="font-display text-2xl font-semibold">What "full-stack" actually means</h2>
+        <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+          Most journals stop at the DOI. We built the rest of the pipeline authors actually
+          need to be read.
+        </p>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          <Card className="paper-card">
+            <CardContent className="p-5">
+              <Share2 className="h-5 w-5 text-primary" />
+              <p className="mt-3 font-display text-base font-semibold">Multidisciplinary syndication network</p>
+              <p className="mt-1.5 text-sm text-muted-foreground">
+                Once published, your article is eligible for real, one-click syndication:
+                genuine API auto-publish to Blogger, ready-to-post kits for ResearchGate,
+                Academia.edu, Substack, Medium, LinkedIn, and HubPages, and formatted
+                preprint packages for arXiv and SSRN — all generated from the manuscript you
+                already submitted.
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="paper-card">
+            <CardContent className="p-5">
+              <BookOpen className="h-5 w-5 text-primary" />
+              <p className="mt-3 font-display text-base font-semibold">Book-publishing division</p>
+              <p className="mt-1.5 text-sm text-muted-foreground">
+                Compile your published articles into an edited volume or anthology, or
+                submit a standalone monograph — we generate a real EPUB and print-ready PDF
+                and distribute it wide through Draft2Digital and IngramSpark, reaching
+                Amazon KDP, Apple Books, Barnes &amp; Noble, Kobo, and more.
+              </p>
+            </CardContent>
+          </Card>
         </div>
       </section>
 

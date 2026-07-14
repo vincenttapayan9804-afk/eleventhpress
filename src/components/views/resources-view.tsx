@@ -38,6 +38,26 @@ interface Reading {
 
 const BLOGS: Reading[] = [
   {
+    title: "Beyond the DOI: Inside Our Multidisciplinary Syndication Network",
+    excerpt: "Publication used to be the finish line. Here's what happens to your article after that — automatically.",
+    meta: "Editorial Team · 5 min read",
+    body: [
+      "Most journals treat the DOI as the finish line: your article is registered, indexed, and that's the end of the publisher's job. We built Eleventh Press to treat publication as the starting line instead.",
+      "The moment your article is published, it becomes eligible for syndication across eight platforms with no extra manuscript prep. Blogger is genuinely automated — connect your account once, and every future article can be published to it via the real Blogger API with one click, not a copy-pasted link. ResearchGate, Academia.edu, Substack, Medium, LinkedIn Articles, and HubPages each get a ready-to-post share kit — a repurposed, plain-language excerpt and a canonical backlink, generated for you. And for the disciplines where preprinting matters, we generate formatted arXiv and SSRN submission packages, gated behind an explicit consent step since preprinting carries real policy implications your journal agreement may or may not permit.",
+      "None of this replaces peer review or dilutes the version of record — it's the same published, DOI-registered article, reaching readers where they already are. That's what we mean when we say we're a syndication network, not just a journal.",
+    ],
+  },
+  {
+    title: "Your Articles, Now a Book: How Our Publishing Division Works",
+    excerpt: "Compile a volume from your published work, or submit a standalone manuscript — either way, it reaches real bookstores.",
+    meta: "Editorial Team · 4 min read",
+    body: [
+      "Publishing in Eleventh Press doesn't have to end at the journal article. Our book-publishing division lets you compile your own published articles into an edited volume or anthology — a genuine way to turn a body of work into a standalone book — or submit a new monograph manuscript entirely.",
+      "Either path goes through the same editorial rigor as an article: submission, review, and production. Production means a real EPUB3 file (not a placeholder) and a print-ready PDF, generated directly from your manuscript or your compiled chapters.",
+      "Distribution is where it gets genuinely wide: Draft2Digital and IngramSpark each push your book out to multiple retailers from a single submission — Apple Books, Barnes & Noble, Kobo, and print-on-demand through IngramSpark's network — while Amazon KDP and Lulu remain available as free, self-serve manual paths if you'd rather publish directly yourself.",
+    ],
+  },
+  {
     title: "Why Multidisciplinary Research Needs Its Own Editorial Standards",
     excerpt: "A single-discipline review checklist breaks down the moment a manuscript spans three fields at once. Here's how we handle it.",
     meta: "Editorial Team · 6 min read",
@@ -49,10 +69,10 @@ const BLOGS: Reading[] = [
   },
   {
     title: "Demystifying the APC: What You're Actually Paying For",
-    excerpt: "USD 97 sounds arbitrary until you see what it actually funds — editorial handling, DOI registration, typesetting, and permanent hosting.",
+    excerpt: "USD 97 sounds arbitrary until you see what it actually funds — editorial handling, DOI registration, typesetting, permanent hosting, and eligibility for the syndication network.",
     meta: "Editorial Team · 4 min read",
     body: [
-      `An Article Processing Charge often reads as an abstract toll on publishing. In practice it funds four concrete things: editorial and peer-review coordination, DOI registration with ${DOI_REGISTRAR}, production (typesetting into PDF/HTML/JATS), and indefinite open-access hosting.`,
+      `An Article Processing Charge often reads as an abstract toll on publishing. In practice it funds five concrete things: editorial and peer-review coordination, DOI registration with ${DOI_REGISTRAR}, production (typesetting into PDF/HTML/JATS), indefinite open-access hosting, and eligibility for automatic syndication across our network plus the book-publishing division once published.`,
       "It's charged once, only after acceptance — never at submission, and never as a condition of getting reviewed. If a reviewer's decision and an author's ability to pay were linked in any way, the review process would be compromised, so we keep waiver requests and peer-review outcomes handled by entirely separate parts of the editorial office.",
       "If the fee is a genuine barrier, ask for a waiver before you assume you can't publish with us — see the APC Waiver guide below.",
     ],

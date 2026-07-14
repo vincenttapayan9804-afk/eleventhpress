@@ -17,8 +17,8 @@
     "brandTagline": "Édition Internationale"
   },
   "footer": {
-    "tagline": "Évalué par les pairs · Libre accès · Enregistré auprès de {registrar} · OAI-PMH 2.0",
-    "description": "Une revue multidisciplinaire d'une rigueur éditoriale sans compromis, publiant des recherches originales en sciences naturelles, ingénierie, sciences sociales et sciences humaines. Le prestige académique au service de l'autorité scientifique.",
+    "tagline": "Une Presse à Évaluation par les Pairs Intégrale & Réseau de Syndication Multidisciplinaire",
+    "description": "Évaluation par les pairs, DOI {registrar} réels et publication en libre accès véritable dans les sciences naturelles, l'ingénierie, les sciences sociales et les sciences humaines — ainsi qu'une syndication automatique sur huit plateformes et une division complète d'édition de livres. Rigueur académique, conçue pour la portée.",
     "issnLine": "ISSN 2945-1138 · Préfixe d'éditeur 10.52011 · Bureau éditorial : Londres, Royaume-Uni",
     "exploreLabel": "Explorer",
     "home": "Accueil",
@@ -41,7 +41,7 @@
     "issueLine": "Volume 4 · Numéro 2 · 2024 · ISSN 2945-1138",
     "headline1": "Là où les disciplines",
     "headline2": "convergent",
-    "description": "Eleventh Press International Publishing est une revue multidisciplinaire en libre accès, évaluée par les pairs. Un processus éditorial rigoureux, l'enregistrement des DOI via {registrar} et l'indexation OAI-PMH 2.0 — conçus pour une diffusion scientifique haute performance.",
+    "description": "Une Presse à Évaluation par les Pairs Intégrale & Réseau de Syndication Multidisciplinaire — pas seulement une revue. Soumettez une fois : évaluation par les pairs rigoureuse, un DOI {registrar} réel, un libre accès véritable et une syndication automatique sur huit plateformes ainsi que l'édition de livres portent votre travail partout où il doit être.",
     "searchPlaceholder": "Rechercher des articles, auteurs, mots-clés…",
     "searchButton": "Rechercher",
     "browseAll": "Parcourir tous les articles",

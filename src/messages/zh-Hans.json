@@ -17,8 +17,8 @@
     "brandTagline": "国际出版社"
   },
   "footer": {
-    "tagline": "同行评审 · 开放获取 · 已在 {registrar} 注册 · OAI-PMH 2.0",
-    "description": "一本编辑标准严谨的多学科期刊，发表自然科学、工程学、社会科学与人文学科的原创研究成果。学术的严谨与卓越兼而有之。",
+    "tagline": "一家全栈同行评审出版社与多学科联合发布网络",
+    "description": "同行评审、真实的 {registrar} DOI，以及在自然科学、工程学、社会科学与人文学科领域的真正开放获取出版——加上覆盖八个平台的自动联合发布与完整的图书出版部门。学术严谨，为传播而生。",
     "issnLine": "ISSN 2945-1138 · 出版商前缀 10.52011 · 编辑部：英国伦敦",
     "exploreLabel": "浏览",
     "home": "首页",
@@ -41,7 +41,7 @@
     "issueLine": "第 4 卷 · 第 2 期 · 2024 年 · ISSN 2945-1138",
     "headline1": "学科交汇之处",
     "headline2": "融合共生",
-    "description": "Eleventh Press International Publishing 是一本同行评审、开放获取的多学科期刊。严谨的编辑流程、{registrar} DOI 注册以及 OAI-PMH 2.0 索引，为高效的学术传播而打造。",
+    "description": "一家全栈同行评审出版社与多学科联合发布网络——不仅仅是一本期刊。只需投稿一次：严谨的同行评审、真实的 {registrar} DOI、真正的开放获取，以及覆盖八个平台的自动联合发布加上图书出版，让您的成果无处不在。",
     "searchPlaceholder": "搜索文章、作者、关键词……",
     "searchButton": "搜索",
     "browseAll": "浏览全部文章",

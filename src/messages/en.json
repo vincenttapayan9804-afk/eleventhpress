@@ -17,8 +17,8 @@
     "brandTagline": "International Publishing"
   },
   "footer": {
-    "tagline": "Peer-reviewed · Open access · {registrar} registered · OAI-PMH 2.0",
-    "description": "A multidisciplinary journal of uncompromising editorial rigor, publishing original research across the natural sciences, engineering, social sciences, and humanities. Academic luxury meets scholarly authority.",
+    "tagline": "A Full-Stack Peer Reviewed Press & Multidisciplinary Syndication Network",
+    "description": "Peer review, real {registrar} DOIs, and genuine open access publishing across the natural sciences, engineering, social sciences, and humanities — plus automatic syndication across eight platforms and a full book-publishing division. Academic rigor, engineered for reach.",
     "issnLine": "ISSN 2945-1138 · Publisher prefix 10.52011 · Editorial office: London, United Kingdom",
     "exploreLabel": "Explore",
     "home": "Home",
@@ -41,7 +41,7 @@
     "issueLine": "Volume 4 · Issue 2 · 2024 · ISSN 2945-1138",
     "headline1": "Where disciplines",
     "headline2": "converge",
-    "description": "Eleventh Press International Publishing is a peer-reviewed, open-access multidisciplinary journal. Rigorous editorial workflow, {registrar} DOI registration, and OAI-PMH 2.0 indexing — engineered for high-performance scholarly discovery.",
+    "description": "A Full-Stack Peer Reviewed Press & Multidisciplinary Syndication Network — not just a journal. Submit once: rigorous peer review, a real {registrar} DOI, genuine open access, and automatic syndication across eight platforms plus book publishing carry your work everywhere it needs to be.",
     "searchPlaceholder": "Search articles, authors, keywords…",
     "searchButton": "Search",
     "browseAll": "Browse all articles",
