@@ -54,6 +54,15 @@ export default function Page() {
     }
   }, [setAuth, openDashboard]);
 
+  // Handle Blogger OAuth connect callback: URL contains ?blogger_connected=1
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("blogger_connected") === "1") {
+      openDashboard("distribution");
+      window.history.replaceState({}, "", "/");
+    }
+  }, [openDashboard]);
+
   // Scroll to top on view change
   useEffect(() => {
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "instant" as any });

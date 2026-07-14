@@ -55,6 +55,13 @@ model User {
   orcidRefreshToken String?
   orcidTokenExpiry  DateTime?
   orcidLastSync     DateTime?
+  // Blogger OAuth tokens (Tier A article syndication — real API auto-publish)
+  bloggerAccessToken  String?
+  bloggerRefreshToken String?
+  bloggerTokenExpiry  DateTime?
+  bloggerBlogId       String?
+  bloggerBlogUrl      String?
+  bloggerConnectedAt  DateTime?
   // Institutional affiliation (premium IP-auth feature)
   institutionId     String?
   createdAt         DateTime  @default(now())

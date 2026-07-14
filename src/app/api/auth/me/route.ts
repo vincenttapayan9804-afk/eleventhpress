@@ -20,6 +20,8 @@ const PROFILE_SELECT = {
   githubUrl: true,
   contactEmail: true,
   contactPhone: true,
+  bloggerBlogUrl: true,
+  bloggerConnectedAt: true,
 } as const;
 
 export async function GET(req: NextRequest) {
