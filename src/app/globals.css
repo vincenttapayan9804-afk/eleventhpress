@@ -280,6 +280,64 @@
   );
 }
 
+/* Royal Glass — floating 3D glassmorphic panel, enterprise SaaS register.
+   Applied platform-wide via .paper-card on every Card surface (dashboard
+   tabs, article/about/authors/auth views, resources) — was previously
+   referenced everywhere but never defined, so this single class upgrades
+   every card on the site at once. */
+.paper-card {
+  position: relative;
+  background: linear-gradient(
+    165deg,
+    oklch(0.99 0.006 285 / 0.88),
+    oklch(0.965 0.014 290 / 0.68)
+  );
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid oklch(0.85 0.02 290 / 0.45);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 1px 0 oklch(1 0 0 / 0.75) inset,
+    0 1px 2px oklch(0.38 0.18 295 / 0.04),
+    0 12px 28px oklch(0.38 0.18 295 / 0.07),
+    0 28px 56px -14px oklch(0.42 0.18 295 / 0.16);
+  transition:
+    transform 0.45s var(--ease-luxury),
+    box-shadow 0.45s var(--ease-luxury),
+    border-color 0.45s var(--ease-luxury);
+}
+
+.paper-card:hover {
+  transform: translateY(-3px);
+  border-color: oklch(0.76 0.11 294 / 0.45);
+  box-shadow:
+    0 1px 0 oklch(1 0 0 / 0.8) inset,
+    0 2px 4px oklch(0.38 0.18 295 / 0.05),
+    0 18px 40px oklch(0.38 0.18 295 / 0.11),
+    0 44px 88px -18px oklch(0.5 0.18 296 / 0.28);
+}
+
+.dark .paper-card {
+  background: linear-gradient(
+    165deg,
+    oklch(0.23 0.03 285 / 0.85),
+    oklch(0.17 0.025 285 / 0.62)
+  );
+  border-color: oklch(0.4 0.05 290 / 0.4);
+  box-shadow:
+    0 1px 0 oklch(1 0 0 / 0.06) inset,
+    0 12px 28px oklch(0 0 0 / 0.35),
+    0 28px 56px -14px oklch(0 0 0 / 0.5);
+}
+
+.dark .paper-card:hover {
+  border-color: oklch(0.62 0.16 296 / 0.45);
+  box-shadow:
+    0 1px 0 oklch(1 0 0 / 0.08) inset,
+    0 18px 40px oklch(0 0 0 / 0.4),
+    0 44px 88px -18px oklch(0.62 0.16 296 / 0.4);
+}
+
 /* Royal gradient text */
 .text-royal-gradient {
   background: linear-gradient(135deg, var(--royal-600), var(--royal-400));
@@ -393,6 +451,15 @@
   opacity: 0.6;
   mask-image: radial-gradient(ellipse 70% 50% at 50% 50%, black, transparent);
   -webkit-mask-image: radial-gradient(ellipse 70% 50% at 50% 50%, black, transparent);
+}
+
+/* Soft ambient glow orb — decorative blurred blob placed behind a section's
+   floating glass panels (e.g. the dashboard). Position/size/color are set
+   per-instance via Tailwind utilities on the element; this just supplies
+   the blur + shape. */
+.ambient-glow-orb {
+  border-radius: 9999px;
+  filter: blur(80px);
 }
 
 /* ═══════════════════════════════════════════════════════════════════
