@@ -171,6 +171,41 @@ export function HomeView() {
       </section>
 
       {/* ════════════════════════════════════════════════════════════════
+          SYNDICATION NETWORK — motion wordmark carousel
+          ════════════════════════════════════════════════════════════════ */}
+      <section className="border-y border-[oklch(0.76_0.11_294/0.1)] bg-[oklch(0.97_0.006_285)] py-14">
+        <div className="mx-auto max-w-7xl px-4 text-center sm:px-6 lg:px-8">
+          <p className="eyebrow">Where your work travels</p>
+          <h2 className="mt-2 font-display text-2xl font-semibold sm:text-3xl">
+            The multidisciplinary syndication network
+          </h2>
+          <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground">
+            Every published article and book is eligible for automatic syndication and wide
+            distribution across these platforms — no separate submissions required.
+          </p>
+        </div>
+        <div className="relative mt-10 overflow-hidden">
+          {/* Edge fades so the marquee reads as continuous, not cropped */}
+          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-16 bg-gradient-to-r from-[oklch(0.97_0.006_285)] to-transparent sm:w-32" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16 bg-gradient-to-l from-[oklch(0.97_0.006_285)] to-transparent sm:w-32" />
+          <div className="flex w-max animate-marquee">
+            {[0, 1].map((copy) => (
+              <div key={copy} className="flex shrink-0 items-center" aria-hidden={copy === 1}>
+                {SYNDICATION_PARTNERS.map((name) => (
+                  <span
+                    key={`${copy}-${name}`}
+                    className="mx-8 whitespace-nowrap font-display text-xl font-semibold text-foreground/60 transition-colors hover:text-[oklch(0.42_0.18_295)] sm:text-2xl"
+                  >
+                    {name}
+                  </span>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ════════════════════════════════════════════════════════════════
           DISCIPLINES — 3D realistic visual backgrounds per discipline
           ════════════════════════════════════════════════════════════════ */}
       <section className="border-y border-[oklch(0.76_0.11_294/0.1)]">
@@ -373,6 +408,27 @@ export function HomeView() {
     </div>
   );
 }
+
+// The 13 platforms articles/books are eligible for automatic syndication
+// or wide distribution to (src/lib/distribution.ts, src/lib/book-distribution.ts).
+// Rendered as clean wordmark text rather than official logo marks — no
+// third-party brand assets are bundled here, avoiding any question of
+// unauthorized trademark/logo usage.
+const SYNDICATION_PARTNERS = [
+  "Amazon KDP",
+  "Apple Books",
+  "Barnes & Noble",
+  "IngramSpark",
+  "Draft2Digital",
+  "ResearchGate",
+  "Academia.edu",
+  "Substack",
+  "Medium",
+  "LinkedIn",
+  "HubPages",
+  "arXiv",
+  "SSRN",
+];
 
 const REACH_FEATURES = [
   { title: "8-Platform Syndication, Automatically", description: "Blogger publishes itself the moment you approve it — genuinely, via the real Blogger API, not a link. Ready-to-post kits for ResearchGate, Academia.edu, Substack, Medium, LinkedIn, and HubPages, plus formatted preprint packages for arXiv and SSRN, all generated from the same manuscript.", icon: Share2 },
