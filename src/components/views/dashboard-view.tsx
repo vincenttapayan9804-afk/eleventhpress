@@ -140,7 +140,13 @@ export function DashboardView() {
   // Live WebSocket updates (already called above before early returns)
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <div className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      {/* Soft ambient glow behind the floating glass dashboard panels */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+        <div className="ambient-glow-orb absolute -left-24 top-8 h-72 w-72 bg-[oklch(0.76_0.11_294/0.35)]" />
+        <div className="ambient-glow-orb absolute -right-24 top-72 h-96 w-96 bg-[oklch(0.62_0.16_296/0.22)]" />
+      </div>
+
       {/* Header */}
       <div className="border-b border-border pb-6">
         <div className="flex items-start justify-between gap-4">
