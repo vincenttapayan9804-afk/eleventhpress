@@ -26,6 +26,7 @@ import {
   AlertCircle,
   BarChart3,
   UserCircle,
+  ShieldCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -59,7 +60,7 @@ interface DashboardData {
 }
 
 export function DashboardView() {
-  const { user, token, dashboardTab, setView, openDashboard, logout, reviewId } = useApp();
+  const { user, token, dashboardTab, setView, openDashboard, openAdminPortal, logout, reviewId } = useApp();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -181,6 +182,20 @@ export function DashboardView() {
               );
             })}
           </nav>
+
+          {/* Admin Portal shortcut — a separate, password-gated view (not a
+              dashboardTab), so it's kept visually distinct from the tab
+              list above rather than mixed into it. SUPER_ADMIN only. */}
+          {user.role === "SUPER_ADMIN" && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3 flex w-full items-center justify-center gap-2 border-primary/30 text-primary hover:bg-primary/5"
+              onClick={openAdminPortal}
+            >
+              <ShieldCheck className="h-4 w-4" /> Admin Portal
+            </Button>
+          )}
 
           {/* Notifications */}
           <Card className="paper-card mt-6 hidden lg:block">
