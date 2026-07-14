@@ -143,8 +143,8 @@ export function DashboardView() {
     <div className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       {/* Soft ambient glow behind the floating glass dashboard panels */}
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-        <div className="ambient-glow-orb absolute -left-24 top-8 h-72 w-72 bg-[oklch(0.76_0.11_294/0.35)]" />
-        <div className="ambient-glow-orb absolute -right-24 top-72 h-96 w-96 bg-[oklch(0.62_0.16_296/0.22)]" />
+        <div className="ambient-glow-orb absolute -left-24 top-8 h-72 w-72 bg-[oklch(0.58_0.17_294/0.5)]" />
+        <div className="ambient-glow-orb absolute -right-24 top-72 h-96 w-96 bg-[oklch(0.64_0.19_300/0.4)]" />
       </div>
 
       {/* Header */}
