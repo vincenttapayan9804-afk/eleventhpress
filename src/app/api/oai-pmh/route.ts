@@ -306,9 +306,19 @@ ${keywords}
 // Helpers
 // ---------------------------------------------------------------------------
 
+// Harvesters (Scopus, Web of Science, etc.) re-poll on their own schedule
+// and already tolerate eventual consistency — that's the point of OAI-PMH's
+// periodic-harvest model — so a short edge cache meaningfully cuts DB load
+// from repeat/overlapping harvest runs without harvesters ever noticing.
+// Every successful verb response is public and fully determined by the
+// query string (verb, resumptionToken, identifier, from/until), so the
+// CDN's default per-URL cache key is exactly right — no manual Vary needed.
 function xmlResponse(xml: string): NextResponse {
   return new NextResponse(xml, {
-    headers: { "Content-Type": "application/xml; charset=utf-8" },
+    headers: {
+      "Content-Type": "application/xml; charset=utf-8",
+      "Cache-Control": "public, s-maxage=60, stale-while-revalidate=600",
+    },
   });
 }
 

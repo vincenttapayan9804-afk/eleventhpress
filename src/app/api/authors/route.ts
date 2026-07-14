@@ -12,10 +12,15 @@ import { parseAuthors } from "@/lib/article";
  * Registered accounts are automatically cross-referenced by ORCID (first
  * choice) or account email (fallback) so a matched entry's profile picture,
  * profession, bio, and social/contact links stay in sync with whatever the
- * author last saved in their dashboard — no separate publish step, this
- * always reflects current account state on every request. Only the
+ * author last saved in their dashboard — no separate publish step. Only the
  * account's opt-in public `contactEmail` is ever exposed here, never the
  * private login `email` used for matching.
+ *
+ * This does a full PUBLISHED-article scan plus a user cross-reference query
+ * on every call and is identical for every visitor (no query params), so
+ * it's cached at Vercel's CDN edge for a short window — an author's fresh
+ * profile edit can take up to ~30s to appear here rather than being
+ * instant, in exchange for not re-running this aggregation on every hit.
  */
 export async function GET() {
   const articles = await db.article.findMany({
@@ -129,5 +134,8 @@ export async function GET() {
     })
     .sort((a, b) => b.articleCount - a.articleCount || b.totalCitations - a.totalCitations || a.name.localeCompare(b.name));
 
-  return NextResponse.json({ authors, total: authors.length });
+  return NextResponse.json(
+    { authors, total: authors.length },
+    { headers: { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=300" } }
+  );
 }
