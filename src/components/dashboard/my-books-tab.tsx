@@ -25,8 +25,23 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { BookOpen, Plus, Loader2, Download, FileCheck2 } from "lucide-react";
+import {
+  BookOpen,
+  Plus,
+  Loader2,
+  Download,
+  FileCheck2,
+  ChevronDown,
+  ChevronUp,
+  Sparkles,
+  Copy,
+  CheckCircle2,
+  Link as LinkIcon,
+  ExternalLink,
+} from "lucide-react";
+import { BOOK_PLATFORMS, type BookDistributionPackage } from "@/lib/book-distribution";
 
 const FORMATS = [
   { value: "MONOGRAPH", label: "Monograph (single manuscript)" },
@@ -43,6 +58,186 @@ const STATUS_BADGE: Record<string, string> = {
   REJECTED: "bg-red-100 text-red-800",
 };
 
+const DIST_STATUS_BADGE: Record<string, string> = {
+  NOT_STARTED: "bg-muted text-muted-foreground",
+  PACKAGE_READY: "bg-blue-100 text-blue-800",
+  SUBMITTED: "bg-purple-100 text-purple-800",
+  LIVE: "bg-green-100 text-green-800",
+  FAILED: "bg-red-100 text-red-800",
+};
+
+function Field({ label, value, onCopy }: { label: string; value: string; onCopy: (text: string) => void }) {
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium text-muted-foreground">{label}</span>
+        <Button size="sm" variant="ghost" onClick={() => onCopy(value)}>
+          <Copy className="mr-1 h-3 w-3" /> Copy
+        </Button>
+      </div>
+      <Input readOnly value={value} className="h-8 text-xs" />
+    </div>
+  );
+}
+
+function BookDistribution({ book }: { book: any }) {
+  const [items, setItems] = useState<any[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [pkgViewFor, setPkgViewFor] = useState<string | null>(null);
+  const [urlDrafts, setUrlDrafts] = useState<Record<string, string>>({});
+  const [consentChecked, setConsentChecked] = useState<Record<string, boolean>>({});
+
+  async function load() {
+    setLoading(true);
+    try {
+      const res = await apiFetch(`/api/book-distribution?bookId=${book.id}`);
+      setItems(res.items);
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function generate(platform: string, consent?: boolean) {
+    try {
+      await apiFetch("/api/book-distribution", {
+        method: "POST",
+        body: JSON.stringify({ bookId: book.id, platform, consent }),
+      });
+      toast.success(`Package generated for ${platform}`);
+      setPkgViewFor(platform);
+      await load();
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  }
+
+  async function markSubmitted(id: string, status: "SUBMITTED" | "LIVE") {
+    try {
+      await apiFetch(`/api/book-distribution/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status, externalUrl: urlDrafts[id] || undefined }),
+      });
+      toast.success("Status updated");
+      await load();
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  }
+
+  function copy(text: string) {
+    navigator.clipboard.writeText(text);
+    toast.success("Copied to clipboard");
+  }
+
+  if (loading && !items) return <p className="text-xs text-muted-foreground">Loading distribution options…</p>;
+
+  return (
+    <div className="space-y-2">
+      {items?.map((item) => {
+        const platform = BOOK_PLATFORMS.find((p) => p.id === item.platform)!;
+        let pkg: BookDistributionPackage | null = null;
+        try {
+          pkg = item.packageContent ? JSON.parse(item.packageContent) : null;
+        } catch {}
+
+        const needsConsent = platform.tier === "B" && !item.authorConsent;
+        const canGenerate = !needsConsent || consentChecked[item.platform];
+
+        return (
+          <div key={item.platform} className="rounded-md border p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="font-medium">{platform.label}</span>
+                {platform.tier === "B" && <Badge variant="outline">Wide distribution</Badge>}
+                <Badge className={DIST_STATUS_BADGE[item.status] || ""}>{item.status.replace(/_/g, " ")}</Badge>
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" disabled={!canGenerate} onClick={() => generate(item.platform, consentChecked[item.platform])}>
+                  <Sparkles className="mr-1.5 h-3.5 w-3.5" /> {item.id ? "Regenerate" : "Generate"} package
+                </Button>
+                {pkg && (
+                  <Button size="sm" variant="ghost" onClick={() => setPkgViewFor(pkgViewFor === item.platform ? null : item.platform)}>
+                    {pkgViewFor === item.platform ? "Hide" : "View"} package
+                  </Button>
+                )}
+              </div>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">{platform.postingHint}</p>
+            {platform.coverage && <p className="mt-0.5 text-xs text-muted-foreground italic">{platform.coverage}</p>}
+
+            {needsConsent && (
+              <div className="mt-2 flex items-start gap-2 rounded-md bg-amber-50 p-2">
+                <Checkbox
+                  id={`book-consent-${book.id}-${item.platform}`}
+                  checked={!!consentChecked[item.platform]}
+                  onCheckedChange={(v) => setConsentChecked((c) => ({ ...c, [item.platform]: !!v }))}
+                />
+                <label htmlFor={`book-consent-${book.id}-${item.platform}`} className="text-xs text-amber-900">
+                  {platform.consentText}
+                </label>
+              </div>
+            )}
+
+            {pkgViewFor === item.platform && pkg && (
+              <div className="mt-3 space-y-2">
+                <Field label="Title" value={pkg.subtitle ? `${pkg.title}: ${pkg.subtitle}` : pkg.title} onCopy={copy} />
+                <Field label="Authors" value={pkg.authors} onCopy={copy} />
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-muted-foreground">Description</span>
+                  <Button size="sm" variant="ghost" onClick={() => copy(pkg!.description)}>
+                    <Copy className="mr-1 h-3 w-3" /> Copy
+                  </Button>
+                </div>
+                <Textarea readOnly value={pkg.description} rows={4} className="text-xs" />
+                <Field label="Category" value={pkg.category} onCopy={copy} />
+                {pkg.isbn && <Field label="ISBN" value={pkg.isbn} onCopy={copy} />}
+                <Field label="Price (USD)" value={String(pkg.price)} onCopy={copy} />
+
+                <Separator />
+                {book.epubUrl && (
+                  <Button size="sm" variant="outline" asChild>
+                    <a href={book.epubUrl} target="_blank" rel="noopener noreferrer">
+                      <Download className="mr-1.5 h-3.5 w-3.5" /> Download EPUB to upload
+                    </a>
+                  </Button>
+                )}
+                {platform.submitUrl && (
+                  <Button size="sm" asChild>
+                    <a href={platform.submitUrl} target="_blank" rel="noopener noreferrer">
+                      Continue to {platform.label} <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+                    </a>
+                  </Button>
+                )}
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <LinkIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Paste the live URL once posted (optional)"
+                    value={urlDrafts[item.id] ?? item.externalUrl ?? ""}
+                    onChange={(e) => setUrlDrafts((d) => ({ ...d, [item.id]: e.target.value }))}
+                    className="h-8 max-w-xs text-xs"
+                  />
+                  <Button size="sm" variant="outline" onClick={() => markSubmitted(item.id, "SUBMITTED")}>
+                    Mark submitted
+                  </Button>
+                  <Button size="sm" onClick={() => markSubmitted(item.id, "LIVE")}>
+                    <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" /> Mark live
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function MyBooksTab() {
   const { user } = useApp();
   const [books, setBooks] = useState<any[] | null>(null);
@@ -52,6 +247,7 @@ export function MyBooksTab() {
   const [selectedArticleIds, setSelectedArticleIds] = useState<string[]>([]);
   const [uploadedManuscript, setUploadedManuscript] = useState<{ key: string; filename: string } | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [expandedBookId, setExpandedBookId] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     title: "",
@@ -285,8 +481,18 @@ export function MyBooksTab() {
                     </a>
                   </Button>
                 )}
+                {b.status === "PUBLISHED" && (
+                  <Button size="sm" variant="ghost" onClick={() => setExpandedBookId(expandedBookId === b.id ? null : b.id)}>
+                    Distribution {expandedBookId === b.id ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />}
+                  </Button>
+                )}
               </div>
             </CardContent>
+            {expandedBookId === b.id && (
+              <CardContent className="border-t p-4 pt-4">
+                <BookDistribution book={b} />
+              </CardContent>
+            )}
           </Card>
         ))
       )}
