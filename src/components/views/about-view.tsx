@@ -287,7 +287,7 @@ export function AboutView() {
       </section>
 
       {/* CTA */}
-      <section className="paper-card mt-16 p-8 text-center">
+      <section className="mt-16 rounded-md border border-border bg-card p-8 text-center">
         <p className="eyebrow">{t("joinConversation")}</p>
         <h2 className="mt-2 font-display text-2xl font-semibold">
           {t("ctaHeadline")}

@@ -55,26 +55,18 @@
 :root {
   --radius: 0.875rem;
 
-  /* Premium royal purple foundation — the page canvas itself, not just an
-     accent. Content surfaces (cards, popovers, glass panels) stay light
-     and pearlescent so they read as floating glass over this background;
-     see the "--foreground/--muted-foreground/--eyebrow-fg re-scoping"
-     block further down, which restores dark-on-light text automatically
-     inside those light surfaces without touching component code. */
-  --background: oklch(0.26 0.095 293);
-  --foreground: oklch(0.965 0.012 288);
+  /* Pearlescent white foundation — layered with subtle purple tint */
+  --background: oklch(0.992 0.004 285);
+  --foreground: oklch(0.18 0.025 285);
 
-  /* Glassmorphic surfaces — frosted translucent layers, still pearlescent
-     so they float above the royal purple canvas */
+  /* Glassmorphic surfaces — frosted translucent layers */
   --card: oklch(0.985 0.006 285 / 0.72);
   --card-foreground: oklch(0.18 0.025 285);
   --popover: oklch(0.99 0.005 285 / 0.92);
   --popover-foreground: oklch(0.18 0.025 285);
 
-  /* Royal purple primary — brightened slightly from the old white-page
-     tuning so filled buttons still read distinctly against the now
-     equally-purple page background */
-  --primary: oklch(0.48 0.19 296);
+  /* Deep royal purple primary */
+  --primary: oklch(0.38 0.18 295);
   --primary-foreground: oklch(0.985 0.004 285);
 
   /* Royal purple tinted secondary */
@@ -82,8 +74,7 @@
   --secondary-foreground: oklch(0.30 0.12 295);
 
   --muted: oklch(0.95 0.012 285);
-  /* Secondary/caption text painted directly on the purple canvas */
-  --muted-foreground: oklch(0.76 0.03 289);
+  --muted-foreground: oklch(0.52 0.025 290);
 
   /* Lavender accent */
   --accent: oklch(0.90 0.05 290);
@@ -91,15 +82,10 @@
 
   --destructive: oklch(0.55 0.22 18);
 
-  /* Borders/inputs/ring visible against the dark purple canvas */
-  --border: oklch(0.6 0.05 291 / 0.4);
-  --input: oklch(0.6 0.05 291 / 0.4);
-  --ring: oklch(0.8 0.08 292);
-
-  /* Eyebrow/label accent — bright on the purple canvas by default,
-     re-scoped back to the original deep royal-500 inside light glass
-     surfaces (see below) where it reads as a label on a pale card */
-  --eyebrow-fg: oklch(0.83 0.09 292);
+  /* Purple-tinted borders */
+  --border: oklch(0.88 0.015 285 / 0.6);
+  --input: oklch(0.90 0.018 285 / 0.7);
+  --ring: oklch(0.42 0.18 295);
 
   /* Royal purple gradient stops */
   --royal-50: oklch(0.97 0.02 290);
@@ -219,21 +205,10 @@
 
 /* ═══════════════════════════════════════════════════════════════════
    GLASSMORPHISM SYSTEM — frosted translucent layers
-   These surfaces stay pearlescent/light so they float above the royal
-   purple page canvas. Each one re-scopes --foreground/--muted-foreground/
-   --eyebrow-fg back to their original dark-on-light values (the root
-   values are now tuned for light-on-purple, direct-on-canvas text) —
-   every existing text-foreground/text-muted-foreground/.eyebrow usage
-   nested inside stays correctly dark automatically, no component
-   changes required.
    ═══════════════════════════════════════════════════════════════════ */
 
 .glass {
-  --foreground: oklch(0.18 0.025 285);
-  --muted-foreground: oklch(0.52 0.025 290);
-  --eyebrow-fg: var(--royal-500);
-  color: var(--foreground);
-  background: oklch(0.985 0.006 285 / 0.72);
+  background: oklch(0.985 0.006 285 / 0.6);
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
   border: 1px solid oklch(1 0 0 / 0.5);
@@ -242,10 +217,6 @@
 }
 
 .glass-strong {
-  --foreground: oklch(0.18 0.025 285);
-  --muted-foreground: oklch(0.52 0.025 290);
-  --eyebrow-fg: var(--royal-500);
-  color: var(--foreground);
   background: oklch(0.985 0.006 285 / 0.82);
   backdrop-filter: blur(32px) saturate(200%);
   -webkit-backdrop-filter: blur(32px) saturate(200%);
@@ -255,10 +226,6 @@
 }
 
 .glass-royal {
-  --foreground: oklch(0.18 0.025 285);
-  --muted-foreground: oklch(0.52 0.025 290);
-  --eyebrow-fg: var(--royal-500);
-  color: var(--foreground);
   background: linear-gradient(
     135deg,
     oklch(0.985 0.008 295 / 0.7),
@@ -274,11 +241,7 @@
 }
 
 .glass-panel {
-  --foreground: oklch(0.18 0.025 285);
-  --muted-foreground: oklch(0.52 0.025 290);
-  --eyebrow-fg: var(--royal-500);
-  color: var(--foreground);
-  background: oklch(0.99 0.004 285 / 0.68);
+  background: oklch(0.99 0.004 285 / 0.5);
   backdrop-filter: blur(16px) saturate(150%);
   -webkit-backdrop-filter: blur(16px) saturate(150%);
   border: 1px solid oklch(0.76 0.11 294 / 0.15);
@@ -287,9 +250,6 @@
 
 /* Pearlescent card — subtle purple-tinted ambient occlusion */
 .pearl-card {
-  --foreground: oklch(0.18 0.025 285);
-  --muted-foreground: oklch(0.52 0.025 290);
-  --eyebrow-fg: var(--royal-500);
   background: linear-gradient(
     180deg,
     oklch(0.995 0.003 285),
@@ -303,7 +263,6 @@
     0 4px 12px oklch(0.38 0.18 295 / 0.03);
   position: relative;
   overflow: hidden;
-  color: var(--foreground);
 }
 
 .pearl-card::before {
@@ -327,9 +286,6 @@
    referenced everywhere but never defined, so this single class upgrades
    every card on the site at once. */
 .paper-card {
-  --foreground: oklch(0.18 0.025 285);
-  --muted-foreground: oklch(0.52 0.025 290);
-  --eyebrow-fg: var(--royal-500);
   position: relative;
   background: linear-gradient(
     165deg,
@@ -472,7 +428,7 @@
 .stagger.in-view > *:nth-child(6) { transition-delay: 400ms; }
 
 /* ═══════════════════════════════════════════════════════════════════
-   AMBIENT BACKGROUND — deep royal purple environment
+   AMBIENT BACKGROUND — purple-tinted pearlescent environment
    ═══════════════════════════════════════════════════════════════════ */
 
 .ambient-bg {
@@ -480,9 +436,9 @@
   inset: 0;
   z-index: -1;
   background:
-    radial-gradient(ellipse 80% 50% at 20% 0%, oklch(0.34 0.13 295 / 0.6), transparent),
-    radial-gradient(ellipse 60% 40% at 80% 100%, oklch(0.30 0.14 300 / 0.4), transparent),
-    radial-gradient(circle at 50% 50%, oklch(0.28 0.1 293), oklch(0.24 0.09 292));
+    radial-gradient(ellipse 80% 50% at 20% 0%, oklch(0.93 0.04 290 / 0.5), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 100%, oklch(0.90 0.05 295 / 0.3), transparent),
+    radial-gradient(circle at 50% 50%, oklch(0.99 0.004 285), oklch(0.97 0.008 285));
 }
 
 .ambient-mesh {
@@ -490,7 +446,7 @@
   inset: 0;
   z-index: -1;
   background-image:
-    radial-gradient(circle at 1px 1px, oklch(0.97 0.01 288 / 0.06) 1px, transparent 0);
+    radial-gradient(circle at 1px 1px, oklch(0.50 0.18 296 / 0.04) 1px, transparent 0);
   background-size: 40px 40px;
   opacity: 0.6;
   mask-image: radial-gradient(ellipse 70% 50% at 50% 50%, black, transparent);
@@ -516,7 +472,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.22em;
-  color: var(--eyebrow-fg);
+  color: var(--royal-500);
 }
 
 .royal-divider {
@@ -631,14 +587,13 @@
   animation: luxury-fade 0.5s var(--ease-luxury) both;
 }
 
-/* Shimmer loading effect — tuned for the royal purple canvas it sits on
-   directly (loading skeletons in home/browse views aren't card-wrapped) */
+/* Shimmer loading effect */
 .shimmer {
   background: linear-gradient(
     90deg,
-    oklch(0.32 0.05 292) 0%,
-    oklch(0.4 0.07 293) 50%,
-    oklch(0.32 0.05 292) 100%
+    oklch(0.95 0.01 285) 0%,
+    oklch(0.90 0.02 285) 50%,
+    oklch(0.95 0.01 285) 100%
   );
   background-size: 200% 100%;
   animation: shimmer-pearl 1.5s infinite;
