@@ -85,7 +85,7 @@ export function EditorQueueTab({ queue, stats, onRefresh }: Props) {
 
       {/* Filter tabs */}
       <div className="flex gap-1 overflow-x-auto pb-1">
-        {["ALL", "SUBMITTED", "UNDER_REVIEW", "REVISIONS_REQUIRED", "ACCEPTED", "IN_PRODUCTION"].map((s) => (
+        {["ALL", "SUBMITTED", "UNDER_REVIEW", "REVISIONS_REQUIRED", "ACCEPTED", "IN_PRODUCTION", "PUBLISHED"].map((s) => (
           <button
             key={s}
             onClick={() => setFilter(s)}
