@@ -36,6 +36,9 @@ export async function GET(req: NextRequest) {
       apcQuota: i.apcQuota,
       apcUsed: i.apcUsed,
       counterCustomerId: i.counterCustomerId,
+      // The SUSHI API key is a credential — only SUPER_ADMIN (not EDITOR,
+      // who can otherwise view this list) can see it.
+      counterApiKey: session.role === "SUPER_ADMIN" ? i.counterApiKey : null,
       userCount: i._count.users,
       datasetCount: i._count.datasets,
     })),

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { getSessionFromHeaders } from "@/lib/auth";
+import { verifySushiApiKey } from "@/lib/institutions";
 
 /**
  * GET /api/reports/counter
@@ -19,7 +19,10 @@ import { getSessionFromHeaders } from "@/lib/auth";
  *   - begin_date / end_date   : YYYY-MM-DD
  *   - customer_id             : institutional subscriber ID (optional)
  *   - requestor_id            : requesting system ID (optional)
- *   - api_key                 : SUSHI API key (optional)
+ *   - api_key                 : SUSHI API key — required whenever customer_id
+ *                                is a real institution (src/lib/institutions.ts
+ *                                verifySushiApiKey()), so one institution can't
+ *                                read another's usage by guessing a customer_id
  *
  * Returns JSON in the COUNTER 5 Report_Response structure as defined in
  * https://app.plausible.io/docs/counter-5-usage-reporting
@@ -29,14 +32,22 @@ const PLATFORM_NAME = "Eleventh Press International Publishing";
 const PLATFORM_ID = "epip";
 
 export async function GET(req: NextRequest) {
-  // SUSHI endpoints can be public or require an API key. For institutional
-  // reports we require auth; public aggregate reports are open.
   const { searchParams } = new URL(req.url);
   const reportType = (searchParams.get("report") || "TR").toUpperCase();
   const beginDate = searchParams.get("begin_date") || searchParams.get("begin") || `${new Date().getFullYear()}-01-01`;
   const endDate = searchParams.get("end_date") || searchParams.get("end") || new Date().toISOString().split("T")[0];
   const customerId = searchParams.get("customer_id") || "anonymous";
   const requestorId = searchParams.get("requestor_id") || "anonymous";
+  const apiKey = searchParams.get("api_key");
+
+  // Public aggregate report (no customer_id) needs no auth. A specific
+  // institution's report requires that institution's own api_key.
+  if (customerId !== "anonymous") {
+    const authorized = await verifySushiApiKey(customerId, apiKey);
+    if (!authorized) {
+      return NextResponse.json({ error: "Invalid or missing api_key for this customer_id" }, { status: 403 });
+    }
+  }
 
   // Parse date range
   const begin = new Date(beginDate);
@@ -51,7 +62,6 @@ export async function GET(req: NextRequest) {
       createdAt: { gte: begin, lte: end },
       ...(customerId !== "anonymous" ? { institutionId: customerId } : {}),
     },
-    include: { articleId: true },
   });
 
   // For articles with no recorded events, synthesise plausible metrics from

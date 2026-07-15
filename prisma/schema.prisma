@@ -871,6 +871,12 @@ model Institution {
   apcUsed           Int       @default(0)
   // COUNTER 5 customer ID for SUSHI report slicing
   counterCustomerId String?
+  // Per-institution SUSHI API key — required to retrieve THIS institution's
+  // usage report (customer_id + api_key), so one institution's librarian
+  // can't read another's usage data by guessing a customer_id. Auto-
+  // generated on institution creation (src/lib/institutions.ts,
+  // generateCounterApiKey()); SUPER_ADMIN can view/regenerate it.
+  counterApiKey     String?   @unique
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
