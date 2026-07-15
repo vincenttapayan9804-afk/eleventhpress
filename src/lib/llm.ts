@@ -76,3 +76,56 @@ export async function chatJSON<T = any>(
   const data = JSON.parse(jsonMatch[0]) as T;
   return { data, rawResponse: text, model: MODEL };
 }
+
+export interface DescribeImageResult {
+  altText: string;
+  model: string;
+}
+
+/**
+ * Vision call for figure alt-text generation (src/lib/alt-text.ts). Same
+ * throw-on-unavailable/refusal/empty contract as chatJSON — callers are
+ * expected to catch and fall back to a heuristic (e.g. an existing figure
+ * caption) rather than treat a throw as fatal, exactly like every other
+ * LLM-backed feature in this codebase.
+ */
+export async function describeImage(
+  imageBase64: string,
+  mediaType: "image/png" | "image/jpeg" | "image/webp" | "image/gif",
+  promptContext: string
+): Promise<DescribeImageResult> {
+  if (!isLLMAvailable()) {
+    throw new Error("ANTHROPIC_API_KEY is not configured");
+  }
+
+  const response = await getClient().messages.create({
+    model: MODEL,
+    max_tokens: 300,
+    thinking: { type: "adaptive" },
+    system:
+      "You write concise, descriptive, screen-reader-appropriate alt text for figures in academic articles. Describe what the image actually shows — data trends, diagram structure, photographed subject — in one or two plain sentences. Never speculate beyond what's visible. Do not begin with \"Image of\" or \"Figure showing\".",
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "image", source: { type: "base64", media_type: mediaType, data: imageBase64 } },
+          { type: "text", text: promptContext },
+        ],
+      },
+    ],
+  });
+
+  if (response.stop_reason === "refusal") {
+    throw new Error(
+      `LLM refused the request (category: ${response.stop_details?.category ?? "unknown"})`
+    );
+  }
+
+  const textBlock = response.content.find((b) => b.type === "text");
+  const text = textBlock && "text" in textBlock ? textBlock.text.trim() : "";
+  if (!text) {
+    throw new Error("LLM response contained no text content");
+  }
+
+  return { altText: text, model: MODEL };
+}

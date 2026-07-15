@@ -30,6 +30,7 @@ export interface ArticleDetail extends ArticleListItem {
   ithenticateScore?: number | null;
   ithenticateReportUrl?: string | null;
   integrityStatus?: string;
+  abstractTranslations?: string | null;
   funders?: string | null;
   laySummary?: string | null;
   submittedAt: string | null;

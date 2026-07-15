@@ -77,6 +77,7 @@ export async function GET(
     ithenticateScore: article.ithenticateScore,
     ithenticateReportUrl: article.ithenticateReportUrl,
     integrityStatus: article.integrityStatus,
+    abstractTranslations: article.abstractTranslations,
     funders: article.funders,
     laySummary: article.laySummary,
     submittedAt: article.submittedAt,

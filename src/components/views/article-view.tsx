@@ -63,8 +63,9 @@ import {
 import { toast } from "sonner";
 
 export function ArticleView() {
-  const { articleId, setView, openArticle, user } = useApp();
+  const { articleId, setView, openArticle, user, locale } = useApp();
   const [article, setArticle] = useState<ArticleDetail | null>(null);
+  const [showOriginalAbstract, setShowOriginalAbstract] = useState(false);
   const [related, setRelated] = useState<ArticleDetail[]>([]);
   const [loading, setLoading] = useState(true);
   const [citationFormat, setCitationFormat] = useState<"apa" | "bibtex" | "ris">("apa");
@@ -158,6 +159,16 @@ export function ArticleView() {
   const bibtex = buildBibTeX(citationExportable);
   const ris = buildRis(citationExportable);
   const coins = coinsSpanProps(citationExportable);
+
+  // AI-assisted abstract translation (Phase 5b) — only ever shows a
+  // translation that was actually produced by the LLM (never the English
+  // fallback presented as if it were translated; see translateAbstract's
+  // doc comment in src/lib/manuscript-checks.ts).
+  const abstractTranslations: Record<string, string> = article.abstractTranslations
+    ? JSON.parse(article.abstractTranslations)
+    : {};
+  const translatedAbstract = locale !== "en" ? abstractTranslations[locale] : undefined;
+  const displayAbstract = translatedAbstract && !showOriginalAbstract ? translatedAbstract : article.abstract;
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -323,9 +334,21 @@ export function ArticleView() {
 
             <TabsContent value="article" className="mt-6">
               <div className="prose prose-stone max-w-none">
-                <h2 className="font-display text-xl font-semibold">Abstract</h2>
+                <div className="flex items-center justify-between gap-3 not-prose">
+                  <h2 className="font-display text-xl font-semibold">Abstract</h2>
+                  {translatedAbstract && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-[0.65rem] text-muted-foreground"
+                      onClick={() => setShowOriginalAbstract((v) => !v)}
+                    >
+                      {showOriginalAbstract ? "View translated" : "View original (English)"}
+                    </Button>
+                  )}
+                </div>
                 <p className="dropcap mt-2 text-base leading-relaxed text-foreground/90">
-                  {article.abstract}
+                  {displayAbstract}
                 </p>
                 {/* OpenURL/COinS marker — Zotero/Mendeley browser connectors
                     auto-detect this article's metadata via this tag. */}
