@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useApp } from "@/lib/store";
 import { apiFetch } from "@/lib/api-client";
+import { PRESERVATION_STATUSES, PRESERVATION_STATUS_LABELS, type PreservationStatus } from "@/lib/preservation";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Tabs,
   TabsContent,
@@ -47,7 +50,20 @@ interface CrossrefLog {
   metadata: any;
 }
 
+interface PreservationDeposit {
+  id: string | null;
+  journalId: string;
+  provider: "CLOCKSS" | "PORTICO";
+  status: PreservationStatus;
+  agreementRef: string | null;
+  notes: string | null;
+}
+
 export function IndexingTab() {
+  const user = useApp((s) => s.user);
+  const isAdmin = user?.role === "SUPER_ADMIN";
+  const [preservationDeposits, setPreservationDeposits] = useState<PreservationDeposit[]>([]);
+  const [savingPreservation, setSavingPreservation] = useState<string | null>(null);
   const [logs, setLogs] = useState<CrossrefLog[]>([]);
   const [published, setPublished] = useState<any[]>([]);
   const [oaiPmhXml, setOaiPmhXml] = useState<string>("");
@@ -145,6 +161,33 @@ export function IndexingTab() {
   useEffect(() => {
     load();
   }, []);
+
+  // Separate, isolated effect (not folded into load()'s Promise.all) since
+  // this endpoint is SUPER_ADMIN-only — a non-admin editor viewing this tab
+  // would otherwise turn a 403 here into a failure of every other panel on
+  // the page.
+  useEffect(() => {
+    if (!isAdmin) return;
+    apiFetch<{ deposits: PreservationDeposit[] }>("/api/admin/preservation")
+      .then((r) => setPreservationDeposits(r.deposits))
+      .catch(() => setPreservationDeposits([]));
+  }, [isAdmin]);
+
+  async function savePreservation(deposit: PreservationDeposit, status: PreservationStatus, notes: string) {
+    setSavingPreservation(deposit.provider);
+    try {
+      const r = await apiFetch<{ deposit: PreservationDeposit }>("/api/admin/preservation", {
+        method: "PATCH",
+        body: JSON.stringify({ journalId: deposit.journalId, provider: deposit.provider, status, notes }),
+      });
+      setPreservationDeposits((prev) => prev.map((d) => (d.provider === deposit.provider ? r.deposit : d)));
+      toast.success(`${deposit.provider} status updated`);
+    } catch (e: any) {
+      toast.error("Failed to update preservation status", { description: e.message });
+    } finally {
+      setSavingPreservation(null);
+    }
+  }
 
   return (
     <div className="space-y-5">
@@ -570,8 +613,98 @@ export function IndexingTab() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Preservation archive — self-reported, admin-maintained status.
+              Neither CLOCKSS nor Portico exposes a public per-article API
+              (see src/lib/preservation.ts), so unlike the tiles above this
+              is never claimed as "live" — only CONFIRMED_ARCHIVED is a real
+              fact, and even that stays dashboard-only, never surfacing in
+              the public footer's indexed-in line, until genuinely true. */}
+          <Card className="paper-card">
+            <CardContent className="p-5">
+              <p className="font-display text-base font-semibold">Preservation archive</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Dark-archive preservation status with CLOCKSS and Portico — libraries often require
+                proof of this for institutional licenses. Neither service has a public per-article
+                API, so this is self-reported and admin-maintained, not a live integration.{" "}
+                <a href="/preservation-manifest" target="_blank" rel="noreferrer" className="text-primary underline">
+                  View the public LOCKSS permission-statement page
+                </a>
+                .
+              </p>
+              <Separator className="my-3" />
+              <div className="grid gap-3 sm:grid-cols-2">
+                {preservationDeposits.length === 0 && !isAdmin ? (
+                  <>
+                    <StatusTile icon={CheckCircle2} label="CLOCKSS" value="Status not visible to your role" ok={false} />
+                    <StatusTile icon={CheckCircle2} label="Portico" value="Status not visible to your role" ok={false} />
+                  </>
+                ) : (
+                  preservationDeposits.map((deposit) => (
+                    <PreservationDepositRow
+                      key={deposit.provider}
+                      deposit={deposit}
+                      editable={isAdmin}
+                      saving={savingPreservation === deposit.provider}
+                      onSave={savePreservation}
+                    />
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+function PreservationDepositRow({
+  deposit,
+  editable,
+  saving,
+  onSave,
+}: {
+  deposit: PreservationDeposit;
+  editable: boolean;
+  saving: boolean;
+  onSave: (deposit: PreservationDeposit, status: PreservationStatus, notes: string) => void;
+}) {
+  const [status, setStatus] = useState<PreservationStatus>(deposit.status);
+  const [notes, setNotes] = useState(deposit.notes ?? "");
+  const confirmed = deposit.status === "CONFIRMED_ARCHIVED";
+
+  return (
+    <div className="rounded-md border border-border p-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-mono text-xs font-semibold">{deposit.provider}</p>
+        <Badge variant="outline" className={`text-[0.6rem] ${confirmed ? "border-emerald-300 bg-emerald-50 text-emerald-700" : ""}`}>
+          {PRESERVATION_STATUS_LABELS[deposit.status]}
+        </Badge>
+      </div>
+      {editable ? (
+        <div className="mt-2 space-y-2">
+          <Select value={status} onValueChange={(v) => setStatus(v as PreservationStatus)}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {PRESERVATION_STATUSES.map((s) => (
+                <SelectItem key={s} value={s} className="text-xs">{PRESERVATION_STATUS_LABELS[s]}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Agreement reference, contact, notes…"
+            className="min-h-14 text-xs"
+          />
+          <Button size="sm" className="w-full" onClick={() => onSave(deposit, status, notes)} disabled={saving}>
+            {saving ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : null} Save
+          </Button>
+        </div>
+      ) : (
+        deposit.notes && <p className="mt-2 text-xs text-muted-foreground">{deposit.notes}</p>
+      )}
     </div>
   );
 }
