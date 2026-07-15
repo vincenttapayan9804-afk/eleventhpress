@@ -6,10 +6,11 @@
  * granted institutional access — full PDF downloads, COUNTER reports
  * sliced by institution, and (for transformative agreements) APC waivers.
  *
- * In production, this runs at the API Gateway layer. Here it's exposed
- * as a library function called from the storage download endpoint and
- * the article detail route.
+ * Called from the article detail route (src/app/api/articles/[id]/route.ts)
+ * via recordCounterEvent() below, and from the diagnostic
+ * src/app/api/institutions/ip-check/route.ts.
  */
+import { randomBytes } from "crypto";
 import { db } from "@/lib/db";
 
 export interface InstitutionMatch {
@@ -105,6 +106,75 @@ export async function matchInstitutionByDomain(email: string): Promise<Instituti
     apcQuotaAvailable: Math.max(0, inst.apcQuota - inst.apcUsed),
     counterCustomerId: inst.counterCustomerId,
   };
+}
+
+/** A random per-institution SUSHI API key, e.g. "sushi_3f9a...". */
+export function generateCounterApiKey(): string {
+  return `sushi_${randomBytes(24).toString("hex")}`;
+}
+
+/** Extracts the requester's IP from proxy headers, same logic ip-check/route.ts used inline. */
+export function extractRequestIp(headers: Headers): string {
+  const forwarded = headers.get("x-forwarded-for");
+  return forwarded?.split(",")[0].trim() || headers.get("x-real-ip") || "127.0.0.1";
+}
+
+/** IP match first, email-domain match as fallback — the same two-step lookup ip-check/route.ts performs. */
+export async function resolveRequestInstitution(
+  headers: Headers,
+  email?: string | null
+): Promise<InstitutionMatch | null> {
+  const ip = extractRequestIp(headers);
+  let match = await matchInstitutionByIp(ip);
+  if (!match && email) {
+    match = await matchInstitutionByDomain(email);
+  }
+  return match;
+}
+
+/**
+ * Best-effort usage telemetry: resolves the requesting institution (if any)
+ * and records a real CounterEvent row keyed by the institution's
+ * counterCustomerId — the same value COUNTER5/SUSHI report routes filter
+ * `customer_id` against — so those reports reflect genuine per-institution
+ * access instead of being synthesized from Article.views/downloads.
+ * Never throws: a telemetry failure must not break the request it's
+ * attached to.
+ */
+export async function recordCounterEvent(params: {
+  articleId: string;
+  metricType: "Total_Item_Investigations" | "Total_Item_Requests";
+  headers: Headers;
+  email?: string | null;
+}): Promise<void> {
+  try {
+    const institution = await resolveRequestInstitution(params.headers, params.email);
+    await db.counterEvent.create({
+      data: {
+        articleId: params.articleId,
+        institutionId: institution?.counterCustomerId ?? null,
+        metricType: params.metricType,
+      },
+    });
+  } catch {
+    // best-effort — see docstring
+  }
+}
+
+/**
+ * Verifies a SUSHI customer_id + api_key pair for the COUNTER5 reporting
+ * routes. True only when an ACTIVE institution with that counterCustomerId
+ * exists, has a counterApiKey configured, and the supplied key matches
+ * exactly — so one institution can never read another's usage report by
+ * guessing its customer_id.
+ */
+export async function verifySushiApiKey(customerId: string, apiKey: string | null): Promise<boolean> {
+  if (!apiKey) return false;
+  const inst = await db.institution.findFirst({
+    where: { counterCustomerId: customerId, status: "ACTIVE" },
+  });
+  if (!inst?.counterApiKey) return false;
+  return inst.counterApiKey === apiKey;
 }
 
 /**

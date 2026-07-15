@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api-client";
+import { useApp } from "@/lib/store";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +18,10 @@ import {
   CheckCircle2,
   MapPin,
   Shield,
+  Key,
+  Copy,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 interface Institution {
@@ -32,14 +37,19 @@ interface Institution {
   apcQuota: number;
   apcUsed: number;
   counterCustomerId: string | null;
+  counterApiKey: string | null;
   userCount: number;
   datasetCount: number;
 }
 
 export function InstitutionsTab() {
+  const user = useApp((s) => s.user);
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
   const [institutions, setInstitutions] = useState<Institution[]>([]);
   const [ipMatch, setIpMatch] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [revealedKeyId, setRevealedKeyId] = useState<string | null>(null);
+  const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -60,6 +70,27 @@ export function InstitutionsTab() {
   useEffect(() => {
     load();
   }, []);
+
+  async function regenerateKey(id: string) {
+    setRegeneratingId(id);
+    try {
+      const res = await apiFetch<{ counterApiKey: string }>(`/api/institutions/${id}/counter-key`, {
+        method: "POST",
+      });
+      setInstitutions((prev) => prev.map((i) => (i.id === id ? { ...i, counterApiKey: res.counterApiKey } : i)));
+      setRevealedKeyId(id);
+      toast.success("SUSHI API key regenerated — the previous key no longer works.");
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setRegeneratingId(null);
+    }
+  }
+
+  function copyKey(key: string) {
+    navigator.clipboard.writeText(key);
+    toast.success("API key copied");
+  }
 
   if (loading) {
     return (
@@ -203,6 +234,61 @@ export function InstitutionsTab() {
                       ))}
                     </div>
                   </div>
+
+                  {/* SUSHI API key — SUPER_ADMIN only, matches the key's
+                      read access in GET /api/institutions/list. Required to
+                      pull this institution's own COUNTER5 report; without
+                      it a librarian can no longer read another institution's
+                      usage by guessing a customer_id. */}
+                  {isSuperAdmin && (
+                    <>
+                      <Separator className="my-3" />
+                      <div>
+                        <p className="eyebrow mb-1 flex items-center gap-1">
+                          <Key className="h-3 w-3" /> SUSHI API key
+                        </p>
+                        {inst.counterApiKey ? (
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[0.65rem]">
+                              {revealedKeyId === inst.id ? inst.counterApiKey : "•".repeat(24)}
+                            </code>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 px-1.5"
+                              onClick={() => setRevealedKeyId(revealedKeyId === inst.id ? null : inst.id)}
+                            >
+                              {revealedKeyId === inst.id ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 px-1.5"
+                              onClick={() => copyKey(inst.counterApiKey!)}
+                            >
+                              <Copy className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <p className="text-[0.65rem] text-muted-foreground">No key set — regenerate to create one.</p>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="mt-1.5 h-6 px-2 text-[0.65rem]"
+                          disabled={regeneratingId === inst.id}
+                          onClick={() => regenerateKey(inst.id)}
+                        >
+                          {regeneratingId === inst.id ? (
+                            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                          ) : (
+                            <RefreshCw className="mr-1 h-3 w-3" />
+                          )}
+                          Regenerate
+                        </Button>
+                      </div>
+                    </>
+                  )}
                 </div>
               ))}
             </div>
@@ -214,15 +300,17 @@ export function InstitutionsTab() {
       <Card className="paper-card bg-muted/30">
         <CardContent className="p-5 text-xs text-muted-foreground">
           <p className="font-display text-sm font-semibold text-foreground">
-            How institutional IP authentication works
+            How institutional usage attribution works
           </p>
           <p className="mt-1">
-            Every request to a full-text galley passes through the API Gateway. The gateway
-            extracts the client IP, checks it against all registered institutions' CIDR ranges,
-            and grants access if the IP matches — no login required. For remote users, the
-            domain of their email address is checked as a fallback. COUNTER 5 reports are
-            automatically sliced by <code className="font-mono">institutionId</code> so each
-            library sees only its own usage.
+            Every published-article view checks the requester's IP against all registered
+            institutions' CIDR ranges, with the signed-in user's email domain as a fallback —
+            this attributes real usage to an institution for COUNTER 5 reporting, it does not
+            gate access (every article is already open access, no login required to read it).
+            A matched view is recorded as a real usage event tagged with that institution's
+            COUNTER customer ID, so a library's own SUSHI report — retrieved with its own API
+            key, shown above for admins — reflects genuine per-institution usage instead of
+            platform-wide totals.
           </p>
         </CardContent>
       </Card>

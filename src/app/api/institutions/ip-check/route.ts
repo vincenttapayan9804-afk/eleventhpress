@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
-import { matchInstitutionByIp, matchInstitutionByDomain } from "@/lib/institutions";
+import {
+  matchInstitutionByIp,
+  matchInstitutionByDomain,
+  extractRequestIp,
+  generateCounterApiKey,
+} from "@/lib/institutions";
 
 /**
  * GET /api/institutions/ip-check
@@ -13,9 +18,7 @@ import { matchInstitutionByIp, matchInstitutionByDomain } from "@/lib/institutio
  *   - email (optional): if IP doesn't match, try domain matching
  */
 export async function GET(req: NextRequest) {
-  // Get real IP from headers (behind proxy) or connection
-  const forwarded = req.headers.get("x-forwarded-for");
-  const realIp = forwarded?.split(",")[0].trim() || req.headers.get("x-real-ip") || "127.0.0.1";
+  const realIp = extractRequestIp(req.headers);
 
   let match = await matchInstitutionByIp(realIp);
 
@@ -68,6 +71,7 @@ export async function POST(req: NextRequest) {
       currentPeriodEnd: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
       apcQuota: body.apcQuota || 0,
       counterCustomerId: body.counterCustomerId || `epip-${Date.now()}`,
+      counterApiKey: generateCounterApiKey(),
     },
   });
 

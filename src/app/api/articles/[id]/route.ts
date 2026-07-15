@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { canViewUnpublishedArticle } from "@/lib/article-access";
 import { deleteArticleCascade } from "@/lib/article-delete";
+import { recordCounterEvent } from "@/lib/institutions";
 
 /**
  * GET /api/articles/[id]
@@ -30,8 +31,8 @@ export async function GET(
   }
 
   const isPublished = article.status === "PUBLISHED";
+  const session = getSessionFromHeaders(req.headers);
   if (!isPublished) {
-    const session = getSessionFromHeaders(req.headers);
     if (!canViewUnpublishedArticle(article.correspondingAuthorId, session)) {
       return NextResponse.json({ error: "Article not found" }, { status: 404 });
     }
@@ -39,8 +40,18 @@ export async function GET(
 
   // Increment view counter — published articles only, so an unauthorized
   // 404 above (or an author checking their own draft) never inflates it.
+  // Also records a real COUNTER5 CounterEvent (src/lib/institutions.ts),
+  // attributed to the requester's institution when IP/domain-matched, so
+  // COUNTER5/SUSHI reports reflect genuine per-institution usage instead
+  // of being synthesized from this same views counter.
   if (isPublished) {
     db.article.update({ where: { id }, data: { views: { increment: 1 } } }).catch(() => {});
+    recordCounterEvent({
+      articleId: id,
+      metricType: "Total_Item_Investigations",
+      headers: req.headers,
+      email: session?.email,
+    });
   }
 
   // Cache-Control is only ever set on the PUBLISHED branch: that response
