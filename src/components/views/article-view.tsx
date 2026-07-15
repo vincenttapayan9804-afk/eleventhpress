@@ -10,6 +10,7 @@ import { attentionMetricsConfigured } from "@/lib/attention-metrics";
 import { AltmetricBadge, PlumXBadge } from "@/components/attention-badges";
 import { buildBibTeX, buildRis, coinsSpanProps } from "@/lib/citation-export";
 import { MetricTile } from "@/components/ui/metric-tile";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -269,9 +270,14 @@ export function ArticleView() {
         <div className="mt-5 flex flex-wrap gap-x-6 gap-y-3">
           {authors.map((a, i) => (
             <div key={i} className="flex items-start gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-                {a.name.split(" ").map((p) => p[0]).slice(-2).join("")}
-              </div>
+              <Avatar className="h-9 w-9 border border-primary/20">
+                {article.authorAvatars?.[i] && (
+                  <AvatarImage src={article.authorAvatars[i]!} alt={a.name} className="object-cover" />
+                )}
+                <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
+                  {a.name.split(" ").map((p) => p[0]).slice(-2).join("")}
+                </AvatarFallback>
+              </Avatar>
               <div>
                 <p className="font-sans text-sm font-medium leading-tight">{a.name}</p>
                 <p className="text-xs text-muted-foreground">

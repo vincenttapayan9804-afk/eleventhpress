@@ -28,6 +28,9 @@ export interface ArticleDetail extends ArticleListItem {
   galleyHtmlKey: string | null;
   galleyJatsKey?: string | null;
   galleyEpubKey?: string | null;
+  // One avatarUrl (or null) per parseAuthors(authors) entry, in the same
+  // order — src/lib/author-accounts.ts resolveAuthorAvatars().
+  authorAvatars?: (string | null)[];
   plagiarismScore: number | null;
   ithenticateScore?: number | null;
   ithenticateReportUrl?: string | null;

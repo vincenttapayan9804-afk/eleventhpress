@@ -4,6 +4,8 @@ import { getSessionFromHeaders } from "@/lib/auth";
 import { canViewUnpublishedArticle } from "@/lib/article-access";
 import { deleteArticleCascade } from "@/lib/article-delete";
 import { recordCounterEvent } from "@/lib/institutions";
+import { resolveAuthorAvatars } from "@/lib/author-accounts";
+import { parseAuthors } from "@/lib/article";
 
 /**
  * GET /api/articles/[id]
@@ -66,6 +68,11 @@ export async function GET(
     ? { "Cache-Control": "public, s-maxage=20, stale-while-revalidate=120" }
     : {};
 
+  // One avatarUrl (or null) per author entry, in the same order as
+  // parseAuthors(article.authors) — real registered-account photos where a
+  // co-author's ORCID/email matches a User, initials fallback otherwise.
+  const authorAvatars = await resolveAuthorAvatars(parseAuthors(article.authors));
+
   return NextResponse.json({
     id: article.id,
     doi: article.doi,
@@ -75,6 +82,7 @@ export async function GET(
     keywords: article.keywords,
     discipline: article.discipline,
     authors: article.authors,
+    authorAvatars,
     reviewModel: article.reviewModel,
     openReview: article.openReview,
     status: article.status,
