@@ -31,6 +31,11 @@ export interface ArticleDetail extends ArticleListItem {
   // One avatarUrl (or null) per parseAuthors(authors) entry, in the same
   // order — src/lib/author-accounts.ts resolveAuthorAvatars().
   authorAvatars?: (string | null)[];
+  // AI glossary (src/lib/glossary.ts) — JSON [{term, definition}] / JSON
+  // {mode, model, generatedAt}. glossaryMeta.mode "unavailable" means no
+  // terms could be generated; show that honestly, not an empty list.
+  glossary?: string | null;
+  glossaryMeta?: string | null;
   plagiarismScore: number | null;
   ithenticateScore?: number | null;
   ithenticateReportUrl?: string | null;

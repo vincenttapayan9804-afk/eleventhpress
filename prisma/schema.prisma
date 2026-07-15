@@ -223,6 +223,16 @@ model Article {
   abstractTranslations    String? // JSON: {es, fr, fil, "zh-Hans": text}
   abstractTranslationMeta String? // JSON: {locale: {mode, model, translatedAt}}
 
+  // AI glossary of complex/technical terminology (src/lib/glossary.ts) —
+  // the one AI feature in this file that's auto-generated at galley-
+  // generation/publish time rather than editor/author-triggered, per
+  // explicit product decision. No offline fallback exists (a fabricated
+  // definition is worse than none), so glossaryMeta.mode "unavailable"
+  // means callers must show an explicit "not available" state, not an
+  // empty list styled as "no complex terms."
+  glossary     String? // JSON: [{term, definition}]
+  glossaryMeta String? // JSON: {mode, model, generatedAt}
+
   // Paid Distribution Package (revenue Phase 6) — unlocks Tier B
   // (arXiv/SSRN) submission package generation in src/lib/distribution.ts.
   // Tier C share kits and Tier A Blogger auto-publish stay free.

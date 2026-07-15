@@ -11,6 +11,7 @@ import { AltmetricBadge, PlumXBadge } from "@/components/attention-badges";
 import { buildBibTeX, buildRis, coinsSpanProps } from "@/lib/citation-export";
 import { MetricTile } from "@/components/ui/metric-tile";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -333,9 +334,10 @@ export function ArticleView() {
         {/* Main column */}
         <div>
           <Tabs defaultValue="article" className="w-full">
-            <TabsList className={`grid w-full ${openReviewStatus?.openReview ? "grid-cols-4" : "grid-cols-3"}`}>
+            <TabsList className={`grid w-full ${openReviewStatus?.openReview ? "grid-cols-5" : "grid-cols-4"}`}>
               <TabsTrigger value="article">Article</TabsTrigger>
               <TabsTrigger value="metrics">Metrics</TabsTrigger>
+              <TabsTrigger value="supplemental">Supplemental</TabsTrigger>
               <TabsTrigger value="cite">Cite</TabsTrigger>
               {openReviewStatus?.openReview && (
                 <TabsTrigger value="reviews">Peer review</TabsTrigger>
@@ -502,6 +504,10 @@ export function ArticleView() {
                   </li>
                 </ul>
               </div>
+            </TabsContent>
+
+            <TabsContent value="supplemental" className="mt-6">
+              <SupplementalMaterialsTab article={article} />
             </TabsContent>
 
             <TabsContent value="cite" className="mt-6">
@@ -751,6 +757,171 @@ export function ArticleView() {
 
       <ArticleFlipbook articleId={article.id} open={flipbookOpen} onOpenChange={setFlipbookOpen} />
     </article>
+  );
+}
+
+interface ExtractedTableData {
+  headers: string[];
+  rows: string[][];
+  numericColumns: number[];
+  chartable: boolean;
+}
+
+const CHART_COLORS = ["#7A1F2B", "#c9a55c", "#4a7c8c", "#5c7a4a", "#6a4c93"];
+
+/**
+ * Supplemental Materials tab — enhanced digital-scholarship reading aids
+ * layered on top of what's already real about this article: the existing
+ * AI lay summary (never regenerated here), an AI glossary auto-generated
+ * at publish time (src/lib/glossary.ts — honestly empty when
+ * unavailable, never a guessed definition), and any real numeric tables
+ * the article's own body actually contains (src/lib/data-tables.ts —
+ * never a fabricated chart).
+ */
+function SupplementalMaterialsTab({ article }: { article: ArticleDetail }) {
+  const [tables, setTables] = useState<ExtractedTableData[] | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    apiFetch<{ tables: ExtractedTableData[] }>(`/api/articles/${article.id}/data-tables`)
+      .then((res) => {
+        if (!cancelled) setTables(res.tables);
+      })
+      .catch(() => {
+        if (!cancelled) setTables([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [article.id]);
+
+  let glossaryTerms: { term: string; definition: string }[] = [];
+  try {
+    glossaryTerms = article.glossary ? JSON.parse(article.glossary) : [];
+  } catch {
+    glossaryTerms = [];
+  }
+  let glossaryMode: string | null = null;
+  try {
+    glossaryMode = article.glossaryMeta ? JSON.parse(article.glossaryMeta).mode : null;
+  } catch {
+    glossaryMode = null;
+  }
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <p className="eyebrow mb-2">Automated summary</p>
+        {article.laySummary ? (
+          <p className="rounded-md border border-primary/20 bg-primary/5 p-4 text-sm leading-relaxed text-foreground/85">
+            {article.laySummary}
+          </p>
+        ) : (
+          <p className="rounded-md border border-dashed border-border p-4 text-xs text-muted-foreground">
+            No AI-generated summary is available for this article yet.
+          </p>
+        )}
+      </div>
+
+      <div>
+        <p className="eyebrow mb-2">Inline definitions</p>
+        {glossaryTerms.length > 0 ? (
+          <dl className="grid gap-3 sm:grid-cols-2">
+            {glossaryTerms.map((t, i) => (
+              <div key={i} className="rounded-md border border-border p-3">
+                <dt className="font-display text-sm font-semibold">{t.term}</dt>
+                <dd className="mt-1 text-xs text-muted-foreground">{t.definition}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : (
+          <p className="rounded-md border border-dashed border-border p-4 text-xs text-muted-foreground">
+            {glossaryMode === "unavailable"
+              ? "AI glossary unavailable — no complex terminology definitions could be generated for this article yet."
+              : "No AI glossary is available for this article yet."}
+          </p>
+        )}
+      </div>
+
+      <div>
+        <p className="eyebrow mb-2">Interactive data visualization</p>
+        {tables === null ? (
+          <p className="text-xs text-muted-foreground">Loading…</p>
+        ) : tables.length > 0 ? (
+          <div className="space-y-6">
+            {tables.map((t, i) => (
+              <DataTableChart key={i} table={t} />
+            ))}
+          </div>
+        ) : (
+          <p className="rounded-md border border-dashed border-border p-4 text-xs text-muted-foreground">
+            No structured data tables were found in this article.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Always shows the article's own real table; layers a recharts bar chart
+ * on top only when the table has a genuine numeric column with enough
+ * rows to be meaningful (src/lib/data-tables.ts's isChartable()). */
+function DataTableChart({ table }: { table: ExtractedTableData }) {
+  const labelCol = table.headers.findIndex((_, i) => !table.numericColumns.includes(i));
+  const seriesKeys = table.numericColumns.map((col) => table.headers[col] || `Column ${col + 1}`);
+  const chartData = table.rows.map((row, i) => {
+    const entry: Record<string, string | number> = { name: labelCol >= 0 ? row[labelCol] || `Row ${i + 1}` : `Row ${i + 1}` };
+    for (const col of table.numericColumns) {
+      const key = table.headers[col] || `Column ${col + 1}`;
+      const raw = (row[col] || "").replace(/[$,%\s]/g, "");
+      entry[key] = raw && !isNaN(Number(raw)) ? Number(raw) : 0;
+    }
+    return entry;
+  });
+
+  return (
+    <div className="rounded-md border border-border p-4">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-max border-collapse text-xs">
+          <thead>
+            <tr>
+              {table.headers.map((h, i) => (
+                <th key={i} className="border border-border bg-muted/50 p-1.5 text-left">
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {table.rows.map((row, i) => (
+              <tr key={i}>
+                {row.map((c, j) => (
+                  <td key={j} className="border border-border p-1.5">
+                    {c}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {table.chartable && (
+        <div className="mt-4 h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+              <YAxis tick={{ fontSize: 10 }} />
+              <Tooltip />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              {seriesKeys.map((key, i) => (
+                <Bar key={key} dataKey={key} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </div>
   );
 }
 

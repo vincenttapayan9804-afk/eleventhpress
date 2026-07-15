@@ -6,6 +6,7 @@ import { depositToCrossref } from "@/lib/crossref";
 import { depositPublishedArticleToZenodo, zenodoLiveMode } from "@/lib/zenodo";
 import { getObject, putObject } from "@/lib/storage";
 import { generateGalleys, renderMinimalErrorPdf } from "@/lib/galley";
+import { generateGlossary } from "@/lib/glossary";
 import { APP_BASE_URL } from "@/lib/site";
 import { APC_USD } from "@/lib/pricing";
 
@@ -153,6 +154,38 @@ export async function POST(req: NextRequest) {
           where: { id: articleId },
           data: { galleyPdfKey: pdfKey, galleyHtmlKey: htmlKey },
         });
+      }
+
+      // 1b. Glossary: the one AI feature in this codebase that's
+      //     auto-generated rather than editor/author-triggered, per
+      //     explicit product decision — real content on the Supplemental
+      //     Materials tab needs to exist by the time a reader first opens
+      //     it, not appear only after an editor remembers to trigger it.
+      //     Best-effort: never blocks publish, and honestly stores
+      //     mode: "unavailable" rather than a fabricated definition list
+      //     when no LLM is configured or the call fails.
+      try {
+        const glossaryResult = await generateGlossary({
+          title: updated.title,
+          abstract: updated.abstract,
+          keywords: updated.keywords,
+          discipline: updated.discipline,
+        });
+        await db.article.update({
+          where: { id: articleId },
+          data: {
+            glossary: JSON.stringify(glossaryResult.terms),
+            glossaryMeta: JSON.stringify({
+              mode: glossaryResult.mode,
+              model: glossaryResult.model,
+              generatedAt: glossaryResult.generatedAt,
+            }),
+          },
+        });
+        publishEvents.push(`Glossary ${glossaryResult.mode === "llm" ? `generated (${glossaryResult.terms.length} terms)` : "unavailable — no LLM configured"}`);
+      } catch (e: any) {
+        console.error(`[workflow] Glossary generation failed for article ${articleId}:`, e);
+        publishEvents.push(`Glossary generation failed: ${e.message}`);
       }
 
       // 2. DOI deposit. Prefers Zenodo (free, real, permanently-resolving
