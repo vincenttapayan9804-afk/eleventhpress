@@ -9,6 +9,7 @@ import { DOI_REGISTRAR } from "@/lib/site";
 import { attentionMetricsConfigured } from "@/lib/attention-metrics";
 import { AltmetricBadge, PlumXBadge } from "@/components/attention-badges";
 import { buildBibTeX, buildRis, coinsSpanProps } from "@/lib/citation-export";
+import { MetricTile } from "@/components/ui/metric-tile";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -422,9 +423,14 @@ export function ArticleView() {
                   <CardContent className="p-5">
                     <ShieldCheck className="h-5 w-5 text-primary" />
                     <p className="mt-2 font-display text-3xl font-semibold">{article.plagiarismScore ?? "—"}%</p>
-                    <p className="text-xs text-muted-foreground">In-corpus similarity</p>
+                    <p className="text-xs text-muted-foreground">In-corpus similarity (in-house)</p>
                   </CardContent>
                 </Card>
+                <MetricTile
+                  icon={ShieldCheck}
+                  value={article.ithenticateScore != null ? `${article.ithenticateScore}%` : "Not checked"}
+                  label="iThenticate similarity (enterprise, additional)"
+                />
               </div>
 
               {attentionMetricsConfigured(article) && (
