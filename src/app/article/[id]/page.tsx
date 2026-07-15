@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { presignGet } from "@/lib/storage";
 import { parseAuthors, formatCitation } from "@/lib/article";
+import { coinsSpanProps } from "@/lib/citation-export";
 import { APP_BASE_URL } from "@/lib/site";
 import { I18nProvider } from "@/components/i18n-provider";
 import { SiteHeader } from "@/components/site-header";
@@ -56,6 +57,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     citation_title: article.title,
     citation_author: authorNames.length ? authorNames : ["the authors"],
     citation_journal_title: article.journal?.name || "Eleventh Press International Publishing",
+    citation_publisher: article.journal?.publisher || "Eleventh Press International Publishing",
     citation_abstract_html_url: canonicalUrl,
   };
   if (article.publishedAt) other.citation_publication_date = article.publishedAt.toISOString().split("T")[0];
@@ -109,6 +111,17 @@ export default async function ArticlePage({ params }: { params: Promise<{ id: st
     issueNumber: article.issue?.issueNumber,
   });
   const pdfUrl = article.galleyPdfKey ? await presignGet(article.galleyPdfKey, `${article.doi?.replace(/[^a-z0-9]/gi, "-") || article.id}.pdf`) : null;
+  const coins = coinsSpanProps({
+    title: article.title,
+    authors: article.authors,
+    publishedAt: article.publishedAt,
+    doi: article.doi,
+    journalName: article.journal?.name,
+    journalIssn: article.journal?.issn,
+    volume: article.issue?.volume,
+    issueNumber: article.issue?.issueNumber,
+    year: article.issue?.year,
+  });
 
   return (
     <I18nProvider>
@@ -132,6 +145,9 @@ export default async function ArticlePage({ params }: { params: Promise<{ id: st
                 </p>
               )}
               <p className="mt-8 text-sm text-muted-foreground">{citation}</p>
+              {/* OpenURL/COinS marker — lets Zotero's and Mendeley's browser
+                  connectors auto-detect this article's metadata on the page. */}
+              <span {...coins} />
             </article>
           </ArticleRouteBootstrap>
         </main>

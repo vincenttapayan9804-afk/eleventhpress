@@ -8,6 +8,7 @@ import { DISCIPLINE_COLORS, parseAuthors, formatCitation, CORRECTION_TYPE_LABELS
 import { DOI_REGISTRAR } from "@/lib/site";
 import { attentionMetricsConfigured } from "@/lib/attention-metrics";
 import { AltmetricBadge, PlumXBadge } from "@/components/attention-badges";
+import { buildBibTeX, buildRis, coinsSpanProps } from "@/lib/citation-export";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -141,36 +142,21 @@ export function ArticleView() {
 
   const authors = parseAuthors(article.authors);
   const keywords = article.keywords.split(",").map((k) => k.trim()).filter(Boolean);
-  const citation = formatCitation({
+  const citationExportable = {
     title: article.title,
     authors: article.authors,
     publishedAt: article.publishedAt,
     doi: article.doi,
     journalName: article.journalName,
+    journalIssn: article.journalIssn,
     volume: article.volume,
     issueNumber: article.issueNumber,
     year: article.year,
-  });
-
-  const bibtex = `@article{${article.doi?.replace(/[^a-z0-9]/gi, "") || "epip"},
-  title   = {${article.title}},
-  author  = {${authors.map((a) => a.name).join(" and ")}},
-  journal = {${article.journalName ?? "EPIP Int. J. Multidiscip. Res."}},
-  year    = {${article.year ?? new Date(article.publishedAt || Date.now()).getFullYear()}},
-  volume  = {${article.volume ?? ""}},
-  number  = {${article.issueNumber ?? ""}},
-  doi     = {${article.doi ?? ""}},
-}`;
-
-  const ris = `TY  - JOUR
-TI  - ${article.title}
-AU  - ${authors.map((a) => a.name).join("\nAU  - ")}
-JO  - ${article.journalName ?? "EPIP Int. J. Multidiscip. Res."}
-PY  - ${article.year ?? new Date(article.publishedAt || Date.now()).getFullYear()}
-VL  - ${article.volume ?? ""}
-IS  - ${article.issueNumber ?? ""}
-DO  - ${article.doi ?? ""}
-ER  - `;
+  };
+  const citation = formatCitation(citationExportable);
+  const bibtex = buildBibTeX(citationExportable);
+  const ris = buildRis(citationExportable);
+  const coins = coinsSpanProps(citationExportable);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -340,6 +326,9 @@ ER  - `;
                 <p className="dropcap mt-2 text-base leading-relaxed text-foreground/90">
                   {article.abstract}
                 </p>
+                {/* OpenURL/COinS marker — Zotero/Mendeley browser connectors
+                    auto-detect this article's metadata via this tag. */}
+                <span {...coins} />
 
                 {article.laySummary && (
                   <div className="mt-4 rounded-md border border-primary/20 bg-primary/5 p-4 not-prose">
@@ -498,11 +487,25 @@ ER  - `;
                   <pre className="mt-4 max-h-72 overflow-auto rounded-md border border-border bg-muted/30 p-4 font-mono text-xs leading-relaxed epip-scroll">
 {citationFormat === "apa" ? citation : citationFormat === "bibtex" ? bibtex : ris}
                   </pre>
-                  <div className="mt-3 flex justify-end">
+                  <div className="mt-3 flex flex-wrap justify-end gap-2">
+                    <Button size="sm" variant="outline" asChild>
+                      <a href={`/api/articles/${article.id}/export?format=ris`} download>
+                        <Download className="mr-1.5 h-3.5 w-3.5" /> Download .ris
+                      </a>
+                    </Button>
+                    <Button size="sm" variant="outline" asChild>
+                      <a href={`/api/articles/${article.id}/export?format=bibtex`} download>
+                        <Download className="mr-1.5 h-3.5 w-3.5" /> Download .bib
+                      </a>
+                    </Button>
                     <Button size="sm" onClick={copyCitation}>
                       <FileText className="mr-1.5 h-3.5 w-3.5" /> Copy citation
                     </Button>
                   </div>
+                  <p className="mt-2 text-right text-[0.65rem] text-muted-foreground">
+                    Zotero and Mendeley&apos;s browser connectors also auto-detect this page&apos;s citation
+                    data directly — no click needed.
+                  </p>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -598,6 +601,20 @@ ER  - `;
                   }}
                 >
                   <Share2 className="mr-2 h-3.5 w-3.5" /> Copy DOI link
+                </Button>
+              </div>
+              <Separator className="my-4" />
+              <p className="text-xs font-medium text-foreground">Export to reference manager</p>
+              <div className="mt-2 space-y-2">
+                <Button variant="outline" size="sm" className="w-full justify-start" asChild>
+                  <a href={`/api/articles/${article.id}/export?format=ris`} download>
+                    <Download className="mr-2 h-3.5 w-3.5" /> RIS (Zotero, EndNote)
+                  </a>
+                </Button>
+                <Button variant="outline" size="sm" className="w-full justify-start" asChild>
+                  <a href={`/api/articles/${article.id}/export?format=bibtex`} download>
+                    <Download className="mr-2 h-3.5 w-3.5" /> BibTeX (Mendeley, LaTeX)
+                  </a>
                 </Button>
               </div>
             </CardContent>
