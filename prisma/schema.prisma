@@ -577,6 +577,36 @@ model AltTextJob {
 }
 
 // ---------------------------------------------------------------------------
+// Preservation Deposit — dark-archive preservation status with CLOCKSS /
+// Portico (src/lib/preservation.ts). Neither service exposes a public
+// per-article API — they harvest bulk content (via OAI-PMH, among other
+// mechanisms) under a signed institutional agreement, or crawl under a
+// published LOCKSS permission statement — so unlike GalleyJob/
+// IntegrityCheckJob/AltTextJob above, this is deliberately NOT a job
+// model: there is no automatable submit-and-poll flow to run. It's
+// self-reported, admin-maintained status, the same shape Distribution/
+// BookDistribution already use for other no-public-API integrations.
+// Journal-granularity, not per-article: both services cover a journal's
+// full run under one standing agreement.
+// ---------------------------------------------------------------------------
+model PreservationDeposit {
+  id              String    @id @default(cuid())
+  journalId       String
+  provider        String // CLOCKSS | PORTICO
+  status          String    @default("NOT_STARTED") // NOT_STARTED | AGREEMENT_PENDING | HARVESTING_ENABLED | CONFIRMED_ARCHIVED | LAPSED
+  agreementRef    String? // self-reported contract/agreement identifier
+  coverageFrom    DateTime? // earliest confirmed-archived content date
+  lastConfirmedAt DateTime?
+  notes           String?
+  updatedBy       String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([journalId, provider])
+  @@index([journalId])
+}
+
+// ---------------------------------------------------------------------------
 // Distribution — per-article syndication tracking to external platforms
 // (see src/lib/distribution.ts). One row per (articleId, platform) pair,
 // created on demand when an author/editor first generates a share package
