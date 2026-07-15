@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { canViewUnpublishedArticle } from "@/lib/article-access";
+import { deleteArticleCascade } from "@/lib/article-delete";
 
 /**
  * GET /api/articles/[id]
@@ -93,4 +94,48 @@ export async function GET(
     journalIssn: article.journal?.issn,
     publisher: article.journal?.publisher,
   }, { headers });
+}
+
+/**
+ * DELETE /api/articles/[id]
+ * Permanently removes an Article and every row that references it
+ * (src/lib/article-delete.ts). SUPER_ADMIN only — this destroys real data
+ * (reviews, decisions, corrections, DOI history) with no undo, unlike the
+ * editorial workflow transitions (REJECT/WITHDRAWN) which just change
+ * `status` and keep the record. Writes an AuditLog entry after the row is
+ * gone (articleId left null since the FK target no longer exists;
+ * entityId — a plain string, not a relation — still records which id was
+ * deleted).
+ */
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = getSessionFromHeaders(req.headers);
+  if (!session) {
+    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  }
+  if (session.role !== "SUPER_ADMIN") {
+    return NextResponse.json({ error: "Admin role required" }, { status: 403 });
+  }
+
+  const { id } = await params;
+  const article = await db.article.findUnique({ where: { id } });
+  if (!article) {
+    return NextResponse.json({ error: "Article not found" }, { status: 404 });
+  }
+
+  await deleteArticleCascade(article, { deleteFiles: true });
+
+  await db.auditLog.create({
+    data: {
+      userId: session.userId,
+      action: "ARTICLE_DELETED",
+      entityType: "ARTICLE",
+      entityId: article.id,
+      metadata: JSON.stringify({ title: article.title, doi: article.doi, status: article.status }),
+    },
+  });
+
+  return NextResponse.json({ ok: true });
 }

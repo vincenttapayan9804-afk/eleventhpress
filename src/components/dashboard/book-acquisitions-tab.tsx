@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api-client";
+import { useApp } from "@/lib/store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +25,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { BookOpen, Loader2, ListChecks, CheckCircle2, XCircle, Sparkles, Rocket, DollarSign } from "lucide-react";
+import { BookOpen, Loader2, ListChecks, CheckCircle2, XCircle, Sparkles, Rocket, DollarSign, Trash2 } from "lucide-react";
 
 const ROYALTY_PLATFORMS = [
   { value: "DRAFT2DIGITAL", label: "Draft2Digital" },
@@ -166,8 +167,11 @@ function RecordRoyaltyDialog({ book }: { book: any }) {
 }
 
 export function BookAcquisitionsTab() {
+  const user = useApp((s) => s.user);
   const [books, setBooks] = useState<any[] | null>(null);
   const [actingOn, setActingOn] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   async function load() {
     try {
@@ -199,6 +203,20 @@ export function BookAcquisitionsTab() {
       toast.error(e.message);
     } finally {
       setActingOn(null);
+    }
+  }
+
+  async function deleteBook(bookId: string) {
+    setDeletingId(bookId);
+    try {
+      await apiFetch(`/api/books/${bookId}`, { method: "DELETE" });
+      toast.success("Book permanently deleted");
+      setConfirmDeleteId(null);
+      await load();
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -244,6 +262,41 @@ export function BookAcquisitionsTab() {
                 ))}
                 {b.status === "PUBLISHED" && <RecordRoyaltyDialog book={b} />}
               </div>
+
+              {user?.role === "SUPER_ADMIN" && (
+                <div className="border-t border-destructive/30 pt-2">
+                  {confirmDeleteId === b.id ? (
+                    <div className="rounded-md border border-destructive/40 bg-destructive/5 p-2">
+                      <p className="text-xs font-medium text-destructive">
+                        Permanently delete "{b.title}" — chapters, royalty statements, distribution
+                        records, and files? This cannot be undone.
+                      </p>
+                      <div className="mt-2 flex justify-end gap-2">
+                        <Button size="sm" variant="ghost" onClick={() => setConfirmDeleteId(null)}>
+                          Cancel
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          disabled={deletingId === b.id}
+                          onClick={() => deleteBook(b.id)}
+                        >
+                          {deletingId === b.id ? (
+                            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                          ) : (
+                            <Trash2 className="mr-1 h-3 w-3" />
+                          )}
+                          Confirm delete permanently
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => setConfirmDeleteId(b.id)}>
+                      <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Delete permanently
+                    </Button>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         ))

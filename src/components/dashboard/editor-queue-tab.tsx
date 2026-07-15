@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { apiFetch } from "@/lib/api-client";
+import { useApp } from "@/lib/store";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +47,7 @@ import {
   FileDown,
   Globe2,
   Database,
+  Trash2,
 } from "lucide-react";
 
 interface Props {
@@ -196,10 +198,14 @@ export function EditorQueueTab({ queue, stats, onRefresh }: Props) {
   );
 }
 
+const DELETE_ACTION = "DELETE_ARTICLE";
+
 function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; onClose: () => void; onRefresh: () => void }) {
+  const user = useApp((s) => s.user);
   const [action, setAction] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [reviewers, setReviewers] = useState<any[]>([]);
   const [assigningReviewer, setAssigningReviewer] = useState<string | null>(null);
   const [openAssigner, setOpenAssigner] = useState(false);
@@ -240,8 +246,27 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
     }
   }
 
+  async function deleteArticle() {
+    setDeleting(true);
+    try {
+      await apiFetch(`/api/articles/${article.id}`, { method: "DELETE" });
+      toast.success("Article permanently deleted");
+      setAction(null);
+      onRefresh();
+      onClose();
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   async function applyAction() {
     if (!action) return;
+    if (action === DELETE_ACTION) {
+      await deleteArticle();
+      return;
+    }
     setLoading(true);
     try {
       await apiFetch("/api/articles/workflow", {
@@ -451,13 +476,37 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
                       ))}
                     </div>
                   )}
-                  {action && (
+                  {action && action !== DELETE_ACTION && (
                     <p className="mt-2 text-[0.7rem] text-muted-foreground">
                       Selected: <strong>{ACTIONS.find((a) => a.key === action)?.label}</strong> — add an
                       optional note and confirm below.
                     </p>
                   )}
                 </div>
+
+                {/* SUPER_ADMIN only — permanently removes the row and every
+                    related record, unlike REJECT/WITHDRAWN above which just
+                    change status and keep the record. */}
+                {user?.role === "SUPER_ADMIN" && (
+                  <>
+                    <Separator />
+                    <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3">
+                      <p className="eyebrow mb-1 text-destructive">Danger zone</p>
+                      <p className="mb-2 text-xs text-muted-foreground">
+                        Permanently deletes this article and every related record (reviews, decisions,
+                        corrections, references, DOI/Zenodo/Crossref history, galleys, files). This
+                        cannot be undone.
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => setAction(DELETE_ACTION)}
+                      >
+                        <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Delete permanently
+                      </Button>
+                    </div>
+                  </>
+                )}
               </div>
             </ScrollArea>
           </TabsContent>
@@ -608,7 +657,7 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
             which tab is active or scroll position (previously buried at
             the bottom of one long scroll, which made the confirm click
             easy to miss). */}
-        {action && (
+        {action && action !== DELETE_ACTION && (
           <div className="flex-shrink-0 border-t border-border bg-primary/5 p-3">
             <Label className="text-xs">Editorial note (optional)</Label>
             <Textarea
@@ -625,6 +674,24 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
               <Button size="sm" onClick={applyAction} disabled={loading}>
                 {loading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
                 Confirm {ACTIONS.find(a => a.key === action)?.label.toLowerCase()}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {action === DELETE_ACTION && (
+          <div className="flex-shrink-0 border-t border-destructive/40 bg-destructive/5 p-3">
+            <p className="text-xs font-medium text-destructive">
+              This is permanent. "{article.title}" and every related record will be deleted — there is
+              no undo.
+            </p>
+            <div className="mt-2 flex justify-end gap-2">
+              <Button size="sm" variant="ghost" onClick={() => setAction(null)}>
+                Cancel
+              </Button>
+              <Button size="sm" variant="destructive" onClick={applyAction} disabled={deleting}>
+                {deleting ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Trash2 className="mr-1 h-3 w-3" />}
+                Confirm delete permanently
               </Button>
             </div>
           </div>
