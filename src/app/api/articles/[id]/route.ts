@@ -74,6 +74,8 @@ export async function GET(
     downloads: article.downloads,
     citations: article.citations,
     plagiarismScore: article.plagiarismScore,
+    ithenticateScore: article.ithenticateScore,
+    ithenticateReportUrl: article.ithenticateReportUrl,
     integrityStatus: article.integrityStatus,
     funders: article.funders,
     laySummary: article.laySummary,

@@ -193,6 +193,17 @@ model Article {
   similarityReport    String? // JSON: [{articleId, title, score}] top in-corpus matches
   similarityCheckedAt DateTime?
 
+  // Enterprise-tier integrity check via Turnitin's iThenticate API
+  // (src/lib/ithenticate.ts, IntegrityCheckJob below) — a real, additional
+  // check alongside (not replacing) the in-house pgvector similarity
+  // screen above. Always editor-triggered, never run automatically at
+  // publish time, since each submission carries a real per-check vendor
+  // cost. Denormalized here as "latest result"; full job history lives on
+  // IntegrityCheckJob.
+  ithenticateScore     Float?
+  ithenticateReportUrl String?
+  ithenticateCheckedAt DateTime?
+
   // LLM-assisted checks (src/lib/manuscript-checks.ts) — both optional,
   // author/editor-triggered, never run silently.
   laySummary           String?
@@ -492,6 +503,36 @@ model GalleyJob {
   startedAt    DateTime?
   completedAt  DateTime?
   createdAt    DateTime  @default(now())
+
+  @@index([status, createdAt])
+  @@index([articleId])
+}
+
+// ---------------------------------------------------------------------------
+// Integrity Check Job — tracks enterprise-tier plagiarism checks submitted
+// to an external vendor (Turnitin's iThenticate API). Same durable
+// atomic-claim job shape as GalleyJob (src/lib/galley-job.ts), with one
+// extra state: iThenticate's real flow is submit-then-await-a-webhook,
+// distinct from Pandoc's synchronous local run, so SUBMITTED (waiting on
+// the vendor) needs to stay distinct from PROCESSING (this app actively
+// working) for accurate status display.
+// ---------------------------------------------------------------------------
+model IntegrityCheckJob {
+  id                   String    @id @default(cuid())
+  articleId            String
+  provider             String    @default("ITHENTICATE")
+  inputKey             String // storage key of the manuscript submitted for the check
+  status               String    @default("QUEUED") // QUEUED | SUBMITTED | PROCESSING | COMPLETED | FAILED
+  mode                 String    @default("simulation") // "live" | "simulation" — which path produced this job's result
+  externalSubmissionId String?
+  reportUrl            String?
+  similarityScore      Float?
+  matchBreakdown       String? // JSON
+  workerLog            String?
+  errorMessage         String?
+  startedAt            DateTime?
+  completedAt          DateTime?
+  createdAt            DateTime  @default(now())
 
   @@index([status, createdAt])
   @@index([articleId])

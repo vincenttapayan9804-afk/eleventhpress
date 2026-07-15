@@ -11,6 +11,7 @@ import {
   Loader2,
   RefreshCw,
   ShieldAlert,
+  ShieldCheck,
   AlertCircle,
   Info,
   Copy,
@@ -19,6 +20,7 @@ import {
   CheckCircle2,
   Sparkles,
   Tag,
+  ExternalLink,
 } from "lucide-react";
 
 interface SimilarityMatch {
@@ -41,6 +43,16 @@ interface ReferenceItem {
   resolvedTitle: string | null;
 }
 
+interface IntegrityJob {
+  id: string;
+  status: "QUEUED" | "SUBMITTED" | "PROCESSING" | "COMPLETED" | "FAILED";
+  mode: "live" | "simulation";
+  similarityScore: number | null;
+  reportUrl: string | null;
+  errorMessage: string | null;
+  workerLog: string | null;
+}
+
 interface Props {
   articleId: string;
 }
@@ -50,6 +62,7 @@ export function ManuscriptChecksPanel({ articleId }: Props) {
   const [statistical, setStatistical] = useState<{ flags: StatisticalFlag[] } | null>(null);
   const [references, setReferences] = useState<ReferenceItem[]>([]);
   const [aiAssist, setAiAssist] = useState<{ laySummary: string; suggestedKeywords: string[]; mode: string } | null>(null);
+  const [integrityJob, setIntegrityJob] = useState<IntegrityJob | null>(null);
   const [loading, setLoading] = useState<string | null>(null);
 
   useEffect(() => {
@@ -62,6 +75,9 @@ export function ManuscriptChecksPanel({ articleId }: Props) {
     apiFetch<{ references: ReferenceItem[] }>(`/api/articles/${articleId}/references`)
       .then((r) => setReferences(r.references || []))
       .catch(() => setReferences([]));
+    apiFetch<{ jobs: IntegrityJob[] }>(`/api/articles/${articleId}/integrity-check`)
+      .then((r) => setIntegrityJob(r.jobs?.[0] ?? null))
+      .catch(() => setIntegrityJob(null));
   }, [articleId]);
 
   async function runSimilarity() {
@@ -75,6 +91,32 @@ export function ManuscriptChecksPanel({ articleId }: Props) {
       toast.success("Similarity check complete");
     } catch (e: any) {
       toast.error("Similarity check failed", { description: e.message });
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function runIntegrityCheck() {
+    setLoading("integrity");
+    try {
+      const r = await apiFetch<{ success: boolean; deduped?: boolean; job: IntegrityJob }>(
+        `/api/articles/${articleId}/integrity-check`,
+        { method: "POST" }
+      );
+      setIntegrityJob(r.job);
+      if (r.deduped) {
+        toast.info("A check is already in flight for this article");
+      } else if (r.job.mode === "simulation") {
+        toast.info("iThenticate not configured", {
+          description: "Set ITHENTICATE_CLIENT_ID/SECRET to enable a real check — no score was fabricated.",
+        });
+      } else if (r.job.status === "SUBMITTED") {
+        toast.success("Submitted to iThenticate", { description: "The similarity report will arrive via webhook." });
+      } else {
+        toast.error("Integrity check failed", { description: r.job.errorMessage ?? undefined });
+      }
+    } catch (e: any) {
+      toast.error("Integrity check failed", { description: e.message });
     } finally {
       setLoading(null);
     }
@@ -171,6 +213,49 @@ export function ManuscriptChecksPanel({ articleId }: Props) {
             </div>
           ) : (
             <p className="mt-1 text-xs text-muted-foreground">Not yet run.</p>
+          )}
+        </div>
+
+        <Separator />
+
+        {/* Enterprise integrity check — a real, additional vendor check
+            alongside (not replacing) the in-house similarity screen above.
+            Always editor-triggered, never auto-run, since a real submission
+            has a genuine per-check cost. */}
+        <div>
+          <div className="flex items-center justify-between">
+            <p className="eyebrow flex items-center gap-1"><ShieldCheck className="h-3 w-3" /> Enterprise integrity check (iThenticate)</p>
+            <Button size="sm" variant="outline" onClick={runIntegrityCheck} disabled={loading === "integrity" || integrityJob?.status === "SUBMITTED"}>
+              {loading === "integrity" ? <Loader2 className="h-3 w-3 animate-spin" /> : "Submit"}
+            </Button>
+          </div>
+          {integrityJob ? (
+            <div className="mt-2 rounded-md border border-border p-2 text-xs">
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-[0.55rem]">{integrityJob.mode}</Badge>
+                <Badge variant="outline" className="text-[0.55rem]">{integrityJob.status.toLowerCase()}</Badge>
+              </div>
+              {integrityJob.mode === "simulation" ? (
+                <p className="mt-1.5 text-muted-foreground">
+                  No score available — set ITHENTICATE_CLIENT_ID/SECRET to enable a real check. Never fabricated.
+                </p>
+              ) : integrityJob.similarityScore != null ? (
+                <>
+                  <p className="mt-1.5 font-medium">{integrityJob.similarityScore}% overall match (Turnitin)</p>
+                  {integrityJob.reportUrl && (
+                    <a href={integrityJob.reportUrl} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-primary hover:underline">
+                      <ExternalLink className="h-3 w-3" /> View Similarity Report
+                    </a>
+                  )}
+                </>
+              ) : integrityJob.status === "SUBMITTED" ? (
+                <p className="mt-1.5 text-muted-foreground">Submitted — awaiting the vendor&apos;s similarity report.</p>
+              ) : integrityJob.status === "FAILED" ? (
+                <p className="mt-1.5 text-rose-700">{integrityJob.errorMessage}</p>
+              ) : null}
+            </div>
+          ) : (
+            <p className="mt-1 text-xs text-muted-foreground">Not yet submitted.</p>
           )}
         </div>
 
