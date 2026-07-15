@@ -6,6 +6,8 @@ import { apiFetch } from "@/lib/api-client";
 import { ArticleDetail } from "@/lib/types";
 import { DISCIPLINE_COLORS, parseAuthors, formatCitation, CORRECTION_TYPE_LABELS, CorrectionType } from "@/lib/article";
 import { DOI_REGISTRAR } from "@/lib/site";
+import { attentionMetricsConfigured } from "@/lib/attention-metrics";
+import { AltmetricBadge, PlumXBadge } from "@/components/attention-badges";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -435,6 +437,22 @@ ER  - `;
                   </CardContent>
                 </Card>
               </div>
+
+              {attentionMetricsConfigured(article) && (
+                <div className="mt-5 rounded-md border border-border bg-muted/30 p-4">
+                  <p className="text-sm font-semibold text-foreground">Attention &amp; impact</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Live third-party attention tracking keyed to this article&apos;s DOI — social media, news,
+                    policy documents, and blog mentions. A low or zero count reflects genuine, real-time tracking
+                    data, not a placeholder.
+                  </p>
+                  <div className="mt-4 flex flex-wrap items-center gap-6">
+                    <AltmetricBadge doi={article.doi!} />
+                    <PlumXBadge doi={article.doi!} />
+                  </div>
+                </div>
+              )}
+
               <div className="mt-5 rounded-md border border-border bg-muted/30 p-4 text-xs text-muted-foreground">
                 <p className="font-semibold text-foreground">Indexing status</p>
                 <ul className="mt-2 space-y-1">
