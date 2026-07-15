@@ -37,6 +37,13 @@ import {
   Mail,
 } from "lucide-react";
 
+interface BoardCitationMetrics {
+  worksCount: number;
+  citedByCount: number;
+  hIndex: number | null;
+  source: "openalex-live" | "openalex-cached";
+}
+
 interface BoardMember {
   id: string;
   fullName: string;
@@ -47,6 +54,7 @@ interface BoardMember {
   bio: string | null;
   orcid: string | null;
   avatarUrl: string | null;
+  citationMetrics: BoardCitationMetrics | null;
 }
 
 function initialsOf(name: string) {
@@ -285,6 +293,22 @@ export function AboutView() {
                     >
                       ORCID {m.orcid}
                     </a>
+                  )}
+                  {m.citationMetrics && (
+                    <div className="mt-3 grid grid-cols-3 gap-1.5 rounded-md border border-border bg-muted/30 p-2 text-center">
+                      <div>
+                        <p className="font-mono text-xs font-semibold">{m.citationMetrics.worksCount}</p>
+                        <p className="text-[0.55rem] uppercase tracking-wide text-muted-foreground">Works</p>
+                      </div>
+                      <div>
+                        <p className="font-mono text-xs font-semibold">{m.citationMetrics.citedByCount}</p>
+                        <p className="text-[0.55rem] uppercase tracking-wide text-muted-foreground">Citations</p>
+                      </div>
+                      <div>
+                        <p className="font-mono text-xs font-semibold">{m.citationMetrics.hIndex ?? "—"}</p>
+                        <p className="text-[0.55rem] uppercase tracking-wide text-muted-foreground">h-index</p>
+                      </div>
+                    </div>
                   )}
                 </CardContent>
               </Card>
