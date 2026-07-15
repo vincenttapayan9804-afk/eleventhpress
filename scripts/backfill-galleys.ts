@@ -1,22 +1,25 @@
 /**
  * Bulk backfill for PUBLISHED articles that predate the EPUB galley
- * (Phase A) and/or AI glossary (Phase D) features, so operators don't have
- * to manually re-trigger each article's production pipeline one at a time.
+ * (Phase A), AI glossary (Phase D), or auto-generated lay summary
+ * features, so operators don't have to manually re-trigger each
+ * article's production pipeline one at a time.
  *
  * Reuses the exact same manuscript-resolution + galley-generation logic as
  * the live publish path (src/lib/galley-regenerate.ts,
  * src/app/api/articles/workflow/route.ts) rather than duplicating it.
  *
- * COST NOTE: glossary backfill makes a real, billed Anthropic API call
- * per article (src/lib/glossary.ts). Galley backfill does real PDF/HTML/
- * EPUB/JATS rendering work. Neither is free to run at scale — review the
- * dry-run count before passing --confirm.
+ * COST NOTE: glossary and summary backfill each make a real, billed
+ * Anthropic API call per article (src/lib/glossary.ts,
+ * src/lib/manuscript-checks.ts). Galley backfill does real PDF/HTML/
+ * EPUB/JATS rendering work. None of this is free to run at scale — review
+ * the dry-run count before passing --confirm.
  *
  * Usage:
  *   bun run scripts/backfill-galleys.ts                       # dry run, all published articles
- *   bun run scripts/backfill-galleys.ts --confirm              # backfill missing galleys + glossary
+ *   bun run scripts/backfill-galleys.ts --confirm              # backfill missing galleys + glossary + summary
  *   bun run scripts/backfill-galleys.ts --confirm --galleys-only
  *   bun run scripts/backfill-galleys.ts --confirm --glossary-only
+ *   bun run scripts/backfill-galleys.ts --confirm --summary-only
  *   bun run scripts/backfill-galleys.ts --confirm --force      # regenerate even if already present
  *   bun run scripts/backfill-galleys.ts --confirm --limit 10
  *   bun run scripts/backfill-galleys.ts --confirm --article-id <id>
@@ -24,6 +27,7 @@
 import { db } from "../src/lib/db";
 import { generateGalleysForArticle } from "../src/lib/galley-regenerate";
 import { generateGlossary } from "../src/lib/glossary";
+import { suggestKeywordsAndSummary } from "../src/lib/manuscript-checks";
 
 function flagValue(args: string[], name: string): string | null {
   const idx = args.indexOf(name);
@@ -35,18 +39,23 @@ async function main() {
   const args = process.argv.slice(2);
   const confirm = args.includes("--confirm");
   const force = args.includes("--force");
-  const galleysOnly = args.includes("--galleys-only");
-  const glossaryOnly = args.includes("--glossary-only");
+  const onlyFlags = {
+    galleys: args.includes("--galleys-only"),
+    glossary: args.includes("--glossary-only"),
+    summary: args.includes("--summary-only"),
+  };
   const articleId = flagValue(args, "--article-id");
   const limitArg = flagValue(args, "--limit");
   const limit = limitArg ? parseInt(limitArg, 10) : undefined;
 
-  if (galleysOnly && glossaryOnly) {
-    console.error("--galleys-only and --glossary-only are mutually exclusive.");
+  const onlyCount = Object.values(onlyFlags).filter(Boolean).length;
+  if (onlyCount > 1) {
+    console.error("--galleys-only, --glossary-only, and --summary-only are mutually exclusive.");
     process.exit(1);
   }
-  const doGalleys = !glossaryOnly;
-  const doGlossary = !galleysOnly;
+  const doGalleys = onlyCount === 0 || onlyFlags.galleys;
+  const doGlossary = onlyCount === 0 || onlyFlags.glossary;
+  const doSummary = onlyCount === 0 || onlyFlags.summary;
 
   const where: any = articleId ? { id: articleId } : { status: "PUBLISHED" };
   const candidates = await db.article.findMany({
@@ -57,9 +66,13 @@ async function main() {
 
   const needsGalleys = (a: (typeof candidates)[number]) => force || !a.galleyEpubKey;
   const needsGlossary = (a: (typeof candidates)[number]) => force || !a.glossary;
+  const needsSummary = (a: (typeof candidates)[number]) => force || !a.laySummary;
 
   const targets = candidates.filter(
-    (a) => (doGalleys && needsGalleys(a)) || (doGlossary && needsGlossary(a))
+    (a) =>
+      (doGalleys && needsGalleys(a)) ||
+      (doGlossary && needsGlossary(a)) ||
+      (doSummary && needsSummary(a))
   );
 
   console.log(`Found ${candidates.length} published article(s)${articleId ? " (single-article mode)" : ""}.`);
@@ -68,6 +81,7 @@ async function main() {
     const work: string[] = [];
     if (doGalleys && needsGalleys(a)) work.push("galleys+epub");
     if (doGlossary && needsGlossary(a)) work.push("glossary");
+    if (doSummary && needsSummary(a)) work.push("lay summary");
     console.log(`  - [${a.id}] "${a.title}" (${work.join(", ")})`);
   }
 
@@ -77,8 +91,9 @@ async function main() {
   }
 
   if (!confirm) {
+    const llmCalls = [doGlossary && "glossary", doSummary && "lay summary"].filter(Boolean).join(" + ");
     console.log(
-      `\nDry run only — no changes made. This will make ${doGlossary ? "real, billed Anthropic API calls (glossary)" : "no LLM calls"}` +
+      `\nDry run only — no changes made. This will make ${llmCalls ? `real, billed Anthropic API calls (${llmCalls})` : "no LLM calls"}` +
         `${doGalleys ? " and real PDF/HTML/EPUB/JATS rendering work (galleys)" : ""}.` +
         `\nRe-run with --confirm to backfill ${targets.length} article(s).`
     );
@@ -90,6 +105,7 @@ async function main() {
   const failures: { id: string; title: string; error: unknown }[] = [];
   let galleysDone = 0;
   let glossaryDone = 0;
+  let summaryDone = 0;
 
   for (const article of targets) {
     try {
@@ -136,6 +152,25 @@ async function main() {
         );
       }
 
+      if (doSummary && needsSummary(article)) {
+        const summaryResult = await suggestKeywordsAndSummary({
+          title: article.title,
+          abstract: article.abstract,
+          keywords: article.keywords,
+        });
+        await db.article.update({
+          where: { id: article.id },
+          data: {
+            laySummary: summaryResult.laySummary,
+            aiKeywordSuggestions: JSON.stringify(summaryResult.suggestedKeywords),
+          },
+        });
+        summaryDone++;
+        console.log(
+          `  [${article.id}] lay summary ${summaryResult.mode === "llm" ? "generated" : "generated (heuristic fallback — no LLM configured)"}`
+        );
+      }
+
       await db.auditLog.create({
         data: {
           action: "GALLEY_GENERATED",
@@ -152,7 +187,7 @@ async function main() {
   }
 
   console.log(
-    `\nDone. Galleys backfilled: ${galleysDone}. Glossaries backfilled: ${glossaryDone}. ` +
+    `\nDone. Galleys backfilled: ${galleysDone}. Glossaries backfilled: ${glossaryDone}. Lay summaries backfilled: ${summaryDone}. ` +
       `${targets.length - failures.length}/${targets.length} article(s) completed without error.`
   );
   if (failures.length > 0) {

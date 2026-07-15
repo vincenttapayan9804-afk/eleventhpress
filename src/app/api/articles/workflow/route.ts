@@ -7,6 +7,7 @@ import { depositPublishedArticleToZenodo, zenodoLiveMode } from "@/lib/zenodo";
 import { putObject } from "@/lib/storage";
 import { renderMinimalErrorPdf } from "@/lib/galley";
 import { generateGlossary } from "@/lib/glossary";
+import { suggestKeywordsAndSummary } from "@/lib/manuscript-checks";
 import { generateGalleysForArticle } from "@/lib/galley-regenerate";
 import { APP_BASE_URL } from "@/lib/site";
 import { APC_USD } from "@/lib/pricing";
@@ -157,14 +158,18 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      // 1b. Glossary: the one AI feature in this codebase that's
-      //     auto-generated rather than editor/author-triggered, per
-      //     explicit product decision — real content on the Supplemental
-      //     Materials tab needs to exist by the time a reader first opens
-      //     it, not appear only after an editor remembers to trigger it.
-      //     Best-effort: never blocks publish, and honestly stores
-      //     mode: "unavailable" rather than a fabricated definition list
-      //     when no LLM is configured or the call fails.
+      // 1b. Glossary and lay summary: both feed the Supplemental Materials
+      //     tab, which needs real content by the time a reader first opens
+      //     it — not only after an editor remembers to trigger AI Assist.
+      //     Both are best-effort and never block publish. The glossary has
+      //     no offline fallback (a wrong technical-term definition is
+      //     actively misleading), so it honestly stores mode: "unavailable"
+      //     rather than a fabricated definition list when no LLM is
+      //     configured or the call fails. The lay summary reuses the same
+      //     heuristic fallback the manual "AI Assist" action already has
+      //     (src/lib/manuscript-checks.ts) since a plain-language summary
+      //     degrades gracefully — an extractive fallback is lower quality
+      //     but not misleading — so it's still worth setting.
       try {
         const glossaryResult = await generateGlossary({
           title: updated.title,
@@ -187,6 +192,30 @@ export async function POST(req: NextRequest) {
       } catch (e: any) {
         console.error(`[workflow] Glossary generation failed for article ${articleId}:`, e);
         publishEvents.push(`Glossary generation failed: ${e.message}`);
+      }
+
+      // Only auto-generate the lay summary if no one already ran AI Assist
+      // (or hand-wrote one) during drafting — never overwrite a
+      // human-reviewed summary with a fresh auto-generated one.
+      if (!updated.laySummary) {
+        try {
+          const summaryResult = await suggestKeywordsAndSummary({
+            title: updated.title,
+            abstract: updated.abstract,
+            keywords: updated.keywords,
+          });
+          await db.article.update({
+            where: { id: articleId },
+            data: {
+              laySummary: summaryResult.laySummary,
+              aiKeywordSuggestions: JSON.stringify(summaryResult.suggestedKeywords),
+            },
+          });
+          publishEvents.push(`Lay summary ${summaryResult.mode === "llm" ? "generated" : "generated (heuristic fallback — no LLM configured)"}`);
+        } catch (e: any) {
+          console.error(`[workflow] Lay summary generation failed for article ${articleId}:`, e);
+          publishEvents.push(`Lay summary generation failed: ${e.message}`);
+        }
       }
 
       // 2. DOI deposit. Prefers Zenodo (free, real, permanently-resolving
