@@ -59,6 +59,7 @@ import {
   AlertTriangle,
   Globe2,
   Lock,
+  FileCode,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -583,6 +584,38 @@ export function ArticleView() {
                 >
                   <BookOpen className="mr-2 h-4 w-4" /> View HTML
                 </Button>
+                {article.galleyEpubKey && (
+                  <Button
+                    className="w-full justify-start"
+                    variant="outline"
+                    onClick={async () => {
+                      try {
+                        const r = await apiFetch<{ url: string }>(`/api/articles/${article.id}/galley?format=epub`);
+                        window.open(r.url, "_blank");
+                      } catch (e: any) {
+                        toast.error("Galley not available", { description: e.message });
+                      }
+                    }}
+                  >
+                    <Download className="mr-2 h-4 w-4" /> Download EPUB
+                  </Button>
+                )}
+                {article.galleyJatsKey && (
+                  <Button
+                    className="w-full justify-start"
+                    variant="outline"
+                    onClick={async () => {
+                      try {
+                        const r = await apiFetch<{ url: string }>(`/api/articles/${article.id}/galley?format=jats`);
+                        window.open(r.url, "_blank");
+                      } catch (e: any) {
+                        toast.error("Galley not available", { description: e.message });
+                      }
+                    }}
+                  >
+                    <FileCode className="mr-2 h-4 w-4" /> Download JATS XML
+                  </Button>
+                )}
                 {article.doi && (
                   <Button
                     className="w-full justify-start"

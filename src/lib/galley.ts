@@ -25,6 +25,8 @@ import WordExtractor from "word-extractor";
 import sanitizeHtml from "sanitize-html";
 import { marked } from "marked";
 import { putObject } from "@/lib/storage";
+import { buildEpub } from "@/lib/epub-builder";
+import { parseAuthors } from "@/lib/article";
 
 // Manuscript content embedded in reader-facing pages (the HTML galley and
 // the public article page) must be sanitized — a malicious "manuscript"
@@ -75,6 +77,7 @@ export interface GalleyResult {
   htmlKey: string;
   pdfKey: string;
   jatsKey: string | null;
+  epubKey: string | null;
   log: string[];
 }
 
@@ -377,6 +380,7 @@ year: ${meta.year}
   const htmlKey = `published-galleys/${suffix}.html`;
   const pdfKey = `published-galleys/${suffix}.pdf`;
   const jatsKey = `published-galleys/${suffix}.jats.xml`;
+  const epubKey = `published-galleys/${suffix}.epub`;
 
   await putObject(htmlKey, Buffer.from(htmlContent, "utf-8"), "text/html; charset=utf-8");
   log.push(`Stored HTML: ${htmlKey} (${htmlContent.length} chars)`);
@@ -395,6 +399,25 @@ year: ${meta.year}
     log.push(`Stored JATS: ${jatsKey} (${jatsContent.length} chars)`);
   }
 
+  // 4. EPUB3 — reuses the same single-chapter shape src/lib/epub-builder.ts
+  // was built for (originally book chapters); `pdfBodySource` is the same
+  // real extracted/Pandoc body already used for the PDF, so this never
+  // duplicates the masthead/title/abstract that injectBrand() adds to
+  // htmlContent for the HTML/PDF galleys.
+  let epubResultKey: string | null = null;
+  try {
+    const authorNames = parseAuthors(meta.authors).map((a) => a.name).filter(Boolean);
+    const chapterHtml = pdfBodySource || `<p>${escapeXml(meta.abstract)}</p>`;
+    const epubBuffer = buildEpub({ id: meta.id, title: meta.title, subtitle: null, authors: authorNames }, [
+      { title: meta.title, html: chapterHtml },
+    ]);
+    await putObject(epubKey, epubBuffer, "application/epub+zip");
+    epubResultKey = epubKey;
+    log.push(`Stored EPUB: ${epubKey} (${epubBuffer.length} bytes)`);
+  } catch (e: any) {
+    log.push(`EPUB error: ${e.message}`);
+  }
+
   // Cleanup temp files
   try {
     const temps = await fs.readdir(TEMP_DIR);
@@ -404,7 +427,7 @@ year: ${meta.year}
   } catch {}
 
   log.push(`[${new Date().toISOString()}] Job ${jobId} complete`);
-  return { htmlKey, pdfKey, jatsKey, log };
+  return { htmlKey, pdfKey, jatsKey, epubKey: epubResultKey, log };
 }
 
 function injectBrand(html: string, meta: any): string {
