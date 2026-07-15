@@ -34,3 +34,15 @@ export const APP_HOST = new URL(APP_BASE_URL).host;
  * discipline as APP_BASE_URL above.
  */
 export const DOI_REGISTRAR = "Zenodo";
+
+/**
+ * Declared language of every article's title/abstract/full text. Submission
+ * only ever accepts English content today (no language picker exists at
+ * submission, and none of the manuscript-processing pipeline branches on
+ * language), so this is a fixed constant rather than a per-article field —
+ * it exists so every place that already needed to assert a language value
+ * (JATS `xml:lang`, EPUB `dc:language`, OAI-PMH `dc:language`, and the
+ * `citation_language` meta tag Google Scholar/indexers look for) does so
+ * from one place instead of five separately hardcoded "en" strings.
+ */
+export const ARTICLE_LANGUAGE = "en";

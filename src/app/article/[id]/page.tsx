@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { presignGet } from "@/lib/storage";
 import { parseAuthors, formatCitation } from "@/lib/article";
 import { coinsSpanProps } from "@/lib/citation-export";
-import { APP_BASE_URL } from "@/lib/site";
+import { APP_BASE_URL, ARTICLE_LANGUAGE } from "@/lib/site";
 import { I18nProvider } from "@/components/i18n-provider";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
@@ -59,6 +59,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     citation_journal_title: article.journal?.name || "Eleventh Press International Publishing",
     citation_publisher: article.journal?.publisher || "Eleventh Press International Publishing",
     citation_abstract_html_url: canonicalUrl,
+    citation_language: ARTICLE_LANGUAGE,
   };
   if (article.publishedAt) other.citation_publication_date = article.publishedAt.toISOString().split("T")[0];
   if (article.journal?.issn) other.citation_issn = article.journal.issn;

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useApp } from "@/lib/store";
 import { apiFetch } from "@/lib/api-client";
 import { ArticleDetail } from "@/lib/types";
-import { DISCIPLINE_COLORS, parseAuthors, formatCitation, CORRECTION_TYPE_LABELS, CorrectionType } from "@/lib/article";
+import { DISCIPLINE_COLORS, parseAuthors, parseFunders, formatCitation, CORRECTION_TYPE_LABELS, CorrectionType } from "@/lib/article";
 import { DOI_REGISTRAR } from "@/lib/site";
 import { attentionMetricsConfigured } from "@/lib/attention-metrics";
 import { AltmetricBadge, PlumXBadge } from "@/components/attention-badges";
@@ -53,6 +53,7 @@ import {
   CheckCircle2,
   Calendar,
   Library,
+  Landmark,
   ShieldCheck,
   Tag,
   MessageSquare,
@@ -149,6 +150,7 @@ export function ArticleView() {
   }
 
   const authors = parseAuthors(article.authors);
+  const funders = parseFunders(article.funders);
   const keywords = article.keywords.split(",").map((k) => k.trim()).filter(Boolean);
   const citationExportable = {
     title: article.title,
@@ -429,6 +431,26 @@ export function ArticleView() {
                   ))}
                 </div>
               </div>
+
+              {/* Funding — captured at submission (grant support details), not
+                  previously surfaced on the public article page. */}
+              {funders.length > 0 && (
+                <div className="mt-6 border-t border-border pt-5">
+                  <p className="eyebrow mb-2">Funding</p>
+                  <ul className="space-y-1 text-sm text-foreground/85">
+                    {funders.map((f, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <Landmark className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                        <span>
+                          {f.name}
+                          {f.awardNumber ? ` · Award ${f.awardNumber}` : ""}
+                          {f.id ? ` (${f.id})` : ""}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="metrics" className="mt-6">

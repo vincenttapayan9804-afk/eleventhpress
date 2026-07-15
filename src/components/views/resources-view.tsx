@@ -172,6 +172,16 @@ const GUIDES: Guide[] = [
     ],
   },
   {
+    title: "Publication Ethics & Research Integrity Statement",
+    summary: "Our COPE/ICMJE-aligned policy on authorship, plagiarism, conflicts of interest, and how to report a concern.",
+    body: [
+      "Authorship: everyone listed must have made a genuine intellectual contribution to the work. Authorship disputes are resolved by the handling editor before publication — we don't adjudicate them after the fact, since that's much harder to do fairly.",
+      "Plagiarism & data integrity: every submission runs through an automated in-corpus similarity check before it reaches a reviewer, and citations are validated against OpenAlex during production so an unresolvable or fabricated reference gets caught before publication, not after.",
+      "Conflicts of interest: reviewers and editors must disclose any competing interest with a submission's authors or subject matter — a shared institution, a recent collaboration, a personal relationship — and recuse themselves from handling that submission where one exists.",
+      "Reporting a concern: email editorial@eleventhpress.org with the article's DOI (if published) or submission ID and a description of the issue. The editorial office investigates independently of the original handling editor wherever a conflict of interest is possible, and every substantiated concern results in a public corrections notice — see the guide below for what each notice type means.",
+    ],
+  },
+  {
     title: "Corrections, Retractions & Expressions of Concern Guide",
     summary: "What each notice type means and how to report a concern about a published article.",
     body: [
