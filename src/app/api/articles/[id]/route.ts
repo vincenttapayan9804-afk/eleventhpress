@@ -99,6 +99,8 @@ export async function GET(
     ithenticateReportUrl: article.ithenticateReportUrl,
     integrityStatus: article.integrityStatus,
     abstractTranslations: article.abstractTranslations,
+    glossary: article.glossary,
+    glossaryMeta: article.glossaryMeta,
     funders: article.funders,
     laySummary: article.laySummary,
     submittedAt: article.submittedAt,
