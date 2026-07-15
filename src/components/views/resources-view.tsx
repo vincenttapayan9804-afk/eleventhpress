@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { apiFetch } from "@/lib/api-client";
+import type { DiscoveryResult, DiscoverySource } from "@/lib/open-discovery";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,6 +29,10 @@ import {
   Clock,
   ArrowRight,
   Mail,
+  Globe2,
+  Search,
+  ExternalLink,
+  Loader2,
 } from "lucide-react";
 
 interface Reading {
@@ -228,10 +234,49 @@ const WEBINARS: Planned[] = [
   { title: "Metrics That Matter: Citations, Altmetrics & Impact", blurb: "Reading citation counts and altmetrics for what they actually measure — and what they don't." },
 ];
 
+const SOURCE_LABEL: Record<DiscoverySource, string> = {
+  crossref: "Crossref",
+  openalex: "OpenAlex",
+  semantic_scholar: "Semantic Scholar",
+};
+
+interface DiscoverResponse {
+  query: string;
+  results: DiscoveryResult[];
+  sources: { crossref: number; openalex: number; semanticScholar: number };
+}
+
 export function ResourcesView() {
   const t = useTranslations("resources");
   const [openBlog, setOpenBlog] = useState<Reading | null>(null);
   const [openGuide, setOpenGuide] = useState<Guide | null>(null);
+
+  const [query, setQuery] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [searched, setSearched] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [results, setResults] = useState<DiscoveryResult[]>([]);
+  const [sourceCounts, setSourceCounts] = useState<DiscoverResponse["sources"] | null>(null);
+
+  async function runDiscoverySearch(e: React.FormEvent) {
+    e.preventDefault();
+    const q = query.trim();
+    if (q.length < 2) return;
+    setSearching(true);
+    setSearchError(null);
+    try {
+      const data = await apiFetch<DiscoverResponse>(`/api/discover?q=${encodeURIComponent(q)}`);
+      setResults(data.results);
+      setSourceCounts(data.sources);
+    } catch (err: any) {
+      setSearchError(err?.message || "Search failed — try again.");
+      setResults([]);
+      setSourceCounts(null);
+    } finally {
+      setSearching(false);
+      setSearched(true);
+    }
+  }
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
@@ -242,7 +287,7 @@ export function ResourcesView() {
       </div>
 
       <Tabs defaultValue="trainings" className="mt-8">
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
           <TabsTrigger value="trainings">
             <GraduationCap className="mr-1.5 h-3.5 w-3.5" /> {t("tabTrainings")}
           </TabsTrigger>
@@ -257,6 +302,9 @@ export function ResourcesView() {
           </TabsTrigger>
           <TabsTrigger value="books">
             <BookMarked className="mr-1.5 h-3.5 w-3.5" /> {t("tabBooks")}
+          </TabsTrigger>
+          <TabsTrigger value="discover">
+            <Globe2 className="mr-1.5 h-3.5 w-3.5" /> {t("tabDiscover")}
           </TabsTrigger>
         </TabsList>
 
@@ -333,6 +381,116 @@ export function ResourcesView() {
             ))}
           </div>
         </TabsContent>
+
+        {/* Discover — live search across free, open scholarly databases */}
+        <TabsContent value="discover" className="mt-6 space-y-4">
+          <Card className="paper-card border-dashed">
+            <CardContent className="p-5">
+              <p className="text-sm text-muted-foreground">
+                Search three free, reputable open scholarly databases at once — Crossref,
+                OpenAlex, and Semantic Scholar — to find related work and further reading
+                beyond this platform. No account or API key needed; this is the same open
+                infrastructure we use to validate our own citations.
+              </p>
+            </CardContent>
+          </Card>
+
+          <form onSubmit={runDiscoverySearch} className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search by title, topic, or author…"
+                className="w-full rounded-md border border-input bg-background py-2 pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <Button type="submit" disabled={searching || query.trim().length < 2}>
+              {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : "Search"}
+            </Button>
+          </form>
+
+          {searchError && <p className="text-sm text-destructive">{searchError}</p>}
+
+          {searching && (
+            <div className="flex items-center justify-center py-10 text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin" />
+            </div>
+          )}
+
+          {!searching && searched && results.length === 0 && !searchError && (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              No results found across Crossref, OpenAlex, or Semantic Scholar for that query.
+            </p>
+          )}
+
+          {!searching && results.length > 0 && (
+            <div className="space-y-3">
+              {sourceCounts && (
+                <p className="text-xs text-muted-foreground">
+                  {results.length} result{results.length === 1 ? "" : "s"} — {sourceCounts.crossref} from Crossref,{" "}
+                  {sourceCounts.openalex} from OpenAlex, {sourceCounts.semanticScholar} from Semantic Scholar
+                  (deduplicated by DOI).
+                </p>
+              )}
+              {results.map((r, i) => (
+                <Card key={i} className="paper-card">
+                  <CardContent className="p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-display text-sm font-semibold leading-snug">{r.title}</p>
+                        {r.authors && <p className="mt-1 text-xs text-muted-foreground">{r.authors}</p>}
+                        {(r.venue || r.year) && (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {[r.venue, r.year].filter(Boolean).join(" · ")}
+                          </p>
+                        )}
+                      </div>
+                      <Badge variant="outline" className="shrink-0 text-[0.6rem]">
+                        {SOURCE_LABEL[r.source]}
+                      </Badge>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Button variant="outline" size="sm" asChild>
+                        <a href={r.url} target="_blank" rel="noreferrer">
+                          <ExternalLink className="mr-1.5 h-3 w-3" /> {r.doi ? "View via DOI" : "View source"}
+                        </a>
+                      </Button>
+                      {r.openAccessUrl && (
+                        <Button variant="outline" size="sm" asChild>
+                          <a href={r.openAccessUrl} target="_blank" rel="noreferrer">
+                            <FileText className="mr-1.5 h-3 w-3" /> Open access PDF
+                          </a>
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          <Card className="paper-card">
+            <CardContent className="p-5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">About these sources</p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                <SourceInfo
+                  name="Crossref"
+                  desc="The official DOI registration agency's public metadata index — 160M+ scholarly records, free REST API, no key required."
+                />
+                <SourceInfo
+                  name="OpenAlex"
+                  desc="A free, fully open scholarly graph — the same index this platform uses to validate its own citations and citation counts."
+                />
+                <SourceInfo
+                  name="Semantic Scholar"
+                  desc="AI2's free academic search engine, with a public no-key API tier and strong open-access PDF coverage."
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       <Dialog open={!!openBlog} onOpenChange={(o) => !o && setOpenBlog(null)}>
@@ -387,6 +545,15 @@ function ComingSoonNotice({ text }: { text: string }) {
         </Button>
       </CardContent>
     </Card>
+  );
+}
+
+function SourceInfo({ name, desc }: { name: string; desc: string }) {
+  return (
+    <div>
+      <p className="text-xs font-semibold">{name}</p>
+      <p className="mt-1 text-xs text-muted-foreground">{desc}</p>
+    </div>
   );
 }
 
