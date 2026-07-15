@@ -160,10 +160,10 @@ export function formatCitation(
     authors: string;
     publishedAt?: Date | string | null;
     doi?: string | null;
-    journalName?: string;
-    volume?: number;
-    issueNumber?: number;
-    year?: number;
+    journalName?: string | null;
+    volume?: number | null;
+    issueNumber?: number | null;
+    year?: number | null;
   }
 ): string {
   const authors = parseAuthors(article.authors);
