@@ -61,7 +61,9 @@ import {
   Globe2,
   Lock,
   FileCode,
+  Layers,
 } from "lucide-react";
+import { ArticleFlipbook } from "@/components/article-flipbook";
 import { toast } from "sonner";
 
 export function ArticleView() {
@@ -76,6 +78,7 @@ export function ArticleView() {
   const [corrections, setCorrections] = useState<any[]>([]);
   const [references, setReferences] = useState<any[]>([]);
   const [bodyHtml, setBodyHtml] = useState<string | null>(null);
+  const [flipbookOpen, setFlipbookOpen] = useState(false);
   const canIssueCorrection = !!user && ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"].includes(user.role);
 
   useEffect(() => {
@@ -590,6 +593,15 @@ export function ArticleView() {
                 >
                   <BookOpen className="mr-2 h-4 w-4" /> View HTML
                 </Button>
+                {article.galleyPdfKey && (
+                  <Button
+                    className="w-full justify-start"
+                    variant="outline"
+                    onClick={() => setFlipbookOpen(true)}
+                  >
+                    <Layers className="mr-2 h-4 w-4" /> View as flipbook
+                  </Button>
+                )}
                 {article.galleyEpubKey && (
                   <Button
                     className="w-full justify-start"
@@ -736,6 +748,8 @@ export function ArticleView() {
           </div>
         </section>
       )}
+
+      <ArticleFlipbook articleId={article.id} open={flipbookOpen} onOpenChange={setFlipbookOpen} />
     </article>
   );
 }
