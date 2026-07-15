@@ -1,26 +1,43 @@
 /**
- * Bulk backfill for PUBLISHED articles that predate the EPUB galley
- * (Phase A), AI glossary (Phase D), or auto-generated lay summary
- * features, so operators don't have to manually re-trigger each
- * article's production pipeline one at a time.
+ * Backfill for PUBLISHED articles missing the EPUB galley (Phase A), AI
+ * glossary (Phase D), or auto-generated lay summary — all three are now
+ * generated automatically at publish time
+ * (src/app/api/articles/workflow/route.ts), but articles published
+ * before each feature shipped predate it and need a one-time catch-up.
+ *
+ * Runs in two contexts:
+ *  1. Automatically, idempotently, on every production build — package.json's
+ *     "build" script calls this with --skip-galleys right after
+ *     scripts/seed.ts (the same precedent: a script that runs on every
+ *     Vercel deploy with real DB/API credentials and no-ops once nothing
+ *     is missing). This is what makes glossary + lay summary generation
+ *     genuinely automatic for every article, not just ones published after
+ *     this code shipped, without requiring a human to run anything.
+ *  2. Manually, by an operator with production credentials, for the
+ *     heavier galley/EPUB regeneration this script also supports (real
+ *     PDF/HTML/EPUB/JATS rendering — deliberately left out of the
+ *     automatic build-time run so a slow or failing production service
+ *     doesn't add build-time risk for something that isn't in the hot
+ *     path of what readers see first).
  *
  * Reuses the exact same manuscript-resolution + galley-generation logic as
- * the live publish path (src/lib/galley-regenerate.ts,
- * src/app/api/articles/workflow/route.ts) rather than duplicating it.
+ * the live publish path (src/lib/galley-regenerate.ts) rather than
+ * duplicating it.
  *
  * COST NOTE: glossary and summary backfill each make a real, billed
  * Anthropic API call per article (src/lib/glossary.ts,
  * src/lib/manuscript-checks.ts). Galley backfill does real PDF/HTML/
- * EPUB/JATS rendering work. None of this is free to run at scale — review
- * the dry-run count before passing --confirm.
+ * EPUB/JATS rendering work. All three are idempotent — once an article
+ * has the field, later runs skip it — so steady-state cost after the
+ * first backfill is zero.
  *
  * Usage:
- *   bun run scripts/backfill-galleys.ts                       # dry run, all published articles
- *   bun run scripts/backfill-galleys.ts --confirm              # backfill missing galleys + glossary + summary
- *   bun run scripts/backfill-galleys.ts --confirm --galleys-only
- *   bun run scripts/backfill-galleys.ts --confirm --glossary-only
- *   bun run scripts/backfill-galleys.ts --confirm --summary-only
- *   bun run scripts/backfill-galleys.ts --confirm --force      # regenerate even if already present
+ *   bun run scripts/backfill-galleys.ts                        # dry run, all published articles
+ *   bun run scripts/backfill-galleys.ts --confirm               # backfill everything missing
+ *   bun run scripts/backfill-galleys.ts --confirm --skip-galleys
+ *   bun run scripts/backfill-galleys.ts --confirm --skip-glossary
+ *   bun run scripts/backfill-galleys.ts --confirm --skip-summary
+ *   bun run scripts/backfill-galleys.ts --confirm --force       # regenerate even if already present
  *   bun run scripts/backfill-galleys.ts --confirm --limit 10
  *   bun run scripts/backfill-galleys.ts --confirm --article-id <id>
  */
@@ -39,23 +56,12 @@ async function main() {
   const args = process.argv.slice(2);
   const confirm = args.includes("--confirm");
   const force = args.includes("--force");
-  const onlyFlags = {
-    galleys: args.includes("--galleys-only"),
-    glossary: args.includes("--glossary-only"),
-    summary: args.includes("--summary-only"),
-  };
+  const doGalleys = !args.includes("--skip-galleys");
+  const doGlossary = !args.includes("--skip-glossary");
+  const doSummary = !args.includes("--skip-summary");
   const articleId = flagValue(args, "--article-id");
   const limitArg = flagValue(args, "--limit");
   const limit = limitArg ? parseInt(limitArg, 10) : undefined;
-
-  const onlyCount = Object.values(onlyFlags).filter(Boolean).length;
-  if (onlyCount > 1) {
-    console.error("--galleys-only, --glossary-only, and --summary-only are mutually exclusive.");
-    process.exit(1);
-  }
-  const doGalleys = onlyCount === 0 || onlyFlags.galleys;
-  const doGlossary = onlyCount === 0 || onlyFlags.glossary;
-  const doSummary = onlyCount === 0 || onlyFlags.summary;
 
   const where: any = articleId ? { id: articleId } : { status: "PUBLISHED" };
   const candidates = await db.article.findMany({
