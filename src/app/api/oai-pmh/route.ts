@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { APP_BASE_URL, APP_HOST } from "@/lib/site";
+import { APP_BASE_URL, APP_HOST, ARTICLE_LANGUAGE } from "@/lib/site";
 
 /**
  * GET /api/oai-pmh?verb=Identify
@@ -295,7 +295,7 @@ ${keywords}
       <dc:type>info:eu-repo/semantics/article</dc:type>
       <dc:identifier>https://doi.org/${a.doi}</dc:identifier>
       <dc:source>${escapeXml(a.journal?.name || "")}, ISSN ${a.journal?.issn || ""}, Vol. ${a.issue?.volume || ""}, Iss. ${a.issue?.issueNumber || ""} (${a.issue?.year || ""})</dc:source>
-      <dc:language>en</dc:language>
+      <dc:language>${ARTICLE_LANGUAGE}</dc:language>
       <dc:rights>info:eu-repo/semantics/openAccess</dc:rights>
       </oai_dc:dc>
     </metadata>

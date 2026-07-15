@@ -27,6 +27,7 @@ import { marked } from "marked";
 import { putObject } from "@/lib/storage";
 import { buildEpub } from "@/lib/epub-builder";
 import { parseAuthors } from "@/lib/article";
+import { ARTICLE_LANGUAGE } from "@/lib/site";
 
 // Manuscript content embedded in reader-facing pages (the HTML galley and
 // the public article page) must be sanitized — a malicious "manuscript"
@@ -485,7 +486,7 @@ function buildFallbackJats(meta: any, bodyHtml?: string | null): string {
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Archiving and Interchange DTD v1.3 20210610//EN" "JATS-archivearticle1.dtd">
-<article article-type="research-article" dtd-version="1.3" xml:lang="en"
+<article article-type="research-article" dtd-version="1.3" xml:lang="${ARTICLE_LANGUAGE}"
          xmlns:xlink="http://www.w3.org/1999/xlink">
   <front>
     <journal-meta>

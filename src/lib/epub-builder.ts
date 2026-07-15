@@ -8,6 +8,7 @@
  * EPUB without creating a circular import between the two.
  */
 import { buildZip, type ZipEntry } from "@/lib/zip-writer";
+import { ARTICLE_LANGUAGE } from "@/lib/site";
 
 export interface EpubChapter {
   title: string;
@@ -46,7 +47,7 @@ export function buildEpub(
     <dc:identifier id="pub-id">${escapeXml(uid)}</dc:identifier>
     <dc:title>${escapeXml(book.title)}</dc:title>
     ${book.subtitle ? `<dc:description>${escapeXml(book.subtitle)}</dc:description>` : ""}
-    <dc:language>en</dc:language>
+    <dc:language>${ARTICLE_LANGUAGE}</dc:language>
     <dc:publisher>Eleventh Press International Publishing</dc:publisher>
 ${authorNames.map((n) => `    <dc:creator>${escapeXml(n)}</dc:creator>`).join("\n")}
     <meta property="dcterms:modified">${modified}</meta>

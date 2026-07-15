@@ -1,11 +1,14 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useApp } from "@/lib/store";
+import { apiFetch } from "@/lib/api-client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { DOI_REGISTRAR } from "@/lib/site";
 import {
   BookOpen,
@@ -30,11 +33,43 @@ import {
   CreditCard,
   Search,
   Share2,
+  AlertTriangle,
+  Mail,
 } from "lucide-react";
+
+interface BoardMember {
+  id: string;
+  fullName: string;
+  role: string;
+  roleLabel: string;
+  affiliation: string | null;
+  profession: string | null;
+  bio: string | null;
+  orcid: string | null;
+  avatarUrl: string | null;
+}
+
+function initialsOf(name: string) {
+  return name
+    .replace(/^Dr\.?\s+|^Prof\.?\s+/, "")
+    .split(" ")
+    .map((s) => s[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
 
 export function AboutView() {
   const { setView } = useApp();
   const t = useTranslations("home");
+  const [board, setBoard] = useState<BoardMember[] | null>(null);
+
+  useEffect(() => {
+    apiFetch<{ board: BoardMember[] }>("/api/editorial-board")
+      .then(({ board }) => setBoard(board))
+      .catch(() => setBoard([]));
+  }, []);
   return (
     <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
       {/* Header */}
@@ -77,6 +112,14 @@ export function AboutView() {
             access, not open access in name only. The journal’s content is indexed via an
             OAI-PMH 2.0 endpoint that exposes Dublin Core records for harvester consumption
             by Scopus and Web of Science, and is automatically crawled by Google Scholar.
+          </p>
+          <p>
+            We publish on a continuous basis rather than holding accepted work for a
+            periodic print issue: an article goes live individually the moment production
+            (typesetting, DOI registration) is complete, and is subsequently collated into
+            a dated volume/issue record for citation purposes. This keeps time-to-publication
+            tied to how quickly a given manuscript clears review and production, not to a
+            fixed quarterly or annual schedule.
           </p>
           <p>
             Our editorial workflow is built on an event-driven microservices architecture:
@@ -177,6 +220,121 @@ export function AboutView() {
             Editors may also REJECT or WITHDRAW at any point.
           </p>
         </div>
+      </section>
+
+      {/* Editorial Board */}
+      <section className="mt-12">
+        <h2 className="font-display text-2xl font-semibold">Editorial board</h2>
+        <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+          The accounts with real editorial authority in the platform — the same set that
+          can screen, assign reviewers to, and make publication decisions on a submission —
+          not a separate, hand-maintained list that could drift out of sync with who
+          actually holds editorial authority.
+        </p>
+
+        {board === null && (
+          <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {[0, 1, 2].map((i) => (
+              <Card key={i} className="paper-card animate-pulse">
+                <CardContent className="p-5">
+                  <div className="h-11 w-11 rounded-full bg-muted" />
+                  <div className="mt-3 h-3 w-2/3 rounded bg-muted" />
+                  <div className="mt-2 h-2.5 w-1/2 rounded bg-muted" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {board !== null && board.length === 0 && (
+          <Card className="paper-card mt-5">
+            <CardContent className="p-6 text-sm text-muted-foreground">
+              Editorial board listings are being finalized as editorial accounts are added.
+              Contact <a href="mailto:editorial@eleventhpress.org" className="text-primary underline underline-offset-2">editorial@eleventhpress.org</a> for the current handling editor on any submission.
+            </CardContent>
+          </Card>
+        )}
+
+        {board !== null && board.length > 0 && (
+          <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {board.map((m) => (
+              <Card key={m.id} className="paper-card">
+                <CardContent className="p-5">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-11 w-11 border border-[oklch(0.76_0.11_294/0.3)]">
+                      {m.avatarUrl && <AvatarImage src={m.avatarUrl} alt={m.fullName} className="object-cover" />}
+                      <AvatarFallback className="bg-[oklch(0.93_0.04_290)] text-sm font-medium text-[oklch(0.42_0.18_295)]">
+                        {initialsOf(m.fullName)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0">
+                      <p className="truncate font-display text-base font-semibold">{m.fullName}</p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {m.profession || m.roleLabel}
+                      </p>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="mt-3 text-[0.6rem]">{m.roleLabel}</Badge>
+                  {m.affiliation && <p className="mt-2 text-xs text-muted-foreground">{m.affiliation}</p>}
+                  {m.orcid && (
+                    <a
+                      href={`https://orcid.org/${m.orcid}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-2 inline-block text-xs text-primary underline underline-offset-2"
+                    >
+                      ORCID {m.orcid}
+                    </a>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Publication Ethics & Research Integrity */}
+      <section className="mt-12">
+        <h2 className="font-display text-2xl font-semibold">Publication ethics &amp; research integrity</h2>
+        <Card className="paper-card mt-4">
+          <CardContent className="p-6">
+            <p className="text-sm leading-relaxed text-foreground/85">
+              We follow COPE (Committee on Publication Ethics) and ICMJE conventions for
+              editorial and publishing malpractice. This statement covers authorship,
+              misconduct, conflicts of interest, and how to report a concern.
+            </p>
+            <Separator className="my-4" />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <IndexItem
+                icon={Users}
+                title="Authorship"
+                desc="Everyone listed as an author must have made a genuine intellectual contribution. Disputes are resolved by the handling editor before publication, not after."
+              />
+              <IndexItem
+                icon={Search}
+                title="Plagiarism & data integrity"
+                desc="Every submission runs through an automated in-corpus similarity check before review, and citations are validated against OpenAlex during production to catch unresolvable or fabricated references."
+              />
+              <IndexItem
+                icon={Scale}
+                title="Conflicts of interest"
+                desc="Reviewers and editors must disclose any competing interest with a submission's authors or subject matter, and recuse themselves from handling it where one exists."
+              />
+              <IndexItem
+                icon={AlertTriangle}
+                title="Corrections & retractions"
+                desc="Post-publication integrity issues are handled per COPE/ICMJE convention — Corrigendum, Erratum, Expression of Concern, or Retraction — and published as a permanent, linked addendum. See the Resources → Guides tab for the full policy."
+              />
+            </div>
+            <div className="mt-4">
+              <Button variant="outline" size="sm" asChild>
+                <a href="mailto:editorial@eleventhpress.org?subject=Research%20integrity%20concern">
+                  <Mail className="mr-2 h-3.5 w-3.5" /> Report a concern
+                </a>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </section>
 
       {/* Architecture overview */}
