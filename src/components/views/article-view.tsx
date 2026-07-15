@@ -68,6 +68,15 @@ import {
 import { ArticleFlipbook } from "@/components/article-flipbook";
 import { toast } from "sonner";
 
+interface CitationMetrics {
+  available: boolean;
+  reason?: "no_doi" | "not_indexed";
+  citedByCount?: number;
+  publicationYear?: number | null;
+  percentileYearMin?: number | null;
+  percentileYearMax?: number | null;
+}
+
 export function ArticleView() {
   const { articleId, setView, openArticle, user, locale } = useApp();
   const [article, setArticle] = useState<ArticleDetail | null>(null);
@@ -81,6 +90,7 @@ export function ArticleView() {
   const [references, setReferences] = useState<any[]>([]);
   const [bodyHtml, setBodyHtml] = useState<string | null>(null);
   const [flipbookOpen, setFlipbookOpen] = useState(false);
+  const [citationMetrics, setCitationMetrics] = useState<CitationMetrics | null>(null);
   const canIssueCorrection = !!user && ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"].includes(user.role);
 
   useEffect(() => {
@@ -125,6 +135,12 @@ export function ArticleView() {
           .catch(() => {
             // 403 means article isn't open-review — that's fine
           });
+        // Fetch live "Comparative Citation Analysis" (real OpenAlex data,
+        // not the DB-cached mock-turned-real field) for this one article.
+        setCitationMetrics(null);
+        apiFetch<CitationMetrics>(`/api/articles/${articleId}/citation-metrics`)
+          .then((r) => setCitationMetrics(r))
+          .catch(() => setCitationMetrics(null));
       })
       .catch(() => toast.error("Failed to load article"))
       .finally(() => setLoading(false));
@@ -326,7 +342,11 @@ export function ArticleView() {
         <div className="mt-6 grid grid-cols-2 gap-3 text-xs sm:grid-cols-4">
           <MetaTile icon={Calendar} label="Published" value={article.publishedAt ? new Date(article.publishedAt).toLocaleDateString("en-GB", { year: "numeric", month: "short", day: "numeric" }) : "—"} />
           <MetaTile icon={Library} label="Volume / Issue" value={article.volume ? `Vol. ${article.volume}, Iss. ${article.issueNumber}` : "—"} />
-          <MetaTile icon={Quote} label="Citations" value={String(article.citations)} />
+          <MetaTile
+            icon={Quote}
+            label="Citations"
+            value={citationMetrics ? (citationMetrics.available ? String(citationMetrics.citedByCount) : "Not yet indexed") : "…"}
+          />
           <MetaTile icon={Eye} label="Views" value={String(article.views)} />
         </div>
       </header>
@@ -458,8 +478,18 @@ export function ArticleView() {
                 <Card className="paper-card">
                   <CardContent className="p-5">
                     <Quote className="h-5 w-5 text-primary" />
-                    <p className="mt-2 font-display text-3xl font-semibold">{article.citations}</p>
-                    <p className="text-xs text-muted-foreground">Citation count</p>
+                    <p className="mt-2 font-display text-3xl font-semibold">
+                      {citationMetrics ? (citationMetrics.available ? citationMetrics.citedByCount : "—") : "…"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Citation count (live, OpenAlex)
+                      {citationMetrics && !citationMetrics.available && " — not yet indexed"}
+                    </p>
+                    {citationMetrics?.available && citationMetrics.percentileYearMin != null && (
+                      <p className="mt-1 text-[0.65rem] text-muted-foreground">
+                        Top {100 - citationMetrics.percentileYearMax!}–{100 - citationMetrics.percentileYearMin!}% of works published in {citationMetrics.publicationYear}
+                      </p>
+                    )}
                   </CardContent>
                 </Card>
                 <Card className="paper-card">

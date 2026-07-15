@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { fetchAuthorCitationMetrics } from "@/lib/citation-metrics";
 
 /**
  * GET /api/editorial-board
@@ -13,6 +14,15 @@ import { db } from "@/lib/db";
  *
  * Only public profile fields are exposed — never the private login
  * email, password hash, or OAuth tokens also on the User row.
+ *
+ * "EBM Citation Analysis": each member with an ORCID gets a live OpenAlex
+ * lookup of their real scholarly-output metrics (works count, total
+ * citations, h-index) — their whole body of work as a researcher, not just
+ * what they've published on this platform. The board is small, so a live
+ * fetch per member per request is cheap; falls back to the values from the
+ * last build-time refresh (scripts/refresh-citation-metrics.ts) if the
+ * live call fails, and to an honest `null` (never a fabricated number) if
+ * neither source has anything.
  */
 const BOARD_ROLES = ["SUPER_ADMIN", "EDITOR", "ASSOCIATE_EDITOR"] as const;
 const ROLE_RANK: Record<string, number> = { SUPER_ADMIN: 0, EDITOR: 1, ASSOCIATE_EDITOR: 2 };
@@ -39,12 +49,29 @@ export async function GET() {
       linkedinUrl: true,
       githubUrl: true,
       contactEmail: true,
+      boardWorksCount: true,
+      boardCitedByCount: true,
+      boardHIndex: true,
+      boardMetricsCheckedAt: true,
     },
   });
 
-  const board = members
-    .map((m) => ({ ...m, roleLabel: ROLE_LABEL[m.role] || m.role }))
-    .sort((a, b) => (ROLE_RANK[a.role] ?? 99) - (ROLE_RANK[b.role] ?? 99) || a.fullName.localeCompare(b.fullName));
+  const withMetrics = await Promise.all(
+    members.map(async (m) => {
+      const { boardWorksCount, boardCitedByCount, boardHIndex, boardMetricsCheckedAt, ...rest } = m;
+      const live = m.orcid ? await fetchAuthorCitationMetrics(m.orcid) : null;
+      const citationMetrics = live
+        ? { worksCount: live.worksCount, citedByCount: live.citedByCount, hIndex: live.hIndex, source: "openalex-live" as const }
+        : boardWorksCount != null
+          ? { worksCount: boardWorksCount, citedByCount: boardCitedByCount ?? 0, hIndex: boardHIndex, source: "openalex-cached" as const, checkedAt: boardMetricsCheckedAt }
+          : null;
+      return { ...rest, roleLabel: ROLE_LABEL[m.role] || m.role, citationMetrics };
+    })
+  );
+
+  const board = withMetrics.sort(
+    (a, b) => (ROLE_RANK[a.role] ?? 99) - (ROLE_RANK[b.role] ?? 99) || a.fullName.localeCompare(b.fullName)
+  );
 
   return NextResponse.json(
     { board, total: board.length },

@@ -47,16 +47,28 @@ interface AuthorArticle {
   doi: string | null;
 }
 
+interface AuthorCitationMetrics {
+  worksCount: number;
+  citedByCount: number;
+  hIndex: number | null;
+  // "openalex" = the author's real, whole-career metrics from a live
+  // OpenAlex lookup by ORCID. "platform-only" = no ORCID on file, so this
+  // is just an h-index/total computed from what they've published here.
+  source: "openalex" | "platform-only";
+}
+
 interface AuthorEntry {
   key: string;
   name: string;
   affiliation: string;
   orcid: string | null;
+  country: string | null;
   disciplines: string[];
   articleCount: number;
   totalViews: number;
   totalDownloads: number;
   totalCitations: number;
+  citationMetrics: AuthorCitationMetrics;
   articles: AuthorArticle[];
   // Merged in from a matching registered account, when one exists —
   // always reflects whatever that author currently has saved in their
@@ -71,6 +83,12 @@ interface AuthorEntry {
   githubUrl: string | null;
   contactEmail: string | null;
   contactPhone: string | null;
+}
+
+interface AuthorDistribution {
+  totalAuthors: number;
+  accountsWithCountry: number;
+  countries: { country: string; count: number }[];
 }
 
 function initialsOf(name: string) {
@@ -88,13 +106,17 @@ export function AuthorsView() {
   const openArticle = useApp((s) => s.openArticle);
   const t = useTranslations("authors");
   const [authors, setAuthors] = useState<AuthorEntry[] | null>(null);
+  const [distribution, setDistribution] = useState<AuthorDistribution | null>(null);
   const [q, setQ] = useState("");
   const [discipline, setDiscipline] = useState("");
   const [selected, setSelected] = useState<AuthorEntry | null>(null);
 
   useEffect(() => {
-    apiFetch<{ authors: AuthorEntry[] }>("/api/authors")
-      .then(({ authors }) => setAuthors(authors))
+    apiFetch<{ authors: AuthorEntry[]; distribution: AuthorDistribution }>("/api/authors")
+      .then(({ authors, distribution }) => {
+        setAuthors(authors);
+        setDistribution(distribution);
+      })
       .catch(() => setAuthors([]));
   }, []);
 
@@ -146,6 +168,26 @@ export function AuthorsView() {
           </SelectContent>
         </Select>
       </div>
+
+      {distribution && distribution.countries.length > 0 && (
+        <Card className="paper-card mt-6">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-foreground">Author distribution</p>
+              <span className="text-[0.65rem] text-muted-foreground">
+                {distribution.accountsWithCountry} of {distribution.totalAuthors} authors — registered accounts with a stated country only
+              </span>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {distribution.countries.map((c) => (
+                <Badge key={c.country} variant="outline" className="gap-1 text-[0.65rem]">
+                  <Globe2 className="h-3 w-3" /> {c.country} · {c.count}
+                </Badge>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {authors === null && (
         <div className="mt-16 flex justify-center">
@@ -199,9 +241,15 @@ export function AuthorsView() {
               <Separator className="my-3" />
               <div className="grid grid-cols-3 gap-2 text-center">
                 <Stat icon={FileText} value={a.articleCount} label={t("statArticles")} />
-                <Stat icon={Quote} value={a.totalCitations} label={t("statCitations")} />
+                <Stat icon={Quote} value={a.citationMetrics.citedByCount} label={t("statCitations")} />
                 <Stat icon={Eye} value={a.totalViews} label={t("statViews")} />
               </div>
+              {a.citationMetrics.hIndex != null && (
+                <p className="mt-2 text-center text-[0.6rem] text-muted-foreground">
+                  h-index {a.citationMetrics.hIndex}
+                  {a.citationMetrics.source === "openalex" ? " (OpenAlex)" : " (this platform only)"}
+                </p>
+              )}
             </CardContent>
           </Card>
         ))}
@@ -268,11 +316,17 @@ export function AuthorsView() {
                 )}
               </div>
 
-              <div className="mt-3 grid grid-cols-3 gap-2 rounded-md border border-border bg-muted/30 p-3 text-center">
+              <div className="mt-3 grid grid-cols-4 gap-2 rounded-md border border-border bg-muted/30 p-3 text-center">
                 <Stat icon={FileText} value={selected.articleCount} label={t("statArticles")} />
-                <Stat icon={Quote} value={selected.totalCitations} label={t("statCitations")} />
+                <Stat icon={Quote} value={selected.citationMetrics.citedByCount} label={t("statCitations")} />
                 <Stat icon={Download} value={selected.totalDownloads} label={t("statDownloads")} />
+                <Stat icon={BadgeCheck} value={selected.citationMetrics.hIndex ?? 0} label="h-index" />
               </div>
+              <p className="mt-1 text-center text-[0.6rem] text-muted-foreground">
+                {selected.citationMetrics.source === "openalex"
+                  ? "Citation metrics from OpenAlex — this author's full scholarly output, not just what's published here."
+                  : "Citation metrics reflect articles published on this platform only — no ORCID on file to look up a full scholarly record."}
+              </p>
 
               <div className="mt-4">
                 <p className="eyebrow">{t("publications")}</p>

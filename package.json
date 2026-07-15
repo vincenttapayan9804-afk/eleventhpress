@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000 2>&1 | tee dev.log",
-    "build": "prisma db push && bun run scripts/seed.ts && (bun run scripts/backfill-galleys.ts --confirm --skip-galleys || true) && next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
+    "build": "prisma db push && bun run scripts/seed.ts && (bun run scripts/backfill-galleys.ts --confirm --skip-galleys || true) && (bun run scripts/refresh-citation-metrics.ts --confirm || true) && next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
     "start": "NODE_ENV=production bun .next/standalone/server.js 2>&1 | tee server.log",
     "lint": "eslint .",
     "test": "bun test",

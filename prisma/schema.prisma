@@ -30,42 +30,52 @@ datasource db {
 // Identity & Access Management (IAM)
 // ---------------------------------------------------------------------------
 model User {
-  id                  String    @id @default(cuid())
-  email               String    @unique
-  passwordHash        String
-  fullName            String
-  affiliation         String?
-  orcid               String?
+  id                    String    @id @default(cuid())
+  email                 String    @unique
+  passwordHash          String
+  fullName              String
+  affiliation           String?
+  orcid                 String?
   // Role: SUPER_ADMIN | EDITOR | ASSOCIATE_EDITOR | REVIEWER | AUTHOR | READER
-  role                String    @default("READER")
-  bio                 String?
-  expertise           String? // comma-separated keywords for reviewer matching
-  country             String?
+  role                  String    @default("READER")
+  bio                   String?
+  expertise             String? // comma-separated keywords for reviewer matching
+  country               String?
   // Public profile
-  avatarUrl           String? // profile picture — resolved public URL (Blob or /api/storage/download)
-  profession          String? // e.g. "Associate Professor of Computational Biology" — distinct from `affiliation` (institution name)
-  website             String?
-  twitterUrl          String?
-  linkedinUrl         String?
-  githubUrl           String?
-  contactEmail        String? // public-facing contact address — deliberately separate from the login `email`
-  contactPhone        String?
+  avatarUrl             String? // profile picture — resolved public URL (Blob or /api/storage/download)
+  profession            String? // e.g. "Associate Professor of Computational Biology" — distinct from `affiliation` (institution name)
+  website               String?
+  twitterUrl            String?
+  linkedinUrl           String?
+  githubUrl             String?
+  contactEmail          String? // public-facing contact address — deliberately separate from the login `email`
+  contactPhone          String?
   // ORCID OAuth tokens (premium integration)
-  orcidAccessToken    String?
-  orcidRefreshToken   String?
-  orcidTokenExpiry    DateTime?
-  orcidLastSync       DateTime?
+  orcidAccessToken      String?
+  orcidRefreshToken     String?
+  orcidTokenExpiry      DateTime?
+  orcidLastSync         DateTime?
   // Blogger OAuth tokens (Tier A article syndication — real API auto-publish)
-  bloggerAccessToken  String?
-  bloggerRefreshToken String?
-  bloggerTokenExpiry  DateTime?
-  bloggerBlogId       String?
-  bloggerBlogUrl      String?
-  bloggerConnectedAt  DateTime?
+  bloggerAccessToken    String?
+  bloggerRefreshToken   String?
+  bloggerTokenExpiry    DateTime?
+  bloggerBlogId         String?
+  bloggerBlogUrl        String?
+  bloggerConnectedAt    DateTime?
   // Institutional affiliation (premium IP-auth feature)
-  institutionId       String?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  institutionId         String?
+  // Real scholarly-output metrics from OpenAlex (src/lib/citation-metrics.ts),
+  // by ORCID — only meaningful for editorial-board accounts (SUPER_ADMIN/
+  // EDITOR/ASSOCIATE_EDITOR) and only populated when `orcid` is set.
+  // Refreshed unconditionally on every deploy alongside Article.citations
+  // (scripts/refresh-citation-metrics.ts); GET /api/editorial-board also
+  // tries a live fetch first and only falls back to these cached values.
+  boardWorksCount       Int?
+  boardCitedByCount     Int?
+  boardHIndex           Int?
+  boardMetricsCheckedAt DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   submissions                Article[]           @relation("AuthorArticles")
   assignedReviews            Review[]            @relation("ReviewerReviews")
@@ -269,10 +279,20 @@ model Article {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  // Citation counts (mock analytics)
   views     Int @default(0)
   downloads Int @default(0)
-  citations Int @default(0)
+
+  // Real citation count from OpenAlex (src/lib/citation-metrics.ts),
+  // refreshed unconditionally on every deploy by
+  // scripts/refresh-citation-metrics.ts (same build-pipeline precedent as
+  // the glossary/lay-summary backfill) — not a one-time backfill, since a
+  // citation count needs to keep changing after it's first set. 0/null
+  // honestly reflects "not yet cited" or "not yet indexed by OpenAlex",
+  // never an estimate.
+  citations              Int       @default(0)
+  citationsCheckedAt     DateTime?
+  citationsPercentileMin Int? // OpenAlex cited_by_percentile_year.min, when computed for this work
+  citationsPercentileMax Int?
 
   journal       Journal                @relation(fields: [journalId], references: [id])
   issue         Issue?                 @relation(fields: [issueId], references: [id])
