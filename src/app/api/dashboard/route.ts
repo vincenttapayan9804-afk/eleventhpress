@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
   if (["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"].includes(role)) {
     const queue = await db.article.findMany({
       where: {
-        status: { in: ["SUBMITTED", "UNDER_REVIEW", "REVISIONS_REQUIRED", "ACCEPTED", "IN_PRODUCTION"] },
+        status: { in: ["SUBMITTED", "UNDER_REVIEW", "REVISIONS_REQUIRED", "ACCEPTED", "IN_PRODUCTION", "PUBLISHED"] },
       },
       orderBy: { submittedAt: "desc" },
       include: {
