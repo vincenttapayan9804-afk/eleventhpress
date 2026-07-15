@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { presignGet, objectExists } from "@/lib/storage";
 
 /**
- * GET /api/articles/[id]/galley?format=pdf|html
+ * GET /api/articles/[id]/galley?format=pdf|html|jats|epub
  *
  * Returns a download URL for the requested galley. Published articles are
  * open access (the site claims CC BY 4.0 everywhere — hero badge, footer,
@@ -31,8 +31,8 @@ export async function GET(
   const { id } = await params;
   const { searchParams } = new URL(req.url);
   const format = (searchParams.get("format") || "pdf").toLowerCase();
-  if (!["pdf", "html"].includes(format)) {
-    return NextResponse.json({ error: "format must be pdf or html" }, { status: 400 });
+  if (!["pdf", "html", "jats", "epub"].includes(format)) {
+    return NextResponse.json({ error: "format must be pdf, html, jats, or epub" }, { status: 400 });
   }
 
   const article = await db.article.findUnique({
@@ -46,7 +46,11 @@ export async function GET(
     return NextResponse.json({ error: "Article is not published" }, { status: 403 });
   }
 
-  const galleyKey = format === "pdf" ? article.galleyPdfKey : article.galleyHtmlKey;
+  const galleyKey =
+    format === "pdf" ? article.galleyPdfKey :
+    format === "html" ? article.galleyHtmlKey :
+    format === "jats" ? article.galleyJatsKey :
+    article.galleyEpubKey;
   if (!galleyKey) {
     return NextResponse.json({ error: "Galley not yet generated" }, { status: 404 });
   }
@@ -66,7 +70,8 @@ export async function GET(
     );
   }
 
-  const downloadFilename = `${article.doi?.replace(/[^a-z0-9]/gi, "-") || article.id}.${format}`;
+  const extension = format === "jats" ? "jats.xml" : format;
+  const downloadFilename = `${article.doi?.replace(/[^a-z0-9]/gi, "-") || article.id}.${extension}`;
   const url = await presignGet(galleyKey, downloadFilename);
   return NextResponse.json({ url, key: galleyKey, format, expiresInSeconds: 600 });
 }

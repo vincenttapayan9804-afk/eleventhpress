@@ -125,6 +125,7 @@ export async function runGalleyJob(
         galleyHtmlKey: result.htmlKey,
         galleyPdfKey: result.pdfKey,
         galleyJatsKey: result.jatsKey,
+        galleyEpubKey: result.epubKey,
       },
     });
 
@@ -135,6 +136,7 @@ export async function runGalleyJob(
         htmlKey: result.htmlKey,
         pdfKey: result.pdfKey,
         jatsKey: result.jatsKey,
+        epubKey: result.epubKey,
         workerLog: JSON.stringify(result.log),
         completedAt: new Date(),
       },
@@ -151,6 +153,7 @@ export async function runGalleyJob(
           htmlKey: result.htmlKey,
           pdfKey: result.pdfKey,
           jatsKey: result.jatsKey,
+          epubKey: result.epubKey,
           jobId,
           trigger: triggeredBy ? "manual" : "system",
         }),

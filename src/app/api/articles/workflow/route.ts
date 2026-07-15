@@ -126,11 +126,12 @@ export async function POST(req: NextRequest) {
               galleyHtmlKey: galleyResults.htmlKey,
               galleyPdfKey: galleyResults.pdfKey,
               galleyJatsKey: galleyResults.jatsKey,
+              galleyEpubKey: galleyResults.epubKey,
             },
           });
           generatedPdfKey = galleyResults.pdfKey;
           publishEvents.push(
-            `Galleys generated (html=${galleyResults.htmlKey}, pdf=${galleyResults.pdfKey}, jats=${galleyResults.jatsKey || "—"})`
+            `Galleys generated (html=${galleyResults.htmlKey}, pdf=${galleyResults.pdfKey}, jats=${galleyResults.jatsKey || "—"}, epub=${galleyResults.epubKey || "—"})`
           );
         }
       } catch (e: any) {
@@ -327,6 +328,7 @@ async function generateGalleysForArticle(articleId: string): Promise<{
   htmlKey: string;
   pdfKey: string;
   jatsKey: string | null;
+  epubKey: string | null;
 } | null> {
   const article = await db.article.findUnique({
     where: { id: articleId },
@@ -362,7 +364,7 @@ async function generateGalleysForArticle(articleId: string): Promise<{
     year: article.issue?.year || new Date().getFullYear(),
   });
 
-  return { htmlKey: result.htmlKey, pdfKey: result.pdfKey, jatsKey: result.jatsKey };
+  return { htmlKey: result.htmlKey, pdfKey: result.pdfKey, jatsKey: result.jatsKey, epubKey: result.epubKey };
 }
 
 function synthesiseMarkdown(article: any): string {

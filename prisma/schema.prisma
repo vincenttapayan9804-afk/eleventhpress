@@ -167,6 +167,7 @@ model Article {
   galleyPdfKey  String? // published PDF
   galleyHtmlKey String? // published HTML
   galleyJatsKey String? // published JATS XML
+  galleyEpubKey String? // published EPUB3 (single-chapter, src/lib/epub-builder.ts)
 
   // Workflow state machine
   // DRAFT | SUBMITTED | UNDER_REVIEW | REVISIONS_REQUIRED | ACCEPTED | IN_PRODUCTION | PUBLISHED | REJECTED | WITHDRAWN
@@ -509,6 +510,7 @@ model GalleyJob {
   htmlKey      String?
   pdfKey       String?
   jatsKey      String?
+  epubKey      String?
   workerLog    String? // JSON-stringified worker output
   errorMessage String?
   startedAt    DateTime?
