@@ -14,9 +14,18 @@ import HTMLFlipBook from "react-pageflip";
  * server-side PDF-to-image rasterization, which avoids native-module
  * risk on Vercel's serverless runtime. react-pageflip then handles the
  * page-turn interaction over those images.
+ *
+ * Rendering is progressive: page 1 renders first and the flipbook opens
+ * as soon as it's ready, while the rest stream in behind it via a small
+ * concurrency pool — readers don't wait for a 20+ page PDF to fully
+ * rasterize before they can start reading. Pages encode as JPEG rather
+ * than PNG (much faster to encode, smaller data URLs) since this is a
+ * page-scan viewer, not a graphics tool needing lossless output.
  */
 
 type LoadState = "idle" | "loading" | "ready" | "error";
+
+const RENDER_CONCURRENCY = 2;
 
 interface Props {
   articleId: string;
@@ -26,7 +35,7 @@ interface Props {
 
 export function ArticleFlipbook({ articleId, open, onOpenChange }: Props) {
   const [state, setState] = useState<LoadState>("idle");
-  const [pages, setPages] = useState<string[]>([]);
+  const [pages, setPages] = useState<(string | null)[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const flipBookRef = useRef<any>(null);
 
@@ -47,9 +56,12 @@ export function ArticleFlipbook({ articleId, open, onOpenChange }: Props) {
         ).toString();
 
         const pdf = await pdfjsLib.getDocument({ url }).promise;
-        const rendered: string[] = [];
-        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-          if (cancelled) return;
+        if (cancelled) return;
+
+        const numPages = pdf.numPages;
+        setPages(new Array(numPages).fill(null));
+
+        const renderPage = async (pageNum: number) => {
           const page = await pdf.getPage(pageNum);
           const viewport = page.getViewport({ scale: 1.6 });
           const canvas = document.createElement("canvas");
@@ -58,13 +70,36 @@ export function ArticleFlipbook({ articleId, open, onOpenChange }: Props) {
           const context = canvas.getContext("2d");
           if (!context) throw new Error("Canvas 2D context unavailable");
           await page.render({ canvasContext: context, viewport, canvas }).promise;
-          rendered.push(canvas.toDataURL("image/png"));
-        }
+          return canvas.toDataURL("image/jpeg", 0.82);
+        };
 
-        if (!cancelled) {
-          setPages(rendered);
-          setState("ready");
-        }
+        const firstPage = await renderPage(1);
+        if (cancelled) return;
+        setPages((prev) => {
+          const next = [...prev];
+          next[0] = firstPage;
+          return next;
+        });
+        setState("ready");
+
+        const remainingPageNumbers = Array.from({ length: numPages - 1 }, (_, i) => i + 2);
+        let cursor = 0;
+        const worker = async () => {
+          while (cursor < remainingPageNumbers.length) {
+            const pageNum = remainingPageNumbers[cursor++];
+            if (cancelled) return;
+            const src = await renderPage(pageNum);
+            if (cancelled) return;
+            setPages((prev) => {
+              const next = [...prev];
+              next[pageNum - 1] = src;
+              return next;
+            });
+          }
+        };
+        await Promise.all(
+          Array.from({ length: Math.min(RENDER_CONCURRENCY, remainingPageNumbers.length) }, worker)
+        );
       } catch (e: any) {
         if (!cancelled) {
           setErrorMessage(e?.message || "Could not render the PDF for the flipbook view.");
@@ -87,6 +122,9 @@ export function ArticleFlipbook({ articleId, open, onOpenChange }: Props) {
       setErrorMessage(null);
     }
   }, [open]);
+
+  const loadedCount = pages.filter(Boolean).length;
+  const stillStreaming = state === "ready" && loadedCount < pages.length;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -139,8 +177,12 @@ export function ArticleFlipbook({ articleId, open, onOpenChange }: Props) {
               >
                 {pages.map((src, i) => (
                   <div key={i} className="flex items-center justify-center bg-white">
-                    {/* A client-generated canvas data URL, not an optimizable remote/static asset — next/image doesn't apply here. */}
-                    <img src={src} alt={`Page ${i + 1}`} className="h-full w-full object-contain" />
+                    {src ? (
+                      // A client-generated canvas data URL, not an optimizable remote/static asset — next/image doesn't apply here.
+                      <img src={src} alt={`Page ${i + 1}`} className="h-full w-full object-contain" />
+                    ) : (
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    )}
                   </div>
                 ))}
               </HTMLFlipBook>
@@ -154,6 +196,7 @@ export function ArticleFlipbook({ articleId, open, onOpenChange }: Props) {
                   <ChevronLeft className="h-4 w-4" />
                 </button>
                 {pages.length} page{pages.length === 1 ? "" : "s"}
+                {stillStreaming && <Loader2 className="h-3 w-3 animate-spin" />}
                 <button
                   type="button"
                   className="rounded-md border border-border p-1.5 hover:bg-accent"
