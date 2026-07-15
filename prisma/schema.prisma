@@ -876,7 +876,12 @@ model Institution {
   // can't read another's usage data by guessing a customer_id. Auto-
   // generated on institution creation (src/lib/institutions.ts,
   // generateCounterApiKey()); SUPER_ADMIN can view/regenerate it.
-  counterApiKey     String?   @unique
+  // Not @unique: `prisma db push` refuses a new unique constraint without
+  // --accept-data-loss once the table has rows (even though NULLs are
+  // distinct under Postgres UNIQUE, so no real collision risk exists here);
+  // 192 bits of randomBytes(24) entropy already makes a real collision
+  // negligible without a DB-level constraint backing it up.
+  counterApiKey     String?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
