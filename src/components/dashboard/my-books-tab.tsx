@@ -42,6 +42,7 @@ import {
   ExternalLink,
   Lock,
   DollarSign,
+  Trash2,
 } from "lucide-react";
 import { BOOK_PLATFORMS, type BookDistributionPackage } from "@/lib/book-distribution";
 import { DISTRIBUTION_PACKAGE_BOOK_USD } from "@/lib/pricing";
@@ -333,6 +334,8 @@ export function MyBooksTab() {
   const [uploadedManuscript, setUploadedManuscript] = useState<{ key: string; filename: string } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [expandedBookId, setExpandedBookId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     title: "",
@@ -356,6 +359,20 @@ export function MyBooksTab() {
   useEffect(() => {
     load();
   }, []);
+
+  async function deleteBook(bookId: string) {
+    setDeletingId(bookId);
+    try {
+      await apiFetch(`/api/books/${bookId}`, { method: "DELETE" });
+      toast.success("Book deleted");
+      setConfirmDeleteId(null);
+      await load();
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   async function loadPublishedArticles() {
     try {
@@ -573,6 +590,49 @@ export function MyBooksTab() {
                 )}
               </div>
             </CardContent>
+
+            {/* Delete is only offered pre-publication — once a book has an
+                ISBN/EPUB already distributed to aggregators, deletion has no
+                undo; contact an admin instead. */}
+            {b.status !== "PUBLISHED" && (
+              <CardContent className="border-t p-4 pt-3">
+                {confirmDeleteId === b.id ? (
+                  <div className="rounded-md border border-destructive/40 bg-destructive/5 p-2">
+                    <p className="text-xs font-medium text-destructive">
+                      Permanently delete "{b.title}"? This cannot be undone.
+                    </p>
+                    <div className="mt-2 flex justify-end gap-2">
+                      <Button size="sm" variant="ghost" onClick={() => setConfirmDeleteId(null)}>
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        disabled={deletingId === b.id}
+                        onClick={() => deleteBook(b.id)}
+                      >
+                        {deletingId === b.id ? (
+                          <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                        ) : (
+                          <Trash2 className="mr-1 h-3 w-3" />
+                        )}
+                        Confirm delete
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => setConfirmDeleteId(b.id)}
+                  >
+                    <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Delete book
+                  </Button>
+                )}
+              </CardContent>
+            )}
+
             {expandedBookId === b.id && (
               <CardContent className="space-y-4 border-t p-4 pt-4">
                 <BookDistribution book={b} />

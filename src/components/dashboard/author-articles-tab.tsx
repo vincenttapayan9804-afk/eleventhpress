@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { useApp } from "@/lib/store";
+import { apiFetch } from "@/lib/api-client";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,8 +14,11 @@ import {
   Quote,
   FileText,
   ArrowRight,
+  Trash2,
+  Loader2,
 } from "lucide-react";
 import { STATUS_FLOW } from "@/lib/article";
+import { toast } from "sonner";
 
 interface Props {
   submissions: any[];
@@ -22,6 +27,22 @@ interface Props {
 
 export function AuthorArticlesTab({ submissions, onRefresh }: Props) {
   const { openArticle, openDashboard } = useApp();
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  async function deleteArticle(articleId: string) {
+    setDeletingId(articleId);
+    try {
+      await apiFetch(`/api/articles/${articleId}`, { method: "DELETE" });
+      toast.success("Submission deleted");
+      setConfirmDeleteId(null);
+      onRefresh();
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   if (submissions.length === 0) {
     return (
@@ -138,6 +159,49 @@ export function AuthorArticlesTab({ submissions, onRefresh }: Props) {
                 <p className="mt-3 font-mono text-[0.65rem] text-muted-foreground">
                   In-corpus similarity: {s.plagiarismScore}% · Review model: {s.reviewModel.replace("_", " ")}
                 </p>
+              )}
+
+              {/* Delete is only offered pre-publication — once an article has
+                  a live DOI and is indexed externally, deletion would leave a
+                  dead link; use a correction/retraction instead. */}
+              {status !== "PUBLISHED" && (
+                <div className="mt-3 border-t border-border pt-3">
+                  {confirmDeleteId === s.id ? (
+                    <div className="rounded-md border border-destructive/40 bg-destructive/5 p-2">
+                      <p className="text-xs font-medium text-destructive">
+                        Permanently delete "{s.title}"? This removes the submission, any reviews and
+                        editorial decisions, and cannot be undone.
+                      </p>
+                      <div className="mt-2 flex justify-end gap-2">
+                        <Button size="sm" variant="ghost" onClick={() => setConfirmDeleteId(null)}>
+                          Cancel
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          disabled={deletingId === s.id}
+                          onClick={() => deleteArticle(s.id)}
+                        >
+                          {deletingId === s.id ? (
+                            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                          ) : (
+                            <Trash2 className="mr-1 h-3 w-3" />
+                          )}
+                          Confirm delete
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => setConfirmDeleteId(s.id)}
+                    >
+                      <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Delete submission
+                    </Button>
+                  )}
+                </div>
               )}
             </CardContent>
           </Card>
