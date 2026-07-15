@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import {
   Loader2,
@@ -21,6 +22,8 @@ import {
   Sparkles,
   Tag,
   ExternalLink,
+  ImageIcon,
+  Languages,
 } from "lucide-react";
 
 interface SimilarityMatch {
@@ -53,6 +56,29 @@ interface IntegrityJob {
   workerLog: string | null;
 }
 
+interface AltTextSuggestion {
+  src: string;
+  existingAlt: string;
+  suggestedAlt: string;
+  mode: "llm" | "heuristic";
+}
+
+interface AltTextJob {
+  id: string;
+  status: "QUEUED" | "PROCESSING" | "COMPLETED" | "FAILED";
+  imagesFound: number;
+  results: AltTextSuggestion[];
+  appliedAt: string | null;
+  errorMessage: string | null;
+}
+
+const TRANSLATION_LOCALES: { code: string; label: string }[] = [
+  { code: "es", label: "Spanish" },
+  { code: "fr", label: "French" },
+  { code: "fil", label: "Filipino" },
+  { code: "zh-Hans", label: "Chinese (Simplified)" },
+];
+
 interface Props {
   articleId: string;
 }
@@ -63,6 +89,9 @@ export function ManuscriptChecksPanel({ articleId }: Props) {
   const [references, setReferences] = useState<ReferenceItem[]>([]);
   const [aiAssist, setAiAssist] = useState<{ laySummary: string; suggestedKeywords: string[]; mode: string } | null>(null);
   const [integrityJob, setIntegrityJob] = useState<IntegrityJob | null>(null);
+  const [altTextJob, setAltTextJob] = useState<AltTextJob | null>(null);
+  const [editedAlt, setEditedAlt] = useState<Record<string, string>>({});
+  const [translations, setTranslations] = useState<Record<string, { mode: string }>>({});
   const [loading, setLoading] = useState<string | null>(null);
 
   useEffect(() => {
@@ -78,6 +107,15 @@ export function ManuscriptChecksPanel({ articleId }: Props) {
     apiFetch<{ jobs: IntegrityJob[] }>(`/api/articles/${articleId}/integrity-check`)
       .then((r) => setIntegrityJob(r.jobs?.[0] ?? null))
       .catch(() => setIntegrityJob(null));
+    apiFetch<{ jobs: AltTextJob[] }>(`/api/articles/${articleId}/alt-text`)
+      .then((r) => {
+        const latest = r.jobs?.[0] ?? null;
+        setAltTextJob(latest);
+        if (latest?.results) {
+          setEditedAlt(Object.fromEntries(latest.results.map((s) => [s.src, s.suggestedAlt])));
+        }
+      })
+      .catch(() => setAltTextJob(null));
   }, [articleId]);
 
   async function runSimilarity() {
@@ -117,6 +155,69 @@ export function ManuscriptChecksPanel({ articleId }: Props) {
       }
     } catch (e: any) {
       toast.error("Integrity check failed", { description: e.message });
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function runAltTextGeneration() {
+    setLoading("alt-text");
+    try {
+      const r = await apiFetch<{ success: boolean; deduped?: boolean; job: AltTextJob }>(
+        `/api/articles/${articleId}/alt-text`,
+        { method: "POST" }
+      );
+      setAltTextJob(r.job);
+      if (r.job.results) {
+        setEditedAlt(Object.fromEntries(r.job.results.map((s) => [s.src, s.suggestedAlt])));
+      }
+      if (r.deduped) {
+        toast.info("Alt-text generation already in flight for this article");
+      } else if (r.job.status === "COMPLETED") {
+        toast.success(`Generated alt text for ${r.job.imagesFound} figure(s)`);
+      } else {
+        toast.error("Alt-text generation failed", { description: r.job.errorMessage ?? undefined });
+      }
+    } catch (e: any) {
+      toast.error("Alt-text generation failed", { description: e.message });
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function applyAltText() {
+    if (!altTextJob) return;
+    setLoading("alt-text-apply");
+    try {
+      const results = altTextJob.results.map((s) => ({ src: s.src, altText: editedAlt[s.src] ?? s.suggestedAlt }));
+      await apiFetch(`/api/articles/${articleId}/alt-text/apply`, {
+        method: "POST",
+        body: JSON.stringify({ jobId: altTextJob.id, results }),
+      });
+      setAltTextJob({ ...altTextJob, appliedAt: new Date().toISOString() });
+      toast.success("Alt text applied to the published galley");
+    } catch (e: any) {
+      toast.error("Failed to apply alt text", { description: e.message });
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function runTranslate(locale: string) {
+    setLoading(`translate-${locale}`);
+    try {
+      const r = await apiFetch<{ translatedAbstract: string; mode: "llm" | "heuristic"; model: string }>(
+        `/api/articles/${articleId}/translate`,
+        { method: "POST", body: JSON.stringify({ locale }) }
+      );
+      setTranslations((prev) => ({ ...prev, [locale]: { mode: r.mode } }));
+      if (r.mode === "llm") {
+        toast.success(`Abstract translated (${locale})`);
+      } else {
+        toast.error("Translation unavailable", { description: "LLM unavailable — the English abstract was not overwritten." });
+      }
+    } catch (e: any) {
+      toast.error("Translation failed", { description: e.message });
     } finally {
       setLoading(null);
     }
@@ -362,6 +463,87 @@ export function ManuscriptChecksPanel({ articleId }: Props) {
             </div>
           </>
         )}
+
+        <Separator />
+
+        {/* Figure alt-text — accessibility. Suggestions are never applied
+            automatically; an editor reviews (and may edit) each one, then
+            explicitly applies them to the live galley HTML. */}
+        <div>
+          <div className="flex items-center justify-between">
+            <p className="eyebrow flex items-center gap-1"><ImageIcon className="h-3 w-3" /> Figure alt-text</p>
+            <Button size="sm" variant="outline" onClick={runAltTextGeneration} disabled={loading === "alt-text"}>
+              {loading === "alt-text" ? <Loader2 className="h-3 w-3 animate-spin" /> : "Generate"}
+            </Button>
+          </div>
+          {altTextJob?.status === "COMPLETED" && altTextJob.results.length > 0 ? (
+            <div className="mt-2 space-y-2">
+              {altTextJob.results.map((s) => (
+                <div key={s.src} className="rounded-md border border-border p-2 text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate text-muted-foreground" title={s.src}>{s.src}</p>
+                    <Badge variant="outline" className="shrink-0 text-[0.55rem]">{s.mode}</Badge>
+                  </div>
+                  <Textarea
+                    value={editedAlt[s.src] ?? s.suggestedAlt}
+                    onChange={(e) => setEditedAlt((prev) => ({ ...prev, [s.src]: e.target.value }))}
+                    className="mt-1.5 min-h-14 text-xs"
+                    disabled={!!altTextJob.appliedAt}
+                  />
+                </div>
+              ))}
+              {altTextJob.appliedAt ? (
+                <p className="flex items-center gap-1 text-xs text-emerald-700">
+                  <CheckCircle2 className="h-3 w-3" /> Applied to the published galley.
+                </p>
+              ) : (
+                <Button size="sm" className="w-full" onClick={applyAltText} disabled={loading === "alt-text-apply"}>
+                  {loading === "alt-text-apply" ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : null} Apply to galley
+                </Button>
+              )}
+            </div>
+          ) : altTextJob?.status === "COMPLETED" ? (
+            <p className="mt-1 text-xs text-muted-foreground">No figures found in the galley HTML.</p>
+          ) : altTextJob?.status === "FAILED" ? (
+            <p className="mt-1 text-xs text-rose-700">{altTextJob.errorMessage}</p>
+          ) : (
+            <p className="mt-1 text-xs text-muted-foreground">Not yet generated.</p>
+          )}
+        </div>
+
+        <Separator />
+
+        {/* Abstract translation — feeds the site's existing 5-locale i18n.
+            Explicitly per-locale, never auto-run for all locales at once. */}
+        <div>
+          <p className="eyebrow flex items-center gap-1"><Languages className="h-3 w-3" /> Abstract translation</p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {TRANSLATION_LOCALES.map((l) => {
+              const result = translations[l.code];
+              return (
+                <Button
+                  key={l.code}
+                  size="sm"
+                  variant="outline"
+                  className="h-7 gap-1.5 text-xs"
+                  onClick={() => runTranslate(l.code)}
+                  disabled={loading === `translate-${l.code}`}
+                >
+                  {loading === `translate-${l.code}` ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : result ? (
+                    result.mode === "llm" ? (
+                      <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                    ) : (
+                      <AlertCircle className="h-3 w-3 text-amber-600" />
+                    )
+                  ) : null}
+                  {l.label}
+                </Button>
+              );
+            })}
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

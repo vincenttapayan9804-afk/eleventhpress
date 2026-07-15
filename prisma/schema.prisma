@@ -30,31 +30,31 @@ datasource db {
 // Identity & Access Management (IAM)
 // ---------------------------------------------------------------------------
 model User {
-  id                String    @id @default(cuid())
-  email             String    @unique
-  passwordHash      String
-  fullName          String
-  affiliation       String?
-  orcid             String?
+  id                  String    @id @default(cuid())
+  email               String    @unique
+  passwordHash        String
+  fullName            String
+  affiliation         String?
+  orcid               String?
   // Role: SUPER_ADMIN | EDITOR | ASSOCIATE_EDITOR | REVIEWER | AUTHOR | READER
-  role              String    @default("READER")
-  bio               String?
-  expertise         String? // comma-separated keywords for reviewer matching
-  country           String?
+  role                String    @default("READER")
+  bio                 String?
+  expertise           String? // comma-separated keywords for reviewer matching
+  country             String?
   // Public profile
-  avatarUrl         String? // profile picture — resolved public URL (Blob or /api/storage/download)
-  profession        String? // e.g. "Associate Professor of Computational Biology" — distinct from `affiliation` (institution name)
-  website           String?
-  twitterUrl        String?
-  linkedinUrl       String?
-  githubUrl         String?
-  contactEmail      String? // public-facing contact address — deliberately separate from the login `email`
-  contactPhone      String?
+  avatarUrl           String? // profile picture — resolved public URL (Blob or /api/storage/download)
+  profession          String? // e.g. "Associate Professor of Computational Biology" — distinct from `affiliation` (institution name)
+  website             String?
+  twitterUrl          String?
+  linkedinUrl         String?
+  githubUrl           String?
+  contactEmail        String? // public-facing contact address — deliberately separate from the login `email`
+  contactPhone        String?
   // ORCID OAuth tokens (premium integration)
-  orcidAccessToken  String?
-  orcidRefreshToken String?
-  orcidTokenExpiry  DateTime?
-  orcidLastSync     DateTime?
+  orcidAccessToken    String?
+  orcidRefreshToken   String?
+  orcidTokenExpiry    DateTime?
+  orcidLastSync       DateTime?
   // Blogger OAuth tokens (Tier A article syndication — real API auto-publish)
   bloggerAccessToken  String?
   bloggerRefreshToken String?
@@ -63,23 +63,23 @@ model User {
   bloggerBlogUrl      String?
   bloggerConnectedAt  DateTime?
   // Institutional affiliation (premium IP-auth feature)
-  institutionId     String?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  institutionId       String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
-  submissions            Article[]           @relation("AuthorArticles")
-  assignedReviews        Review[]            @relation("ReviewerReviews")
-  editorialDecisions     EditorialDecision[]
-  subscriptions          Subscription[]
-  invoices               Invoice[]
-  notifications          Notification[]
-  auditLogs              AuditLog[]
-  institution            Institution?        @relation(fields: [institutionId], references: [id])
-  correctionsIssued      Correction[]
-  roleApplications       RoleApplication[]   @relation("ApplicantApplications")
-  reviewedApplications   RoleApplication[]   @relation("ReviewerApplications")
-  distributionsSubmitted Distribution[]
-  books                  Book[]
+  submissions                Article[]           @relation("AuthorArticles")
+  assignedReviews            Review[]            @relation("ReviewerReviews")
+  editorialDecisions         EditorialDecision[]
+  subscriptions              Subscription[]
+  invoices                   Invoice[]
+  notifications              Notification[]
+  auditLogs                  AuditLog[]
+  institution                Institution?        @relation(fields: [institutionId], references: [id])
+  correctionsIssued          Correction[]
+  roleApplications           RoleApplication[]   @relation("ApplicantApplications")
+  reviewedApplications       RoleApplication[]   @relation("ReviewerApplications")
+  distributionsSubmitted     Distribution[]
+  books                      Book[]
   bookDistributionsSubmitted BookDistribution[]
   royaltyStatementsRecorded  RoyaltyStatement[]
 }
@@ -210,6 +210,17 @@ model Article {
   aiKeywordSuggestions String? // JSON array of suggested keyword strings
   statisticalFlags     String? // JSON array of {flag, severity, explanation}
   statisticalCheckedAt DateTime?
+
+  // AI-assisted abstract translation, feeding the site's existing 5-locale
+  // i18n (src/messages/*.json) rather than being a UI-only translation.
+  // Editor/author-triggered per locale, never auto-run at publish time.
+  // English excluded — the `abstract` field above is already canonical
+  // English. On translation failure there is no offline fallback, so the
+  // per-locale meta's mode records "heuristic" and callers must show an
+  // explicit "unavailable" state rather than presenting the original
+  // English text as if it were translated.
+  abstractTranslations    String? // JSON: {es, fr, fil, "zh-Hans": text}
+  abstractTranslationMeta String? // JSON: {locale: {mode, model, translatedAt}}
 
   // Paid Distribution Package (revenue Phase 6) — unlocks Tier B
   // (arXiv/SSRN) submission package generation in src/lib/distribution.ts.
@@ -539,6 +550,33 @@ model IntegrityCheckJob {
 }
 
 // ---------------------------------------------------------------------------
+// Alt-Text Job — AI-generated figure alt text (src/lib/alt-text.ts), for
+// accessibility compliance. Figures live inline as <img> tags inside the
+// galley HTML blob (no first-class Figure model exists), so this job
+// parses them out, generates a suggestion per image, and stores results
+// for editor review rather than auto-rewriting the live galley — a
+// separate explicit "apply" action commits reviewed suggestions into the
+// galley HTML. Same durable atomic-claim shape as GalleyJob.
+// ---------------------------------------------------------------------------
+model AltTextJob {
+  id              String    @id @default(cuid())
+  articleId       String
+  status          String    @default("QUEUED") // QUEUED | PROCESSING | COMPLETED | FAILED
+  imagesFound     Int       @default(0)
+  imagesProcessed Int       @default(0)
+  results         String? // JSON: [{src, existingAlt, suggestedAlt, mode}]
+  appliedAt       DateTime? // set once an editor applies results to the galley HTML
+  workerLog       String?
+  errorMessage    String?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([status, createdAt])
+  @@index([articleId])
+}
+
+// ---------------------------------------------------------------------------
 // Distribution — per-article syndication tracking to external platforms
 // (see src/lib/distribution.ts). One row per (articleId, platform) pair,
 // created on demand when an author/editor first generates a share package
@@ -681,10 +719,10 @@ model RoyaltyStatement {
 // Distribution's ResearchGate/Academia.edu tier. Mirrors Distribution's
 // columns exactly for the same reasons (see that model's comments).
 model BookDistribution {
-  id     String @id @default(cuid())
-  bookId String
+  id       String @id @default(cuid())
+  bookId   String
   platform String // DRAFT2DIGITAL | INGRAMSPARK | AMAZON_KDP | LULU
-  tier   String // B | C
+  tier     String // B | C
 
   status         String  @default("NOT_STARTED") // NOT_STARTED | PACKAGE_READY | SUBMITTED | LIVE | FAILED
   packageContent String? // generated metadata package JSON

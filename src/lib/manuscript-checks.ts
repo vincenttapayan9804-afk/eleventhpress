@@ -230,6 +230,60 @@ export async function suggestKeywordsAndSummary(article: {
   return heuristicAiAssist(article);
 }
 
+// ---------------------------------------------------------------------------
+// AI-assisted abstract translation — feeds the site's existing 5-locale
+// i18n (src/messages/*.json), editor/author-triggered per locale.
+// ---------------------------------------------------------------------------
+
+export const TRANSLATABLE_LOCALES = ["es", "fr", "fil", "zh-Hans"] as const;
+export type TranslatableLocale = (typeof TRANSLATABLE_LOCALES)[number];
+
+const LOCALE_NAMES: Record<TranslatableLocale, string> = {
+  es: "Spanish",
+  fr: "French",
+  fil: "Filipino (Tagalog-based)",
+  "zh-Hans": "Simplified Chinese",
+};
+
+export interface TranslateAbstractResult {
+  translatedAbstract: string;
+  mode: "llm" | "heuristic";
+  model: string;
+}
+
+const TRANSLATE_SYSTEM_PROMPT = (targetLanguage: string) => `You are a scholarly translator. Translate the given academic abstract into ${targetLanguage}, preserving its academic register and technical terminology precisely — do not simplify, summarize, or add commentary. Respond with a single JSON object (no markdown, no preamble): {"translatedAbstract": "<the translation>"}`;
+
+/**
+ * Translates an article's abstract into one target locale via the real
+ * Anthropic API. There is no offline machine-translation fallback in this
+ * stack (unlike the heuristic fallbacks elsewhere in this file, which can
+ * approximate a summary or flag patterns without an LLM) — a translation
+ * heuristic would just be wrong, not merely lower-quality — so on failure
+ * this returns the original English text unchanged, tagged
+ * mode: "heuristic", and callers MUST treat that as "translation
+ * unavailable," never present it as if it were real translated text.
+ */
+export async function translateAbstract(
+  article: { title: string; abstract: string },
+  targetLocale: TranslatableLocale
+): Promise<TranslateAbstractResult> {
+  if (isLLMAvailable()) {
+    try {
+      const { data, model } = await chatJSON<{ translatedAbstract: string }>(
+        TRANSLATE_SYSTEM_PROMPT(LOCALE_NAMES[targetLocale]),
+        `Title: ${article.title}\n\nAbstract:\n${article.abstract}`,
+        { maxTokens: 1500 }
+      );
+      if (data.translatedAbstract?.trim()) {
+        return { translatedAbstract: data.translatedAbstract.trim(), mode: "llm", model };
+      }
+    } catch (e) {
+      console.error("[manuscript-checks] translation LLM call failed, falling back:", e);
+    }
+  }
+  return { translatedAbstract: article.abstract, mode: "heuristic", model: "heuristic-fallback" };
+}
+
 /** Deterministic fallback: first two sentences as a "summary", most-frequent
  * non-trivial words from the abstract as keyword suggestions. Not a real
  * summarization or NLP keyword-extraction — just keeps the feature
