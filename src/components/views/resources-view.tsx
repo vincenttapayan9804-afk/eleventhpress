@@ -238,12 +238,16 @@ const SOURCE_LABEL: Record<DiscoverySource, string> = {
   crossref: "Crossref",
   openalex: "OpenAlex",
   semantic_scholar: "Semantic Scholar",
+  eric: "ERIC",
+  pubmed_central: "PubMed Central",
+  zenodo: "Zenodo",
+  core: "CORE",
 };
 
 interface DiscoverResponse {
   query: string;
   results: DiscoveryResult[];
-  sources: { crossref: number; openalex: number; semanticScholar: number };
+  sources: Partial<Record<DiscoverySource, number>>;
 }
 
 export function ResourcesView() {
@@ -387,10 +391,12 @@ export function ResourcesView() {
           <Card className="paper-card border-dashed">
             <CardContent className="p-5">
               <p className="text-sm text-muted-foreground">
-                Search three free, reputable open scholarly databases at once — Crossref,
-                OpenAlex, and Semantic Scholar — to find related work and further reading
-                beyond this platform. No account or API key needed; this is the same open
-                infrastructure we use to validate our own citations.
+                Search free, reputable open scholarly and open-access databases at once —
+                Crossref, OpenAlex, Semantic Scholar, ERIC, PubMed Central, and Zenodo — to
+                find related work and further reading beyond this platform. No account
+                needed; this is the same open infrastructure we use to validate our own
+                citations. CORE, BASE, and OER Commons are available to search directly
+                below.
               </p>
             </CardContent>
           </Card>
@@ -421,7 +427,7 @@ export function ResourcesView() {
 
           {!searching && searched && results.length === 0 && !searchError && (
             <p className="py-6 text-center text-sm text-muted-foreground">
-              No results found across Crossref, OpenAlex, or Semantic Scholar for that query.
+              No results found across any connected source for that query.
             </p>
           )}
 
@@ -429,9 +435,12 @@ export function ResourcesView() {
             <div className="space-y-3">
               {sourceCounts && (
                 <p className="text-xs text-muted-foreground">
-                  {results.length} result{results.length === 1 ? "" : "s"} — {sourceCounts.crossref} from Crossref,{" "}
-                  {sourceCounts.openalex} from OpenAlex, {sourceCounts.semanticScholar} from Semantic Scholar
-                  (deduplicated by DOI).
+                  {results.length} result{results.length === 1 ? "" : "s"} —{" "}
+                  {Object.entries(sourceCounts)
+                    .filter(([, n]) => (n ?? 0) > 0)
+                    .map(([src, n]) => `${n} from ${SOURCE_LABEL[src as DiscoverySource]}`)
+                    .join(", ")}{" "}
+                  (deduplicated by DOI where available).
                 </p>
               )}
               {results.map((r, i) => (
@@ -474,7 +483,13 @@ export function ResourcesView() {
           <Card className="paper-card">
             <CardContent className="p-5">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">About these sources</p>
-              <div className="mt-3 grid gap-3 sm:grid-cols-3">
+              <p className="mt-1 text-xs text-muted-foreground">
+                The first six are searched live above. CORE, BASE, and OER Commons don't have
+                a search API this platform can integrate against without a registered
+                agreement (CORE, BASE) or a public API at all (OER Commons) — search them
+                directly instead.
+              </p>
+              <div className="mt-3 grid gap-4 sm:grid-cols-3">
                 <SourceInfo
                   name="Crossref"
                   desc="The official DOI registration agency's public metadata index — 160M+ scholarly records, free REST API, no key required."
@@ -486,6 +501,33 @@ export function ResourcesView() {
                 <SourceInfo
                   name="Semantic Scholar"
                   desc="AI2's free academic search engine, with a public no-key API tier and strong open-access PDF coverage."
+                />
+                <SourceInfo
+                  name="ERIC"
+                  desc="The U.S. Dept. of Education's free index of education research, via its public no-key API."
+                />
+                <SourceInfo
+                  name="PubMed Central"
+                  desc="NIH/NLM's free full-text archive of biomedical and life-sciences literature, via NCBI's public API."
+                />
+                <SourceInfo
+                  name="Zenodo"
+                  desc="CERN's free open-access repository for datasets, software, and preprints — also where this platform's own linked datasets live."
+                />
+                <SourceInfo
+                  name="CORE"
+                  desc="The world's largest aggregator of open-access research. Its search API needs a free, self-service key — search it directly for now."
+                  href="https://core.ac.uk/search"
+                />
+                <SourceInfo
+                  name="BASE"
+                  desc="Bielefeld Academic Search Engine — one of the world's largest OA indexes. Its search API requires a registered access agreement — search it directly."
+                  href="https://www.base-search.net/Search/Advanced"
+                />
+                <SourceInfo
+                  name="OER Commons"
+                  desc="A free library of open educational resources (courses, lesson plans, textbooks) from ISKME — no public search API to integrate against."
+                  href="https://www.oercommons.org/search"
                 />
               </div>
             </CardContent>
@@ -548,11 +590,21 @@ function ComingSoonNotice({ text }: { text: string }) {
   );
 }
 
-function SourceInfo({ name, desc }: { name: string; desc: string }) {
+function SourceInfo({ name, desc, href }: { name: string; desc: string; href?: string }) {
   return (
     <div>
       <p className="text-xs font-semibold">{name}</p>
       <p className="mt-1 text-xs text-muted-foreground">{desc}</p>
+      {href && (
+        <a
+          href={href}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-[oklch(0.42_0.18_295)]"
+        >
+          Search directly <ExternalLink className="h-3 w-3" />
+        </a>
+      )}
     </div>
   );
 }
