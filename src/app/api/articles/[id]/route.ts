@@ -99,13 +99,22 @@ export async function GET(
 /**
  * DELETE /api/articles/[id]
  * Permanently removes an Article and every row that references it
- * (src/lib/article-delete.ts). SUPER_ADMIN only — this destroys real data
- * (reviews, decisions, corrections, DOI history) with no undo, unlike the
- * editorial workflow transitions (REJECT/WITHDRAWN) which just change
- * `status` and keep the record. Writes an AuditLog entry after the row is
- * gone (articleId left null since the FK target no longer exists;
- * entityId — a plain string, not a relation — still records which id was
- * deleted).
+ * (src/lib/article-delete.ts) — this destroys real data (reviews,
+ * decisions, corrections, DOI history) with no undo, unlike the editorial
+ * workflow transitions (REJECT/WITHDRAWN) which just change `status` and
+ * keep the record.
+ *
+ * SUPER_ADMIN can delete any article, any status. The corresponding
+ * author can delete their own article only while it's pre-publication
+ * (anything other than PUBLISHED) — once an article has a live DOI and is
+ * indexed externally (OAI-PMH, Crossref, Google Scholar), deleting it
+ * would leave a dead link across the internet; the correct way to remove
+ * published work from circulation is a Correction/Retraction notice
+ * (src/app/api/articles/[id]/corrections), not deletion.
+ *
+ * Writes an AuditLog entry after the row is gone (articleId left null
+ * since the FK target no longer exists; entityId — a plain string, not a
+ * relation — still records which id was deleted).
  */
 export async function DELETE(
   req: NextRequest,
@@ -115,14 +124,26 @@ export async function DELETE(
   if (!session) {
     return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
-  if (session.role !== "SUPER_ADMIN") {
-    return NextResponse.json({ error: "Admin role required" }, { status: 403 });
-  }
 
   const { id } = await params;
   const article = await db.article.findUnique({ where: { id } });
   if (!article) {
     return NextResponse.json({ error: "Article not found" }, { status: 404 });
+  }
+
+  const isAdmin = session.role === "SUPER_ADMIN";
+  const isOwner = session.userId === article.correspondingAuthorId;
+
+  if (!isAdmin) {
+    if (!isOwner) {
+      return NextResponse.json({ error: "Not authorized to delete this article" }, { status: 403 });
+    }
+    if (article.status === "PUBLISHED") {
+      return NextResponse.json(
+        { error: "Published articles can't be deleted by the author — request a correction or retraction instead." },
+        { status: 403 }
+      );
+    }
   }
 
   await deleteArticleCascade(article, { deleteFiles: true });
@@ -133,7 +154,12 @@ export async function DELETE(
       action: "ARTICLE_DELETED",
       entityType: "ARTICLE",
       entityId: article.id,
-      metadata: JSON.stringify({ title: article.title, doi: article.doi, status: article.status }),
+      metadata: JSON.stringify({
+        title: article.title,
+        doi: article.doi,
+        status: article.status,
+        deletedBy: isAdmin ? "SUPER_ADMIN" : "AUTHOR",
+      }),
     },
   });
 
