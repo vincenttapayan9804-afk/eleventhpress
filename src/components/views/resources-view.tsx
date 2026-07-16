@@ -545,7 +545,7 @@ export function ResourcesView() {
               <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Clock className="h-3 w-3" /> {openBlog.meta}
               </p>
-              <div className="mt-2 space-y-3 text-sm leading-relaxed text-foreground/85">
+              <div className="mt-2 space-y-3 text-sm leading-relaxed text-foreground/85 text-justify">
                 {openBlog.body.map((p, i) => (
                   <p key={i}>{p}</p>
                 ))}
@@ -562,7 +562,7 @@ export function ResourcesView() {
               <DialogHeader>
                 <DialogTitle className="font-display text-xl">{openGuide.title}</DialogTitle>
               </DialogHeader>
-              <div className="mt-2 space-y-3 text-sm leading-relaxed text-foreground/85">
+              <div className="mt-2 space-y-3 text-sm leading-relaxed text-foreground/85 text-justify">
                 {openGuide.body.map((p, i) => (
                   <p key={i}>{p}</p>
                 ))}

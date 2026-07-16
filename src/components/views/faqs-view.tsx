@@ -82,7 +82,7 @@ export function FaqsView() {
             <AccordionTrigger className="font-display text-base font-semibold">
               {item.q}
             </AccordionTrigger>
-            <AccordionContent className="text-sm leading-relaxed text-foreground/85">
+            <AccordionContent className="text-sm leading-relaxed text-foreground/85 text-justify">
               {item.a}
             </AccordionContent>
           </AccordionItem>

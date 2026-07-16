@@ -111,7 +111,7 @@ export function AboutView() {
       {/* Aims & Scope */}
       <section className="mt-10">
         <h2 className="font-display text-2xl font-semibold">Aims &amp; scope</h2>
-        <div className="mt-4 space-y-4 text-base leading-relaxed text-foreground/85">
+        <div className="mt-4 space-y-4 text-base leading-relaxed text-foreground/85 text-justify">
           <p>
             Eleventh Press International Publishing is not just a journal — it's a complete
             publishing operation built around one submission. We handle rigorous peer
@@ -157,7 +157,7 @@ export function AboutView() {
       {/* What full-stack means */}
       <section className="mt-12">
         <h2 className="font-display text-2xl font-semibold">What "full-stack" actually means</h2>
-        <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+        <p className="mt-2 max-w-3xl text-sm text-muted-foreground text-justify">
           Most journals stop at the DOI. We built the rest of the pipeline authors actually
           need to be read.
         </p>
@@ -217,7 +217,7 @@ export function AboutView() {
       {/* Peer Review Process */}
       <section className="mt-12">
         <h2 className="font-display text-2xl font-semibold">Peer-review process</h2>
-        <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+        <p className="mt-2 max-w-3xl text-sm text-muted-foreground text-justify">
           Our Official Peer Review &amp; Editorial Protocol benchmarks every submission
           against the same quality, ethics, and impact criteria used for international
           citation-indexing review — the Web of Science Core Collection editorial
@@ -226,7 +226,7 @@ export function AboutView() {
           specific metrics required for inclusion in premier international databases.
         </p>
 
-        <div className="mt-4 space-y-3 text-sm leading-relaxed text-foreground/85">
+        <div className="mt-4 space-y-3 text-sm leading-relaxed text-foreground/85 text-justify">
           <p>
             Every submission is initially screened by an associate editor for scope fit,
             methodological soundness, and an in-corpus similarity check against every
@@ -455,7 +455,7 @@ export function AboutView() {
           </CardContent>
         </Card>
 
-        <p className="mt-4 text-sm leading-relaxed text-foreground/85">
+        <p className="mt-4 text-sm leading-relaxed text-foreground/85 text-justify">
           The state machine governing an article’s lifecycle reflects this protocol:
           <code className="mx-1 rounded bg-muted px-1.5 py-0.5 font-mono text-xs">DRAFT → SUBMITTED → UNDER_REVIEW → REVISIONS_REQUIRED → ACCEPTED → IN_PRODUCTION → PUBLISHED</code>.
           Editors may also REJECT or WITHDRAW an article at any point.
@@ -463,7 +463,7 @@ export function AboutView() {
 
         <Card className="paper-card mt-4 border-dashed">
           <CardContent className="p-5">
-            <p className="text-sm leading-relaxed text-foreground/85">
+            <p className="text-sm leading-relaxed text-foreground/85 text-justify">
               <strong>Certification of compliance.</strong> As a Full-Stack Peer Reviewed
               Press, Eleventh Press International Publishing requires every author and
               reviewer to certify adherence to this protocol. Any attempt to bypass these
@@ -476,7 +476,7 @@ export function AboutView() {
       {/* Editorial Board */}
       <section className="mt-12">
         <h2 className="font-display text-2xl font-semibold">Editorial board</h2>
-        <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+        <p className="mt-2 max-w-3xl text-sm text-muted-foreground text-justify">
           The accounts with real editorial authority in the platform — the same set that
           can screen, assign reviewers to, and make publication decisions on a submission —
           not a separate, hand-maintained list that could drift out of sync with who
@@ -565,7 +565,7 @@ export function AboutView() {
         <h2 className="font-display text-2xl font-semibold">Publication ethics &amp; research integrity</h2>
         <Card className="paper-card mt-4">
           <CardContent className="p-6">
-            <p className="text-sm leading-relaxed text-foreground/85">
+            <p className="text-sm leading-relaxed text-foreground/85 text-justify">
               We follow COPE (Committee on Publication Ethics) and ICMJE conventions for
               editorial and publishing malpractice. This statement covers authorship,
               misconduct, conflicts of interest, and how to report a concern.
@@ -607,7 +607,7 @@ export function AboutView() {
       {/* Architecture overview */}
       <section className="mt-12">
         <h2 className="font-display text-2xl font-semibold">Platform architecture</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p className="mt-2 text-sm text-muted-foreground text-justify">
           The platform is built as an event-driven microservices system. Each box below is
           a separately deployable service communicating via an async message broker.
         </p>
@@ -632,7 +632,7 @@ export function AboutView() {
         <h2 className="font-display text-2xl font-semibold">Indexing &amp; discovery</h2>
         <Card className="paper-card mt-4">
           <CardContent className="p-6">
-            <p className="text-sm leading-relaxed text-foreground/85">
+            <p className="text-sm leading-relaxed text-foreground/85 text-justify">
               <strong>Reality check.</strong> You cannot “push” articles directly to
               Scopus or Web of Science via an API. These are human-curated databases.
               You must apply to be indexed, and once accepted they pull your data.
