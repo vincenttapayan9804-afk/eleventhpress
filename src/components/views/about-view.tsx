@@ -49,6 +49,8 @@ import {
   FlaskConical,
   Lock,
   RefreshCw,
+  EyeOff,
+  Sparkles,
 } from "lucide-react";
 
 interface BoardCitationMetrics {
@@ -284,6 +286,11 @@ export function AboutView() {
                 title="Foundational requirements"
                 desc="Verification of ISSN, publisher identification, active contact details, and a published peer-review policy."
               />
+              <IndexItem
+                icon={EyeOff}
+                title="Review model disclosure"
+                desc="The review model applied — double-blind by default, with single-blind or open review used where disciplinary norms call for it — must be disclosed and consistently applied."
+              />
             </div>
           </CardContent>
         </Card>
@@ -387,6 +394,11 @@ export function AboutView() {
                 icon={RefreshCw}
                 title="Post-publication duty"
                 desc="Authors are ethically obligated to notify the editor of a significant error and cooperate fully with any correction or retraction."
+              />
+              <IndexItem
+                icon={Sparkles}
+                title="AI-assisted integrity screening"
+                desc="Plagiarism screening, statistical sanity checks, and citation validation run alongside human review — built to catch what a manual read misses, never to replace the reviewer's judgment."
               />
             </div>
           </CardContent>
