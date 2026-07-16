@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { DOI_REGISTRAR } from "@/lib/site";
 import {
   BookOpen,
@@ -35,6 +36,19 @@ import {
   Share2,
   AlertTriangle,
   Mail,
+  Lightbulb,
+  Eye,
+  Compass,
+  ClipboardCheck,
+  Fingerprint,
+  UserCheck,
+  Ban,
+  HandCoins,
+  Image as ImageIcon,
+  HeartPulse,
+  FlaskConical,
+  Lock,
+  RefreshCw,
 } from "lucide-react";
 
 interface BoardCitationMetrics {
@@ -203,6 +217,15 @@ export function AboutView() {
       {/* Peer Review Process */}
       <section className="mt-12">
         <h2 className="font-display text-2xl font-semibold">Peer-review process</h2>
+        <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+          Our Official Peer Review &amp; Editorial Protocol benchmarks every submission
+          against the same quality, ethics, and impact criteria used for international
+          citation-indexing review — the Web of Science Core Collection editorial
+          selection criteria and the Scopus Content Selection &amp; Advisory Board (CSAB)
+          standards for authors and content. Every manuscript is evaluated against the
+          specific metrics required for inclusion in premier international databases.
+        </p>
+
         <div className="mt-4 space-y-3 text-sm leading-relaxed text-foreground/85">
           <p>
             Every submission is initially screened by an associate editor for scope fit,
@@ -222,12 +245,232 @@ export function AboutView() {
             recommendation (Accept / Minor revisions / Major revisions / Reject), a
             confidence score, and separate comment fields for the author and the editor.
           </p>
-          <p>
-            The state machine governing an article’s lifecycle is:
-            <code className="mx-1 rounded bg-muted px-1.5 py-0.5 font-mono text-xs">DRAFT → SUBMITTED → UNDER_REVIEW → REVISIONS_REQUIRED → ACCEPTED → IN_PRODUCTION → PUBLISHED</code>.
-            Editors may also REJECT or WITHDRAW at any point.
-          </p>
         </div>
+
+        {/* Phase I */}
+        <Card className="paper-card mt-6">
+          <CardContent className="p-6">
+            <div className="flex flex-wrap items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-primary" />
+              <p className="font-display text-base font-semibold">Phase I — Initial triage</p>
+              <Badge variant="outline" className="ml-auto text-[0.6rem]">Administrative gatekeeping</Badge>
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Verifies structural readiness and foundational quality before a manuscript
+              is assigned for review.
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Benchmark: Web of Science initial triage &amp; Scopus CSAB content criteria.
+            </p>
+            <Separator className="my-4" />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <IndexItem
+                icon={Lightbulb}
+                title="Academic contribution"
+                desc="The work must offer a distinct contribution to the field."
+              />
+              <IndexItem
+                icon={Eye}
+                title="Clarity & readability"
+                desc="Abstracts must be clear and concise; the manuscript must demonstrate high readability and conform to English-language standards."
+              />
+              <IndexItem
+                icon={Compass}
+                title="Scope conformity"
+                desc="The manuscript must align strictly with the journal's stated Aims & Scope."
+              />
+              <IndexItem
+                icon={ClipboardCheck}
+                title="Foundational requirements"
+                desc="Verification of ISSN, publisher identification, active contact details, and a published peer-review policy."
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Phase II */}
+        <Card className="paper-card mt-4">
+          <CardContent className="p-6">
+            <div className="flex flex-wrap items-center gap-2">
+              <Scale className="h-5 w-5 text-primary" />
+              <p className="font-display text-base font-semibold">Phase II — Editorial triage</p>
+              <Badge variant="outline" className="ml-auto text-[0.6rem]">Author & ethical compliance</Badge>
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Before review, every manuscript is screened for strict adherence to Scopus
+              author standards. Failure to meet these ethical requirements results in
+              immediate rejection.
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Benchmark: Scopus (Elsevier) standards for authors.
+            </p>
+            <Separator className="my-4" />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <IndexItem
+                icon={Fingerprint}
+                title="Reporting & originality"
+                desc="Authors must guarantee original research. Plagiarism is strictly prohibited; use of private data or conversations requires written permission."
+              />
+              <IndexItem
+                icon={UserCheck}
+                title="Authorship criteria"
+                desc="Authorship is limited to those who made significant contributions. All listed authors must approve the final version."
+              />
+              <IndexItem
+                icon={Ban}
+                title="Concurrent publication"
+                desc="Submission to multiple journals at once is prohibited. Secondary publications (e.g. translations) require explicit agreement from all parties."
+              />
+              <IndexItem
+                icon={HandCoins}
+                title="Conflict of interest & transparency"
+                desc="Authors must transparently disclose all financial, personal, or sponsor-related competing interests."
+              />
+              <IndexItem
+                icon={Cpu}
+                title="Generative AI"
+                desc="Authors must follow the press's AI disclosure policy for any use of generative AI in writing, data, or image generation."
+              />
+              <IndexItem
+                icon={Globe2}
+                title="Data access & jurisdictional neutrality"
+                desc="Authors must be prepared to share research data on request. Maps and affiliations must remain neutral on territorial or national disputes."
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Phase III */}
+        <Card className="paper-card mt-4">
+          <CardContent className="p-6">
+            <div className="flex flex-wrap items-center gap-2">
+              <Microscope className="h-5 w-5 text-primary" />
+              <p className="font-display text-base font-semibold">Phase III — Editorial evaluation</p>
+              <Badge variant="outline" className="ml-auto text-[0.6rem]">Scientific & technical rigor</Badge>
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Manuscripts that clear Phase II proceed to formal peer review, where
+              discipline-matched experts evaluate methodological validity against the
+              highest technical standards.
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Benchmark: Web of Science editorial evaluation &amp; Scopus technical standards.
+            </p>
+            <Separator className="my-4" />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <IndexItem
+                icon={Quote}
+                title="Citation practices"
+                desc="Citations must be relevant and peer-reviewed. Excessive self-citation or coercive citation requests are prohibited."
+              />
+              <IndexItem
+                icon={ImageIcon}
+                title="Image & data integrity"
+                desc="Enhancing, obscuring, or manipulating features within images is forbidden; only minor, non-data-altering adjustments are permitted."
+              />
+              <IndexItem
+                icon={HeartPulse}
+                title="Hazards & ethical subjects"
+                desc="Unusual hazards must be stated. Research involving human or animal subjects must adhere to strict ethical policies."
+              />
+              <IndexItem
+                icon={FlaskConical}
+                title="Clinical trials"
+                desc="Authors reporting on clinical trials must follow industry best practices such as the CONSORT guidelines."
+              />
+              <IndexItem
+                icon={Lock}
+                title="Confidentiality"
+                desc="Information gained during peer review or grant-application services must never be used for a reviewer's own research."
+              />
+              <IndexItem
+                icon={RefreshCw}
+                title="Post-publication duty"
+                desc="Authors are ethically obligated to notify the editor of a significant error and cooperate fully with any correction or retraction."
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Decision matrix */}
+        <Card className="paper-card mt-4">
+          <CardContent className="p-6">
+            <p className="font-display text-base font-semibold">Decision matrix &amp; enforcement</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Outcomes are enforced consistently with international indexing embargo and
+              re-evaluation benchmarks.
+            </p>
+            <div className="mt-4">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Outcome</TableHead>
+                    <TableHead>Evaluation phase</TableHead>
+                    <TableHead>Consequence</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow>
+                    <TableCell>
+                      <Badge className="text-[0.65rem]">Pass</Badge>
+                    </TableCell>
+                    <TableCell className="whitespace-normal text-xs text-muted-foreground">Clears Phases I, II, and III</TableCell>
+                    <TableCell className="whitespace-normal text-xs text-muted-foreground">
+                      Proceeds to production; eligible for ESCI/SCIE/SSCI indexing assessment.
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell>
+                      <Badge variant="outline" className="text-[0.65rem]">Failed triage</Badge>
+                    </TableCell>
+                    <TableCell className="whitespace-normal text-xs text-muted-foreground">Fails Phase I or II</TableCell>
+                    <TableCell className="whitespace-normal text-xs text-muted-foreground">
+                      Administrative rejection; resubmission permitted once structural or
+                      ethical issues are resolved.
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell>
+                      <Badge variant="secondary" className="text-[0.65rem]">Failed quality</Badge>
+                    </TableCell>
+                    <TableCell className="whitespace-normal text-xs text-muted-foreground">Fails Phase III (quality)</TableCell>
+                    <TableCell className="whitespace-normal text-xs text-muted-foreground">
+                      Mandatory two-year embargo on resubmission to allow for significant
+                      revision.
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell>
+                      <Badge variant="destructive" className="text-[0.65rem]">Failed impact</Badge>
+                    </TableCell>
+                    <TableCell className="whitespace-normal text-xs text-muted-foreground">Fails Phase III (impact)</TableCell>
+                    <TableCell className="whitespace-normal text-xs text-muted-foreground">
+                      Acceptance denied; citation activity monitored, subject to performance
+                      re-evaluation.
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+
+        <p className="mt-4 text-sm leading-relaxed text-foreground/85">
+          The state machine governing an article’s lifecycle reflects this protocol:
+          <code className="mx-1 rounded bg-muted px-1.5 py-0.5 font-mono text-xs">DRAFT → SUBMITTED → UNDER_REVIEW → REVISIONS_REQUIRED → ACCEPTED → IN_PRODUCTION → PUBLISHED</code>.
+          Editors may also REJECT or WITHDRAW an article at any point.
+        </p>
+
+        <Card className="paper-card mt-4 border-dashed">
+          <CardContent className="p-5">
+            <p className="text-sm leading-relaxed text-foreground/85">
+              <strong>Certification of compliance.</strong> As a Full-Stack Peer Reviewed
+              Press, Eleventh Press International Publishing requires every author and
+              reviewer to certify adherence to this protocol. Any attempt to bypass these
+              stages through unauthorized means results in immediate rejection.
+            </p>
+          </CardContent>
+        </Card>
       </section>
 
       {/* Editorial Board */}
