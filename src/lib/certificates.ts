@@ -11,6 +11,15 @@ import { db } from "@/lib/db";
  * uses for board membership.
  */
 
+/**
+ * The canonical publisher brand name — the fallback when Journal.publisher
+ * is unset, and (more importantly) the marker GET /api/certificates uses
+ * to detect a certificate rendered before the journal-name/layout/avatar/
+ * work-title fix and auto-heal it in place, with zero action required
+ * from the user who already generated one under the old, buggy template.
+ */
+export const CANONICAL_PUBLISHER_NAME = "Eleventh Press International Publishing";
+
 export const CERTIFICATE_TYPES = ["RECOGNITION", "MEMBERSHIP", "AFFILIATION"] as const;
 export type CertificateType = (typeof CERTIFICATE_TYPES)[number];
 
