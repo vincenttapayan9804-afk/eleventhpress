@@ -30,6 +30,7 @@ import {
   Share2,
   BookOpen,
   Library as LibraryIcon,
+  Award,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -50,6 +51,7 @@ import { ApplicationTab } from "@/components/dashboard/application-tab";
 import { DistributionTab } from "@/components/dashboard/distribution-tab";
 import { MyBooksTab } from "@/components/dashboard/my-books-tab";
 import { BookAcquisitionsTab } from "@/components/dashboard/book-acquisitions-tab";
+import { CertificatesTab } from "@/components/dashboard/certificates-tab";
 import { useLiveDashboard } from "@/hooks/use-live-dashboard";
 
 interface DashboardData {
@@ -122,6 +124,7 @@ export function DashboardView() {
     { key: "myBooks", label: "My books", icon: BookOpen, roles: ["AUTHOR", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"] },
     { key: "bookAcquisitions", label: "Book acquisitions", icon: LibraryIcon, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"] },
     { key: "reader", label: "Subscription", icon: Library, roles: ["READER", "AUTHOR", "REVIEWER", "SUPER_ADMIN"] },
+    { key: "certificates", label: "Certificates", icon: Award, roles: ["AUTHOR", "REVIEWER", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"] },
     { key: "admin", label: "Admin & audit", icon: Users, roles: ["SUPER_ADMIN"] },
   ];
 
@@ -281,6 +284,7 @@ export function DashboardView() {
           {dashboardTab === "myBooks" && <MyBooksTab />}
           {dashboardTab === "bookAcquisitions" && <BookAcquisitionsTab />}
           {dashboardTab === "reader" && <ReaderTab subscription={data.subscription} onRefresh={loadDashboard} />}
+          {dashboardTab === "certificates" && <CertificatesTab />}
           {dashboardTab === "admin" && <AdminTab audit={data.recentAudit || []} stats={data.stats} />}
         </div>
       </div>

@@ -11,6 +11,7 @@ import { suggestKeywordsAndSummary } from "@/lib/manuscript-checks";
 import { generateGalleysForArticle } from "@/lib/galley-regenerate";
 import { APP_BASE_URL } from "@/lib/site";
 import { APC_USD } from "@/lib/pricing";
+import { upsertArticleDocument, meilisearchLiveMode } from "@/lib/meilisearch";
 
 /**
  * POST /api/articles/workflow
@@ -315,6 +316,24 @@ export async function POST(req: NextRequest) {
 
       // 4. OAI-PMH feed implicitly includes the new record on next harvest.
       publishEvents.push("OAI-PMH feed will reflect this article on next harvester request.");
+
+      // 4b. Meilisearch index — best-effort, never blocks publish (see
+      // src/lib/meilisearch.ts, fails open when MEILISEARCH_HOST isn't set).
+      try {
+        await upsertArticleDocument({
+          id: updated.id,
+          title: updated.title,
+          abstract: updated.abstract,
+          keywords: updated.keywords,
+          authors: updated.authors,
+          discipline: updated.discipline,
+          doi: finalDoi,
+          publishedAt: updated.publishedAt ? updated.publishedAt.toISOString() : null,
+        });
+        publishEvents.push(meilisearchLiveMode() ? "Meilisearch index updated." : "Meilisearch not configured — search index unchanged.");
+      } catch (e: any) {
+        publishEvents.push(`Meilisearch sync failed: ${e.message}`);
+      }
 
       // 5. Audit + notify.
       await db.auditLog.create({
