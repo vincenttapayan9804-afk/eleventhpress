@@ -24,21 +24,92 @@ const BRAND_INK = "#241b3a";
 const BRAND_MUTED = "#6b6478";
 
 const JOURNAL_TAGLINE = "A Full-Stack Peer Reviewed Press & Multidisciplinary Syndication Network";
-const INDEXED_IN = "Google Scholar · Zenodo · OAI-PMH 2.0 · BASE · CORE · OpenAIRE";
-const BENCHMARKED_STANDARDS = "SCOPUS · Web of Science (WoS) · COPE · WAME · CONSORT · ICMJE · STM";
+const INDEXED_IN = ["Google Scholar", "Zenodo", "OAI-PMH 2.0", "BASE", "CORE", "OpenAIRE"];
+const BENCHMARKED_STANDARDS = ["SCOPUS", "Web of Science (WoS)", "COPE", "WAME", "CONSORT", "ICMJE", "STM"];
+const SYNDICATION_NETWORKS = [
+  "Amazon KDP", "Apple Books", "Barnes & Noble", "IngramSpark", "Draft2Digital", "ResearchGate",
+  "Academia.edu", "Substack", "Medium", "LinkedIn", "HubPages", "arXiv", "SSRN", "Blogger", "Lulu", "Kobo",
+];
+const OPEN_DATA_SOURCES = [
+  "Crossref", "OpenAlex", "Semantic Scholar", "ERIC", "PubMed Central", "Zenodo", "CORE", "BASE", "OER Commons",
+];
 
 async function buildVerifyQr(serialNumber: string): Promise<Buffer> {
   const url = `${APP_BASE_URL}/verify/${serialNumber}`;
   return QRCode.toBuffer(url, { errorCorrectionLevel: "M", margin: 1, width: 200, color: { dark: BRAND_INK, light: "#ffffff" } });
 }
 
-function drawOrnateBorder(doc: PDFKit.PDFDocument, margin: number) {
-  const { width, height } = doc.page;
+const GOLD_LIGHT = "#fbf0cd";
+const GOLD_MID = "#d4af5f";
+const GOLD_DEEP = "#8a6a28";
+const GOLD_SHADOW = "#5c4218";
+
+/** One decorative tile: beveled square background + diamond outline + a
+ * 4-petal quatrefoil motif — repeated edge-to-edge to build the frame. */
+function drawOrnamentTile(doc: PDFKit.PDFDocument, x: number, y: number, size: number) {
   doc.save();
-  doc.lineWidth(2).strokeColor(BRAND_PURPLE)
-    .rect(margin, margin, width - margin * 2, height - margin * 2).stroke();
-  doc.lineWidth(0.75).strokeColor(BRAND_GOLD)
-    .rect(margin + 8, margin + 8, width - (margin + 8) * 2, height - (margin + 8) * 2).stroke();
+  doc.rect(x, y, size, size)
+    .fill(doc.linearGradient(x, y, x + size, y + size).stop(0, GOLD_LIGHT).stop(0.5, GOLD_MID).stop(1, GOLD_DEEP));
+  doc.lineWidth(0.5).strokeColor(GOLD_SHADOW).rect(x + 0.75, y + 0.75, size - 1.5, size - 1.5).stroke();
+
+  const cx = x + size / 2, cy = y + size / 2, r = size * 0.36;
+  doc.lineWidth(0.6).strokeColor(GOLD_SHADOW)
+    .polygon([cx, cy - r], [cx + r, cy], [cx, cy + r], [cx - r, cy]).stroke();
+
+  const pr = size * 0.15;
+  doc.fillColor(GOLD_LIGHT);
+  const petalOffset = r * 0.5;
+  for (const [px, py] of [[cx, cy - petalOffset], [cx + petalOffset, cy], [cx, cy + petalOffset], [cx - petalOffset, cy]] as [number, number][]) {
+    doc.ellipse(px, py, pr, pr * 0.62).fill();
+  }
+  doc.circle(cx, cy, size * 0.07).fillColor(GOLD_SHADOW).fill();
+  doc.restore();
+}
+
+/**
+ * A repeating-tile ornate gold frame: small beveled quatrefoil tiles run
+ * edge-to-edge along all four sides with matching tiles anchoring each
+ * corner — built natively (no stock clipart, so no licensing question).
+ * Tile count per edge is chosen so tiles fit exactly with no partial tile
+ * at the end. A slim purple accent rule sits just inside the tiled band.
+ */
+function drawGoldFrame(doc: PDFKit.PDFDocument, margin: number, frameWidth: number) {
+  const { width, height } = doc.page;
+  const oL = margin, oT = margin, oR = width - margin, oB = height - margin;
+  const iL = margin + frameWidth, iT = margin + frameWidth, iR = width - margin - frameWidth, iB = height - margin - frameWidth;
+
+  doc.save();
+
+  drawOrnamentTile(doc, oL, oT, frameWidth);
+  drawOrnamentTile(doc, oR - frameWidth, oT, frameWidth);
+  drawOrnamentTile(doc, oL, oB - frameWidth, frameWidth);
+  drawOrnamentTile(doc, oR - frameWidth, oB - frameWidth, frameWidth);
+
+  const hRunLen = (oR - frameWidth) - (oL + frameWidth);
+  const hCount = Math.max(1, Math.round(hRunLen / frameWidth));
+  const hTileW = hRunLen / hCount;
+  for (let i = 0; i < hCount; i++) {
+    const tx = oL + frameWidth + i * hTileW;
+    drawOrnamentTile(doc, tx, oT, hTileW);
+    drawOrnamentTile(doc, tx, oB - frameWidth, hTileW);
+  }
+
+  const vRunLen = (oB - frameWidth) - (oT + frameWidth);
+  const vCount = Math.max(1, Math.round(vRunLen / frameWidth));
+  const vTileH = vRunLen / vCount;
+  for (let i = 0; i < vCount; i++) {
+    const ty = oT + frameWidth + i * vTileH;
+    drawOrnamentTile(doc, oL, ty, frameWidth);
+    drawOrnamentTile(doc, oR - frameWidth, ty, frameWidth);
+  }
+
+  doc.lineWidth(1).strokeColor(GOLD_SHADOW);
+  doc.rect(oL, oT, oR - oL, oB - oT).stroke();
+  doc.rect(iL, iT, iR - iL, iB - iT).stroke();
+
+  doc.lineWidth(1.25).strokeColor(BRAND_PURPLE)
+    .rect(iL + 6, iT + 6, (iR - iL) - 12, (iB - iT) - 12).stroke();
+
   doc.restore();
 }
 
@@ -79,14 +150,51 @@ function drawFooter(doc: PDFKit.PDFDocument, margin: number, payload: Certificat
     .text("Editor-in-Chief", sigX, footerTop + 36, { width: sigWidth, align: "center" });
 }
 
-/** Small, honest credibility line — reuses the exact same verified
- * indexing/benchmark lists already shown on the homepage and About page,
- * never a new or inflated claim invented just for the certificate. */
-function drawBadgeLine(doc: PDFKit.PDFDocument, x: number, width: number) {
-  doc.fillColor(BRAND_MUTED).font("Helvetica").fontSize(7.5);
-  doc.text(`Indexed in: ${INDEXED_IN}`, x, doc.y, { align: "center", width });
-  doc.moveDown(0.15);
-  doc.text(`Benchmarked standards: ${BENCHMARKED_STANDARDS}`, x, doc.y, { align: "center", width });
+/**
+ * One credibility group: category label centered on its own heading line,
+ * its badges centered directly beneath (regular weight, smaller than the
+ * label). Long lists (Syndication networks) get a narrower wrap column via
+ * `itemsMaxWidth` so they reflow into a balanced multi-line block instead
+ * of stretching far wider than every other group.
+ */
+function drawCenteredGroup(
+  doc: PDFKit.PDFDocument,
+  label: string,
+  items: string[],
+  x: number,
+  y: number,
+  width: number,
+  labelColor: string,
+  labelSize: number,
+  itemSize: number,
+  itemsMaxWidth?: number
+): number {
+  doc.font("Helvetica-Bold").fontSize(labelSize);
+  const labelHeight = doc.heightOfString(label.toUpperCase(), { width });
+  doc.fillColor(labelColor).text(label.toUpperCase(), x, y, { align: "center", width });
+  const itemsY = y + labelHeight + 4;
+
+  const iw = itemsMaxWidth ?? width;
+  const ix = x + (width - iw) / 2;
+  const itemsText = items.join(" · ");
+  doc.fillColor(BRAND_INK).font("Helvetica").fontSize(itemSize)
+    .text(itemsText, ix, itemsY, { align: "center", width: iw, lineGap: 2 });
+  const itemsHeight = doc.heightOfString(itemsText, { width: iw, lineGap: 2 });
+
+  return itemsY + itemsHeight;
+}
+
+/** All four honest credibility groups — reuses the exact same verified
+ * indexing/benchmark/syndication/open-data lists already shown elsewhere
+ * on the platform, never a new or inflated claim invented for the
+ * certificate. Returns the y position immediately after the last group. */
+function drawBadgeGroups(doc: PDFKit.PDFDocument, x: number, y: number, width: number, labelSize: number, itemSize: number, gap: number): number {
+  let cy = y;
+  cy = drawCenteredGroup(doc, "Indexed in", INDEXED_IN, x, cy, width, BRAND_GOLD, labelSize, itemSize) + gap;
+  cy = drawCenteredGroup(doc, "Benchmarked standards", BENCHMARKED_STANDARDS, x, cy, width, BRAND_PURPLE, labelSize, itemSize) + gap;
+  cy = drawCenteredGroup(doc, "Syndication networks", SYNDICATION_NETWORKS, x, cy, width, BRAND_GOLD, labelSize, itemSize, Math.min(width, 270)) + gap;
+  cy = drawCenteredGroup(doc, "Open data sources", OPEN_DATA_SOURCES, x, cy, width, BRAND_PURPLE, labelSize, itemSize) + gap;
+  return cy;
 }
 
 function newLandscapeDoc(title: string): PDFKit.PDFDocument {
@@ -131,29 +239,33 @@ export async function buildRecognitionCertificate(payload: CertificatePayload, a
   const doc = newLandscapeDoc(`Certificate of Recognition — ${payload.recipientName}`);
   const result = collect(doc);
   const qr = await buildVerifyQr(payload.serialNumber);
-  const margin = 28;
-  const contentWidth = doc.page.width - margin * 2 - 160;
+  const frameMargin = 20;
+  const frameWidth = 16;
+  const margin = frameMargin + frameWidth + 6 + 14; // outer inset + gold band + purple rule gap + breathing room
+  const contentWidth = doc.page.width - margin * 2 - 150;
 
-  drawOrnateBorder(doc, margin);
-  drawAvatarCircle(doc, avatarPng, margin + 74, 96, 34);
+  drawGoldFrame(doc, frameMargin, frameWidth);
+  drawAvatarCircle(doc, avatarPng, margin + 46, 96, 30);
 
-  doc.y = 62;
+  doc.y = 50;
   doc.fillColor(BRAND_GOLD).font("Helvetica-Bold").fontSize(10)
     .text(payload.journalName.toUpperCase(), margin, doc.y, { align: "center", width: doc.page.width - margin * 2 });
-  doc.moveDown(0.6);
-  doc.fillColor(BRAND_PURPLE).font("Helvetica-Bold").fontSize(32)
-    .text("Certificate of Recognition", margin, doc.y, { align: "center", width: doc.page.width - margin * 2 });
-  doc.moveDown(1);
-  doc.fillColor(BRAND_INK).font("Helvetica").fontSize(13)
-    .text("This certificate is presented to", margin, doc.y, { align: "center", width: doc.page.width - margin * 2 });
   doc.moveDown(0.5);
   doc.fillColor(BRAND_PURPLE).font("Helvetica-Bold").fontSize(26)
+    .text("Certificate of Recognition", margin, doc.y, { align: "center", width: doc.page.width - margin * 2 });
+  doc.moveDown(0.55);
+  doc.fillColor(BRAND_INK).font("Helvetica").fontSize(11)
+    .text("This certificate is presented to", margin, doc.y, { align: "center", width: doc.page.width - margin * 2 });
+  doc.moveDown(0.3);
+  doc.fillColor(BRAND_PURPLE).font("Helvetica-Bold").fontSize(20)
     .text(payload.recipientName, margin, doc.y, { align: "center", width: doc.page.width - margin * 2 });
-  doc.moveDown(0.7);
-  doc.fillColor(BRAND_INK).font("Helvetica").fontSize(12)
+  doc.moveDown(0.35);
+  doc.fillColor(BRAND_INK).font("Helvetica").fontSize(10)
     .text(recognitionBodyText(payload), (doc.page.width - contentWidth) / 2, doc.y, { align: "center", width: contentWidth });
-  doc.moveDown(1.2);
-  drawBadgeLine(doc, margin, doc.page.width - margin * 2);
+
+  const blockX = margin + 44;
+  const blockWidth = doc.page.width - blockX * 2;
+  drawBadgeGroups(doc, blockX, doc.y + 18, blockWidth, 10, 8, 13);
 
   drawFooter(doc, margin, payload, qr);
   doc.end();
@@ -164,29 +276,33 @@ export async function buildMembershipCertificate(payload: CertificatePayload, av
   const doc = newLandscapeDoc(`Certificate of Membership — ${payload.recipientName}`);
   const result = collect(doc);
   const qr = await buildVerifyQr(payload.serialNumber);
-  const margin = 28;
-  const contentWidth = doc.page.width - margin * 2 - 160;
+  const frameMargin = 20;
+  const frameWidth = 16;
+  const margin = frameMargin + frameWidth + 6 + 14;
+  const contentWidth = doc.page.width - margin * 2 - 150;
 
-  drawOrnateBorder(doc, margin);
-  drawAvatarCircle(doc, avatarPng, margin + 74, 96, 34);
+  drawGoldFrame(doc, frameMargin, frameWidth);
+  drawAvatarCircle(doc, avatarPng, margin + 46, 96, 30);
 
-  doc.y = 62;
+  doc.y = 50;
   doc.fillColor(BRAND_GOLD).font("Helvetica-Bold").fontSize(10)
     .text(payload.journalName.toUpperCase(), margin, doc.y, { align: "center", width: doc.page.width - margin * 2 });
-  doc.moveDown(0.6);
-  doc.fillColor(BRAND_PURPLE).font("Helvetica-Bold").fontSize(32)
-    .text("Certificate of Membership", margin, doc.y, { align: "center", width: doc.page.width - margin * 2 });
-  doc.moveDown(1);
-  doc.fillColor(BRAND_INK).font("Helvetica").fontSize(13)
-    .text("This certifies that", margin, doc.y, { align: "center", width: doc.page.width - margin * 2 });
   doc.moveDown(0.5);
   doc.fillColor(BRAND_PURPLE).font("Helvetica-Bold").fontSize(26)
+    .text("Certificate of Membership", margin, doc.y, { align: "center", width: doc.page.width - margin * 2 });
+  doc.moveDown(0.55);
+  doc.fillColor(BRAND_INK).font("Helvetica").fontSize(11)
+    .text("This certifies that", margin, doc.y, { align: "center", width: doc.page.width - margin * 2 });
+  doc.moveDown(0.3);
+  doc.fillColor(BRAND_PURPLE).font("Helvetica-Bold").fontSize(20)
     .text(payload.recipientName, margin, doc.y, { align: "center", width: doc.page.width - margin * 2 });
-  doc.moveDown(0.7);
-  doc.fillColor(BRAND_INK).font("Helvetica").fontSize(12)
+  doc.moveDown(0.35);
+  doc.fillColor(BRAND_INK).font("Helvetica").fontSize(10)
     .text(`is a member in good standing of the ${MEMBERSHIP_BODY[payload.category]} of\n${payload.journalName}${payload.issn ? ` (ISSN ${payload.issn})` : ""}, effective the date below.`, (doc.page.width - contentWidth) / 2, doc.y, { align: "center", width: contentWidth });
-  doc.moveDown(1.2);
-  drawBadgeLine(doc, margin, doc.page.width - margin * 2);
+
+  const blockX = margin + 44;
+  const blockWidth = doc.page.width - blockX * 2;
+  drawBadgeGroups(doc, blockX, doc.y + 18, blockWidth, 10, 8, 13);
 
   drawFooter(doc, margin, payload, qr);
   doc.end();
@@ -259,8 +375,10 @@ export async function buildAffiliationCard(payload: CertificatePayload, avatarPn
 
   doc.fillColor(BRAND_MUTED).font("Helvetica").fontSize(8)
     .text(`Verify authenticity at ${APP_BASE_URL}/verify/${payload.serialNumber}`, 40, cardY + cardH + 22, { align: "center", width: doc.page.width - 80 });
-  doc.moveDown(0.8);
-  drawBadgeLine(doc, 40, doc.page.width - 80);
+
+  const badgeX = 70;
+  const badgeWidth = doc.page.width - badgeX * 2;
+  drawBadgeGroups(doc, badgeX, cardY + cardH + 44, badgeWidth, 7.5, 6.5, 10);
 
   doc.end();
   return result;
