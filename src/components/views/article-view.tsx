@@ -4,11 +4,12 @@ import { useEffect, useState } from "react";
 import { useApp } from "@/lib/store";
 import { apiFetch } from "@/lib/api-client";
 import { ArticleDetail } from "@/lib/types";
-import { DISCIPLINE_COLORS, parseAuthors, parseFunders, formatCitation, CORRECTION_TYPE_LABELS, CorrectionType } from "@/lib/article";
+import { DISCIPLINE_COLORS, parseAuthors, parseFunders, CORRECTION_TYPE_LABELS, CorrectionType } from "@/lib/article";
 import { DOI_REGISTRAR } from "@/lib/site";
 import { attentionMetricsConfigured } from "@/lib/attention-metrics";
 import { AltmetricBadge, PlumXBadge } from "@/components/attention-badges";
 import { buildBibTeX, buildRis, coinsSpanProps } from "@/lib/citation-export";
+import { CITATION_STYLES, formatCitationStyle, type CitationStyleId } from "@/lib/citation-styles";
 import { MetricsBarChart3D, MetricsFillGauge3D } from "@/components/three-d/scenes";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
@@ -22,7 +23,10 @@ import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -115,7 +119,7 @@ export function ArticleView() {
   const [showOriginalAbstract, setShowOriginalAbstract] = useState(false);
   const [related, setRelated] = useState<ArticleDetail[]>([]);
   const [loading, setLoading] = useState(true);
-  const [citationFormat, setCitationFormat] = useState<"apa" | "bibtex" | "ris">("apa");
+  const [citationFormat, setCitationFormat] = useState<CitationStyleId | "bibtex" | "ris">("apa");
   const [publicReviews, setPublicReviews] = useState<any[] | null>(null);
   const [openReviewStatus, setOpenReviewStatus] = useState<{ openReview: boolean; published: boolean } | null>(null);
   const [corrections, setCorrections] = useState<any[]>([]);
@@ -210,10 +214,13 @@ export function ArticleView() {
     issueNumber: article.issueNumber,
     year: article.year,
   };
-  const citation = formatCitation(citationExportable);
   const bibtex = buildBibTeX(citationExportable);
   const ris = buildRis(citationExportable);
   const coins = coinsSpanProps(citationExportable);
+  const citationPreview =
+    citationFormat === "bibtex" ? bibtex : citationFormat === "ris" ? ris : formatCitationStyle(citationExportable, citationFormat);
+  const citationFormatLabel =
+    citationFormat === "bibtex" ? "BibTeX" : citationFormat === "ris" ? "RIS" : CITATION_STYLES.find((s) => s.id === citationFormat)?.label ?? "APA";
 
   // AI-assisted abstract translation (Phase 5b) — only ever shows a
   // translation that was actually produced by the LLM (never the English
@@ -260,9 +267,8 @@ export function ArticleView() {
   };
 
   function copyCitation() {
-    const text = citationFormat === "apa" ? citation : citationFormat === "bibtex" ? bibtex : ris;
-    navigator.clipboard.writeText(text);
-    toast.success("Citation copied", { description: `${citationFormat.toUpperCase()} format` });
+    navigator.clipboard.writeText(citationPreview);
+    toast.success("Citation copied", { description: `${citationFormatLabel} format` });
   }
 
   return (
@@ -642,22 +648,28 @@ export function ArticleView() {
                 <CardContent className="p-5">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <p className="eyebrow">Cite this article</p>
-                    <div className="flex gap-2">
-                      {(["apa", "bibtex", "ris"] as const).map((fmt) => (
-                        <Button
-                          key={fmt}
-                          variant={citationFormat === fmt ? "default" : "outline"}
-                          size="sm"
-                          className="h-7 text-xs"
-                          onClick={() => setCitationFormat(fmt)}
-                        >
-                          {fmt.toUpperCase()}
-                        </Button>
-                      ))}
-                    </div>
+                    <Select value={citationFormat} onValueChange={(v) => setCitationFormat(v as CitationStyleId | "bibtex" | "ris")}>
+                      <SelectTrigger className="h-8 w-[15rem] text-xs" size="sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectLabel>Citation styles</SelectLabel>
+                          {CITATION_STYLES.map((s) => (
+                            <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>
+                          ))}
+                        </SelectGroup>
+                        <SelectSeparator />
+                        <SelectGroup>
+                          <SelectLabel>Export formats</SelectLabel>
+                          <SelectItem value="bibtex">BibTeX</SelectItem>
+                          <SelectItem value="ris">RIS</SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <pre className="mt-4 max-h-72 overflow-y-auto overflow-x-hidden whitespace-pre-wrap break-words rounded-md border border-border bg-muted/30 p-4 font-mono text-xs leading-relaxed epip-scroll">
-{citationFormat === "apa" ? citation : citationFormat === "bibtex" ? bibtex : ris}
+{citationPreview}
                   </pre>
                   <div className="mt-3 flex flex-wrap justify-end gap-2">
                     <Button size="sm" variant="outline" asChild>

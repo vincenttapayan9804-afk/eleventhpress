@@ -169,8 +169,9 @@ export function formatCitation(
   const authors = parseAuthors(article.authors);
   const authorStr = authors
     .map((a) => {
-      const [last, ...rest] = a.name.replace(/^Dr\.?\s+|^Prof\.?\s+/, "").split(" ");
-      const initials = [...(rest.join(" ").split(" ")), ""].map((p) => p.charAt(0)).filter(Boolean).join(". ") + ".";
+      const parts = a.name.replace(/^Dr\.?\s+|^Prof\.?\s+/, "").trim().split(/\s+/);
+      const last = parts[parts.length - 1];
+      const initials = parts.slice(0, -1).map((p) => p.charAt(0)).filter(Boolean).join(". ") + ".";
       return `${last}, ${initials}`;
     })
     .join(", ");
