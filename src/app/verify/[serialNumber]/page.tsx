@@ -57,6 +57,7 @@ export default async function VerifyCertificatePage(
     issuedAtIso: certificate.issuedAt.toISOString(),
     journalName: certificate.journalName,
     issn: certificate.issn,
+    workTitle: certificate.workTitle,
   });
   const valid = recomputedHash === certificate.contentHash;
 
@@ -97,6 +98,12 @@ export default async function VerifyCertificatePage(
           <dt className="text-muted-foreground">Capacity</dt>
           <dd className="font-medium">{CERTIFICATE_CATEGORY_LABELS[certificate.category as keyof typeof CERTIFICATE_CATEGORY_LABELS]}</dd>
         </div>
+        {certificate.workTitle && (
+          <div className="flex justify-between gap-4">
+            <dt className="text-muted-foreground">Work cited</dt>
+            <dd className="text-right font-medium">{certificate.workTitle}</dd>
+          </div>
+        )}
         <div className="flex justify-between gap-4">
           <dt className="text-muted-foreground">Issued</dt>
           <dd className="font-medium">

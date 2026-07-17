@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import sharp from "sharp";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { putObject, presignGet } from "@/lib/storage";
@@ -9,6 +10,7 @@ import {
   generateSerialNumber,
   computeContentHash,
   certificateStorageKey,
+  latestPublishedWorkTitle,
   type CertificateType,
   type CertificateCategory,
 } from "@/lib/certificates";
@@ -37,6 +39,29 @@ export async function GET(req: NextRequest) {
   ]);
 
   return NextResponse.json({ eligibility, certificates });
+}
+
+/**
+ * Fetches the user's real avatar and normalizes it to a fixed-size PNG via
+ * sharp — pdfkit's doc.image() only decodes JPEG/PNG, but avatar uploads
+ * also accept WebP/GIF (src/app/api/storage/presign/route.ts), so every
+ * format needs to funnel through one decoder anyway. Best-effort: a
+ * missing avatar, an unresolvable relative URL (local-dev storage mode,
+ * see src/lib/storage.ts), or any fetch/decode failure just means the
+ * certificate renders without a photo — never a broken image, never a
+ * blocked certificate generation.
+ */
+async function resolveAvatarPng(avatarUrl: string | null): Promise<Buffer | null> {
+  if (!avatarUrl || !avatarUrl.startsWith("http")) return null;
+  try {
+    const res = await fetch(avatarUrl);
+    if (!res.ok) return null;
+    const bytes = Buffer.from(await res.arrayBuffer());
+    return await sharp(bytes).resize(256, 256, { fit: "cover" }).png().toBuffer();
+  } catch (e) {
+    console.error("[certificates] avatar fetch/convert failed", e);
+    return null;
+  }
 }
 
 /**
@@ -75,11 +100,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ certificate: existing, alreadyExisted: true });
   }
 
-  const user = await db.user.findUnique({ where: { id: session.userId }, select: { fullName: true } });
+  const user = await db.user.findUnique({ where: { id: session.userId }, select: { fullName: true, avatarUrl: true } });
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
-  const journal = await db.journal.findFirst({ select: { name: true, issn: true } });
+  // Journal.name is the journal's own title (e.g. "...Journal of
+  // Multidisciplinary Research"); Journal.publisher is the umbrella brand
+  // ("Eleventh Press International Publishing") — certificates are issued
+  // by the publisher, not the journal, so publisher is the correct field.
+  const journal = await db.journal.findFirst({ select: { publisher: true, issn: true } });
+  const workTitle = category === "AUTHOR" ? await latestPublishedWorkTitle(session.userId) : null;
+  const avatarPng = await resolveAvatarPng(user.avatarUrl);
 
   const serialNumber = generateSerialNumber(type);
   const payload = {
@@ -88,15 +119,16 @@ export async function POST(req: NextRequest) {
     category,
     recipientName: user.fullName,
     issuedAtIso: new Date().toISOString(),
-    journalName: journal?.name || "Eleventh Press International Publishing",
+    journalName: journal?.publisher || "Eleventh Press International Publishing",
     issn: journal?.issn ?? null,
+    workTitle,
   };
   const contentHash = computeContentHash(payload);
 
   const pdfBuffer =
-    type === "RECOGNITION" ? await buildRecognitionCertificate(payload) :
-    type === "MEMBERSHIP" ? await buildMembershipCertificate(payload) :
-    await buildAffiliationCard(payload);
+    type === "RECOGNITION" ? await buildRecognitionCertificate(payload, avatarPng) :
+    type === "MEMBERSHIP" ? await buildMembershipCertificate(payload, avatarPng) :
+    await buildAffiliationCard(payload, avatarPng);
 
   const pdfKey = certificateStorageKey(session.userId, serialNumber, "pdf");
   await putObject(pdfKey, pdfBuffer, "application/pdf");
@@ -109,6 +141,7 @@ export async function POST(req: NextRequest) {
       recipientName: user.fullName,
       journalName: payload.journalName,
       issn: payload.issn,
+      workTitle: payload.workTitle,
       serialNumber,
       contentHash,
       pdfKey,

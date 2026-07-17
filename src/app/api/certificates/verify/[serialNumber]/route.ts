@@ -30,6 +30,7 @@ export async function GET(
     issuedAtIso: certificate.issuedAt.toISOString(),
     journalName: certificate.journalName,
     issn: certificate.issn,
+    workTitle: certificate.workTitle,
   });
 
   return NextResponse.json({
@@ -41,5 +42,6 @@ export async function GET(
     recipientName: certificate.recipientName,
     issuedAt: certificate.issuedAt,
     contentHash: certificate.contentHash,
+    workTitle: certificate.workTitle,
   });
 }

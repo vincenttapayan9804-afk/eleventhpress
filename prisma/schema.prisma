@@ -686,6 +686,7 @@ model Certificate {
   recipientName String // snapshot at issuance, independent of later profile edits
   journalName   String // snapshot at issuance — the hash must be reproducible from this
   issn          String? // snapshot at issuance
+  workTitle     String? // exact title of the article/book cited (AUTHOR category), snapshot at issuance
   serialNumber  String @unique
   contentHash   String @unique // sha256 of the canonical certificate payload
   pdfKey        String // storage key of the rendered PDF
