@@ -30,7 +30,7 @@ export const CANONICAL_PUBLISHER_NAME = "Eleventh Press International Publishing
  * templateVersion defaults to 0 in the schema, so every pre-existing row
  * heals automatically the first time this constant is bumped past 0.
  */
-export const CURRENT_CERTIFICATE_TEMPLATE_VERSION = 1;
+export const CURRENT_CERTIFICATE_TEMPLATE_VERSION = 2;
 
 export const CERTIFICATE_TYPES = ["RECOGNITION", "MEMBERSHIP", "AFFILIATION"] as const;
 export type CertificateType = (typeof CERTIFICATE_TYPES)[number];
