@@ -92,6 +92,7 @@ model User {
   books                      Book[]
   bookDistributionsSubmitted BookDistribution[]
   royaltyStatementsRecorded  RoyaltyStatement[]
+  certificates               Certificate[]
 }
 
 // ---------------------------------------------------------------------------
@@ -658,6 +659,44 @@ model DirectoryListing {
 
   @@unique([journalId, directory])
   @@index([journalId])
+}
+
+// ---------------------------------------------------------------------------
+// Certificate — recognition/membership/affiliation documents for authors,
+// reviewers, and editors (see src/lib/certificates.ts). Each row is a
+// permanent, immutable record of one issued certificate: the exact content
+// rendered into the PDF is captured at issuance (recipientName, category,
+// issuedAt) so a re-fetch of this row always reproduces the same
+// contentHash — the basis for the public /verify/[serialNumber] page, which
+// recomputes the hash from these stored fields and confirms it matches
+// what's printed on the certificate. Cryptographically verifiable and
+// tamper-evident (any alteration after issuance breaks the hash match);
+// deliberately NOT described as "blockchain" anywhere in the UI, since
+// verification here depends on this platform's own database rather than a
+// decentralized ledger — see the corresponding conversation for why a real
+// blockchain-anchoring path (OpenTimestamps) was evaluated and dropped: the
+// only maintained npm client has a reproducible serialize/deserialize bug
+// that breaks reading back a saved proof, even via its own official CLI.
+// ---------------------------------------------------------------------------
+model Certificate {
+  id            String @id @default(cuid())
+  userId        String
+  type          String // RECOGNITION | MEMBERSHIP | AFFILIATION
+  category      String // AUTHOR | REVIEWER | EDITOR — the capacity the certificate is issued for
+  recipientName String // snapshot at issuance, independent of later profile edits
+  journalName   String // snapshot at issuance — the hash must be reproducible from this
+  issn          String? // snapshot at issuance
+  serialNumber  String @unique
+  contentHash   String @unique // sha256 of the canonical certificate payload
+  pdfKey        String // storage key of the rendered PDF
+
+  issuedAt  DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([serialNumber])
 }
 
 // ---------------------------------------------------------------------------
