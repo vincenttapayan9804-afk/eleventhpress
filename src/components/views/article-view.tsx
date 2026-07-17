@@ -9,7 +9,7 @@ import { DOI_REGISTRAR } from "@/lib/site";
 import { attentionMetricsConfigured } from "@/lib/attention-metrics";
 import { AltmetricBadge, PlumXBadge } from "@/components/attention-badges";
 import { buildBibTeX, buildRis, coinsSpanProps } from "@/lib/citation-export";
-import { MetricTile } from "@/components/ui/metric-tile";
+import { MetricsBarChart3D, MetricsFillGauge3D } from "@/components/three-d/scenes";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Card, CardContent } from "@/components/ui/card";
@@ -74,6 +74,39 @@ interface CitationMetrics {
   publicationYear?: number | null;
   percentileYearMin?: number | null;
   percentileYearMax?: number | null;
+}
+
+/** Concise, honest reads on each Metrics-tab number — never a claim the
+ * underlying data can't actually support. Citation percentile framing
+ * mirrors OpenAlex's own cited_by_percentile_year (real, live, only present
+ * once OpenAlex has computed it — never estimated locally). */
+function citationInterpretation(m: CitationMetrics | null): string {
+  if (!m) return "Loading live citation data from OpenAlex…";
+  if (!m.available) {
+    return m.reason === "no_doi"
+      ? "No DOI registered yet — citation tracking begins once one is minted."
+      : "Not yet indexed in OpenAlex — citation counts typically catch up as citing works are published and indexed elsewhere.";
+  }
+  if (m.percentileYearMin != null && m.percentileYearMax != null) {
+    return `Top ${100 - m.percentileYearMax}–${100 - m.percentileYearMin}% of works published in ${m.publicationYear}, per OpenAlex's live citation index.`;
+  }
+  return `${m.citedByCount} citation${m.citedByCount === 1 ? "" : "s"} recorded in OpenAlex's live index; a year-cohort percentile isn't computed for this work yet.`;
+}
+
+function downloadRateText(downloads: number, views: number): string {
+  if (views <= 0) return "PDF downloads recorded since publication.";
+  const rate = Math.round((downloads / views) * 100);
+  return `${Math.min(rate, 100)}% of page views went on to download the full-text PDF.`;
+}
+
+/** In-corpus similarity thresholds — the exact >=40 / >=15 cutoffs already
+ * used to color-code this same score in the editor-facing manuscript-checks
+ * panel (src/components/dashboard/manuscript-checks-panel.tsx), reused here
+ * rather than inventing a second set of numbers. */
+function similarityRiskBand(score: number): { label: string; color: string } {
+  if (score >= 40) return { label: "flagged for editorial review", color: "#e11d48" };
+  if (score >= 15) return { label: "moderate overlap", color: "#d97706" };
+  return { label: "low overlap", color: "#059669" };
 }
 
 export function ArticleView() {
@@ -471,50 +504,95 @@ export function ArticleView() {
             </TabsContent>
 
             <TabsContent value="metrics" className="mt-6">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Card className="paper-card">
+              <div className="space-y-5">
+                <Card className="paper-card overflow-hidden">
                   <CardContent className="p-5">
-                    <Quote className="h-5 w-5 text-primary" />
-                    <p className="mt-2 font-display text-3xl font-semibold">
-                      {citationMetrics ? (citationMetrics.available ? citationMetrics.citedByCount : "—") : "…"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Citation count (live, OpenAlex)
-                      {citationMetrics && !citationMetrics.available && " — not yet indexed"}
-                    </p>
-                    {citationMetrics?.available && citationMetrics.percentileYearMin != null && (
-                      <p className="mt-1 text-[0.65rem] text-muted-foreground">
-                        Top {100 - citationMetrics.percentileYearMax!}–{100 - citationMetrics.percentileYearMin!}% of works published in {citationMetrics.publicationYear}
-                      </p>
-                    )}
+                    <p className="eyebrow">Readership &amp; impact</p>
+                    <div className="mt-3 grid gap-4 sm:grid-cols-[13rem_1fr] sm:items-center">
+                      <div className="h-40 w-full sm:h-44">
+                        <MetricsBarChart3D
+                          items={[
+                            { label: "Citations", value: citationMetrics?.available ? (citationMetrics.citedByCount ?? 0) : 0, color: "#9D5BC4" },
+                            { label: "Page views", value: article.views, color: "#6B2D8E" },
+                            { label: "PDF downloads", value: article.downloads, color: "#c9a55c" },
+                          ]}
+                        />
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        <div>
+                          <div className="flex items-center gap-1.5 text-primary">
+                            <Quote className="h-4 w-4" />
+                            <p className="font-display text-2xl font-semibold text-foreground">
+                              {citationMetrics ? (citationMetrics.available ? citationMetrics.citedByCount : "—") : "…"}
+                            </p>
+                          </div>
+                          <p className="text-xs font-medium text-foreground/80">Citations (OpenAlex, live)</p>
+                          <p className="mt-1 text-[0.7rem] leading-snug text-muted-foreground">{citationInterpretation(citationMetrics)}</p>
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-1.5 text-primary">
+                            <Eye className="h-4 w-4" />
+                            <p className="font-display text-2xl font-semibold text-foreground">{article.views}</p>
+                          </div>
+                          <p className="text-xs font-medium text-foreground/80">Page views (all time)</p>
+                          <p className="mt-1 text-[0.7rem] leading-snug text-muted-foreground">Cumulative reader traffic to this article&apos;s page.</p>
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-1.5 text-primary">
+                            <Download className="h-4 w-4" />
+                            <p className="font-display text-2xl font-semibold text-foreground">{article.downloads}</p>
+                          </div>
+                          <p className="text-xs font-medium text-foreground/80">PDF downloads</p>
+                          <p className="mt-1 text-[0.7rem] leading-snug text-muted-foreground">{downloadRateText(article.downloads, article.views)}</p>
+                        </div>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
-                <Card className="paper-card">
+
+                <Card className="paper-card overflow-hidden">
                   <CardContent className="p-5">
-                    <Eye className="h-5 w-5 text-primary" />
-                    <p className="mt-2 font-display text-3xl font-semibold">{article.views}</p>
-                    <p className="text-xs text-muted-foreground">Page views (all time)</p>
+                    <p className="eyebrow">Integrity &amp; originality</p>
+                    <div className="mt-3 grid gap-4 sm:grid-cols-[13rem_1fr] sm:items-center">
+                      <div className="h-40 w-full sm:h-44">
+                        <MetricsFillGauge3D
+                          items={[
+                            { label: "In-corpus", value: article.plagiarismScore ?? 0, color: article.plagiarismScore != null ? similarityRiskBand(article.plagiarismScore).color : "#3D1A5C" },
+                            { label: "iThenticate", value: article.ithenticateScore ?? null, color: "#9D5BC4" },
+                          ]}
+                        />
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div>
+                          <div className="flex items-center gap-1.5 text-primary">
+                            <ShieldCheck className="h-4 w-4" />
+                            <p className="font-display text-2xl font-semibold text-foreground">{article.plagiarismScore ?? "—"}%</p>
+                          </div>
+                          <p className="text-xs font-medium text-foreground/80">In-corpus similarity (in-house)</p>
+                          <p className="mt-1 text-[0.7rem] leading-snug text-muted-foreground">
+                            {article.plagiarismScore != null
+                              ? `${similarityRiskBand(article.plagiarismScore).label.charAt(0).toUpperCase() + similarityRiskBand(article.plagiarismScore).label.slice(1)} against this journal's own back-catalog, via the same cosine-similarity check editors use pre-publication.`
+                              : "Not yet computed for this article."}
+                          </p>
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-1.5 text-primary">
+                            <ShieldCheck className="h-4 w-4" />
+                            <p className="font-display text-2xl font-semibold text-foreground">
+                              {article.ithenticateScore != null ? `${article.ithenticateScore}%` : "Not checked"}
+                            </p>
+                          </div>
+                          <p className="text-xs font-medium text-foreground/80">iThenticate similarity (enterprise, additional)</p>
+                          <p className="mt-1 text-[0.7rem] leading-snug text-muted-foreground">
+                            {article.ithenticateScore != null
+                              ? "Overall match against Turnitin's full cross-publisher index, reviewed by editorial staff via the vendor's Similarity Report."
+                              : "A paid additional check beyond the in-house score above — not run on every article."}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
-                <Card className="paper-card">
-                  <CardContent className="p-5">
-                    <Download className="h-5 w-5 text-primary" />
-                    <p className="mt-2 font-display text-3xl font-semibold">{article.downloads}</p>
-                    <p className="text-xs text-muted-foreground">PDF downloads</p>
-                  </CardContent>
-                </Card>
-                <Card className="paper-card">
-                  <CardContent className="p-5">
-                    <ShieldCheck className="h-5 w-5 text-primary" />
-                    <p className="mt-2 font-display text-3xl font-semibold">{article.plagiarismScore ?? "—"}%</p>
-                    <p className="text-xs text-muted-foreground">In-corpus similarity (in-house)</p>
-                  </CardContent>
-                </Card>
-                <MetricTile
-                  icon={ShieldCheck}
-                  value={article.ithenticateScore != null ? `${article.ithenticateScore}%` : "Not checked"}
-                  label="iThenticate similarity (enterprise, additional)"
-                />
               </div>
 
               {attentionMetricsConfigured(article) && (
