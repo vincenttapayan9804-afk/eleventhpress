@@ -17,6 +17,9 @@ import PDFDocument from "pdfkit";
 import QRCode from "qrcode";
 import { APP_BASE_URL } from "@/lib/site";
 import type { CertificatePayload } from "@/lib/certificates";
+import { CARD_GLOBE_JPEG_BASE64 } from "@/lib/certificate-globe-asset";
+
+const CARD_GLOBE_JPEG = Buffer.from(CARD_GLOBE_JPEG_BASE64, "base64");
 
 const BRAND_PURPLE = "#4c1d95";
 const BRAND_GOLD = "#c9a55c";
@@ -197,6 +200,45 @@ function drawBadgeGroups(doc: PDFKit.PDFDocument, x: number, y: number, width: n
   return cy;
 }
 
+/** Just the syndication/open-data half of the four groups, for the
+ * affiliation card — its "Indexed in"/"Benchmarked standards" groups are
+ * drawn inside the card itself (see drawCardCredibilityGroup) so this
+ * covers the remaining two below it without duplicating the first two. */
+function drawRemainingBadgeGroups(doc: PDFKit.PDFDocument, x: number, y: number, width: number, labelSize: number, itemSize: number, gap: number): number {
+  let cy = y;
+  cy = drawCenteredGroup(doc, "Syndication networks", SYNDICATION_NETWORKS, x, cy, width, BRAND_GOLD, labelSize, itemSize, Math.min(width, 270)) + gap;
+  cy = drawCenteredGroup(doc, "Open data sources", OPEN_DATA_SOURCES, x, cy, width, BRAND_PURPLE, labelSize, itemSize) + gap;
+  return cy;
+}
+
+/** Left-aligned credibility group for inside the affiliation card itself —
+ * matches the card's own left-aligned typographic style (brand/name/role/
+ * serial are all left-aligned), unlike the centered groups used on the two
+ * full-page certificate layouts. */
+function drawCardCredibilityGroup(
+  doc: PDFKit.PDFDocument,
+  label: string,
+  items: string[],
+  x: number,
+  y: number,
+  width: number,
+  labelColor: string,
+  itemColor: string,
+  labelSize: number,
+  itemSize: number
+): number {
+  doc.fillColor(labelColor).font("Helvetica-Bold").fontSize(labelSize)
+    .text(label.toUpperCase(), x, y, { width });
+  const itemsY = y + labelSize + 3;
+
+  const itemsText = items.join(" · ");
+  doc.fillColor(itemColor).font("Helvetica").fontSize(itemSize)
+    .text(itemsText, x, itemsY, { width, lineGap: 1.5 });
+  const itemsHeight = doc.heightOfString(itemsText, { width, lineGap: 1.5 });
+
+  return itemsY + itemsHeight;
+}
+
 function newLandscapeDoc(title: string): PDFKit.PDFDocument {
   return new PDFDocument({
     size: "A4",
@@ -333,7 +375,7 @@ export async function buildAffiliationCard(payload: CertificatePayload, avatarPn
   const qr = await buildVerifyQr(payload.serialNumber);
 
   const cardW = 420;
-  const cardH = 260;
+  const cardH = 340;
   const cardX = (doc.page.width - cardW) / 2;
   const cardY = 190;
   const pad = 24;
@@ -349,8 +391,25 @@ export async function buildAffiliationCard(payload: CertificatePayload, avatarPn
 
   doc.save();
   doc.roundedRect(cardX, cardY, cardW, cardH, 12).fillColor(BRAND_PURPLE).fill();
-  doc.roundedRect(cardX + 6, cardY + 6, cardW - 12, cardH - 12, 8).lineWidth(1).strokeColor(BRAND_GOLD).stroke();
   doc.restore();
+
+  // The same globe image the home page hero uses (public/hero/hero-bg.png,
+  // pre-cropped to the sphere — see certificate-globe-asset.ts), "cover"-fit
+  // into the card's rounded interior so it fills edge-to-edge without
+  // distortion, then a left-to-right purple vignette — the identical
+  // blending technique the home page hero itself uses — keeps the text on
+  // the left legible while the globe reads clearly on the right.
+  doc.save();
+  doc.roundedRect(cardX + 6, cardY + 6, cardW - 12, cardH - 12, 8).clip();
+  doc.image(CARD_GLOBE_JPEG, cardX + 6, cardY + 6, { cover: [cardW - 12, cardH - 12], align: "center", valign: "center" });
+  doc.rect(cardX + 6, cardY + 6, cardW - 12, cardH - 12).fill(
+    doc.linearGradient(cardX + 6, cardY, cardX + cardW * 0.72, cardY)
+      .stop(0, BRAND_PURPLE, 1)
+      .stop(0.55, BRAND_PURPLE, 1)
+      .stop(1, BRAND_PURPLE, 0)
+  );
+  doc.restore();
+  doc.roundedRect(cardX + 6, cardY + 6, cardW - 12, cardH - 12, 8).lineWidth(1).strokeColor(BRAND_GOLD).stroke();
 
   // Top-left: brand + document label
   doc.fillColor(BRAND_GOLD).font("Helvetica-Bold").fontSize(8.5)
@@ -361,11 +420,27 @@ export async function buildAffiliationCard(payload: CertificatePayload, avatarPn
   // Top-right: avatar
   drawAvatarCircle(doc, avatarPng, cardX + cardW - pad - 28, cardY + 46, 28);
 
-  // Mid-left: name + role
-  doc.fillColor("#ffffff").font("Helvetica-Bold").fontSize(19)
-    .text(payload.recipientName, cardX + pad, cardY + 100, { width: cardW - pad * 2 - 76 });
-  doc.fillColor(BRAND_GOLD).font("Helvetica").fontSize(11.5)
-    .text(CARD_ROLE_LABEL[payload.category], cardX + pad, cardY + 128, { width: cardW - pad * 2 - 76 });
+  // Mid-left: name + role — flow-positioned off the name's actual rendered
+  // height (not a fixed offset) so a long name wrapping to two lines never
+  // collides with the role line or the badges below it.
+  const nameWidth = cardW - pad * 2 - 76;
+  doc.font("Helvetica-Bold").fontSize(19);
+  const nameHeight = doc.heightOfString(payload.recipientName, { width: nameWidth });
+  doc.fillColor("#ffffff").text(payload.recipientName, cardX + pad, cardY + 100, { width: nameWidth });
+  const roleY = cardY + 100 + nameHeight + 4;
+  doc.font("Helvetica").fontSize(11.5);
+  const roleHeight = doc.heightOfString(CARD_ROLE_LABEL[payload.category], { width: nameWidth });
+  doc.fillColor(BRAND_GOLD).text(CARD_ROLE_LABEL[payload.category], cardX + pad, roleY, { width: nameWidth });
+
+  // Indexed in / Benchmarked standards — inside the card itself, in the gap
+  // between the role line and the bottom serial/QR row. Left-aligned to
+  // match the card's own typographic style, in light tones that stay
+  // legible against the purple/globe backdrop.
+  const cardBadgeX = cardX + pad;
+  const cardBadgeWidth = cardW - pad * 2 - 76;
+  let cby = roleY + roleHeight + 10;
+  cby = drawCardCredibilityGroup(doc, "Indexed in", INDEXED_IN, cardBadgeX, cby, cardBadgeWidth, BRAND_GOLD, "#f2ecff", 7, 6) + 6;
+  drawCardCredibilityGroup(doc, "Benchmarked standards", BENCHMARKED_STANDARDS, cardBadgeX, cby, cardBadgeWidth, "#ffffff", "#f2ecff", 7, 6);
 
   // Bottom-left: serial/issued; bottom-right: QR
   doc.fillColor("#e8e0f5").font("Helvetica").fontSize(8)
@@ -376,9 +451,13 @@ export async function buildAffiliationCard(payload: CertificatePayload, avatarPn
   doc.fillColor(BRAND_MUTED).font("Helvetica").fontSize(8)
     .text(`Verify authenticity at ${APP_BASE_URL}/verify/${payload.serialNumber}`, 40, cardY + cardH + 22, { align: "center", width: doc.page.width - 80 });
 
+  // Syndication networks / Open data sources — the remaining two
+  // credibility groups, below the card (Indexed in/Benchmarked standards
+  // already live inside it above, so this deliberately skips those two to
+  // avoid printing them twice).
   const badgeX = 70;
   const badgeWidth = doc.page.width - badgeX * 2;
-  drawBadgeGroups(doc, badgeX, cardY + cardH + 44, badgeWidth, 7.5, 6.5, 10);
+  drawRemainingBadgeGroups(doc, badgeX, cardY + cardH + 44, badgeWidth, 7.5, 6.5, 10);
 
   doc.end();
   return result;
