@@ -13,12 +13,24 @@ import { db } from "@/lib/db";
 
 /**
  * The canonical publisher brand name — the fallback when Journal.publisher
- * is unset, and (more importantly) the marker GET /api/certificates uses
- * to detect a certificate rendered before the journal-name/layout/avatar/
- * work-title fix and auto-heal it in place, with zero action required
- * from the user who already generated one under the old, buggy template.
+ * is unset. (Previously doubled as the sole auto-heal marker; that role now
+ * belongs to CURRENT_CERTIFICATE_TEMPLATE_VERSION below, since a template
+ * change like a new badge layout doesn't always come with a journalName
+ * change to key off of.)
  */
 export const CANONICAL_PUBLISHER_NAME = "Eleventh Press International Publishing";
+
+/**
+ * Bump this whenever src/lib/certificate-pdf.ts's visual template changes
+ * in a way existing certificate holders should get automatically — a new
+ * badge group, a border redesign, a layout fix. GET /api/certificates
+ * auto-heals (re-renders in place) any stored certificate whose
+ * templateVersion is behind this number, with zero action required from
+ * whoever already generated one under the older template. Certificate.
+ * templateVersion defaults to 0 in the schema, so every pre-existing row
+ * heals automatically the first time this constant is bumped past 0.
+ */
+export const CURRENT_CERTIFICATE_TEMPLATE_VERSION = 1;
 
 export const CERTIFICATE_TYPES = ["RECOGNITION", "MEMBERSHIP", "AFFILIATION"] as const;
 export type CertificateType = (typeof CERTIFICATE_TYPES)[number];
