@@ -66,6 +66,7 @@ export interface CertificatePayload {
   issuedAtIso: string;
   journalName: string;
   issn: string | null;
+  workTitle: string | null;
 }
 
 /**
@@ -86,7 +87,37 @@ export function canonicalCertificatePayload(p: CertificatePayload): string {
     recipient: p.recipientName,
     serial: p.serialNumber,
     type: p.type,
+    workTitle: p.workTitle,
   });
+}
+
+/**
+ * The exact title of the most recently published work (article or book)
+ * this user corresponds to — cited on AUTHOR-category certificates so
+ * "in recognition of the publication of..." names the actual work instead
+ * of a generic phrase. Checks both Article and Book (a user's first
+ * published work might be either) and returns whichever is more recent.
+ */
+export async function latestPublishedWorkTitle(userId: string): Promise<string | null> {
+  const [article, book] = await Promise.all([
+    db.article.findFirst({
+      where: { correspondingAuthorId: userId, status: "PUBLISHED" },
+      orderBy: { publishedAt: "desc" },
+      select: { title: true, publishedAt: true },
+    }),
+    db.book.findFirst({
+      where: { correspondingAuthorId: userId, status: "PUBLISHED" },
+      orderBy: { publishedAt: "desc" },
+      select: { title: true, subtitle: true, publishedAt: true },
+    }),
+  ]);
+
+  if (!article && !book) return null;
+  if (article && (!book || !book.publishedAt || (article.publishedAt && article.publishedAt >= book.publishedAt))) {
+    return article.title;
+  }
+  if (book) return book.subtitle ? `${book.title}: ${book.subtitle}` : book.title;
+  return null;
 }
 
 export function computeContentHash(p: CertificatePayload): string {
