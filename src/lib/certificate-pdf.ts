@@ -375,7 +375,7 @@ export async function buildAffiliationCard(payload: CertificatePayload, avatarPn
   const qr = await buildVerifyQr(payload.serialNumber);
 
   const cardW = 420;
-  const cardH = 340;
+  const cardH = 260;
   const cardX = (doc.page.width - cardW) / 2;
   const cardY = 190;
   const pad = 24;
@@ -438,9 +438,9 @@ export async function buildAffiliationCard(payload: CertificatePayload, avatarPn
   // legible against the purple/globe backdrop.
   const cardBadgeX = cardX + pad;
   const cardBadgeWidth = cardW - pad * 2 - 76;
-  let cby = roleY + roleHeight + 10;
-  cby = drawCardCredibilityGroup(doc, "Indexed in", INDEXED_IN, cardBadgeX, cby, cardBadgeWidth, BRAND_GOLD, "#f2ecff", 7, 6) + 6;
-  drawCardCredibilityGroup(doc, "Benchmarked standards", BENCHMARKED_STANDARDS, cardBadgeX, cby, cardBadgeWidth, "#ffffff", "#f2ecff", 7, 6);
+  let cby = roleY + roleHeight + 8;
+  cby = drawCardCredibilityGroup(doc, "Indexed in", INDEXED_IN, cardBadgeX, cby, cardBadgeWidth, BRAND_GOLD, "#f2ecff", 6.5, 5.5) + 4;
+  drawCardCredibilityGroup(doc, "Benchmarked standards", BENCHMARKED_STANDARDS, cardBadgeX, cby, cardBadgeWidth, "#ffffff", "#f2ecff", 6.5, 5.5);
 
   // Bottom-left: serial/issued; bottom-right: QR
   doc.fillColor("#e8e0f5").font("Helvetica").fontSize(8)
