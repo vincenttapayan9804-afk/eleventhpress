@@ -708,3 +708,121 @@ export function ImpactSphere({ className = "" }: { className?: string }) {
 export function HeroGlobe({ className = "" }: { className?: string }) {
   return <PurpleGlobe className={className} />;
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// 6. METRICS BAR CHART — arbitrary-magnitude 3D bars for the article
+//    Metrics tab (citation count, page views, PDF downloads). Heights use
+//    a sqrt scale (not linear) so one very large count doesn't flatten the
+//    other bars to invisibility while still preserving relative ordering.
+// ═══════════════════════════════════════════════════════════════════════
+
+interface MetricBarDatum {
+  label: string;
+  value: number;
+  color: string;
+}
+
+function MetricBar3D({ x, height, color, delay }: { x: number; height: number; color: string; delay: number }) {
+  const ref = useRef<THREE.Mesh>(null);
+  useFrame((state) => {
+    if (ref.current) {
+      const bob = Math.sin(state.clock.getElapsedTime() * 1.1 + delay) * 0.02;
+      ref.current.position.y = height / 2 - 1 + bob;
+    }
+  });
+  return (
+    <mesh ref={ref} position={[x, height / 2 - 1, 0]}>
+      <boxGeometry args={[0.62, height, 0.62]} />
+      <meshStandardMaterial color={color} roughness={0.25} metalness={0.55} emissive={color} emissiveIntensity={0.18} />
+    </mesh>
+  );
+}
+
+/** Three (or more) magnitude bars on a shared shadow-catching ground plane,
+ * slow individual bob so the scene reads as alive without being distracting. */
+export function MetricsBarChart3D({ items, className = "" }: { items: MetricBarDatum[]; className?: string }) {
+  const heights = useMemo(() => {
+    const magnitudes = items.map((it) => Math.sqrt(Math.max(it.value, 0)));
+    const max = Math.max(...magnitudes, 1);
+    return magnitudes.map((m) => 0.35 + (m / max) * 2.1);
+  }, [items]);
+
+  const spacing = 1.35;
+  const startX = -((items.length - 1) * spacing) / 2;
+
+  return (
+    <div className={`webgl-container ${className}`}>
+      <SceneWrapper cameraPosition={[2.7, 1.7, 4.3]}>
+        <group>
+          {items.map((it, i) => (
+            <MetricBar3D key={it.label} x={startX + i * spacing} height={heights[i]} color={it.color} delay={i} />
+          ))}
+        </group>
+        <ContactShadows position={[0, -1.005, 0]} opacity={0.35} scale={7} blur={2.4} color={ROYAL_DEEP} />
+      </SceneWrapper>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// 7. FILL GAUGES — percentage-metric "liquid fill" tubes for the article
+//    Metrics tab (in-corpus similarity, iThenticate similarity). A null
+//    value (not yet checked) renders as an empty, dim tube rather than a
+//    fabricated fill level.
+// ═══════════════════════════════════════════════════════════════════════
+
+interface MetricGaugeDatum {
+  label: string;
+  value: number | null;
+  color: string;
+}
+
+function FillGauge3D({ x, value, color }: { x: number; value: number | null; color: string }) {
+  const pct = Math.max(0, Math.min(100, value ?? 0)) / 100;
+  const tubeHeight = 1.7;
+  const fillHeight = Math.max(tubeHeight * pct, 0.001);
+  return (
+    <group position={[x, -0.85, 0]}>
+      <mesh position={[0, 0, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[0.46, 32]} />
+        <meshStandardMaterial color={ROYAL_DEEP} roughness={0.5} metalness={0.3} />
+      </mesh>
+      {value != null && (
+        <mesh position={[0, fillHeight / 2, 0]}>
+          <cylinderGeometry args={[0.42, 0.42, fillHeight, 32]} />
+          <meshStandardMaterial color={color} roughness={0.25} metalness={0.5} emissive={color} emissiveIntensity={0.22} />
+        </mesh>
+      )}
+      <mesh position={[0, tubeHeight / 2, 0]}>
+        <cylinderGeometry args={[0.46, 0.46, tubeHeight, 32, 1, true]} />
+        <meshPhysicalMaterial
+          color="#ffffff"
+          transparent
+          opacity={value != null ? 0.14 : 0.07}
+          roughness={0.05}
+          metalness={0}
+          side={THREE.DoubleSide}
+        />
+      </mesh>
+    </group>
+  );
+}
+
+/** Two (or more) percentage tubes side by side, sharing one ground shadow. */
+export function MetricsFillGauge3D({ items, className = "" }: { items: MetricGaugeDatum[]; className?: string }) {
+  const spacing = 1.7;
+  const startX = -((items.length - 1) * spacing) / 2;
+
+  return (
+    <div className={`webgl-container ${className}`}>
+      <SceneWrapper cameraPosition={[0, 0.3, 4.6]}>
+        <group>
+          {items.map((it, i) => (
+            <FillGauge3D key={it.label} x={startX + i * spacing} value={it.value} color={it.color} />
+          ))}
+        </group>
+        <ContactShadows position={[0, -0.86, 0]} opacity={0.3} scale={6} blur={2.2} color={ROYAL_DEEP} />
+      </SceneWrapper>
+    </div>
+  );
+}
