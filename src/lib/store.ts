@@ -13,6 +13,7 @@ export type ViewKey =
   | "resources"
   | "authors"
   | "faqs"
+  | "policies"
   | "adminPortal";
 
 export type DashboardTab =

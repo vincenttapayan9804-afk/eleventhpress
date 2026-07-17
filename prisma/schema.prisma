@@ -638,6 +638,28 @@ model PreservationDeposit {
   @@index([journalId])
 }
 
+// Manual-application directory listings (ROAD, ISI, ResearchBib,
+// Citefactor, SAJI Journal Index, and similar). None of these expose a
+// public submission API — a journal applies once, a human reviews it, and
+// only then does a listing appear — so like PreservationDeposit above,
+// this is a self-reported, admin-maintained record, not a live
+// integration. See src/lib/directory-listings.ts.
+model DirectoryListing {
+  id           String    @id @default(cuid())
+  journalId    String
+  directory    String // ROAD | ISI | RESEARCHBIB | CITEFACTOR | SAJI
+  status       String    @default("NOT_APPLIED") // NOT_APPLIED | APPLIED | UNDER_REVIEW | INDEXED | REJECTED
+  appliedAt    DateTime?
+  listingUrl   String? // the directory's own page for this journal, once indexed
+  notes        String?
+  updatedBy    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([journalId, directory])
+  @@index([journalId])
+}
+
 // ---------------------------------------------------------------------------
 // Distribution — per-article syndication tracking to external platforms
 // (see src/lib/distribution.ts). One row per (articleId, platform) pair,

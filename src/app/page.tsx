@@ -14,6 +14,7 @@ import { DashboardView } from "@/components/views/dashboard-view";
 import { ResourcesView } from "@/components/views/resources-view";
 import { AuthorsView } from "@/components/views/authors-view";
 import { FaqsView } from "@/components/views/faqs-view";
+import { PoliciesView } from "@/components/views/policies-view";
 import { AdminPortalView } from "@/components/views/admin-portal-view";
 import { AuthSheet } from "@/components/auth-sheet";
 import { Toaster } from "@/components/ui/sonner";
@@ -82,6 +83,7 @@ export default function Page() {
           {view === "resources" && <ResourcesView />}
           {view === "authors" && <AuthorsView />}
           {view === "faqs" && <FaqsView />}
+          {view === "policies" && <PoliciesView />}
           {view === "adminPortal" && <AdminPortalView />}
         </main>
         <SiteFooter />
