@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { presignGet, objectExists } from "@/lib/storage";
+import { recordCounterEvent } from "@/lib/institutions";
+import { getSessionFromHeaders } from "@/lib/auth";
 
 /**
  * GET /api/articles/[id]/galley?format=pdf|html|jats|epub
@@ -68,6 +70,22 @@ export async function GET(
       },
       { status: 404 }
     );
+  }
+
+  // PDF downloads are the metric the reader-facing "PDF downloads" stat
+  // (Article.downloads) and the COUNTER5 Total_Item_Requests report are
+  // both built on — until now this route never wrote to either, so
+  // downloads never moved no matter how many readers actually downloaded
+  // the PDF. Scoped to PDF only, matching the metric's own label.
+  if (format === "pdf") {
+    const session = getSessionFromHeaders(req.headers);
+    db.article.update({ where: { id }, data: { downloads: { increment: 1 } } }).catch(() => {});
+    recordCounterEvent({
+      articleId: id,
+      metricType: "Total_Item_Requests",
+      headers: req.headers,
+      email: session?.email,
+    });
   }
 
   const extension = format === "jats" ? "jats.xml" : format;

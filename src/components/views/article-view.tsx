@@ -65,7 +65,6 @@ import {
   FileCode,
   Layers,
 } from "lucide-react";
-import { ArticleFlipbook } from "@/components/article-flipbook";
 import { toast } from "sonner";
 
 interface CitationMetrics {
@@ -89,7 +88,6 @@ export function ArticleView() {
   const [corrections, setCorrections] = useState<any[]>([]);
   const [references, setReferences] = useState<any[]>([]);
   const [bodyHtml, setBodyHtml] = useState<string | null>(null);
-  const [flipbookOpen, setFlipbookOpen] = useState(false);
   const [citationMetrics, setCitationMetrics] = useState<CitationMetrics | null>(null);
   const canIssueCorrection = !!user && ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"].includes(user.role);
 
@@ -354,7 +352,7 @@ export function ArticleView() {
       {/* Body */}
       <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_280px]">
         {/* Main column */}
-        <div>
+        <div className="min-w-0">
           <Tabs defaultValue="article" className="w-full">
             <TabsList className={`grid w-full ${openReviewStatus?.openReview ? "grid-cols-5" : "grid-cols-4"}`}>
               <TabsTrigger value="article">Article</TabsTrigger>
@@ -387,6 +385,17 @@ export function ArticleView() {
                 {/* OpenURL/COinS marker — Zotero/Mendeley browser connectors
                     auto-detect this article's metadata via this tag. */}
                 <span {...coins} />
+
+                {keywords.length > 0 && (
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <p className="eyebrow mr-1">Keywords</p>
+                    {keywords.map((k) => (
+                      <Badge key={k} variant="secondary" className="gap-1">
+                        <Tag className="h-3 w-3" /> {k}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
 
                 {article.laySummary && (
                   <div className="mt-4 rounded-md border border-primary/20 bg-primary/5 p-4 not-prose">
@@ -438,18 +447,6 @@ export function ArticleView() {
                     </ol>
                   </>
                 )}
-              </div>
-
-              {/* Keywords */}
-              <div className="mt-8 border-t border-border pt-5">
-                <p className="eyebrow mb-2">Keywords</p>
-                <div className="flex flex-wrap gap-2">
-                  {keywords.map((k) => (
-                    <Badge key={k} variant="secondary" className="gap-1">
-                      <Tag className="h-3 w-3" /> {k}
-                    </Badge>
-                  ))}
-                </div>
               </div>
 
               {/* Funding — captured at submission (grant support details), not
@@ -581,7 +578,7 @@ export function ArticleView() {
                       ))}
                     </div>
                   </div>
-                  <pre className="mt-4 max-h-72 overflow-auto rounded-md border border-border bg-muted/30 p-4 font-mono text-xs leading-relaxed epip-scroll">
+                  <pre className="mt-4 max-h-72 overflow-y-auto overflow-x-hidden whitespace-pre-wrap break-words rounded-md border border-border bg-muted/30 p-4 font-mono text-xs leading-relaxed epip-scroll">
 {citationFormat === "apa" ? citation : citationFormat === "bibtex" ? bibtex : ris}
                   </pre>
                   <div className="mt-3 flex flex-wrap justify-end gap-2">
@@ -630,6 +627,10 @@ export function ArticleView() {
                     try {
                       const r = await apiFetch<{ url: string }>(`/api/articles/${article.id}/galley?format=pdf`);
                       window.open(r.url, "_blank");
+                      // The galley route just incremented Article.downloads
+                      // server-side — reflect it immediately in the Metrics
+                      // tab instead of waiting for a full page reload.
+                      setArticle((prev) => (prev ? { ...prev, downloads: prev.downloads + 1 } : prev));
                     } catch (e: any) {
                       toast.error("Galley not available", { description: e.message });
                     }
@@ -655,9 +656,17 @@ export function ArticleView() {
                   <Button
                     className="w-full justify-start"
                     variant="outline"
-                    onClick={() => setFlipbookOpen(true)}
+                    onClick={async () => {
+                      try {
+                        const r = await apiFetch<{ url: string }>(`/api/articles/${article.id}/galley?format=pdf`);
+                        window.open(r.url, "_blank");
+                        setArticle((prev) => (prev ? { ...prev, downloads: prev.downloads + 1 } : prev));
+                      } catch (e: any) {
+                        toast.error("Galley not available", { description: e.message });
+                      }
+                    }}
                   >
-                    <Layers className="mr-2 h-4 w-4" /> View as flipbook
+                    <Layers className="mr-2 h-4 w-4" /> Download flipbook (PDF)
                   </Button>
                 )}
                 {article.galleyEpubKey && (
@@ -806,8 +815,6 @@ export function ArticleView() {
           </div>
         </section>
       )}
-
-      <ArticleFlipbook articleId={article.id} open={flipbookOpen} onOpenChange={setFlipbookOpen} />
     </article>
   );
 }

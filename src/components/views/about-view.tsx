@@ -667,11 +667,31 @@ export function AboutView() {
                 title={`${DOI_REGISTRAR} DOI`}
                 desc={`A real, permanently-resolving DOI is minted via the ${DOI_REGISTRAR} API upon publication.`}
               />
+              <IndexItem
+                icon={Database}
+                title="RePEc / IDEAS / EconPapers"
+                desc="A real ReDIF metadata feed — the format RePEc's own crawler pulls. IDEAS and EconPapers are front-ends over the same RePEc database, so this one feed reaches all three once RePEc assigns a registered archive code."
+              />
+              <IndexItem
+                icon={FileText}
+                title="DataCite"
+                desc={`Reached indirectly: every DOI minted via ${DOI_REGISTRAR} is itself registered with DataCite as part of that deposit — there is no separate direct DataCite integration on top of it.`}
+              />
+              <IndexItem
+                icon={Landmark}
+                title="ROAD, ISI, ResearchBib, Citefactor, SAJI"
+                desc="Manual-application directories with no public submission API. Application status is self-reported and admin-maintained, never claimed as indexed until a reviewer has actually accepted the listing."
+              />
             </div>
-            <div className="mt-4">
+            <div className="mt-4 flex flex-wrap gap-2">
               <Button variant="outline" size="sm" asChild>
                 <a href="/api/oai-pmh?verb=Identify" target="_blank" rel="noreferrer">
                   <Globe2 className="mr-2 h-3.5 w-3.5" /> View OAI-PMH endpoint
+                </a>
+              </Button>
+              <Button variant="outline" size="sm" asChild>
+                <a href="/api/redif?type=archive" target="_blank" rel="noreferrer">
+                  <Database className="mr-2 h-3.5 w-3.5" /> View ReDIF feed
                 </a>
               </Button>
             </div>
