@@ -4,9 +4,8 @@ import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api-client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Award, Download, Loader2, ShieldCheck, ExternalLink } from "lucide-react";
+import { Award, Download, Loader2, ShieldCheck, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import {
   CERTIFICATE_TYPES,
@@ -45,17 +44,17 @@ export function CertificatesTab() {
 
   useEffect(load, []);
 
-  async function generate(type: CertificateType, category: CertificateCategory) {
+  async function generate(type: CertificateType, category: CertificateCategory, regenerate = false) {
     const key = `${type}:${category}`;
     setBusy(key);
     try {
-      const r = await apiFetch<{ url?: string }>("/api/certificates", {
+      const r = await apiFetch<{ url?: string; regenerated?: boolean }>("/api/certificates", {
         method: "POST",
-        body: JSON.stringify({ type, category }),
+        body: JSON.stringify({ type, category, regenerate }),
       });
       load();
       if (r.url) window.open(r.url, "_blank");
-      toast.success(`${CERTIFICATE_TYPE_LABELS[type]} generated`);
+      toast.success(r.regenerated ? `${CERTIFICATE_TYPE_LABELS[type]} updated` : `${CERTIFICATE_TYPE_LABELS[type]} generated`);
     } catch (e: any) {
       toast.error("Failed to generate certificate", { description: e.message });
     } finally {
@@ -97,7 +96,9 @@ export function CertificatesTab() {
                 Professionally designed, downloadable documents recognizing your role with the journal.
                 Each certificate is cryptographically verifiable and tamper-evident — its content hash is
                 printed on the document and re-checked at a public verification page, so any alteration
-                to a downloaded or printed copy is detectable. Not blockchain-based.
+                to a downloaded or printed copy is detectable. Not blockchain-based. If a certificate you
+                generated earlier looks out of date, use Regenerate to re-render it with the current
+                template and your latest profile photo and published-work title.
               </p>
             </div>
           </div>
@@ -122,7 +123,7 @@ export function CertificatesTab() {
               {CERTIFICATE_TYPES.map((type) => {
                 const existing = certificates.find((c) => c.type === type && c.category === category);
                 const key = existing ? existing.id : `${type}:${category}`;
-                const isBusy = busy === key;
+                const isBusy = busy === key || busy === `${type}:${category}`;
                 return (
                   <div key={type} className="rounded-md border border-border p-3">
                     <p className="font-display text-sm font-semibold">{CERTIFICATE_TYPE_LABELS[type]}</p>
@@ -136,6 +137,16 @@ export function CertificatesTab() {
                           <Button size="sm" className="w-full" onClick={() => download(existing.id)} disabled={isBusy}>
                             {isBusy ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : <Download className="mr-1.5 h-3 w-3" />}
                             Download PDF
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="w-full"
+                            onClick={() => generate(type, category, true)}
+                            disabled={isBusy}
+                          >
+                            {isBusy ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-1.5 h-3 w-3" />}
+                            Regenerate
                           </Button>
                           <Button size="sm" variant="outline" className="w-full" asChild>
                             <a href={`/verify/${existing.serialNumber}`} target="_blank" rel="noreferrer">
