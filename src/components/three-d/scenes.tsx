@@ -751,15 +751,24 @@ export function MetricsBarChart3D({ items, className = "" }: { items: MetricBarD
   const startX = -((items.length - 1) * spacing) / 2;
 
   return (
-    <div className={`webgl-container ${className}`}>
-      <SceneWrapper cameraPosition={[2.7, 1.7, 4.3]}>
-        <group>
-          {items.map((it, i) => (
-            <MetricBar3D key={it.label} x={startX + i * spacing} height={heights[i]} color={it.color} delay={i} />
-          ))}
-        </group>
-        <ContactShadows position={[0, -1.005, 0]} opacity={0.35} scale={7} blur={2.4} color={ROYAL_DEEP} />
-      </SceneWrapper>
+    <div className={`flex h-full flex-col ${className}`}>
+      <div className="webgl-container min-h-0 flex-1">
+        <SceneWrapper cameraPosition={[2.7, 1.7, 4.3]}>
+          <group>
+            {items.map((it, i) => (
+              <MetricBar3D key={it.label} x={startX + i * spacing} height={heights[i]} color={it.color} delay={i} />
+            ))}
+          </group>
+          <ContactShadows position={[0, -1.005, 0]} opacity={0.35} scale={7} blur={2.4} color={ROYAL_DEEP} />
+        </SceneWrapper>
+      </div>
+      <div className="flex shrink-0 justify-center gap-0.5 px-1 pt-1">
+        {items.map((it) => (
+          <p key={it.label} className="flex-1 px-0.5 text-center text-[0.58rem] font-medium leading-[1.15]" style={{ color: it.color }} title={it.label}>
+            {it.label}
+          </p>
+        ))}
+      </div>
     </div>
   );
 }
@@ -814,15 +823,24 @@ export function MetricsFillGauge3D({ items, className = "" }: { items: MetricGau
   const startX = -((items.length - 1) * spacing) / 2;
 
   return (
-    <div className={`webgl-container ${className}`}>
-      <SceneWrapper cameraPosition={[0, 0.3, 4.6]}>
-        <group>
-          {items.map((it, i) => (
-            <FillGauge3D key={it.label} x={startX + i * spacing} value={it.value} color={it.color} />
-          ))}
-        </group>
-        <ContactShadows position={[0, -0.86, 0]} opacity={0.3} scale={6} blur={2.2} color={ROYAL_DEEP} />
-      </SceneWrapper>
+    <div className={`flex h-full flex-col ${className}`}>
+      <div className="webgl-container min-h-0 flex-1">
+        <SceneWrapper cameraPosition={[0, 0.3, 4.6]}>
+          <group>
+            {items.map((it, i) => (
+              <FillGauge3D key={it.label} x={startX + i * spacing} value={it.value} color={it.color} />
+            ))}
+          </group>
+          <ContactShadows position={[0, -0.86, 0]} opacity={0.3} scale={6} blur={2.2} color={ROYAL_DEEP} />
+        </SceneWrapper>
+      </div>
+      <div className="flex shrink-0 justify-center gap-0.5 px-1 pt-1">
+        {items.map((it) => (
+          <p key={it.label} className="flex-1 px-0.5 text-center text-[0.58rem] font-medium leading-[1.15]" style={{ color: it.value != null ? it.color : ROYAL_DEEP }} title={it.label}>
+            {it.label}
+          </p>
+        ))}
+      </div>
     </div>
   );
 }
