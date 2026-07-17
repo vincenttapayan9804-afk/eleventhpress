@@ -691,6 +691,15 @@ model Certificate {
   contentHash   String @unique // sha256 of the canonical certificate payload
   pdfKey        String // storage key of the rendered PDF
 
+  // Which src/lib/certificate-pdf.ts template rendered this row's PDF —
+  // compared against CURRENT_CERTIFICATE_TEMPLATE_VERSION in
+  // src/lib/certificates.ts so GET /api/certificates can auto-heal any
+  // certificate rendered under an older layout, independent of whether
+  // journalName/issn/workTitle themselves changed. Existing rows default
+  // to 0, older than any real version, so a version bump alone is enough
+  // to trigger a one-time re-render of every previously issued certificate.
+  templateVersion Int @default(0)
+
   issuedAt  DateTime @default(now())
   createdAt DateTime @default(now())
 

@@ -8,6 +8,7 @@ import {
   CERTIFICATE_TYPES,
   CERTIFICATE_CATEGORIES,
   CANONICAL_PUBLISHER_NAME,
+  CURRENT_CERTIFICATE_TEMPLATE_VERSION,
   computeEligibility,
   generateSerialNumber,
   computeContentHash,
@@ -94,6 +95,7 @@ async function renderAndPersistCertificate(
     workTitle: payload.workTitle,
     contentHash,
     pdfKey,
+    templateVersion: CURRENT_CERTIFICATE_TEMPLATE_VERSION,
   };
   const certificate = existing
     ? await db.certificate.update({ where: { id: existing.id }, data })
@@ -121,11 +123,12 @@ async function renderAndPersistCertificate(
  * Eligibility is derived live from real data (published articles,
  * User.role) every request — never a separately hand-maintained flag.
  *
- * Auto-heal: any certificate still carrying the pre-fix journal name
- * (see CANONICAL_PUBLISHER_NAME) was rendered under the old, buggy
- * template — overlapping text, wrong journal name, no avatar/work title/
- * badges — and is regenerated here automatically, with no action required
- * from whoever generated it before the fix shipped.
+ * Auto-heal: any certificate carrying the pre-fix journal name (see
+ * CANONICAL_PUBLISHER_NAME) or a templateVersion behind
+ * CURRENT_CERTIFICATE_TEMPLATE_VERSION was rendered under an older
+ * template — overlapping text, wrong journal name, missing badges, an
+ * outdated border — and is regenerated here automatically, with no
+ * action required from whoever generated it before the fix shipped.
  */
 export async function GET(req: NextRequest) {
   const session = getSessionFromHeaders(req.headers);
@@ -143,7 +146,7 @@ export async function GET(req: NextRequest) {
 
   const healed = await Promise.all(
     certificates.map(async (c) => {
-      if (c.journalName === CANONICAL_PUBLISHER_NAME) return c;
+      if (c.journalName === CANONICAL_PUBLISHER_NAME && c.templateVersion >= CURRENT_CERTIFICATE_TEMPLATE_VERSION) return c;
       try {
         return await renderAndPersistCertificate(session.userId, c.type as CertificateType, c.category as CertificateCategory, c);
       } catch (e) {
