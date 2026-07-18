@@ -2,45 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
+import { BUCKET_UPLOAD_RULES } from "@/lib/uploads";
 
-/** Per-bucket upload rules — mirrors /api/storage/presign's BUCKET_RULES. */
-const BUCKET_RULES: Record<string, { contentTypes: string[] }> = {
-  "raw-submissions": {
-    contentTypes: [
-      "application/pdf",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "application/msword",
-      "text/markdown",
-      "text/plain",
-      "text/html",
-      "application/x-tex",
-    ],
-  },
-  avatars: {
-    contentTypes: ["image/jpeg", "image/png", "image/webp", "image/gif"],
-  },
-  applications: {
-    contentTypes: [
-      "application/pdf",
-      "image/jpeg",
-      "image/png",
-      "image/webp",
-    ],
-  },
-  "book-covers": {
-    contentTypes: ["image/jpeg", "image/png", "image/webp"],
-  },
-  "book-manuscripts": {
-    contentTypes: [
-      "application/pdf",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "application/msword",
-      "text/markdown",
-      "text/plain",
-      "text/html",
-    ],
-  },
-};
 const PRESIGN_TTL_MS = 10 * 60 * 1000;
 
 /**
@@ -68,7 +31,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "filename is required" }, { status: 400 });
   }
   const resolvedBucket = bucket || "raw-submissions";
-  const rules = BUCKET_RULES[resolvedBucket];
+  const rules = BUCKET_UPLOAD_RULES[resolvedBucket];
   if (!rules) {
     return NextResponse.json({ error: `Unknown bucket: ${resolvedBucket}` }, { status: 400 });
   }

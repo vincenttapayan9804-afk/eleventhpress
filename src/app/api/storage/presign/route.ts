@@ -2,50 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
-
-/** Per-bucket upload rules. Only buckets listed here may be uploaded to directly from the client. */
-const BUCKET_RULES: Record<string, { contentTypes: string[]; maxSizeBytes: number }> = {
-  "raw-submissions": {
-    contentTypes: [
-      "application/pdf",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "application/msword",
-      "text/markdown",
-      "text/plain",
-      "text/html",
-      "application/x-tex",
-    ],
-    maxSizeBytes: 50 * 1024 * 1024,
-  },
-  avatars: {
-    contentTypes: ["image/jpeg", "image/png", "image/webp", "image/gif"],
-    maxSizeBytes: 5 * 1024 * 1024,
-  },
-  applications: {
-    contentTypes: [
-      "application/pdf",
-      "image/jpeg",
-      "image/png",
-      "image/webp",
-    ],
-    maxSizeBytes: 10 * 1024 * 1024,
-  },
-  "book-covers": {
-    contentTypes: ["image/jpeg", "image/png", "image/webp"],
-    maxSizeBytes: 5 * 1024 * 1024,
-  },
-  "book-manuscripts": {
-    contentTypes: [
-      "application/pdf",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "application/msword",
-      "text/markdown",
-      "text/plain",
-      "text/html",
-    ],
-    maxSizeBytes: 50 * 1024 * 1024,
-  },
-};
+import { BUCKET_UPLOAD_RULES } from "@/lib/uploads";
 
 /**
  * POST /api/storage/presign
@@ -82,9 +39,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       request: req,
       onBeforeGenerateToken: async (pathname) => {
         const bucket = pathname.split("/")[0];
-        const rules = BUCKET_RULES[bucket];
+        const rules = BUCKET_UPLOAD_RULES[bucket];
         if (!rules || !pathname.startsWith(`${bucket}/`)) {
-          throw new Error(`Uploads are only permitted into: ${Object.keys(BUCKET_RULES).join(", ")}`);
+          throw new Error(`Uploads are only permitted into: ${Object.keys(BUCKET_UPLOAD_RULES).join(", ")}`);
         }
         return {
           allowedContentTypes: rules.contentTypes,
