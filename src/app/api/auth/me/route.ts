@@ -22,6 +22,7 @@ const PROFILE_SELECT = {
   contactPhone: true,
   bloggerBlogUrl: true,
   bloggerConnectedAt: true,
+  twoFactorEnabled: true,
 } as const;
 
 export async function GET(req: NextRequest) {

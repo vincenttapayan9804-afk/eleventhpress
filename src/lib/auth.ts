@@ -120,3 +120,31 @@ export function getSessionFromHeaders(headers: Headers): SessionPayload | null {
 export function needsPasswordRehash(hash: string): boolean {
   return !hash.startsWith("$2");
 }
+
+const PENDING_2FA_TTL = "5m";
+
+/**
+ * A deliberately narrow, short-lived token scoping only "this specific
+ * user just proved their password" — issued instead of a real session when
+ * `User.twoFactorEnabled` is true, and only ever accepted by
+ * POST /api/auth/2fa/challenge to complete login. It cannot be used
+ * anywhere a real session is required: getSessionFromHeaders() only ever
+ * calls verifyToken() (below), never this function, so a leaked pending
+ * token grants no access beyond attempting the 2FA challenge itself before
+ * it expires.
+ */
+export function signPendingTwoFactorToken(userId: string): string {
+  return jwt.sign({ userId, kind: "2fa_pending" }, SESSION_SECRET!, { expiresIn: PENDING_2FA_TTL });
+}
+
+export function verifyPendingTwoFactorToken(token: string): { userId: string } | null {
+  try {
+    const decoded = jwt.verify(token, SESSION_SECRET!);
+    if (typeof decoded !== "object" || decoded === null) return null;
+    const { userId, kind } = decoded as Record<string, unknown>;
+    if (kind !== "2fa_pending" || typeof userId !== "string") return null;
+    return { userId };
+  } catch {
+    return null;
+  }
+}

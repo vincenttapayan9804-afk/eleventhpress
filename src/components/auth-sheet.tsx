@@ -83,10 +83,16 @@ export function AuthSheet() {
   async function signIn(acct: DemoAccount) {
     setLoading(acct.email);
     try {
-      const res = await apiFetch<{ user: any }>("/api/auth/login", {
+      const res = await apiFetch<{ user?: any; twoFactorRequired?: boolean }>("/api/auth/login", {
         method: "POST",
         body: JSON.stringify({ email: acct.email, password: acct.password }),
       });
+      if (res.twoFactorRequired) {
+        setAuthSheetOpen(false);
+        setView("login");
+        toast.info("This account has two-factor authentication enabled — sign in from the full login page.");
+        return;
+      }
       setAuth(res.user);
       setAuthSheetOpen(false);
       toast.success(`Signed in as ${res.user.fullName}`, {
