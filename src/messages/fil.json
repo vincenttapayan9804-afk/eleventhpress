@@ -110,7 +110,14 @@
     "statViews": "Views",
     "statDownloads": "Downloads",
     "publications": "Mga Publication",
-    "noAffiliation": "Walang nakalagay na affiliation"
+    "noAffiliation": "Walang nakalagay na affiliation",
+    "editorsPick": "Pili ng Editor",
+    "heroCta": "Tingnan ang profile",
+    "spotlightEyebrow": "Sikat ngayon",
+    "spotlightTitle": "Higit pang mga may-akda na humuhubog sa iskolarship",
+    "tickerAuthors": "Mga May-akda",
+    "indexEyebrow": "Buong direktoryo",
+    "indexTitle": "Lahat ng may-akda, ayon sa bilang ng sipi"
   },
   "resources": {
     "eyebrow": "Resources",

@@ -110,7 +110,14 @@
     "statViews": "Vistas",
     "statDownloads": "Descargas",
     "publications": "Publicaciones",
-    "noAffiliation": "Afiliación no proporcionada"
+    "noAffiliation": "Afiliación no proporcionada",
+    "editorsPick": "Elección del editor",
+    "heroCta": "Ver perfil",
+    "spotlightEyebrow": "Tendencia",
+    "spotlightTitle": "Más autores que dan forma a la investigación",
+    "tickerAuthors": "Autores",
+    "indexEyebrow": "Directorio completo",
+    "indexTitle": "Todos los autores, ordenados por citas"
   },
   "resources": {
     "eyebrow": "Recursos",

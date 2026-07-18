@@ -37,6 +37,7 @@ import {
   Github,
   Mail,
   Phone,
+  ChevronRight,
 } from "lucide-react";
 
 interface AuthorArticle {
@@ -110,6 +111,13 @@ export function AuthorsView() {
   const [q, setQ] = useState("");
   const [discipline, setDiscipline] = useState("");
   const [selected, setSelected] = useState<AuthorEntry | null>(null);
+  // Portrait <img>s in the hero/spotlight (unlike the shadcn Avatar used
+  // elsewhere, which already falls back to initials via Radix) have no
+  // built-in broken-image handling, so a bad/expired avatarUrl would
+  // otherwise stretch a blank or corrupt image across the whole tile.
+  const [brokenAvatars, setBrokenAvatars] = useState<Set<string>>(new Set());
+  const markAvatarBroken = (key: string) =>
+    setBrokenAvatars((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
 
   useEffect(() => {
     apiFetch<{ authors: AuthorEntry[]; distribution: AuthorDistribution }>("/api/authors")
@@ -136,6 +144,33 @@ export function AuthorsView() {
     });
   }, [authors, q, discipline]);
 
+  // Ranked by real citation counts (falling back to platform views as a
+  // tiebreak) — the same citationMetrics.citedByCount already shown per
+  // card, just used to order the hero/spotlight/index instead of a fixed
+  // fetch order. Unaffected by the search/discipline filter so the
+  // "masthead" always reflects the whole directory.
+  const ranked = useMemo(() => {
+    return [...(authors || [])].sort((a, b) => {
+      if (b.citationMetrics.citedByCount !== a.citationMetrics.citedByCount) {
+        return b.citationMetrics.citedByCount - a.citationMetrics.citedByCount;
+      }
+      return b.totalViews - a.totalViews;
+    });
+  }, [authors]);
+
+  const featured = ranked[0] ?? null;
+  const spotlight = ranked.slice(1, 9);
+
+  const totals = useMemo(() => {
+    const list = authors || [];
+    return {
+      authors: list.length,
+      citations: list.reduce((s, a) => s + a.citationMetrics.citedByCount, 0),
+      views: list.reduce((s, a) => s + a.totalViews, 0),
+      articles: list.reduce((s, a) => s + a.articleCount, 0),
+    };
+  }, [authors]);
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
       <div className="border-b border-border pb-8">
@@ -144,7 +179,120 @@ export function AuthorsView() {
         <p className="mt-3 max-w-2xl text-sm text-muted-foreground">{t("description")}</p>
       </div>
 
-      <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+      {/* MASTHEAD — Editor's Pick hero, full-bleed portrait with a royal-purple
+          scrim. Falls back to an initials-on-gradient treatment when the
+          author has no avatarUrl, same fallback logic as the Avatar below. */}
+      {featured && (
+        <button
+          onClick={() => setSelected(featured)}
+          className="group relative mt-8 block w-full overflow-hidden rounded-2xl text-left shadow-[var(--shadow-glass-lg)]"
+        >
+          <div className="relative h-[380px] w-full sm:h-[460px]">
+            {featured.avatarUrl && !brokenAvatars.has(featured.key) ? (
+              <img
+                src={featured.avatarUrl}
+                alt={featured.name}
+                onError={() => markAvatarBroken(featured.key)}
+                className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[oklch(0.5_0.18_296)] to-[oklch(0.28_0.13_293)]">
+                <span className="font-display text-8xl font-semibold text-white/90">
+                  {initialsOf(featured.name)}
+                </span>
+              </div>
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-[oklch(0.16_0.07_295/0.92)] via-[oklch(0.2_0.09_295/0.35)] to-transparent" />
+            <div className="absolute inset-x-0 bottom-0 p-6 sm:p-10">
+              {/* Not the shared .eyebrow class here: it sets an unlayered
+                  color (globals.css) that beats any Tailwind text-color
+                  utility in the cascade regardless of class order, so the
+                  purple it hardcodes would win over white on this photo. */}
+              <p className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-white/85">
+                {t("editorsPick")}
+              </p>
+              <h2 className="mt-2 font-display text-3xl font-semibold text-white sm:text-5xl">
+                {featured.name}
+              </h2>
+              <p className="mt-2 max-w-xl text-sm text-white/75 sm:text-base">
+                {featured.profession || featured.affiliation || t("noAffiliation")}
+              </p>
+              <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2">
+                <HeroStat icon={Quote} value={featured.citationMetrics.citedByCount} label={t("statCitations")} />
+                <HeroStat icon={FileText} value={featured.articleCount} label={t("statArticles")} />
+                <HeroStat icon={Eye} value={featured.totalViews} label={t("statViews")} />
+                <span className="inline-flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-white/70 transition-colors group-hover:text-white">
+                  {t("heroCta")} <ChevronRight className="h-3.5 w-3.5" />
+                </span>
+              </div>
+            </div>
+          </div>
+        </button>
+      )}
+
+      {/* SPOTLIGHT — horizontally scrollable, portrait-forward carousel of
+          the next-ranked authors. Manual scroll (not the auto .animate-marquee
+          used below) since these cards are individually clickable. */}
+      {spotlight.length > 0 && (
+        <div className="mt-12">
+          <p className="eyebrow">{t("spotlightEyebrow")}</p>
+          <h3 className="mt-1 font-display text-xl font-semibold sm:text-2xl">{t("spotlightTitle")}</h3>
+          <div className="mt-5 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {spotlight.map((a) => (
+              <button
+                key={a.key}
+                onClick={() => setSelected(a)}
+                className="group relative h-64 w-44 shrink-0 snap-start overflow-hidden rounded-xl border border-[oklch(0.76_0.11_294/0.25)] sm:h-72 sm:w-52"
+              >
+                {a.avatarUrl && !brokenAvatars.has(a.key) ? (
+                  <img
+                    src={a.avatarUrl}
+                    alt={a.name}
+                    onError={() => markAvatarBroken(a.key)}
+                    className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-110"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-[oklch(0.93_0.04_290)]">
+                    <span className="font-display text-4xl font-semibold text-[oklch(0.42_0.18_295)]">
+                      {initialsOf(a.name)}
+                    </span>
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-[oklch(0.16_0.06_295/0.9)] via-transparent to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 p-3 text-left">
+                  <p className="truncate font-display text-sm font-semibold text-white">{a.name}</p>
+                  <p className="truncate text-[0.65rem] text-white/70">
+                    {a.disciplines[0] || a.profession || a.affiliation}
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Live-totals ticker — reuses the same duplicated-track
+          .animate-marquee pattern as the homepage syndication strip
+          (home-view.tsx), aria-hidden on the second copy so it doesn't
+          double up for screen readers. */}
+      {totals.authors > 0 && (
+        <div className="glass-panel relative mt-10 overflow-hidden py-3">
+          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-12 bg-gradient-to-r from-background to-transparent" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-12 bg-gradient-to-l from-background to-transparent" />
+          <div className="flex w-max animate-marquee">
+            {[0, 1].map((copy) => (
+              <div key={copy} className="flex shrink-0 items-center" aria-hidden={copy === 1}>
+                <TickerStat label={t("tickerAuthors")} value={totals.authors} />
+                <TickerStat label={t("statArticles")} value={totals.articles} />
+                <TickerStat label={t("statCitations")} value={totals.citations} />
+                <TickerStat label={t("statViews")} value={totals.views} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-10 flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -202,58 +350,60 @@ export function AuthorsView() {
         </div>
       )}
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {filtered.map((a) => (
-          <Card
-            key={a.key}
-            className="paper-card cursor-pointer transition-transform hover:-translate-y-0.5"
-            onClick={() => setSelected(a)}
-          >
-            <CardContent className="p-5">
-              <div className="flex items-center gap-3">
-                <Avatar className="h-11 w-11 border border-[oklch(0.76_0.11_294/0.3)]">
+      {/* INDEX — dense, ranked list rows (Forbes-style) rather than a
+          uniform card grid; reflects the active search/discipline filter,
+          unlike the masthead/spotlight/ticker above. */}
+      {filtered.length > 0 && (
+        <div className="mt-10">
+          <p className="eyebrow">{t("indexEyebrow")}</p>
+          <h3 className="mt-1 font-display text-xl font-semibold">{t("indexTitle")}</h3>
+          <div className="mt-4 divide-y divide-border">
+            {filtered.map((a, i) => (
+              <button
+                key={a.key}
+                onClick={() => setSelected(a)}
+                className="group flex w-full items-center gap-4 py-4 text-left transition-colors hover:bg-[oklch(0.97_0.012_290/0.6)]"
+              >
+                <span className="w-8 shrink-0 text-right font-mono text-sm text-muted-foreground/70 transition-colors group-hover:text-[oklch(0.42_0.18_295)]">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <Avatar className="h-11 w-11 shrink-0 border border-[oklch(0.76_0.11_294/0.3)]">
                   {a.avatarUrl && <AvatarImage src={a.avatarUrl} alt={a.name} className="object-cover" />}
                   <AvatarFallback className="bg-[oklch(0.93_0.04_290)] text-sm font-medium text-[oklch(0.42_0.18_295)]">
                     {initialsOf(a.name)}
                   </AvatarFallback>
                 </Avatar>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="truncate font-display text-base font-semibold">{a.name}</p>
-                  {a.profession ? (
-                    <p className="truncate text-xs text-muted-foreground">{a.profession}</p>
-                  ) : a.affiliation ? (
-                    <p className="truncate text-xs text-muted-foreground">{a.affiliation}</p>
-                  ) : null}
+                  <p className="truncate text-xs text-muted-foreground">
+                    {a.profession || a.affiliation || t("noAffiliation")}
+                  </p>
+                  <div className="mt-1 flex flex-wrap gap-1 sm:hidden">
+                    {a.disciplines.slice(0, 2).map((d) => (
+                      <Badge key={d} variant="outline" className="text-[0.55rem]">
+                        {d}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {a.disciplines.slice(0, 3).map((d) => (
-                  <Badge key={d} variant="outline" className="text-[0.6rem]">
-                    {d}
-                  </Badge>
-                ))}
-                {a.disciplines.length > 3 && (
-                  <Badge variant="outline" className="text-[0.6rem]">
-                    +{a.disciplines.length - 3}
-                  </Badge>
-                )}
-              </div>
-              <Separator className="my-3" />
-              <div className="grid grid-cols-3 gap-2 text-center">
-                <Stat icon={FileText} value={a.articleCount} label={t("statArticles")} />
-                <Stat icon={Quote} value={a.citationMetrics.citedByCount} label={t("statCitations")} />
-                <Stat icon={Eye} value={a.totalViews} label={t("statViews")} />
-              </div>
-              {a.citationMetrics.hIndex != null && (
-                <p className="mt-2 text-center text-[0.6rem] text-muted-foreground">
-                  h-index {a.citationMetrics.hIndex}
-                  {a.citationMetrics.source === "openalex" ? " (OpenAlex)" : " (this platform only)"}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                <div className="hidden shrink-0 flex-wrap gap-1.5 md:flex md:max-w-[13rem]">
+                  {a.disciplines.slice(0, 2).map((d) => (
+                    <Badge key={d} variant="outline" className="text-[0.6rem]">
+                      {d}
+                    </Badge>
+                  ))}
+                </div>
+                <div className="hidden shrink-0 items-center gap-4 sm:flex">
+                  <Stat icon={FileText} value={a.articleCount} label={t("statArticles")} />
+                  <Stat icon={Quote} value={a.citationMetrics.citedByCount} label={t("statCitations")} />
+                  <Stat icon={Eye} value={a.totalViews} label={t("statViews")} />
+                </div>
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5 group-hover:text-[oklch(0.42_0.18_295)]" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
@@ -379,6 +529,25 @@ function Stat({ icon: Icon, value, label }: { icon: any; value: number; label: s
         <span className="font-mono text-sm font-semibold">{value.toLocaleString()}</span>
       </div>
       <p className="mt-0.5 text-[0.6rem] uppercase tracking-wide text-muted-foreground">{label}</p>
+    </div>
+  );
+}
+
+function HeroStat({ icon: Icon, value, label }: { icon: any; value: number; label: string }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <Icon className="h-3.5 w-3.5 text-white/70" />
+      <span className="font-mono text-sm font-semibold text-white">{value.toLocaleString()}</span>
+      <span className="text-[0.65rem] uppercase tracking-wide text-white/60">{label}</span>
+    </div>
+  );
+}
+
+function TickerStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="mx-6 flex items-center gap-2 whitespace-nowrap">
+      <span className="font-mono text-lg font-semibold text-[oklch(0.42_0.18_295)]">{value.toLocaleString()}</span>
+      <span className="text-[0.65rem] uppercase tracking-wide text-muted-foreground">{label}</span>
     </div>
   );
 }

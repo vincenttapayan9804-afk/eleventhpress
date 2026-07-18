@@ -110,7 +110,14 @@
     "statViews": "浏览量",
     "statDownloads": "下载量",
     "publications": "发表文章",
-    "noAffiliation": "未提供所属机构"
+    "noAffiliation": "未提供所属机构",
+    "editorsPick": "编辑推荐",
+    "heroCta": "查看主页",
+    "spotlightEyebrow": "热门作者",
+    "spotlightTitle": "更多引领学术的作者",
+    "tickerAuthors": "作者",
+    "indexEyebrow": "完整名录",
+    "indexTitle": "全部作者（按引用数排序）"
   },
   "resources": {
     "eyebrow": "资源",
