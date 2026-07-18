@@ -110,7 +110,14 @@
     "statViews": "Vues",
     "statDownloads": "Téléchargements",
     "publications": "Publications",
-    "noAffiliation": "Affiliation non renseignée"
+    "noAffiliation": "Affiliation non renseignée",
+    "editorsPick": "Choix de la rédaction",
+    "heroCta": "Voir le profil",
+    "spotlightEyebrow": "Tendance",
+    "spotlightTitle": "D'autres auteurs qui façonnent la recherche",
+    "tickerAuthors": "Auteurs",
+    "indexEyebrow": "Annuaire complet",
+    "indexTitle": "Tous les auteurs, classés par citations"
   },
   "resources": {
     "eyebrow": "Ressources",

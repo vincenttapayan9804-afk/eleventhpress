@@ -110,7 +110,14 @@
     "statViews": "Views",
     "statDownloads": "Downloads",
     "publications": "Publications",
-    "noAffiliation": "Affiliation not provided"
+    "noAffiliation": "Affiliation not provided",
+    "editorsPick": "Editor's Pick",
+    "heroCta": "View profile",
+    "spotlightEyebrow": "Trending now",
+    "spotlightTitle": "More authors shaping scholarship",
+    "tickerAuthors": "Authors",
+    "indexEyebrow": "Full directory",
+    "indexTitle": "All authors, ranked by citations"
   },
   "resources": {
     "eyebrow": "Resources",
