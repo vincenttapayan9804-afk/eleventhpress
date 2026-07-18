@@ -9,14 +9,16 @@ import {
   CERTIFICATE_CATEGORIES,
   CANONICAL_PUBLISHER_NAME,
   CURRENT_CERTIFICATE_TEMPLATE_VERSION,
+  type CertificateType,
+  type CertificateCategory,
+} from "@/lib/certificates";
+import {
   computeEligibility,
   generateSerialNumber,
   computeContentHash,
   certificateStorageKey,
   latestPublishedWorkTitle,
-  type CertificateType,
-  type CertificateCategory,
-} from "@/lib/certificates";
+} from "@/lib/certificates-server";
 import { buildRecognitionCertificate, buildMembershipCertificate, buildAffiliationCard } from "@/lib/certificate-pdf";
 
 /**

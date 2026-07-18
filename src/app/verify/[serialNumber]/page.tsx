@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
-import { computeContentHash, CERTIFICATE_TYPE_LABELS, CERTIFICATE_CATEGORY_LABELS } from "@/lib/certificates";
+import { CERTIFICATE_TYPE_LABELS, CERTIFICATE_CATEGORY_LABELS } from "@/lib/certificates";
+import { computeContentHash } from "@/lib/certificates-server";
 import { CheckCircle2, XCircle, ShieldQuestion } from "lucide-react";
 
 /**
