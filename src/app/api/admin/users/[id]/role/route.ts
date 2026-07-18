@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
-
-const VALID_ROLES = ["READER", "AUTHOR", "REVIEWER", "ASSOCIATE_EDITOR", "EDITOR", "SUPER_ADMIN"];
+import { ALL_ROLES as VALID_ROLES } from "@/lib/roles";
 
 /**
  * POST /api/admin/users/[id]/role

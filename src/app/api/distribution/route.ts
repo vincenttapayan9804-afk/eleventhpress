@@ -3,8 +3,7 @@ import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { getPlatform, buildShareKit, buildSubmissionPackage, buildBloggerPost, PLATFORMS } from "@/lib/distribution";
 import { getValidAccessToken, publishPost } from "@/lib/blogger";
-
-const PRIVILEGED_ROLES = new Set(["SUPER_ADMIN", "EDITOR", "ASSOCIATE_EDITOR"]);
+import { PRIVILEGED_ROLES } from "@/lib/roles";
 
 async function canManage(articleCorrespondingAuthorId: string | null, session: { userId: string; role: string }) {
   if (PRIVILEGED_ROLES.has(session.role)) return true;

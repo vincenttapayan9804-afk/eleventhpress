@@ -1,6 +1,5 @@
 import type { SessionPayload } from "@/lib/auth";
-
-const PRIVILEGED_ROLES = new Set(["SUPER_ADMIN", "EDITOR", "ASSOCIATE_EDITOR"]);
+import { PRIVILEGED_ROLES } from "@/lib/roles";
 
 /**
  * Whether a viewer may read a non-published article's detail. PUBLISHED

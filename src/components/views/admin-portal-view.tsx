@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useApp } from "@/lib/store";
 import { apiFetch } from "@/lib/api-client";
+import { ALL_ROLES as ASSIGNABLE_ROLES } from "@/lib/roles";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -83,8 +84,6 @@ interface RoleApp {
   createdAt: string;
   applicant: { id: string; email: string; fullName: string; affiliation: string | null; country: string | null; orcid: string | null };
 }
-
-const ASSIGNABLE_ROLES = ["READER", "AUTHOR", "REVIEWER", "ASSOCIATE_EDITOR", "EDITOR", "SUPER_ADMIN"];
 
 const ACTION_ICONS: Record<string, any> = {
   SUBMIT: Send,

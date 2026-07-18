@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ALL_ROLES as ASSIGNABLE_ROLES } from "@/lib/roles";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -42,8 +43,6 @@ interface AdminUser {
   country: string | null;
   createdAt: string;
 }
-
-const ASSIGNABLE_ROLES = ["READER", "AUTHOR", "REVIEWER", "ASSOCIATE_EDITOR", "EDITOR", "SUPER_ADMIN"];
 
 function UserManagementCard() {
   const [users, setUsers] = useState<AdminUser[]>([]);

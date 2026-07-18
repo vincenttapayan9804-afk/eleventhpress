@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { getBookPlatform, buildBookPackage, BOOK_PLATFORMS } from "@/lib/book-distribution";
-
-const PRIVILEGED_ROLES = new Set(["SUPER_ADMIN", "EDITOR", "ASSOCIATE_EDITOR"]);
+import { PRIVILEGED_ROLES } from "@/lib/roles";
 
 async function canManage(bookCorrespondingAuthorId: string | null, session: { userId: string; role: string }) {
   if (PRIVILEGED_ROLES.has(session.role)) return true;

@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { runBookProductionJob } from "@/lib/book-production";
-
-const PRIVILEGED_ROLES = ["SUPER_ADMIN", "EDITOR", "ASSOCIATE_EDITOR"];
+import { PRIVILEGED_ROLES_LIST as PRIVILEGED_ROLES } from "@/lib/roles";
 
 const ACTIONS: Record<string, { from: string[]; to: string }> = {
   SEND_TO_REVIEW: { from: ["SUBMITTED"], to: "UNDER_REVIEW" },

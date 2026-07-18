@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { hashPassword, signToken } from "@/lib/auth";
+import { SELF_SELECTABLE_ROLES, APPLICATION_ROLES } from "@/lib/roles";
 
 export async function POST(req: NextRequest) {
   try {
@@ -24,8 +25,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Email already registered" }, { status: 409 });
     }
 
-    const SELF_SELECTABLE_ROLES = ["READER", "AUTHOR"];
-    const APPLICATION_ROLES = ["REVIEWER", "EDITOR"];
     const needsApplication = APPLICATION_ROLES.includes(role || "");
     const finalRole = SELF_SELECTABLE_ROLES.includes(role || "") ? role! : "READER";
 
