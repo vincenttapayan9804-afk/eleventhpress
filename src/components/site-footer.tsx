@@ -44,6 +44,7 @@ export function SiteFooter() {
                 <li><button onClick={() => setView("about")} className="text-muted-foreground hover:text-[oklch(0.42_0.18_295)] transition-colors">{t("aboutJournal")}</button></li>
                 <li><button onClick={() => setView("faqs")} className="text-muted-foreground hover:text-[oklch(0.42_0.18_295)] transition-colors">{t("faqs")}</button></li>
                 <li><a href="/api/oai-pmh?verb=Identify" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-muted-foreground hover:text-[oklch(0.42_0.18_295)] transition-colors"><Globe className="h-3 w-3" /> {t("oaiEndpoint")}</a></li>
+                <li><a href="/openapi.json" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-muted-foreground hover:text-[oklch(0.42_0.18_295)] transition-colors"><Globe className="h-3 w-3" /> {t("apiSpec")}</a></li>
               </ul>
             </div>
 

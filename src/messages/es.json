@@ -29,6 +29,7 @@
     "aboutJournal": "Acerca de la revista",
     "faqs": "Preguntas frecuentes",
     "oaiEndpoint": "Punto de acceso OAI-PMH",
+    "apiSpec": "Documentación de la API",
     "policiesLabel": "Políticas",
     "policyOpenAccess": "Acceso abierto (CC BY 4.0)",
     "policyPeerReview": "Revisión por pares a doble ciego",
