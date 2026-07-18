@@ -112,6 +112,47 @@ export default async function ArticlePage({ params }: { params: Promise<{ id: st
     issueNumber: article.issue?.issueNumber,
   });
   const pdfUrl = article.galleyPdfKey ? await presignGet(article.galleyPdfKey, `${article.doi?.replace(/[^a-z0-9]/gi, "-") || article.id}.pdf`) : null;
+
+  // schema.org/ScholarlyArticle JSON-LD — rendered server-side (unlike the
+  // equivalent block in article-view.tsx, which only ever reaches
+  // document.head via a client useEffect and so is invisible to any
+  // crawler that doesn't execute JavaScript, the same gap
+  // generateMetadata() above already fixed for citation_* meta tags).
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "ScholarlyArticle",
+    headline: article.title,
+    description: summary,
+    author: authors.map((a) => ({
+      "@type": "Person",
+      name: a.name,
+      ...(a.affiliation ? { affiliation: { "@type": "Organization", name: a.affiliation } } : {}),
+      ...(a.orcid ? { identifier: `https://orcid.org/${a.orcid}` } : {}),
+    })),
+    datePublished: article.publishedAt ? article.publishedAt.toISOString() : undefined,
+    keywords: article.keywords,
+    isPartOf: {
+      "@type": "PublicationIssue",
+      issueNumber: article.issue?.issueNumber,
+      isPartOf: {
+        "@type": "PublicationVolume",
+        volumeNumber: article.issue?.volume,
+        isPartOf: {
+          "@type": "Periodical",
+          name: article.journal?.name,
+          issn: article.journal?.issn,
+        },
+      },
+    },
+    publisher: {
+      "@type": "Organization",
+      name: article.journal?.publisher || "Eleventh Press International Publishing",
+    },
+    identifier: article.doi ? `https://doi.org/${article.doi}` : undefined,
+    url: `${APP_BASE_URL}/article/${article.id}`,
+    inLanguage: ARTICLE_LANGUAGE,
+  };
+
   const coins = coinsSpanProps({
     title: article.title,
     authors: article.authors,
@@ -128,6 +169,10 @@ export default async function ArticlePage({ params }: { params: Promise<{ id: st
     <I18nProvider>
       <div className="min-h-screen flex flex-col bg-background">
         <SiteHeader />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
         <main className="flex-1">
           {/* Always-present, real semantic HTML — this is what a crawler that
               doesn't execute JavaScript sees. ArticleRouteBootstrap replaces

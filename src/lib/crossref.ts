@@ -96,6 +96,7 @@ ${contributorsXml}
           <free_to_read start_date="${year}-${month}-${day}"/>
           <license_ref start_date="${year}-${month}-${day}" applies_to="vor">https://creativecommons.org/licenses/by/4.0/</license_ref>
         </program>
+${buildFundRefXml(article.funders)}
         <doi_data>
           <doi>${esc(article.doi || "")}</doi>
           <resource>${esc(articleUrl)}</resource>
@@ -139,6 +140,47 @@ function buildContributorsXml(authors: any[]): string {
       </person_name>`;
     })
     .join("\n");
+}
+
+/**
+ * Builds the FundRef Registry funding block (Crossref's standard
+ * fr:program extension) from Article.funders — a JSON array of
+ * { name, id?, awardNumber? } captured at submission (see the "Funders"
+ * section of the submit form) but, until now, never actually deposited
+ * anywhere: it sat in the database unused. `id`, when present, is a
+ * Crossref Funder ID / ROR URI, deposited as <fr:funder_identifier> so
+ * FundRef can resolve it to a canonical funder record rather than only
+ * ever having free-text funder names on file.
+ */
+function buildFundRefXml(fundersJson: string | null | undefined): string {
+  if (!fundersJson) return "";
+  let funders: any[];
+  try {
+    funders = JSON.parse(fundersJson);
+  } catch {
+    return "";
+  }
+  if (!Array.isArray(funders) || funders.length === 0) return "";
+
+  const assertions = funders
+    .filter((f) => f?.name)
+    .map((f) => {
+      const funderIdXml = f.id
+        ? `\n            <fr:assertion name="funder_identifier">${esc(f.id)}</fr:assertion>`
+        : "";
+      const awardXml = f.awardNumber
+        ? `\n          <fr:assertion name="award_number">${esc(f.awardNumber)}</fr:assertion>`
+        : "";
+      return `        <fr:assertion name="fundgroup">
+          <fr:assertion name="funder_name">${esc(f.name)}${funderIdXml}</fr:assertion>${awardXml}
+        </fr:assertion>`;
+    })
+    .join("\n");
+  if (!assertions) return "";
+
+  return `        <fr:program xmlns:fr="http://www.crossref.org/fundref.xsd" name="fundref">
+${assertions}
+        </fr:program>`;
 }
 
 /**
