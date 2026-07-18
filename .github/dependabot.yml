@@ -1,0 +1,28 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      # Radix UI primitives version in lockstep in this app — batch their
+      # patch/minor bumps into one PR instead of ~20 individual ones.
+      radix-ui:
+        patterns:
+          - "@radix-ui/*"
+
+  - package-ecosystem: "npm"
+    directory: "/mini-services/pandoc-worker"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "npm"
+    directory: "/mini-services/ws-service"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
