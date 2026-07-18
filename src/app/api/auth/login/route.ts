@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { verifyPassword, signToken, needsPasswordRehash, hashPassword, SESSION_COOKIE_NAME, sessionCookieOptions } from "@/lib/auth";
+import { extractRequestIp } from "@/lib/institutions";
+import { checkRateLimit } from "@/lib/ratelimit";
 
 export async function POST(req: NextRequest) {
   try {
+    const ip = extractRequestIp(req.headers);
+    const rl = await checkRateLimit(`login:${ip}`, 10, 60);
+    if (!rl.ok) {
+      return NextResponse.json({ error: rl.message }, { status: 429 });
+    }
+
     const { email, password } = (await req.json()) as { email?: string; password?: string };
     if (!email || !password) {
       return NextResponse.json({ error: "Missing credentials" }, { status: 400 });
