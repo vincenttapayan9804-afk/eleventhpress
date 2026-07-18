@@ -1,5 +1,51 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { getSessionFromHeaders } from "@/lib/auth";
+
+/**
+ * POST /api/articles/[id]/review-history
+ * Toggles Article.anonymizedReviewHistory. Editor/Associate Editor/
+ * Super Admin only — mirrors POST /api/articles/open-review's shape
+ * exactly, but there are no per-review side effects to apply here (unlike
+ * openReview's madePublic backfill) since reviewer numbering is always
+ * computed anonymously at read time, never stored per-review.
+ *
+ * Body: { anonymizedReviewHistory: boolean }
+ */
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = getSessionFromHeaders(req.headers);
+  if (!session) {
+    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  }
+  if (!["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"].includes(session.role)) {
+    return NextResponse.json({ error: "Editor role required" }, { status: 403 });
+  }
+
+  const { id: articleId } = await params;
+  const { anonymizedReviewHistory } = (await req.json()) as { anonymizedReviewHistory?: boolean };
+
+  const article = await db.article.findUnique({ where: { id: articleId }, select: { id: true } });
+  if (!article) {
+    return NextResponse.json({ error: "Article not found" }, { status: 404 });
+  }
+
+  const updated = await db.article.update({
+    where: { id: articleId },
+    data: { anonymizedReviewHistory: !!anonymizedReviewHistory },
+  });
+
+  await db.auditLog.create({
+    data: {
+      userId: session.userId,
+      action: updated.anonymizedReviewHistory ? "REVIEW_HISTORY_ENABLED" : "REVIEW_HISTORY_DISABLED",
+      entityType: "ARTICLE",
+      entityId: articleId,
+      articleId,
+    },
+  });
+
+  return NextResponse.json({ articleId, anonymizedReviewHistory: updated.anonymizedReviewHistory });
+}
 
 /**
  * GET /api/articles/[id]/review-history

@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
     let finalDoi = updated.doi;
 
     // Editorial decision log
-    await db.editorialDecision.create({
+    const decisionRow = await db.editorialDecision.create({
       data: {
         articleId,
         editorId: session.userId,
@@ -405,6 +405,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       article: { id: updated.id, status: updated.status, doi: finalDoi },
+      decisionId: decisionRow.id,
     });
   } catch (e) {
     console.error("[workflow]", e);

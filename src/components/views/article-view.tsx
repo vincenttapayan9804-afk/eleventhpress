@@ -82,6 +82,25 @@ interface CitationMetrics {
   percentileYearMax?: number | null;
 }
 
+interface ReviewHistoryData {
+  enabled: boolean;
+  published?: boolean;
+  message?: string;
+  articleTitle?: string;
+  reviews?: {
+    reviewerNumber: number;
+    overallScore: number | null;
+    recommendation: string | null;
+    confidence: number | null;
+    commentsToAuthor: string | null;
+    completedAt: string | null;
+  }[];
+  authorResponses?: { id: string; content: string; createdAt: string; authorName: string }[];
+  decisionLetters?: { id: string; decision: string; letterBody: string | null; publishedAt: string | null; editorName: string }[];
+  reviewReportDoi?: string | null;
+  reviewReportDepositedAt?: string | null;
+}
+
 /** Concise, honest reads on each Metrics-tab number — never a claim the
  * underlying data can't actually support. Citation percentile framing
  * mirrors OpenAlex's own cited_by_percentile_year (real, live, only present
@@ -124,6 +143,7 @@ export function ArticleView() {
   const [citationFormat, setCitationFormat] = useState<CitationStyleId | "bibtex" | "ris">("apa");
   const [publicReviews, setPublicReviews] = useState<any[] | null>(null);
   const [openReviewStatus, setOpenReviewStatus] = useState<{ openReview: boolean; published: boolean } | null>(null);
+  const [reviewHistory, setReviewHistory] = useState<ReviewHistoryData | null>(null);
   const [corrections, setCorrections] = useState<any[]>([]);
   const [references, setReferences] = useState<any[]>([]);
   const [bodyHtml, setBodyHtml] = useState<string | null>(null);
@@ -138,6 +158,7 @@ export function ArticleView() {
     setLoading(true);
     setPublicReviews(null);
     setOpenReviewStatus(null);
+    setReviewHistory(null);
     setBodyHtml(null);
     apiFetch<ArticleDetail>(`/api/articles/${articleId}`)
       .then((a) => {
@@ -172,6 +193,11 @@ export function ArticleView() {
           .catch(() => {
             // 403 means article isn't open-review — that's fine
           });
+        // Fetch the transparent, anonymized Review History (independent
+        // of the signed open-review fetch above).
+        apiFetch<ReviewHistoryData>(`/api/articles/${articleId}/review-history`)
+          .then((r) => setReviewHistory(r))
+          .catch(() => setReviewHistory(null));
         // Fetch live "Comparative Citation Analysis" (real OpenAlex data,
         // not the DB-cached mock-turned-real field) for this one article.
         setCitationMetrics(null);
@@ -395,7 +421,12 @@ export function ArticleView() {
         {/* Main column */}
         <div className="min-w-0">
           <Tabs defaultValue="article" className="w-full">
-            <TabsList className={`grid w-full ${openReviewStatus?.openReview ? "grid-cols-6" : "grid-cols-5"}`}>
+            <TabsList
+              className="grid w-full"
+              style={{
+                gridTemplateColumns: `repeat(${5 + (openReviewStatus?.openReview ? 1 : 0) + (reviewHistory?.enabled ? 1 : 0)}, minmax(0, 1fr))`,
+              }}
+            >
               <TabsTrigger value="article">Article</TabsTrigger>
               <TabsTrigger value="metrics">Metrics</TabsTrigger>
               <TabsTrigger value="supplemental">Supplemental</TabsTrigger>
@@ -403,6 +434,9 @@ export function ArticleView() {
               <TabsTrigger value="chat">Ask this paper</TabsTrigger>
               {openReviewStatus?.openReview && (
                 <TabsTrigger value="reviews">Peer review</TabsTrigger>
+              )}
+              {reviewHistory?.enabled && (
+                <TabsTrigger value="review-history">Review History</TabsTrigger>
               )}
             </TabsList>
 
@@ -705,6 +739,13 @@ export function ArticleView() {
             {openReviewStatus?.openReview && (
               <TabsContent value="reviews" className="mt-6">
                 <OpenPeerReviewPanel reviews={publicReviews} published={openReviewStatus.published} />
+              </TabsContent>
+            )}
+
+            {/* Transparent, anonymized Review History tab */}
+            {reviewHistory?.enabled && (
+              <TabsContent value="review-history" className="mt-6">
+                <ReviewHistoryPanel data={reviewHistory} />
               </TabsContent>
             )}
           </Tabs>
@@ -1426,6 +1467,129 @@ function ArticleChatPanel({ articleId, articleTitle }: { articleId: string; arti
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// ReviewHistoryPanel — the transparent, anonymized alternative to
+// OpenPeerReviewPanel below: reviewer identities are never shown (only
+// "Reviewer 1"/"Reviewer 2", numbered by src/app/api/articles/[id]/
+// review-history/route.ts), alongside the author's own responses and any
+// decision letters an editor has explicitly published, plus a real,
+// citable Zenodo DOI for the compiled report when one has been minted.
+// ---------------------------------------------------------------------------
+
+function ReviewHistoryPanel({ data }: { data: ReviewHistoryData }) {
+  if (!data.published) {
+    return (
+      <Card className="paper-card">
+        <CardContent className="p-6">
+          <div className="flex items-start gap-3">
+            <Lock className="mt-1 h-5 w-5 flex-shrink-0 text-amber-600" />
+            <div>
+              <p className="font-display text-lg font-semibold">Review History pending publication</p>
+              <p className="mt-1 text-sm text-muted-foreground">{data.message}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const reviews = data.reviews || [];
+  const authorResponses = data.authorResponses || [];
+  const decisionLetters = data.decisionLetters || [];
+
+  return (
+    <div className="space-y-4">
+      <Card className="paper-card bg-emerald-50/40">
+        <CardContent className="p-5">
+          <div className="flex items-start gap-3">
+            <ShieldCheck className="mt-1 h-5 w-5 flex-shrink-0 text-emerald-700" />
+            <div>
+              <p className="font-display text-base font-semibold">Transparent Review History</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Reviewer identities are withheld by design — reviews below are numbered, not named.
+                Author responses and published editorial decision letters are shown in full.
+              </p>
+              {data.reviewReportDoi && (
+                <p className="mt-2 text-xs">
+                  Citable report:{" "}
+                  <a
+                    href={`https://doi.org/${data.reviewReportDoi}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-mono text-primary hover:underline"
+                  >
+                    https://doi.org/{data.reviewReportDoi}
+                  </a>
+                </p>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {reviews.length === 0 && authorResponses.length === 0 && decisionLetters.length === 0 ? (
+        <Card className="paper-card">
+          <CardContent className="p-6 text-center text-sm text-muted-foreground">
+            Nothing has been published to the Review History yet.
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          {reviews.map((r) => (
+            <Card key={r.reviewerNumber} className="paper-card">
+              <CardContent className="p-5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-display text-sm font-semibold">Reviewer {r.reviewerNumber}</p>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    {r.recommendation && (
+                      <Badge variant="outline" className="text-[0.65rem]">{r.recommendation.replace(/_/g, " ")}</Badge>
+                    )}
+                    {r.overallScore != null && <span>Score: {r.overallScore}/5</span>}
+                    {r.completedAt && <span>{new Date(r.completedAt).toLocaleDateString()}</span>}
+                  </div>
+                </div>
+                {r.commentsToAuthor && (
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground/85">{r.commentsToAuthor}</p>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+
+          {authorResponses.map((a) => (
+            <Card key={a.id} className="paper-card border-primary/20">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-display text-sm font-semibold">Author response — {a.authorName}</p>
+                  <span className="text-xs text-muted-foreground">{new Date(a.createdAt).toLocaleDateString()}</span>
+                </div>
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground/85">{a.content}</p>
+              </CardContent>
+            </Card>
+          ))}
+
+          {decisionLetters.map((d) => (
+            <Card key={d.id} className="paper-card border-amber-200 bg-amber-50/30">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-display text-sm font-semibold">
+                    Editorial decision — {d.decision.replace(/_/g, " ")}
+                  </p>
+                  <span className="text-xs text-muted-foreground">
+                    {d.editorName}{d.publishedAt ? ` · ${new Date(d.publishedAt).toLocaleDateString()}` : ""}
+                  </span>
+                </div>
+                {d.letterBody && (
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground/85">{d.letterBody}</p>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </>
+      )}
+    </div>
   );
 }
 
