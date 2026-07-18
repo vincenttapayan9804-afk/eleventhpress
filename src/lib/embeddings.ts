@@ -29,9 +29,11 @@ export async function generateEmbedding(text: string): Promise<number[]> {
 /**
  * Deterministic embedding: hashes overlapping n-grams of the text and uses
  * each hash to seed a dimension. Articles with similar vocabulary will
- * have vectors that cluster together.
+ * have vectors that cluster together. Exported so src/lib/chunk-embeddings.ts
+ * can reuse the exact same scheme (at a different dimensionality) as its
+ * fallback when the real open-source sentence-embedding model isn't available.
  */
-function hashEmbedding(text: string, dims: number): number[] {
+export function hashEmbedding(text: string, dims: number): number[] {
   const vec = new Array(dims).fill(0);
   const normalized = text.toLowerCase().replace(/[^a-z0-9\s]/g, " ");
   const words = normalized.split(/\s+/).filter((w) => w.length > 2);

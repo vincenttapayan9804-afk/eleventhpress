@@ -2,12 +2,14 @@
  * Zenodo Data Deposit Service.
  *
  * Integrates with the Zenodo REST API to deposit research datasets linked
- * to published articles (depositToZenodo) and, separately, to deposit the
- * published article itself (depositArticleToZenodo) — a free, real,
- * permanently-resolving DOI (via DataCite) for journals that don't yet
- * have a paid Crossref membership. Zenodo records are automatically
- * harvested by OpenAIRE and surface in BASE/CORE, so this single free
- * deposit indirectly reaches three of the platform's indexing targets.
+ * to published articles (depositToZenodo), the published article itself
+ * (depositArticleToZenodo) — a free, real, permanently-resolving DOI (via
+ * DataCite) for journals that don't yet have a paid Crossref membership —
+ * and, separately, the compiled peer-review report for an article whose
+ * Review History transparency is enabled (depositReviewReportToZenodo).
+ * Zenodo records are automatically harvested by OpenAIRE and surface in
+ * BASE/CORE, so this single free deposit path indirectly reaches three of
+ * the platform's indexing targets.
  *
  * API docs: https://developers.zenodo.org/
  *
@@ -524,6 +526,156 @@ export async function depositPublishedArticleToZenodo(
       ...(deposit.ok && deposit.doi ? { doi: deposit.doi, doiStatus: "PUBLISHED" } : {}),
       zenodoRecordId: deposit.zenodoRecordId,
       zenodoDepositLog: deposit.rawLog,
+    },
+  });
+
+  return deposit;
+}
+
+// ---------------------------------------------------------------------------
+// Review report deposit — mints a real, citable DOI for a published
+// article's compiled peer-review report (Review History tab), reusing
+// depositArticleToZenodo above rather than duplicating the create/upload/
+// metadata/publish sequence. Only meaningful once the article is published
+// and its Review History transparency (Article.anonymizedReviewHistory) is
+// enabled with at least one completed review to report on.
+// ---------------------------------------------------------------------------
+
+/**
+ * Renders the article's completed reviews (anonymized — "Reviewer 1"/
+ * "Reviewer 2", numbered from Review.createdAt order, same scheme as
+ * src/app/api/articles/[id]/review-history/route.ts), the author's
+ * responses, and any published decision letters into one plain-text
+ * document suitable for depositing as a standalone, citable record.
+ */
+function renderReviewReportText(args: {
+  articleTitle: string;
+  articleDoi: string | null;
+  reviews: { reviewerNumber: number; recommendation: string | null; overallScore: number | null; commentsToAuthor: string | null; completedAt: Date | null }[];
+  authorResponses: { authorName: string; content: string; createdAt: Date }[];
+  decisionLetters: { editorName: string; decision: string; letterBody: string | null; publishedAt: Date | null }[];
+}): string {
+  const lines: string[] = [];
+  lines.push(`Peer Review Report`);
+  lines.push(`Article: ${args.articleTitle}`);
+  if (args.articleDoi) lines.push(`Article DOI: https://doi.org/${args.articleDoi}`);
+  lines.push("");
+  lines.push("This report compiles the anonymized peer-review record for the article");
+  lines.push("above, published under this journal's transparent Review History policy.");
+  lines.push("Reviewer identities are withheld by design; the article's own authorship");
+  lines.push("is a matter of public record on the published article page.");
+  lines.push("");
+
+  lines.push("== Reviews ==");
+  for (const r of args.reviews) {
+    lines.push("");
+    lines.push(`Reviewer ${r.reviewerNumber}${r.completedAt ? ` — completed ${r.completedAt.toISOString().slice(0, 10)}` : ""}`);
+    if (r.recommendation) lines.push(`Recommendation: ${r.recommendation}`);
+    if (r.overallScore != null) lines.push(`Overall score: ${r.overallScore}/5`);
+    if (r.commentsToAuthor) lines.push(`Comments to author:\n${r.commentsToAuthor}`);
+  }
+
+  if (args.authorResponses.length > 0) {
+    lines.push("");
+    lines.push("== Author responses ==");
+    for (const a of args.authorResponses) {
+      lines.push("");
+      lines.push(`${a.authorName} — ${a.createdAt.toISOString().slice(0, 10)}`);
+      lines.push(a.content);
+    }
+  }
+
+  if (args.decisionLetters.length > 0) {
+    lines.push("");
+    lines.push("== Editorial decision letters ==");
+    for (const d of args.decisionLetters) {
+      lines.push("");
+      lines.push(`${d.decision} — ${d.editorName}${d.publishedAt ? ` — ${d.publishedAt.toISOString().slice(0, 10)}` : ""}`);
+      if (d.letterBody) lines.push(d.letterBody);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * Compiles and deposits the review report for `articleId`, persisting the
+ * result on Article.reviewReportDoi/reviewReportZenodoRecordId/
+ * reviewReportDepositedAt/reviewReportDepositLog. Fired automatically on
+ * publish (workflow route) when anonymizedReviewHistory is already true at
+ * that point, and available as a manual retry via
+ * POST /api/articles/[id]/review-report-doi for when transparency is
+ * turned on after publication — same "automatic + manual retry" shape as
+ * depositPublishedArticleToZenodo above.
+ *
+ * No-ops (returns ok:false with an explanatory message, never throws) when
+ * the article isn't published, transparency isn't enabled, or there are no
+ * completed reviews yet — a DOI for an empty report would be worse than no
+ * DOI at all.
+ */
+export async function depositReviewReportToZenodo(articleId: string): Promise<ZenodoArticleDepositOutput> {
+  const article = await db.article.findUnique({
+    where: { id: articleId },
+    include: { journal: true, issue: true },
+  });
+  if (!article) {
+    return { ok: false, mode: "live", doi: null, recordUrl: "", zenodoRecordId: null, message: "Article not found", rawLog: "" };
+  }
+  if (article.status !== "PUBLISHED") {
+    return { ok: false, mode: "live", doi: null, recordUrl: "", zenodoRecordId: null, message: "Article is not published yet", rawLog: "" };
+  }
+  if (!article.anonymizedReviewHistory) {
+    return { ok: false, mode: "live", doi: null, recordUrl: "", zenodoRecordId: null, message: "Review History transparency is not enabled for this article", rawLog: "" };
+  }
+
+  const [allReviews, authorResponses, decisions] = await Promise.all([
+    db.review.findMany({ where: { articleId }, orderBy: { createdAt: "asc" } }),
+    db.authorResponse.findMany({ where: { articleId }, orderBy: { createdAt: "asc" }, include: { author: { select: { fullName: true } } } }),
+    db.editorialDecision.findMany({ where: { articleId, letterPublishedAt: { not: null } }, orderBy: { createdAt: "asc" }, include: { editor: { select: { fullName: true } } } }),
+  ]);
+  const completedReviews = allReviews
+    .map((r, i) => ({ ...r, reviewerNumber: i + 1 }))
+    .filter((r) => r.status === "COMPLETED");
+
+  if (completedReviews.length === 0) {
+    return { ok: false, mode: "live", doi: null, recordUrl: "", zenodoRecordId: null, message: "No completed reviews to report on yet", rawLog: "" };
+  }
+
+  const reportText = renderReviewReportText({
+    articleTitle: article.title,
+    articleDoi: article.doi,
+    reviews: completedReviews,
+    authorResponses: authorResponses.map((a) => ({ authorName: a.author.fullName, content: a.content, createdAt: a.createdAt })),
+    decisionLetters: decisions.map((d) => ({ editorName: d.editor.fullName, decision: d.decision, letterBody: d.letterBody, publishedAt: d.letterPublishedAt })),
+  });
+
+  const journalName = article.journal?.name || "Eleventh Press International Publishing";
+  const deposit = await depositArticleToZenodo({
+    articleId: article.id,
+    title: `Peer Review Report: "${article.title}"`,
+    abstract: `Anonymized peer-review report (${completedReviews.length} review${completedReviews.length === 1 ? "" : "s"}) for the article "${article.title}", published by ${journalName} under its transparent Review History policy.`,
+    // Reviewer identities are withheld by design (see review-history
+    // route), so this record is attributed to the editorial office rather
+    // than any named individual — never fabricates authorship.
+    creators: [{ name: `${journalName} Editorial Office` }],
+    keywords: ["peer review", "open peer review", "transparent review", article.discipline].filter(Boolean),
+    license: "CC-BY-4.0",
+    journalTitle: journalName,
+    journalVolume: article.issue?.volume ? String(article.issue.volume) : undefined,
+    journalIssue: article.issue?.issueNumber ? String(article.issue.issueNumber) : undefined,
+    publicationDate: new Date().toISOString().slice(0, 10),
+    fileBuffer: Buffer.from(reportText, "utf-8"),
+    fileName: `review-report-${article.id}.txt`,
+    fileContentType: "text/plain",
+  });
+
+  await db.article.update({
+    where: { id: articleId },
+    data: {
+      reviewReportDoi: deposit.ok ? deposit.doi : article.reviewReportDoi,
+      reviewReportZenodoRecordId: deposit.zenodoRecordId,
+      reviewReportDepositedAt: deposit.ok ? new Date() : article.reviewReportDepositedAt,
+      reviewReportDepositLog: deposit.rawLog,
     },
   });
 

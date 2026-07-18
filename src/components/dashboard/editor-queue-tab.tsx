@@ -213,6 +213,11 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
   const [depositingCrossref, setDepositingCrossref] = useState(false);
   const [depositingZenodo, setDepositingZenodo] = useState(false);
   const [generatingGalley, setGeneratingGalley] = useState(false);
+  const [togglingReviewHistory, setTogglingReviewHistory] = useState(false);
+  const [lastDecisionId, setLastDecisionId] = useState<string | null>(null);
+  const [letterBody, setLetterBody] = useState("");
+  const [savingLetter, setSavingLetter] = useState(false);
+  const [mintingReportDoi, setMintingReportDoi] = useState(false);
 
   if (!article) return null;
 
@@ -269,7 +274,7 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
     }
     setLoading(true);
     try {
-      await apiFetch("/api/articles/workflow", {
+      const res = await apiFetch<{ decisionId: string }>("/api/articles/workflow", {
         method: "POST",
         body: JSON.stringify({
           articleId: article.id,
@@ -282,8 +287,12 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
       });
       setAction(null);
       setNote("");
+      // Stays open (instead of the previous onClose()) so the editor can
+      // immediately compose a public decision letter for the decision
+      // that was just logged — lastDecisionId is what the letter
+      // composer below attaches to.
+      setLastDecisionId(res.decisionId);
       onRefresh();
-      onClose();
     } catch (e: any) {
       toast.error(e.message);
     } finally {
@@ -365,6 +374,138 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
                     {article.openReview ? "Disable" : "Enable"}
                   </Button>
                 </div>
+
+                {/* Review History transparency — independent of Open peer
+                    review above; anonymized reviewer numbering, no
+                    reviewer identity ever shown. */}
+                <div className="flex items-center justify-between rounded-md border border-border p-3">
+                  <div className="flex items-center gap-2">
+                    {article.anonymizedReviewHistory ? <Globe2 className="h-4 w-4 text-primary" /> : <EyeOff className="h-4 w-4 text-muted-foreground" />}
+                    <div>
+                      <p className="font-display text-sm font-semibold">Review History (anonymized)</p>
+                      <p className="text-xs text-muted-foreground">
+                        {article.anonymizedReviewHistory
+                          ? "Anonymized reviews, author responses, and published decision letters are public."
+                          : "Reviewer numbering, author responses, and decision letters stay internal."}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant={article.anonymizedReviewHistory ? "default" : "outline"}
+                    disabled={togglingReviewHistory}
+                    onClick={async () => {
+                      setTogglingReviewHistory(true);
+                      try {
+                        await apiFetch(`/api/articles/${article.id}/review-history`, {
+                          method: "POST",
+                          body: JSON.stringify({ anonymizedReviewHistory: !article.anonymizedReviewHistory }),
+                        });
+                        toast.success(article.anonymizedReviewHistory ? "Review History disabled" : "Review History enabled");
+                        onRefresh();
+                      } catch (e: any) {
+                        toast.error(e.message);
+                      } finally {
+                        setTogglingReviewHistory(false);
+                      }
+                    }}
+                  >
+                    {togglingReviewHistory && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+                    {article.anonymizedReviewHistory ? "Disable" : "Enable"}
+                  </Button>
+                </div>
+
+                {/* Decision letter composer — attaches to the decision
+                    just logged by the workflow action above, so this only
+                    appears right after applyAction() returns one. */}
+                {lastDecisionId && (
+                  <div className="space-y-2 rounded-md border border-primary/30 bg-primary/5 p-3">
+                    <p className="font-display text-sm font-semibold">
+                      Public decision letter <span className="font-normal text-muted-foreground">(optional)</span>
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Attaches to the decision you just logged. Separate from the internal note above — only appears
+                      on the article&apos;s Review History tab once published, and only if Review History is enabled.
+                    </p>
+                    <Textarea
+                      value={letterBody}
+                      onChange={(e) => setLetterBody(e.target.value)}
+                      placeholder="Dear author, thank you for your submission…"
+                      rows={4}
+                      className="text-sm"
+                    />
+                    <div className="flex justify-end gap-2">
+                      <Button size="sm" variant="ghost" onClick={() => { setLastDecisionId(null); setLetterBody(""); }}>
+                        Skip
+                      </Button>
+                      <Button
+                        size="sm"
+                        disabled={savingLetter || !letterBody.trim()}
+                        onClick={async () => {
+                          setSavingLetter(true);
+                          try {
+                            await apiFetch(`/api/articles/${article.id}/decision-letter`, {
+                              method: "POST",
+                              body: JSON.stringify({ decisionId: lastDecisionId, letterBody, publish: true }),
+                            });
+                            toast.success("Decision letter published");
+                            setLastDecisionId(null);
+                            setLetterBody("");
+                          } catch (e: any) {
+                            toast.error(e.message);
+                          } finally {
+                            setSavingLetter(false);
+                          }
+                        }}
+                      >
+                        {savingLetter && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+                        Publish letter
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Review report DOI — only meaningful once published and
+                    Review History is enabled. */}
+                {article.status === "PUBLISHED" && article.anonymizedReviewHistory && (
+                  <div className="flex items-center justify-between rounded-md border border-border p-3">
+                    <div>
+                      <p className="font-display text-sm font-semibold">Review report DOI</p>
+                      <p className="text-xs text-muted-foreground">
+                        {article.reviewReportDoi
+                          ? `Deposited: ${article.reviewReportDoi}`
+                          : "Not yet minted — needs at least one completed review."}
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={mintingReportDoi}
+                      onClick={async () => {
+                        setMintingReportDoi(true);
+                        try {
+                          const result = await apiFetch<{ ok: boolean; message: string; doi: string | null }>(
+                            `/api/articles/${article.id}/review-report-doi`,
+                            { method: "POST" }
+                          );
+                          if (result.ok) {
+                            toast.success(result.message);
+                            onRefresh();
+                          } else {
+                            toast.error(result.message);
+                          }
+                        } catch (e: any) {
+                          toast.error(e.message);
+                        } finally {
+                          setMintingReportDoi(false);
+                        }
+                      }}
+                    >
+                      {mintingReportDoi && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+                      {article.reviewReportDoi ? "Re-deposit" : "Mint DOI"}
+                    </Button>
+                  </div>
+                )}
 
                 {/* Production: Zenodo/Crossref deposit + Galley generation (for accepted/published articles) */}
                 {(article.status === "ACCEPTED" || article.status === "IN_PRODUCTION" || article.status === "PUBLISHED") && (

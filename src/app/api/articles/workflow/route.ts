@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
     let finalDoi = updated.doi;
 
     // Editorial decision log
-    await db.editorialDecision.create({
+    const decisionRow = await db.editorialDecision.create({
       data: {
         articleId,
         editorId: session.userId,
@@ -363,13 +363,23 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      // --- PREMIUM: Index article for semantic search + WS broadcast ---
+      // --- PREMIUM: Index article for semantic search + RAG chat + WS broadcast ---
       Promise.all([
         import("@/lib/embeddings").then(({ indexArticle }) => indexArticle(articleId).catch(() => {})),
+        import("@/lib/chunk-embeddings").then(({ indexArticleChunks }) => indexArticleChunks(articleId).catch(() => {})),
         import("@/lib/ws-client").then(({ emitWS }) => emitWS("workflow:transition", {
           articleId, from: article.status, to: next, doi: finalDoi, title: article.title,
         }).catch(() => {})),
       ]).catch(() => {});
+
+      // Review report DOI — only meaningful when transparency was already
+      // turned on before this publish. An editor who enables it afterward
+      // uses the manual retry (POST /api/articles/[id]/review-report-doi).
+      if (article.anonymizedReviewHistory) {
+        import("@/lib/zenodo")
+          .then(({ depositReviewReportToZenodo }) => depositReviewReportToZenodo(articleId))
+          .catch((e) => console.error(`[workflow] review report deposit failed for ${articleId}:`, e));
+      }
     } else if (next === "ACCEPTED" && article.correspondingAuthorId) {
       // Generate APC invoice on acceptance
       await db.invoice.create({
@@ -395,6 +405,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       article: { id: updated.id, status: updated.status, doi: finalDoi },
+      decisionId: decisionRow.id,
     });
   } catch (e) {
     console.error("[workflow]", e);

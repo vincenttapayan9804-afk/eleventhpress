@@ -68,6 +68,8 @@ import {
   Lock,
   FileCode,
   Layers,
+  Send,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -78,6 +80,25 @@ interface CitationMetrics {
   publicationYear?: number | null;
   percentileYearMin?: number | null;
   percentileYearMax?: number | null;
+}
+
+interface ReviewHistoryData {
+  enabled: boolean;
+  published?: boolean;
+  message?: string;
+  articleTitle?: string;
+  reviews?: {
+    reviewerNumber: number;
+    overallScore: number | null;
+    recommendation: string | null;
+    confidence: number | null;
+    commentsToAuthor: string | null;
+    completedAt: string | null;
+  }[];
+  authorResponses?: { id: string; content: string; createdAt: string; authorName: string }[];
+  decisionLetters?: { id: string; decision: string; letterBody: string | null; publishedAt: string | null; editorName: string }[];
+  reviewReportDoi?: string | null;
+  reviewReportDepositedAt?: string | null;
 }
 
 /** Concise, honest reads on each Metrics-tab number — never a claim the
@@ -122,6 +143,7 @@ export function ArticleView() {
   const [citationFormat, setCitationFormat] = useState<CitationStyleId | "bibtex" | "ris">("apa");
   const [publicReviews, setPublicReviews] = useState<any[] | null>(null);
   const [openReviewStatus, setOpenReviewStatus] = useState<{ openReview: boolean; published: boolean } | null>(null);
+  const [reviewHistory, setReviewHistory] = useState<ReviewHistoryData | null>(null);
   const [corrections, setCorrections] = useState<any[]>([]);
   const [references, setReferences] = useState<any[]>([]);
   const [bodyHtml, setBodyHtml] = useState<string | null>(null);
@@ -136,6 +158,7 @@ export function ArticleView() {
     setLoading(true);
     setPublicReviews(null);
     setOpenReviewStatus(null);
+    setReviewHistory(null);
     setBodyHtml(null);
     apiFetch<ArticleDetail>(`/api/articles/${articleId}`)
       .then((a) => {
@@ -170,6 +193,11 @@ export function ArticleView() {
           .catch(() => {
             // 403 means article isn't open-review — that's fine
           });
+        // Fetch the transparent, anonymized Review History (independent
+        // of the signed open-review fetch above).
+        apiFetch<ReviewHistoryData>(`/api/articles/${articleId}/review-history`)
+          .then((r) => setReviewHistory(r))
+          .catch(() => setReviewHistory(null));
         // Fetch live "Comparative Citation Analysis" (real OpenAlex data,
         // not the DB-cached mock-turned-real field) for this one article.
         setCitationMetrics(null);
@@ -393,13 +421,22 @@ export function ArticleView() {
         {/* Main column */}
         <div className="min-w-0">
           <Tabs defaultValue="article" className="w-full">
-            <TabsList className={`grid w-full ${openReviewStatus?.openReview ? "grid-cols-5" : "grid-cols-4"}`}>
+            <TabsList
+              className="grid w-full"
+              style={{
+                gridTemplateColumns: `repeat(${5 + (openReviewStatus?.openReview ? 1 : 0) + (reviewHistory?.enabled ? 1 : 0)}, minmax(0, 1fr))`,
+              }}
+            >
               <TabsTrigger value="article">Article</TabsTrigger>
               <TabsTrigger value="metrics">Metrics</TabsTrigger>
               <TabsTrigger value="supplemental">Supplemental</TabsTrigger>
               <TabsTrigger value="cite">Cite</TabsTrigger>
+              <TabsTrigger value="chat">Ask this paper</TabsTrigger>
               {openReviewStatus?.openReview && (
                 <TabsTrigger value="reviews">Peer review</TabsTrigger>
+              )}
+              {reviewHistory?.enabled && (
+                <TabsTrigger value="review-history">Review History</TabsTrigger>
               )}
             </TabsList>
 
@@ -694,10 +731,21 @@ export function ArticleView() {
               </Card>
             </TabsContent>
 
+            <TabsContent value="chat" className="mt-6">
+              <ArticleChatPanel articleId={article.id} articleTitle={article.title} />
+            </TabsContent>
+
             {/* Open peer review tab */}
             {openReviewStatus?.openReview && (
               <TabsContent value="reviews" className="mt-6">
                 <OpenPeerReviewPanel reviews={publicReviews} published={openReviewStatus.published} />
+              </TabsContent>
+            )}
+
+            {/* Transparent, anonymized Review History tab */}
+            {reviewHistory?.enabled && (
+              <TabsContent value="review-history" className="mt-6">
+                <ReviewHistoryPanel data={reviewHistory} />
               </TabsContent>
             )}
           </Tabs>
@@ -1263,6 +1311,286 @@ function HeadMetas({ article, authors }: { article: ArticleDetail; authors: any[
   }, [article, authors]);
 
   return null;
+}
+
+// ---------------------------------------------------------------------------
+// ArticleChatPanel — "Ask this paper" RAG chat. Every answer is grounded
+// in passages retrieved from this specific article's chunked galley text
+// (src/lib/chunk-embeddings.ts, src/app/api/articles/[id]/chat/route.ts) —
+// never general knowledge. Renders the honest unavailable/not-indexed
+// states the API returns rather than a fabricated conversation.
+// ---------------------------------------------------------------------------
+
+interface ChatCitation {
+  chunkIndex: number;
+  text: string;
+  matchType: "vector" | "lexical";
+}
+
+interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+  grounded?: boolean;
+  citations?: ChatCitation[];
+}
+
+function ArticleChatPanel({ articleId, articleTitle }: { articleId: string; articleTitle: string }) {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [question, setQuestion] = useState("");
+  const [sending, setSending] = useState(false);
+  const [unavailable, setUnavailable] = useState<string | null>(null);
+
+  async function send() {
+    const trimmed = question.trim();
+    if (!trimmed || sending) return;
+
+    const history = messages.slice(-6).map((m) => ({ role: m.role, content: m.content }));
+    setMessages((prev) => [...prev, { role: "user", content: trimmed }]);
+    setQuestion("");
+    setSending(true);
+    setUnavailable(null);
+
+    try {
+      const res = await apiFetch<{
+        mode: "answered" | "unavailable" | "not-indexed";
+        message?: string;
+        answer?: string;
+        grounded?: boolean;
+        citedChunks?: ChatCitation[];
+      }>(`/api/articles/${articleId}/chat`, {
+        method: "POST",
+        body: JSON.stringify({ question: trimmed, history }),
+      });
+
+      if (res.mode === "answered" && res.answer) {
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: res.answer!, grounded: res.grounded, citations: res.citedChunks },
+        ]);
+      } else {
+        setUnavailable(res.message || "AI chat isn't available for this article right now.");
+        setMessages((prev) => prev.slice(0, -1));
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to send message");
+      setMessages((prev) => prev.slice(0, -1));
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <Card className="paper-card">
+      <CardContent className="p-5">
+        <div className="flex items-start gap-3">
+          <Sparkles className="mt-1 h-5 w-5 flex-shrink-0 text-primary" />
+          <div>
+            <p className="font-display text-lg font-semibold">Ask this paper</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Ask a question about &ldquo;{articleTitle}&rdquo; — answers are grounded only in
+              this article&apos;s own text, not general knowledge, and every answer shows which
+              passages it drew on.
+            </p>
+          </div>
+        </div>
+
+        {unavailable && (
+          <div className="mt-4 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+            <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+            <p>{unavailable}</p>
+          </div>
+        )}
+
+        {messages.length > 0 && (
+          <div className="mt-4 max-h-96 space-y-3 overflow-y-auto epip-scroll pr-1">
+            {messages.map((m, i) => (
+              <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
+                <div
+                  className={
+                    m.role === "user"
+                      ? "max-w-[85%] rounded-lg rounded-br-sm bg-primary px-3.5 py-2 text-sm text-primary-foreground"
+                      : "max-w-[85%] rounded-lg rounded-bl-sm border border-border bg-muted/30 px-3.5 py-2.5 text-sm"
+                  }
+                >
+                  <p className="whitespace-pre-wrap leading-relaxed">{m.content}</p>
+                  {m.role === "assistant" && m.grounded === false && (
+                    <p className="mt-1.5 text-[0.65rem] italic text-muted-foreground">
+                      Not covered by this article&apos;s text.
+                    </p>
+                  )}
+                  {m.role === "assistant" && m.citations && m.citations.length > 0 && (
+                    <details className="mt-2">
+                      <summary className="cursor-pointer text-[0.65rem] font-medium text-primary">
+                        {m.citations.length} passage{m.citations.length > 1 ? "s" : ""} cited
+                      </summary>
+                      <div className="mt-1.5 space-y-1.5">
+                        {m.citations.map((c) => (
+                          <p key={c.chunkIndex} className="rounded border border-border/60 bg-background/60 p-2 text-[0.7rem] leading-snug text-muted-foreground">
+                            {c.text}
+                          </p>
+                        ))}
+                      </div>
+                    </details>
+                  )}
+                </div>
+              </div>
+            ))}
+            {sending && (
+              <div className="flex justify-start">
+                <div className="flex items-center gap-2 rounded-lg rounded-bl-sm border border-border bg-muted/30 px-3.5 py-2.5 text-sm text-muted-foreground">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Reading the paper…
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="mt-4 flex items-end gap-2">
+          <Textarea
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                send();
+              }
+            }}
+            placeholder="e.g. What method did the authors use, and what was the main finding?"
+            className="min-h-[2.5rem] resize-none text-sm"
+            rows={1}
+            maxLength={800}
+            disabled={sending}
+          />
+          <Button size="icon" onClick={send} disabled={sending || !question.trim()} aria-label="Send">
+            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// ReviewHistoryPanel — the transparent, anonymized alternative to
+// OpenPeerReviewPanel below: reviewer identities are never shown (only
+// "Reviewer 1"/"Reviewer 2", numbered by src/app/api/articles/[id]/
+// review-history/route.ts), alongside the author's own responses and any
+// decision letters an editor has explicitly published, plus a real,
+// citable Zenodo DOI for the compiled report when one has been minted.
+// ---------------------------------------------------------------------------
+
+function ReviewHistoryPanel({ data }: { data: ReviewHistoryData }) {
+  if (!data.published) {
+    return (
+      <Card className="paper-card">
+        <CardContent className="p-6">
+          <div className="flex items-start gap-3">
+            <Lock className="mt-1 h-5 w-5 flex-shrink-0 text-amber-600" />
+            <div>
+              <p className="font-display text-lg font-semibold">Review History pending publication</p>
+              <p className="mt-1 text-sm text-muted-foreground">{data.message}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const reviews = data.reviews || [];
+  const authorResponses = data.authorResponses || [];
+  const decisionLetters = data.decisionLetters || [];
+
+  return (
+    <div className="space-y-4">
+      <Card className="paper-card bg-emerald-50/40">
+        <CardContent className="p-5">
+          <div className="flex items-start gap-3">
+            <ShieldCheck className="mt-1 h-5 w-5 flex-shrink-0 text-emerald-700" />
+            <div>
+              <p className="font-display text-base font-semibold">Transparent Review History</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Reviewer identities are withheld by design — reviews below are numbered, not named.
+                Author responses and published editorial decision letters are shown in full.
+              </p>
+              {data.reviewReportDoi && (
+                <p className="mt-2 text-xs">
+                  Citable report:{" "}
+                  <a
+                    href={`https://doi.org/${data.reviewReportDoi}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-mono text-primary hover:underline"
+                  >
+                    https://doi.org/{data.reviewReportDoi}
+                  </a>
+                </p>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {reviews.length === 0 && authorResponses.length === 0 && decisionLetters.length === 0 ? (
+        <Card className="paper-card">
+          <CardContent className="p-6 text-center text-sm text-muted-foreground">
+            Nothing has been published to the Review History yet.
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          {reviews.map((r) => (
+            <Card key={r.reviewerNumber} className="paper-card">
+              <CardContent className="p-5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-display text-sm font-semibold">Reviewer {r.reviewerNumber}</p>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    {r.recommendation && (
+                      <Badge variant="outline" className="text-[0.65rem]">{r.recommendation.replace(/_/g, " ")}</Badge>
+                    )}
+                    {r.overallScore != null && <span>Score: {r.overallScore}/5</span>}
+                    {r.completedAt && <span>{new Date(r.completedAt).toLocaleDateString()}</span>}
+                  </div>
+                </div>
+                {r.commentsToAuthor && (
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground/85">{r.commentsToAuthor}</p>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+
+          {authorResponses.map((a) => (
+            <Card key={a.id} className="paper-card border-primary/20">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-display text-sm font-semibold">Author response — {a.authorName}</p>
+                  <span className="text-xs text-muted-foreground">{new Date(a.createdAt).toLocaleDateString()}</span>
+                </div>
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground/85">{a.content}</p>
+              </CardContent>
+            </Card>
+          ))}
+
+          {decisionLetters.map((d) => (
+            <Card key={d.id} className="paper-card border-amber-200 bg-amber-50/30">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-display text-sm font-semibold">
+                    Editorial decision — {d.decision.replace(/_/g, " ")}
+                  </p>
+                  <span className="text-xs text-muted-foreground">
+                    {d.editorName}{d.publishedAt ? ` · ${new Date(d.publishedAt).toLocaleDateString()}` : ""}
+                  </span>
+                </div>
+                {d.letterBody && (
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground/85">{d.letterBody}</p>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </>
+      )}
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------------------
