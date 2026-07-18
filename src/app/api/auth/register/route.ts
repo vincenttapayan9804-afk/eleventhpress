@@ -3,11 +3,22 @@ import { db } from "@/lib/db";
 import { hashPassword, signToken, SESSION_COOKIE_NAME, sessionCookieOptions } from "@/lib/auth";
 import { SELF_SELECTABLE_ROLES, APPLICATION_ROLES } from "@/lib/roles";
 import { isPasswordBreached } from "@/lib/password-breach";
+import { extractRequestIp } from "@/lib/institutions";
+import { checkRateLimit } from "@/lib/ratelimit";
 
 const MIN_PASSWORD_LENGTH = 8;
 
 export async function POST(req: NextRequest) {
   try {
+    // Looser than login's 10/min — registration is rarer and legitimately
+    // bursty from a shared NAT/campus IP, so a login-brute-force-style
+    // limit isn't appropriate here.
+    const ip = extractRequestIp(req.headers);
+    const rl = await checkRateLimit(`register:${ip}`, 5, 60);
+    if (!rl.ok) {
+      return NextResponse.json({ error: rl.message }, { status: 429 });
+    }
+
     const body = await req.json();
     const { email, password, fullName, role, affiliation, expertise, country } = body as {
       email?: string;
