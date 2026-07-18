@@ -1,6 +1,7 @@
 "use client";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { apiFetch } from "./api-client";
 
 export type ViewKey =
   | "home"
@@ -104,8 +105,10 @@ export const useApp = create<AppState>()(
       logout: () => {
         // Fire-and-forget: clears the httpOnly session cookie server-side
         // (client JS can't touch it directly). Local state clears
-        // immediately regardless of whether this call succeeds.
-        fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+        // immediately regardless of whether this call succeeds. Uses
+        // apiFetch (not a raw fetch) so the CSRF header is attached —
+        // middleware.ts requires it on every mutating request now.
+        apiFetch("/api/auth/logout", { method: "POST" }).catch(() => {});
         set({
           user: null,
           view: "home",
