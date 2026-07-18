@@ -99,6 +99,7 @@ model User {
   bookDistributionsSubmitted BookDistribution[]
   royaltyStatementsRecorded  RoyaltyStatement[]
   certificates               Certificate[]
+  authorResponses            AuthorResponse[]
 }
 
 // ---------------------------------------------------------------------------
@@ -190,7 +191,27 @@ model Article {
   // DRAFT | SUBMITTED | UNDER_REVIEW | REVISIONS_REQUIRED | ACCEPTED | IN_PRODUCTION | PUBLISHED | REJECTED | WITHDRAWN
   status      String  @default("DRAFT")
   reviewModel String  @default("DOUBLE_BLIND") // SINGLE_BLIND | DOUBLE_BLIND | OPEN
-  openReview  Boolean @default(false) // If true, completed reviews are made public when article is published
+  openReview  Boolean @default(false) // If true, completed reviews are made public (with real reviewer identities) when article is published — signed open review
+
+  // Independent of openReview above (an editor could enable either, both,
+  // or neither) — Review History tab (src/app/api/articles/[id]/review-
+  // history/route.ts). Shows anonymized reviewer numbering ("Reviewer 1",
+  // computed at read time from Review.createdAt order, never stored)
+  // instead of real names, plus AuthorResponse entries and published
+  // EditorialDecision.letterBody letters. This is the transparent-but-
+  // anonymous mode; openReview above is the signed mode.
+  anonymizedReviewHistory Boolean @default(false)
+
+  // Real, citable DOI for the compiled review-round report — minted via
+  // the same free Zenodo deposit path already used for the article's own
+  // record (src/lib/zenodo.ts depositArticleToZenodo), see
+  // depositReviewReportToZenodo. Only ever attempted when
+  // anonymizedReviewHistory is true; NONE/null honestly means "not
+  // deposited", never a fabricated identifier.
+  reviewReportDoi            String?
+  reviewReportZenodoRecordId String?
+  reviewReportDepositedAt    DateTime?
+  reviewReportDepositLog     String? // JSON-stringified deposit response/error, mirrors the article's own zenodoDepositLog
 
   // Post-publication integrity status — independent of the editorial
   // workflow `status` above, since a PUBLISHED article can later be
@@ -310,13 +331,14 @@ model Article {
   notifications Notification[]
   auditLogs     AuditLog[]
   datasets      DatasetLink[]
-  embedding     ArticleEmbedding?
-  chunks        ArticleChunk[]
-  triageReport  EditorialTriageReport?
-  corrections   Correction[]
-  references    Reference[]
-  distributions Distribution[]
-  bookChapters  BookArticle[]
+  embedding       ArticleEmbedding?
+  chunks          ArticleChunk[]
+  authorResponses AuthorResponse[]
+  triageReport    EditorialTriageReport?
+  corrections     Correction[]
+  references      Reference[]
+  distributions   Distribution[]
+  bookChapters    BookArticle[]
 
   // Composite indexes mirror the actual query shapes used across the app:
   // public/browse listing and the dashboard queue both filter by status
@@ -423,11 +445,41 @@ model EditorialDecision {
   articleId String
   editorId  String
   decision  String // ASSIGN_REVIEWERS | REQUEST_REVISIONS | ACCEPT | REJECT | SEND_TO_PRODUCTION
-  note      String?
+  note      String? // short internal note — always private, never shown to the author or public
   createdAt DateTime @default(now())
+
+  // Optional formatted, author-facing decision letter — distinct from
+  // `note` above (which stays internal-only). Only populated when an
+  // editor explicitly composes one (src/app/api/articles/[id]/decision-
+  // letter/route.ts); most decisions still only ever get the short
+  // internal `note`. `letterPublishedAt` is set when the article's
+  // reviewTransparency mode makes it part of the public Review History
+  // tab — a letter can exist privately (sent to the author) before that.
+  letterBody        String?
+  letterPublishedAt DateTime?
 
   article Article @relation(fields: [articleId], references: [id])
   editor  User    @relation(fields: [editorId], references: [id])
+
+  @@index([articleId])
+}
+
+// ---------------------------------------------------------------------------
+// Author's response to reviewers — one entry per revision round, addressing
+// the round's reviews together (mirrors EditorialDecision's one-row-per-
+// round-event shape rather than tying to a single Review row). Feeds the
+// transparent Review History tab (src/components/views/article-view.tsx)
+// alongside Review.commentsToAuthor and EditorialDecision.letterBody.
+// ---------------------------------------------------------------------------
+model AuthorResponse {
+  id        String   @id @default(cuid())
+  articleId String
+  authorId  String
+  content   String
+  createdAt DateTime @default(now())
+
+  article Article @relation(fields: [articleId], references: [id])
+  author  User    @relation(fields: [authorId], references: [id])
 
   @@index([articleId])
 }
