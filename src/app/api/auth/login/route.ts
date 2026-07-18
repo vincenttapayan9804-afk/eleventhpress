@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { verifyPassword, signToken } from "@/lib/auth";
+import { verifyPassword, signToken, needsPasswordRehash, hashPassword, SESSION_COOKIE_NAME, sessionCookieOptions } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,6 +13,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
     }
 
+    // Transparent migrate-on-login: any account still on the pre-bcrypt
+    // legacy SHA-256 hash gets re-hashed with bcrypt now that we know the
+    // plaintext password was correct. The legacy verification branch in
+    // verifyPassword() itself can be removed once a DB check confirms no
+    // account still has a non-bcrypt passwordHash.
+    if (needsPasswordRehash(user.passwordHash)) {
+      await db.user.update({ where: { id: user.id }, data: { passwordHash: hashPassword(password) } });
+    }
+
     const token = signToken({
       userId: user.id,
       email: user.email,
@@ -20,8 +29,7 @@ export async function POST(req: NextRequest) {
       fullName: user.fullName,
     });
 
-    return NextResponse.json({
-      token,
+    const res = NextResponse.json({
       user: {
         id: user.id,
         email: user.email,
@@ -35,6 +43,8 @@ export async function POST(req: NextRequest) {
         avatarUrl: user.avatarUrl,
       },
     });
+    res.cookies.set(SESSION_COOKIE_NAME, token, sessionCookieOptions());
+    return res;
   } catch (e) {
     console.error("[login]", e);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

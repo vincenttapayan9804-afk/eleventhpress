@@ -26,7 +26,7 @@ import { apiFetch } from "@/lib/api-client";
 import { LanguageSwitcher } from "@/components/language-switcher";
 
 export function SiteHeader() {
-  const { view, setView, user, token, logout, openDashboard, mobileNavOpen, setMobileNavOpen } = useApp();
+  const { view, setView, user, logout, openDashboard, mobileNavOpen, setMobileNavOpen } = useApp();
   const [unread, setUnread] = useState(0);
   const t = useTranslations("nav");
   const tHeader = useTranslations("header");
@@ -42,7 +42,7 @@ export function SiteHeader() {
   ];
 
   useState(() => {
-    if (!token) return;
+    if (!user) return;
     apiFetch<{ notifications: any[] }>("/api/notifications")
       .then(({ notifications }) => {
         setUnread(notifications.filter((n) => !n.read).length);
@@ -82,7 +82,7 @@ export function SiteHeader() {
                 {item.label}
               </button>
             ))}
-            {token && (
+            {user && (
               <button
                 onClick={() => openDashboard("overview")}
                 data-active={view === "dashboard"}
@@ -95,7 +95,7 @@ export function SiteHeader() {
 
           {/* Right side */}
           <div className="flex items-center gap-2">
-            {token && user ? (
+            {user ? (
               <>
                 {unread > 0 && (
                   <Button
@@ -180,7 +180,7 @@ export function SiteHeader() {
                       {item.label}
                     </button>
                   ))}
-                  {token && (
+                  {user && (
                     <button
                       onClick={() => { openDashboard("overview"); setMobileNavOpen(false); }}
                       className="rounded-md px-3 py-2 text-left font-sans text-sm font-medium hover:bg-[oklch(0.93_0.04_290)] transition-colors"
@@ -188,7 +188,7 @@ export function SiteHeader() {
                       {t("dashboard")}
                     </button>
                   )}
-                  {!token && (
+                  {!user && (
                     <button
                       onClick={() => { setView("login"); setMobileNavOpen(false); }}
                       className="mt-2 rounded-md bg-[oklch(0.42_0.18_295)] px-3 py-2 text-left font-sans text-sm font-medium text-white"

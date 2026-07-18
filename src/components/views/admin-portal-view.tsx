@@ -100,9 +100,9 @@ const ACTION_ICONS: Record<string, any> = {
 };
 
 export function AdminPortalView() {
-  const { user, token, adminVerified, setAdminVerified, setView } = useApp();
+  const { user, adminVerified, setAdminVerified, setView } = useApp();
 
-  if (!token || !user || user.role !== "SUPER_ADMIN") {
+  if (!user || user.role !== "SUPER_ADMIN") {
     return (
       <div className="mx-auto max-w-lg px-4 py-20 text-center">
         <ShieldCheck className="mx-auto h-12 w-12 text-muted-foreground" />

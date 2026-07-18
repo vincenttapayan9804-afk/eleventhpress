@@ -22,31 +22,29 @@ import { I18nProvider } from "@/components/i18n-provider";
 
 export default function Page() {
   const view = useApp((s) => s.view);
-  const token = useApp((s) => s.token);
   const setAuth = useApp((s) => s.setAuth);
   const logout = useApp((s) => s.logout);
   const openDashboard = useApp((s) => s.openDashboard);
 
-  // Rehydrate session on first mount
+  // Rehydrate session on first mount. The session lives in an httpOnly
+  // cookie the browser attaches automatically — this always just asks the
+  // server "who am I" rather than gating on a client-readable token.
   useEffect(() => {
-    if (!token) return;
     apiFetch<{ user: any }>("/api/auth/me")
-      .then(({ user }) => setAuth(token, user))
+      .then(({ user }) => setAuth(user))
       .catch(() => logout());
   }, []);
 
-  // Handle ORCID OAuth callback: URL contains ?orcid_token=…
+  // Handle ORCID OAuth callback: the callback route sets the session
+  // cookie itself and redirects with ?orcid_linked=1&orcid_id=… — no
+  // session token in the URL (that would leak into browser history,
+  // Referer headers, and server access logs).
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const orcidToken = params.get("orcid_token");
-    const orcidId = params.get("orcid_id");
-    const orcidSimulated = params.get("orcid_simulated");
-    if (orcidToken) {
-      apiFetch<{ user: any }>("/api/auth/me", {
-        headers: { Authorization: `Bearer ${orcidToken}` },
-      })
+    if (params.get("orcid_linked") === "1") {
+      apiFetch<{ user: any }>("/api/auth/me")
         .then(({ user }) => {
-          setAuth(orcidToken, user);
+          setAuth(user);
           openDashboard("overview");
           // Clean URL
           window.history.replaceState({}, "", "/");

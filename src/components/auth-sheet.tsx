@@ -83,11 +83,11 @@ export function AuthSheet() {
   async function signIn(acct: DemoAccount) {
     setLoading(acct.email);
     try {
-      const res = await apiFetch<{ token: string; user: any }>("/api/auth/login", {
+      const res = await apiFetch<{ user: any }>("/api/auth/login", {
         method: "POST",
         body: JSON.stringify({ email: acct.email, password: acct.password }),
       });
-      setAuth(res.token, res.user);
+      setAuth(res.user);
       setAuthSheetOpen(false);
       toast.success(`Signed in as ${res.user.fullName}`, {
         description: `Role: ${res.user.role.replace(/_/g, " ")}`,

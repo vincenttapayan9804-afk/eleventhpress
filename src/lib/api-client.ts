@@ -1,19 +1,20 @@
 "use client";
-import { useApp } from "./store";
 
-/** Thin fetch wrapper that auto-attaches the bearer token. */
+/**
+ * Thin fetch wrapper. Auth is carried by the httpOnly session cookie, which
+ * the browser attaches automatically on same-origin requests — nothing
+ * client-JS-readable to add here.
+ */
 export async function apiFetch<T = any>(
   path: string,
   init?: RequestInit
 ): Promise<T> {
-  const token = useApp.getState().token;
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(init?.headers as Record<string, string>),
   };
-  if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(path, { ...init, headers });
+  const res = await fetch(path, { ...init, headers, credentials: "same-origin" });
   if (!res.ok) {
     let msg = `Request failed (${res.status})`;
     try {

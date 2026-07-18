@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api-client";
-import { useApp } from "@/lib/store";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,7 +32,7 @@ function isSubmissionPackage(kit: ShareKit | SubmissionPackage): kit is Submissi
   return "authors" in kit && "suggestedCategory" in kit;
 }
 
-function ArticleDistribution({ article, bloggerBlogUrl, token }: { article: any; bloggerBlogUrl: string | null; token: string | null }) {
+function ArticleDistribution({ article, bloggerBlogUrl }: { article: any; bloggerBlogUrl: string | null }) {
   const [items, setItems] = useState<any[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -165,7 +164,7 @@ function ArticleDistribution({ article, bloggerBlogUrl, token }: { article: any;
                       </Button>
                     ) : (
                       <Button size="sm" variant="outline" asChild>
-                        <a href={`/api/auth/blogger?token=${encodeURIComponent(token || "")}`}>Connect Blogger</a>
+                        <a href="/api/auth/blogger">Connect Blogger</a>
                       </Button>
                     )}
                   </div>
@@ -344,7 +343,6 @@ function Field({ label, value, onCopy }: { label: string; value: string; onCopy:
 
 export function DistributionTab({ submissions }: Props) {
   const published = submissions.filter((s) => s.status === "PUBLISHED");
-  const token = useApp((s) => s.token);
   const [bloggerBlogUrl, setBloggerBlogUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -376,7 +374,7 @@ export function DistributionTab({ submissions }: Props) {
         </p>
       </div>
       {published.map((a) => (
-        <ArticleDistribution key={a.id} article={a} bloggerBlogUrl={bloggerBlogUrl} token={token} />
+        <ArticleDistribution key={a.id} article={a} bloggerBlogUrl={bloggerBlogUrl} />
       ))}
     </div>
   );
