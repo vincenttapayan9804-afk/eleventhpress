@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { verifyPassword, signToken, needsPasswordRehash, hashPassword, SESSION_COOKIE_NAME, sessionCookieOptions } from "@/lib/auth";
+import { verifyPassword, signToken, needsPasswordRehash, hashPassword, signPendingTwoFactorToken, SESSION_COOKIE_NAME, sessionCookieOptions } from "@/lib/auth";
 import { extractRequestIp } from "@/lib/institutions";
 import { checkRateLimit } from "@/lib/ratelimit";
 
@@ -28,6 +28,16 @@ export async function POST(req: NextRequest) {
     // account still has a non-bcrypt passwordHash.
     if (needsPasswordRehash(user.passwordHash)) {
       await db.user.update({ where: { id: user.id }, data: { passwordHash: hashPassword(password) } });
+    }
+
+    if (user.twoFactorEnabled) {
+      // Password alone is not enough — hand back a narrow, 5-minute
+      // "pending" token that only /api/auth/2fa/challenge can redeem, and
+      // no session cookie yet.
+      return NextResponse.json({
+        twoFactorRequired: true,
+        pendingToken: signPendingTwoFactorToken(user.id),
+      });
     }
 
     const token = signToken({

@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Loader2, Mail, Lock, User as UserIcon, Building2, Globe2, Tag, BookOpen, ArrowLeft, KeyRound } from "lucide-react";
+import { Loader2, Mail, Lock, User as UserIcon, Building2, Globe2, Tag, BookOpen, ArrowLeft, KeyRound, ShieldCheck } from "lucide-react";
 
 // Only roles a registrant can grant themselves — matches the backend's
 // SELF_SELECTABLE_ROLES in src/app/api/auth/register/route.ts. Reviewer,
@@ -45,6 +45,10 @@ export function AuthView() {
   const [loginEmail, setLoginEmail] = useState(SHOW_DEMO_ACCOUNTS ? "author@eleventhpress.org" : "");
   const [loginPassword, setLoginPassword] = useState(SHOW_DEMO_ACCOUNTS ? "author" : "");
 
+  // Two-factor challenge step (only entered when login reports twoFactorRequired)
+  const [pendingToken, setPendingToken] = useState<string | null>(null);
+  const [twoFactorCode, setTwoFactorCode] = useState("");
+
   // Register form
   const [reg, setReg] = useState({
     fullName: "",
@@ -60,15 +64,40 @@ export function AuthView() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await apiFetch<{ user: any }>("/api/auth/login", {
-        method: "POST",
-        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
-      });
+      const res = await apiFetch<{ user?: any; twoFactorRequired?: boolean; pendingToken?: string }>(
+        "/api/auth/login",
+        { method: "POST", body: JSON.stringify({ email: loginEmail, password: loginPassword }) }
+      );
+      if (res.twoFactorRequired && res.pendingToken) {
+        setPendingToken(res.pendingToken);
+        setTwoFactorCode("");
+        return;
+      }
       setAuth(res.user);
       toast.success(`Welcome back, ${res.user.fullName.split(" ")[0]}`);
       openDashboard("overview");
     } catch (e: any) {
       toast.error("Sign in failed", { description: e.message });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function submitTwoFactorChallenge(e: React.FormEvent) {
+    e.preventDefault();
+    if (!pendingToken) return;
+    setLoading(true);
+    try {
+      const res = await apiFetch<{ user: any }>("/api/auth/2fa/challenge", {
+        method: "POST",
+        body: JSON.stringify({ pendingToken, token: twoFactorCode }),
+      });
+      setAuth(res.user);
+      setPendingToken(null);
+      toast.success(`Welcome back, ${res.user.fullName.split(" ")[0]}`);
+      openDashboard("overview");
+    } catch (e: any) {
+      toast.error("Verification failed", { description: e.message });
     } finally {
       setLoading(false);
     }
@@ -95,6 +124,51 @@ export function AuthView() {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (pendingToken) {
+    return (
+      <div className="mx-auto max-w-md px-4 py-12 sm:px-6 lg:px-8">
+        <Button variant="ghost" size="sm" onClick={() => setPendingToken(null)} className="mb-6">
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> Back
+        </Button>
+        <Card className="paper-card">
+          <CardHeader>
+            <p className="eyebrow flex items-center gap-1.5">
+              <ShieldCheck className="h-3.5 w-3.5" /> Two-factor authentication
+            </p>
+            <h1 className="font-display text-2xl font-semibold text-primary">Enter your code</h1>
+            <p className="text-sm text-muted-foreground">
+              Enter the 6-digit code from your authenticator app, or one of your backup codes.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={submitTwoFactorChallenge} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="tfa-code">Authentication code</Label>
+                <Input
+                  id="tfa-code"
+                  autoFocus
+                  required
+                  value={twoFactorCode}
+                  onChange={(e) => setTwoFactorCode(e.target.value)}
+                  className="h-10 font-mono tracking-widest"
+                  placeholder="123456"
+                />
+                <p className="text-[0.65rem] text-muted-foreground">
+                  Enter your 6-digit authenticator code, or a backup code (e.g. AB12C-D3E4F) if
+                  you've lost access to your device.
+                </p>
+              </div>
+              <Button type="submit" className="w-full" disabled={loading || twoFactorCode.length === 0}>
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Verify and sign in
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (

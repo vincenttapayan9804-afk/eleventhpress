@@ -50,6 +50,12 @@ model User {
   githubUrl             String?
   contactEmail          String? // public-facing contact address — deliberately separate from the login `email`
   contactPhone          String?
+  // Two-factor authentication (TOTP) — twoFactorSecret is only set while
+  // enabled; twoFactorBackupCodes is a comma-separated list of bcrypt
+  // hashes (never plaintext), one-time use, consumed on redemption.
+  twoFactorSecret       String?
+  twoFactorEnabled      Boolean   @default(false)
+  twoFactorBackupCodes  String?
   // ORCID OAuth tokens (premium integration)
   orcidAccessToken      String?
   orcidRefreshToken     String?

@@ -13,8 +13,11 @@ import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME, generateCsrfToken } from "@/lib/csr
 // URL) and so aren't a CSRF target — a forged cross-site request can't
 // produce a valid signature or secret either way, so subjecting them to
 // this check would only break legitimate server-to-server callers for no
-// security gain. login/register are exempt too: a brand-new visitor has no
-// session yet to protect on their very first request.
+// security gain. login/register/2fa-challenge are exempt too: none of them
+// run with a real session cookie yet — login and register precede having
+// one at all, and the 2FA challenge step authenticates via its own
+// short-lived pending token (src/lib/auth.ts) rather than the session
+// cookie.
 const CSRF_EXEMPT_PREFIXES = [
   "/api/webhooks/",
   "/api/billing/webhook/",
@@ -22,6 +25,7 @@ const CSRF_EXEMPT_PREFIXES = [
   "/api/storage/upload-local/",
   "/api/auth/login",
   "/api/auth/register",
+  "/api/auth/2fa/challenge",
 ];
 
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);

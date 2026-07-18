@@ -5,7 +5,7 @@ const globalForPrisma = globalThis as unknown as {
 }
 
 // Force a fresh client if the schema version has changed (cache-busting)
-const SCHEMA_VERSION = "v3-scale-indexes";
+const SCHEMA_VERSION = "v4-two-factor-auth";
 const cachedVersion = (globalForPrisma as any).__epipSchemaVersion;
 if (cachedVersion !== SCHEMA_VERSION) {
   if (globalForPrisma.prisma) {
