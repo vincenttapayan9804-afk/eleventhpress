@@ -4,8 +4,7 @@ import { getSessionFromHeaders } from "@/lib/auth";
 import { getPaymentProvider } from "@/lib/payments";
 import { APP_BASE_URL } from "@/lib/site";
 import { SUBSCRIPTION_PLAN_PRICES, DISTRIBUTION_PACKAGE_ARTICLE_USD, DISTRIBUTION_PACKAGE_BOOK_USD, type SubscriptionPlan } from "@/lib/pricing";
-
-const PRIVILEGED_ROLES = new Set(["SUPER_ADMIN", "EDITOR", "ASSOCIATE_EDITOR"]);
+import { PRIVILEGED_ROLES } from "@/lib/roles";
 
 /**
  * POST /api/billing/checkout

@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { presignGet } from "@/lib/storage";
-
-const PRIVILEGED_ROLES = ["SUPER_ADMIN", "EDITOR", "ASSOCIATE_EDITOR"];
+import { PRIVILEGED_ROLES_LIST as PRIVILEGED_ROLES } from "@/lib/roles";
 const FORMATS = new Set(["MONOGRAPH", "EDITED_VOLUME", "ANTHOLOGY"]);
 
 /**

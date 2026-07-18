@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
-
-const PRIVILEGED_ROLES = new Set(["SUPER_ADMIN", "EDITOR", "ASSOCIATE_EDITOR"]);
+import { PRIVILEGED_ROLES } from "@/lib/roles";
 const ALLOWED_STATUSES = new Set(["SUBMITTED", "LIVE", "FAILED"]);
 
 /**

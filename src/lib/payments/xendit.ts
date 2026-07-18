@@ -10,6 +10,7 @@
  * relying on this in production — written from their stable Invoices +
  * callback-verification-token API, not fetched live.
  */
+import { timingSafeEqual } from "crypto";
 import { simulatedCheckout } from "./simulate";
 import type { CheckoutInput, CheckoutResult, PaymentProvider, WebhookEvent } from "./types";
 
@@ -53,7 +54,10 @@ export const xenditProvider: PaymentProvider = {
 
   async parseWebhook(rawBody: string, headers: Headers): Promise<WebhookEvent> {
     const token = headers.get("x-callback-token") || "";
-    if (token !== CALLBACK_TOKEN) {
+    const tokenBuf = Buffer.from(token);
+    const expectedBuf = Buffer.from(CALLBACK_TOKEN);
+    const valid = tokenBuf.length === expectedBuf.length && timingSafeEqual(tokenBuf, expectedBuf);
+    if (!valid) {
       throw new Error("Xendit webhook callback token mismatch");
     }
 

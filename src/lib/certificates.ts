@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { db } from "@/lib/db";
+import { PRIVILEGED_ROLES_LIST } from "@/lib/roles";
 
 /**
  * Certificate eligibility, canonical content hashing, and serial-number
@@ -53,7 +54,7 @@ export const CERTIFICATE_CATEGORY_LABELS: Record<CertificateCategory, string> = 
 // Same editorial-board bundle already used by GET /api/editorial-board —
 // SUPER_ADMIN is treated as editorial staff there too, reused here for
 // consistency rather than inventing a second definition of "editor."
-export const BOARD_EDITOR_ROLES = ["SUPER_ADMIN", "EDITOR", "ASSOCIATE_EDITOR"];
+export const BOARD_EDITOR_ROLES = PRIVILEGED_ROLES_LIST;
 
 export interface CertificateEligibility {
   AUTHOR: boolean;

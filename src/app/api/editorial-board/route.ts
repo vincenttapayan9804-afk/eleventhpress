@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { fetchAuthorCitationMetrics } from "@/lib/citation-metrics";
+import { PRIVILEGED_ROLES_LIST } from "@/lib/roles";
 
 /**
  * GET /api/editorial-board
@@ -24,7 +25,7 @@ import { fetchAuthorCitationMetrics } from "@/lib/citation-metrics";
  * live call fails, and to an honest `null` (never a fabricated number) if
  * neither source has anything.
  */
-const BOARD_ROLES = ["SUPER_ADMIN", "EDITOR", "ASSOCIATE_EDITOR"] as const;
+const BOARD_ROLES = PRIVILEGED_ROLES_LIST;
 const ROLE_RANK: Record<string, number> = { SUPER_ADMIN: 0, EDITOR: 1, ASSOCIATE_EDITOR: 2 };
 const ROLE_LABEL: Record<string, string> = {
   SUPER_ADMIN: "Editor-in-Chief",
