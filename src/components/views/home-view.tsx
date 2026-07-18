@@ -10,7 +10,7 @@ import { DOI_REGISTRAR } from "@/lib/site";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { HeroGlobe, ImpactSphere } from "@/components/three-d/scenes";
+import { HeroGlobe, ImpactSphere } from "@/components/three-d/lazy";
 import { useReveal } from "@/hooks/use-scroll-reveal";
 import {
   Search, ArrowRight, Sparkles, FileText, Quote, TrendingUp, Globe2,

@@ -10,7 +10,7 @@ import { attentionMetricsConfigured } from "@/lib/attention-metrics";
 import { AltmetricBadge, PlumXBadge } from "@/components/attention-badges";
 import { buildBibTeX, buildRis, coinsSpanProps } from "@/lib/citation-export";
 import { CITATION_STYLES, formatCitationStyle, type CitationStyleId } from "@/lib/citation-styles";
-import { MetricsBarChart3D, MetricsFillGauge3D } from "@/components/three-d/scenes";
+import { MetricsBarChart3D, MetricsFillGauge3D } from "@/components/three-d/lazy";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Card, CardContent } from "@/components/ui/card";

@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { KeywordCluster } from "@/components/three-d/scenes";
+import { KeywordCluster } from "@/components/three-d/lazy";
 import { useReveal } from "@/hooks/use-scroll-reveal";
 import {
   Search, SlidersHorizontal, FileX, ChevronLeft, ChevronRight,
