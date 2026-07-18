@@ -5,17 +5,19 @@ import { useApp } from "@/lib/store";
 import { apiFetch } from "@/lib/api-client";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
-import { HomeView } from "@/components/views/home-view";
-import { BrowseView } from "@/components/views/browse-view";
-import { ArticleView } from "@/components/views/article-view";
-import { AboutView } from "@/components/views/about-view";
-import { AuthView } from "@/components/views/auth-view";
-import { DashboardView } from "@/components/views/dashboard-view";
-import { ResourcesView } from "@/components/views/resources-view";
-import { AuthorsView } from "@/components/views/authors-view";
-import { FaqsView } from "@/components/views/faqs-view";
-import { PoliciesView } from "@/components/views/policies-view";
-import { AdminPortalView } from "@/components/views/admin-portal-view";
+import {
+  HomeView,
+  BrowseView,
+  ArticleView,
+  AboutView,
+  AuthView,
+  DashboardView,
+  ResourcesView,
+  AuthorsView,
+  FaqsView,
+  PoliciesView,
+  AdminPortalView,
+} from "@/components/views/lazy";
 import { AuthSheet } from "@/components/auth-sheet";
 import { Toaster } from "@/components/ui/sonner";
 import { I18nProvider } from "@/components/i18n-provider";

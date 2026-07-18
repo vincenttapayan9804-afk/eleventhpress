@@ -34,24 +34,26 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { ProfileTab } from "@/components/dashboard/profile-tab";
-import { AuthorSubmitTab } from "@/components/dashboard/author-submit-tab";
-import { AuthorArticlesTab } from "@/components/dashboard/author-articles-tab";
-import { InvoicesTab } from "@/components/dashboard/invoices-tab";
-import { EditorQueueTab } from "@/components/dashboard/editor-queue-tab";
-import { ReviewerQueueTab } from "@/components/dashboard/reviewer-queue-tab";
-import { ReviewerFormTab } from "@/components/dashboard/reviewer-form-tab";
-import { IndexingTab } from "@/components/dashboard/indexing-tab";
-import { ReaderTab } from "@/components/dashboard/reader-tab";
-import { AdminTab } from "@/components/dashboard/admin-tab";
-import { OverviewTab } from "@/components/dashboard/overview-tab";
-import { CounterTab } from "@/components/dashboard/counter-tab";
-import { InstitutionsTab } from "@/components/dashboard/institutions-tab";
-import { ApplicationTab } from "@/components/dashboard/application-tab";
-import { DistributionTab } from "@/components/dashboard/distribution-tab";
-import { MyBooksTab } from "@/components/dashboard/my-books-tab";
-import { BookAcquisitionsTab } from "@/components/dashboard/book-acquisitions-tab";
-import { CertificatesTab } from "@/components/dashboard/certificates-tab";
+import {
+  ProfileTab,
+  AuthorSubmitTab,
+  AuthorArticlesTab,
+  InvoicesTab,
+  EditorQueueTab,
+  ReviewerQueueTab,
+  ReviewerFormTab,
+  IndexingTab,
+  ReaderTab,
+  AdminTab,
+  OverviewTab,
+  CounterTab,
+  InstitutionsTab,
+  ApplicationTab,
+  DistributionTab,
+  MyBooksTab,
+  BookAcquisitionsTab,
+  CertificatesTab,
+} from "@/components/dashboard/lazy";
 import { useLiveDashboard } from "@/hooks/use-live-dashboard";
 
 interface DashboardData {
