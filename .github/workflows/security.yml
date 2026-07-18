@@ -1,0 +1,35 @@
+name: Security scanning
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Both scanners run continue-on-error: true — a first pass meant to
+# surface findings for visibility, not block merges. Once the initial
+# findings backlog has been triaged, drop continue-on-error on whichever
+# scanner is clean to make it blocking.
+jobs:
+  semgrep:
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Semgrep scan (OSS ruleset, auto-detected)
+        continue-on-error: true
+        run: semgrep scan --config=auto --error
+
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks scan
+        continue-on-error: true
+        run: |
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest detect \
+            --source=/repo --config=/repo/.gitleaks.toml --no-git -v

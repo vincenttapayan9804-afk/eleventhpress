@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Dummy values, never real credentials — just enough for `prisma generate`
+# (which validates the schema/datasource shape but never connects) and
+# `next build`'s page-data-collection step, which imports every route
+# module and so runs src/lib/auth.ts's and src/lib/field-encryption.ts's
+# "required in production" startup guards (next build always runs under
+# production semantics, regardless of the runner's own NODE_ENV).
+env:
+  POSTGRES_PRISMA_URL: postgresql://ci:ci@localhost:5432/ci
+  POSTGRES_URL_NON_POOLING: postgresql://ci:ci@localhost:5432/ci
+  SESSION_SECRET: ci-only-not-a-real-secret-1234567890
+  FIELD_ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Prisma generate
+        run: bunx prisma generate
+
+      - name: Type check
+        # Informational only for now — this repo has pre-existing type
+        # errors in a few files (mini-services/ws-service's missing
+        # socket.io types, some legacy script/route files) that predate
+        # this workflow and are out of this phase's scope to fix. Once
+        # those are cleaned up, drop continue-on-error to make this
+        # blocking.
+        continue-on-error: true
+        run: bunx tsc --noEmit -p .
+
+      - name: Lint
+        # Also informational for now — a handful of pre-existing
+        # react-hooks/set-state-in-effect violations in a few components
+        # predate this workflow. Every file touched by the security-
+        # hardening epic this workflow ships alongside is already clean;
+        # fixing the pre-existing ones is a separate, unrelated cleanup.
+        continue-on-error: true
+        run: bun run lint
+
+      - name: Test
+        run: bun test
+
+      - name: Build
+        run: bunx next build

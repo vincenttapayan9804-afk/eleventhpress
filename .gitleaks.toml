@@ -1,0 +1,20 @@
+# Gitleaks config for eleventhpress. Extends gitleaks' default rule set
+# rather than redefining it, and allowlists two known false positives:
+# .env.example (a template file — every value in it is either empty or an
+# illustrative placeholder, never a real credential) and the single
+# documented dev-only insecure fallback secret literal in src/lib/auth.ts
+# (SESSION_SECRET's local-dev default, never used when a real
+# SESSION_SECRET is set — see that file's comment).
+title = "eleventhpress"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Template files and the documented dev-only insecure default secret"
+paths = [
+  '''\.env\.example$''',
+]
+regexes = [
+  '''epip-dev-only-insecure-secret-do-not-use-in-prod''',
+]
