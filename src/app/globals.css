@@ -598,3 +598,129 @@
   background-size: 200% 100%;
   animation: shimmer-pearl 1.5s infinite;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   DASHBOARD OVERVIEW — "AURORA" GLASS + MOTION GRADE
+   Deeper frost, ambient drifting light, spring entrances, cursor-tilt —
+   scoped to the Overview tab's stat/chart cards only. Reuses the existing
+   --royal-* ramp and --ease-luxury timing rather than inventing a second
+   motion language; only status color (good/warn — critical reuses
+   --destructive) is new, since nothing status-like existed yet.
+   ═══════════════════════════════════════════════════════════════════════ */
+:root {
+  --status-good: oklch(0.5 0.14 145);
+  --status-good-bg: oklch(0.94 0.05 145);
+  --status-warn: oklch(0.7 0.15 75);
+  --status-warn-bg: oklch(0.95 0.06 85);
+  --status-critical-bg: oklch(0.94 0.06 25);
+}
+.dark {
+  --status-good: oklch(0.62 0.14 145);
+  --status-good-bg: oklch(0.28 0.06 145);
+  --status-warn: oklch(0.75 0.14 75);
+  --status-warn-bg: oklch(0.3 0.07 85);
+  --status-critical-bg: oklch(0.28 0.07 25);
+}
+
+.aurora-field {
+  position: absolute;
+  inset: -40px -24px auto -24px;
+  height: 520px;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.55;
+}
+.aurora-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(64px);
+  will-change: transform;
+}
+.aurora-blob-1 {
+  width: 420px;
+  height: 420px;
+  top: -140px;
+  left: -80px;
+  background: radial-gradient(circle, oklch(0.5 0.18 296 / 0.55), transparent 70%);
+  animation: aurora-drift-1 26s ease-in-out infinite;
+}
+.aurora-blob-2 {
+  width: 380px;
+  height: 380px;
+  top: 40px;
+  right: -120px;
+  background: radial-gradient(circle, oklch(0.62 0.16 296 / 0.5), transparent 70%);
+  animation: aurora-drift-2 32s ease-in-out infinite;
+}
+.aurora-blob-3 {
+  width: 320px;
+  height: 320px;
+  top: 220px;
+  left: 30%;
+  background: radial-gradient(circle, oklch(0.76 0.11 294 / 0.5), transparent 70%);
+  animation: aurora-drift-3 22s ease-in-out infinite;
+}
+@keyframes aurora-drift-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(50px, 34px) scale(1.1); }
+}
+@keyframes aurora-drift-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-44px, 40px) scale(1.08); }
+}
+@keyframes aurora-drift-3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(26px, -34px) scale(1.12); }
+}
+
+.aurora-card {
+  position: relative;
+  z-index: 1;
+  backdrop-filter: blur(32px) saturate(180%);
+  -webkit-backdrop-filter: blur(32px) saturate(180%);
+  box-shadow:
+    0 1px 0 oklch(1 0 0 / 0.75) inset,
+    0 1px 2px oklch(0.38 0.18 295 / 0.05),
+    0 20px 48px -12px oklch(0.42 0.18 295 / 0.22),
+    0 0 0 1px oklch(0.5 0.18 296 / 0.14);
+  transition:
+    transform 0.5s var(--ease-luxury),
+    box-shadow 0.5s var(--ease-luxury);
+}
+.aurora-card:hover {
+  box-shadow:
+    0 1px 0 oklch(1 0 0 / 0.8) inset,
+    0 2px 4px oklch(0.38 0.18 295 / 0.06),
+    0 30px 64px -14px oklch(0.42 0.18 295 / 0.3),
+    0 0 0 1px oklch(0.5 0.18 296 / 0.26),
+    0 0 32px -6px oklch(0.5 0.18 296 / 0.35);
+}
+.dark .aurora-card {
+  box-shadow:
+    0 1px 0 oklch(1 0 0 / 0.06) inset,
+    0 20px 48px -12px oklch(0 0 0 / 0.45),
+    0 0 0 1px oklch(0.62 0.16 296 / 0.22);
+}
+.dark .aurora-card:hover {
+  box-shadow:
+    0 1px 0 oklch(1 0 0 / 0.08) inset,
+    0 30px 64px -14px oklch(0 0 0 / 0.55),
+    0 0 0 1px oklch(0.62 0.16 296 / 0.4),
+    0 0 32px -6px oklch(0.62 0.16 296 / 0.45);
+}
+
+.aurora-enter {
+  animation: aurora-card-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: var(--aurora-delay, 0ms);
+}
+@keyframes aurora-card-in {
+  from { opacity: 0; transform: translateY(24px); filter: blur(6px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora-blob { animation: none !important; }
+  .aurora-enter { animation-duration: 1ms !important; }
+  .aurora-card { transition: none !important; }
+}
