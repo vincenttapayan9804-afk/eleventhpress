@@ -12,12 +12,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: rl.message }, { status: 429 });
     }
 
+    const userAgent = req.headers.get("user-agent") || null;
     const { email, password } = (await req.json()) as { email?: string; password?: string };
     if (!email || !password) {
       return NextResponse.json({ error: "Missing credentials" }, { status: 400 });
     }
+
+    // Per-account throttling, on top of the per-IP limit above — an
+    // attacker spreading guesses across many IPs would otherwise face no
+    // limit at all on how many passwords they can try against one account.
+    const accountRl = await checkRateLimit(`login-account:${email.toLowerCase()}`, 10, 900);
+    if (!accountRl.ok) {
+      return NextResponse.json({ error: accountRl.message }, { status: 429 });
+    }
+
     const user = await db.user.findUnique({ where: { email } });
     if (!user || user.deletedAt || !verifyPassword(password, user.passwordHash)) {
+      // userId stays null — no session/actor is established for a failed
+      // attempt, and (for the !user case) there may be no real account at
+      // all. entityId falls back to the attempted email so failed logins
+      // against the same target are still correlatable.
+      await db.auditLog.create({
+        data: {
+          action: "LOGIN_FAILURE",
+          entityType: "USER",
+          entityId: user?.id ?? email,
+          metadata: JSON.stringify({ ip, userAgent, email }),
+        },
+      }).catch(() => {});
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
     }
 
@@ -46,6 +68,16 @@ export async function POST(req: NextRequest) {
       role: user.role,
       fullName: user.fullName,
     });
+
+    await db.auditLog.create({
+      data: {
+        userId: user.id,
+        action: "LOGIN_SUCCESS",
+        entityType: "USER",
+        entityId: user.id,
+        metadata: JSON.stringify({ ip, userAgent }),
+      },
+    }).catch(() => {});
 
     const res = NextResponse.json({
       user: {

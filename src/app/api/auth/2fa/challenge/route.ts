@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { verifyPendingTwoFactorToken, signToken, SESSION_COOKIE_NAME, sessionCookieOptions } from "@/lib/auth";
 import { verifyTwoFactorToken, consumeBackupCode } from "@/lib/twofactor";
 import { checkRateLimit } from "@/lib/ratelimit";
+import { extractRequestIp } from "@/lib/institutions";
 
 /**
  * Second step of login for accounts with twoFactorEnabled. Redeems the
@@ -34,6 +35,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Two-factor authentication is not enabled for this account" }, { status: 400 });
   }
 
+  const ip = extractRequestIp(req.headers);
+  const userAgent = req.headers.get("user-agent") || null;
+
   let ok = await verifyTwoFactorToken(token, user.twoFactorSecret);
   let remainingBackupCodes: string | null | undefined;
   if (!ok) {
@@ -41,12 +45,31 @@ export async function POST(req: NextRequest) {
     ok = remainingBackupCodes !== null;
   }
   if (!ok) {
+    await db.auditLog.create({
+      data: {
+        userId: user.id,
+        action: "LOGIN_FAILURE",
+        entityType: "USER",
+        entityId: user.id,
+        metadata: JSON.stringify({ ip, userAgent, reason: "invalid_2fa_code" }),
+      },
+    }).catch(() => {});
     return NextResponse.json({ error: "Invalid verification code" }, { status: 401 });
   }
 
   if (remainingBackupCodes !== undefined) {
     await db.user.update({ where: { id: user.id }, data: { twoFactorBackupCodes: remainingBackupCodes } });
   }
+
+  await db.auditLog.create({
+    data: {
+      userId: user.id,
+      action: "LOGIN_SUCCESS",
+      entityType: "USER",
+      entityId: user.id,
+      metadata: JSON.stringify({ ip, userAgent, via: "2fa" }),
+    },
+  }).catch(() => {});
 
   const sessionToken = signToken({ userId: user.id, email: user.email, role: user.role, fullName: user.fullName });
   const res = NextResponse.json({

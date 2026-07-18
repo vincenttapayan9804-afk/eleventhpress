@@ -10,8 +10,17 @@
  * via recordCounterEvent() below, and from the diagnostic
  * src/app/api/institutions/ip-check/route.ts.
  */
-import { randomBytes } from "crypto";
+import { randomBytes, timingSafeEqual } from "crypto";
 import { db } from "@/lib/db";
+
+/** Constant-time string comparison — a plain `===` on a secret leaks its
+ * length/prefix via response-time differences to a network attacker. */
+function safeStringEqual(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return timingSafeEqual(bufA, bufB);
+}
 
 export interface InstitutionMatch {
   institutionId: string;
@@ -174,7 +183,7 @@ export async function verifySushiApiKey(customerId: string, apiKey: string | nul
     where: { counterCustomerId: customerId, status: "ACTIVE" },
   });
   if (!inst?.counterApiKey) return false;
-  return inst.counterApiKey === apiKey;
+  return safeStringEqual(inst.counterApiKey, apiKey);
 }
 
 /**

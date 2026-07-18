@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { getSessionFromHeaders } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { DIRECTORIES, DIRECTORY_STATUSES, type Directory, type DirectoryStatus } from "@/lib/directory-listings";
 
 /**
@@ -12,12 +12,9 @@ import { DIRECTORIES, DIRECTORY_STATUSES, type Directory, type DirectoryStatus }
  * thing this codebase's honesty convention treats as high-stakes.
  */
 export async function GET(req: NextRequest) {
-  const session = getSessionFromHeaders(req.headers);
-  if (!session) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
-  }
-  if (session.role !== "SUPER_ADMIN") {
-    return NextResponse.json({ error: "Admin role required" }, { status: 403 });
+  const auth = requireRole(req.headers, ["SUPER_ADMIN"]);
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
   const journal = await db.journal.findFirst();
@@ -51,13 +48,11 @@ export async function GET(req: NextRequest) {
  * Upserts the listing row for a (journal, directory) pair. SUPER_ADMIN only.
  */
 export async function PATCH(req: NextRequest) {
-  const session = getSessionFromHeaders(req.headers);
-  if (!session) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  const auth = requireRole(req.headers, ["SUPER_ADMIN"]);
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
-  if (session.role !== "SUPER_ADMIN") {
-    return NextResponse.json({ error: "Admin role required" }, { status: 403 });
-  }
+  const { session } = auth;
 
   const body = (await req.json()) as {
     journalId: string;

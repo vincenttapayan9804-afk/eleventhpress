@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { getSessionFromHeaders } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 
 /**
  * GET /api/admin/book-jobs
@@ -8,12 +8,9 @@ import { getSessionFromHeaders } from "@/lib/auth";
  * rows for operational visibility. SUPER_ADMIN only.
  */
 export async function GET(req: NextRequest) {
-  const session = getSessionFromHeaders(req.headers);
-  if (!session) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
-  }
-  if (session.role !== "SUPER_ADMIN") {
-    return NextResponse.json({ error: "Admin role required" }, { status: 403 });
+  const auth = requireRole(req.headers, ["SUPER_ADMIN"]);
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
   const jobs = await db.bookProductionJob.findMany({
