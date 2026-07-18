@@ -1,11 +1,12 @@
 import { PrismaClient } from '@prisma/client'
+import { encryptUserFields, decryptUserFields } from './field-encryption'
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
 // Force a fresh client if the schema version has changed (cache-busting)
-const SCHEMA_VERSION = "v5-malware-scan-job";
+const SCHEMA_VERSION = "v6-field-encryption";
 const cachedVersion = (globalForPrisma as any).__epipSchemaVersion;
 if (cachedVersion !== SCHEMA_VERSION) {
   if (globalForPrisma.prisma) {
@@ -38,11 +39,50 @@ function pooledDatasourceUrl(): string | undefined {
   return url.toString();
 }
 
-export const db =
+const rawClient =
   globalForPrisma.prisma ??
   new PrismaClient({
     log: ['warn', 'error'],
     datasourceUrl: pooledDatasourceUrl(),
   })
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = rawClient
+
+/**
+ * Field-level encryption for User's OAuth token columns
+ * (src/lib/field-encryption.ts) — transparent to every existing call
+ * site: reads decrypt, writes encrypt, and rows written before this
+ * feature shipped keep reading back as plaintext unchanged. Applied via
+ * a Prisma Client Extension rather than touching each of the ~6 call
+ * sites that read/write these fields individually, so no route code
+ * needed to change.
+ */
+export const db = rawClient.$extends({
+  name: 'field-encryption',
+  query: {
+    user: {
+      async create({ args, query }) {
+        encryptUserFields(args.data)
+        return decryptUserFields(await query(args))
+      },
+      async update({ args, query }) {
+        encryptUserFields(args.data)
+        return decryptUserFields(await query(args))
+      },
+      async updateMany({ args, query }) {
+        encryptUserFields(args.data)
+        return query(args)
+      },
+      async findUnique({ args, query }) {
+        return decryptUserFields(await query(args))
+      },
+      async findFirst({ args, query }) {
+        return decryptUserFields(await query(args))
+      },
+      async findMany({ args, query }) {
+        const results = await query(args)
+        return results.map((r) => decryptUserFields(r))
+      },
+    },
+  },
+})
