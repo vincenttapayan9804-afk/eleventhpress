@@ -27,6 +27,8 @@ import {
   ShieldCheck,
   ShieldAlert,
   KeyRound,
+  Download,
+  AlertOctagon,
 } from "lucide-react";
 
 interface Profile {
@@ -59,7 +61,7 @@ function initialsOf(name: string) {
 }
 
 export function ProfileTab() {
-  const { user, setAuth } = useApp();
+  const { user, setAuth, logout, setView } = useApp();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -75,6 +77,13 @@ export function ProfileTab() {
   const [disablePassword, setDisablePassword] = useState("");
   const [showDisableForm, setShowDisableForm] = useState(false);
   const [twoFactorBusy, setTwoFactorBusy] = useState(false);
+
+  // GDPR/CCPA data rights: export + account deletion
+  const [exporting, setExporting] = useState(false);
+  const [showDeleteForm, setShowDeleteForm] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   const [form, setForm] = useState({
     fullName: "",
@@ -258,6 +267,43 @@ export function ProfileTab() {
       toast.error("Couldn't disable", { description: e.message });
     } finally {
       setTwoFactorBusy(false);
+    }
+  }
+
+  async function exportMyData() {
+    setExporting(true);
+    try {
+      const data = await apiFetch<Record<string, unknown>>("/api/account/export");
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `eleventhpress-account-export-${profile?.id ?? "data"}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Your data export has downloaded");
+    } catch (e: any) {
+      toast.error("Export failed", { description: e.message });
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function deleteMyAccount(e: React.FormEvent) {
+    e.preventDefault();
+    setDeleting(true);
+    try {
+      await apiFetch("/api/account/delete", {
+        method: "POST",
+        body: JSON.stringify({ password: deletePassword }),
+      });
+      toast.success("Your account has been deleted");
+      logout();
+      setView("home");
+    } catch (e: any) {
+      toast.error("Couldn't delete account", { description: e.message });
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -594,6 +640,99 @@ export function ProfileTab() {
               </Button>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* GDPR/CCPA data rights — see /privacy for the full policy this implements */}
+      <Card className="paper-card">
+        <CardHeader>
+          <p className="eyebrow">Your data</p>
+          <h3 className="font-display text-lg font-semibold">Export or delete your account</h3>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border p-4">
+            <div>
+              <p className="text-sm font-medium">Export my data</p>
+              <p className="text-xs text-muted-foreground">
+                Download a JSON copy of your profile, submissions, reviews, invoices, and notifications.
+              </p>
+            </div>
+            <Button type="button" variant="outline" size="sm" disabled={exporting} onClick={exportMyData}>
+              {exporting ? (
+                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Download className="mr-2 h-3.5 w-3.5" />
+              )}
+              Download export
+            </Button>
+          </div>
+
+          <div className="rounded-md border border-destructive/40 bg-destructive/5 p-4">
+            <p className="flex items-center gap-1.5 text-sm font-medium text-destructive">
+              <AlertOctagon className="h-4 w-4" /> Delete my account
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Immediately and permanently anonymizes your profile (name, email, bio, and every
+              other personal field) and signs you out everywhere. The citable author byline on any
+              already-published, DOI-bearing article is a permanent part of that DOI's record and
+              is not retroactively changed. This cannot be undone.
+            </p>
+            {showDeleteForm ? (
+              <form onSubmit={deleteMyAccount} className="mt-3 space-y-2">
+                <Label htmlFor="delete-account-pass">Confirm your password</Label>
+                <Input
+                  id="delete-account-pass"
+                  type="password"
+                  required
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  className="h-10 max-w-xs"
+                />
+                <Label htmlFor="delete-account-confirm">
+                  Type <span className="font-mono font-semibold">DELETE</span> to confirm
+                </Label>
+                <Input
+                  id="delete-account-confirm"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  className="h-10 max-w-xs"
+                />
+                <div className="flex gap-2 pt-1">
+                  <Button
+                    type="submit"
+                    size="sm"
+                    variant="destructive"
+                    disabled={deleting || deleteConfirmText !== "DELETE" || !deletePassword}
+                  >
+                    {deleting && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+                    Permanently delete my account
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setShowDeleteForm(false);
+                      setDeletePassword("");
+                      setDeleteConfirmText("");
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            ) : (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="mt-3 text-destructive hover:text-destructive"
+                onClick={() => setShowDeleteForm(true)}
+              >
+                <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete my account
+              </Button>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>

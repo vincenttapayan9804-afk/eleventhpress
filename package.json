@@ -4,10 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000 2>&1 | tee dev.log",
-    "build": "prisma db push && bun run scripts/seed.ts && (bun run scripts/backfill-galleys.ts --confirm --skip-galleys || true) && (bun run scripts/refresh-citation-metrics.ts --confirm || true) && (bun run scripts/enable-review-history.ts || true) && next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
+    "build": "prisma db push && bun run scripts/seed.ts && (bun run scripts/backfill-galleys.ts --confirm --skip-galleys || true) && (bun run scripts/refresh-citation-metrics.ts --confirm || true) && (bun run scripts/enable-review-history.ts || true) && (bun run scripts/purge-old-ip-addresses.ts || true) && next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
     "start": "NODE_ENV=production bun .next/standalone/server.js 2>&1 | tee server.log",
     "lint": "eslint .",
-    "test": "bun test",
+    "test": "bun test src",
+    "test:a11y": "playwright test",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
@@ -102,6 +103,8 @@
     "zustand": "^5.0.6"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
+    "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^3.0.0",
     "@types/jsonwebtoken": "^9.0.10",

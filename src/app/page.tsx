@@ -16,6 +16,8 @@ import {
   AuthorsView,
   FaqsView,
   PoliciesView,
+  PrivacyView,
+  AccessibilityView,
   AdminPortalView,
 } from "@/components/views/lazy";
 import { AuthSheet } from "@/components/auth-sheet";
@@ -72,8 +74,14 @@ export default function Page() {
   return (
     <I18nProvider>
       <div className="min-h-screen flex flex-col bg-background">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground"
+        >
+          Skip to content
+        </a>
         <SiteHeader />
-        <main className="flex-1">
+        <main id="main-content" className="flex-1">
           {view === "home" && <HomeView />}
           {view === "browse" && <BrowseView />}
           {view === "article" && <ArticleView />}
@@ -84,6 +92,8 @@ export default function Page() {
           {view === "authors" && <AuthorsView />}
           {view === "faqs" && <FaqsView />}
           {view === "policies" && <PoliciesView />}
+          {view === "privacy" && <PrivacyView />}
+          {view === "accessibility" && <AccessibilityView />}
           {view === "adminPortal" && <AdminPortalView />}
         </main>
         <SiteFooter />

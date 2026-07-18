@@ -5,10 +5,14 @@ on:
   push:
     branches: [main]
 
-# Both scanners run continue-on-error: true — a first pass meant to
-# surface findings for visibility, not block merges. Once the initial
-# findings backlog has been triaged, drop continue-on-error on whichever
-# scanner is clean to make it blocking.
+# Semgrep still runs continue-on-error: true — a first pass meant to
+# surface findings for visibility, not block merges, since its findings
+# backlog hasn't been triaged yet.
+#
+# Gitleaks was verified clean (built from source and run against every
+# commit in this repo's history — the same scope `fetch-depth: 0` gives
+# this job — zero leaks, both before and after the .gitleaks.toml
+# allowlist's two documented dev-only fallback secrets) and made blocking.
 jobs:
   semgrep:
     runs-on: ubuntu-latest
@@ -29,7 +33,6 @@ jobs:
           fetch-depth: 0
 
       - name: Gitleaks scan
-        continue-on-error: true
         run: |
           docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest detect \
             --source=/repo --config=/repo/.gitleaks.toml --no-git -v

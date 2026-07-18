@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { getSessionFromHeaders } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { ALL_ROLES as VALID_ROLES } from "@/lib/roles";
 
 /**
@@ -14,13 +14,11 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = getSessionFromHeaders(req.headers);
-  if (!session) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  const auth = requireRole(req.headers, ["SUPER_ADMIN"]);
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
-  if (session.role !== "SUPER_ADMIN") {
-    return NextResponse.json({ error: "Admin role required" }, { status: 403 });
-  }
+  const { session } = auth;
 
   const { id } = await params;
   const { role } = (await req.json()) as { role?: string };

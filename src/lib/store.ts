@@ -15,6 +15,8 @@ export type ViewKey =
   | "authors"
   | "faqs"
   | "policies"
+  | "privacy"
+  | "accessibility"
   | "adminPortal";
 
 export type DashboardTab =

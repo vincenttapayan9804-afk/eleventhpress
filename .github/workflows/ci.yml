@@ -68,7 +68,42 @@ jobs:
         # into that one file directly; not worth blocking every PR on
         # until then. Drop continue-on-error once it's fixed.
         continue-on-error: true
-        run: bun test
+        run: bun test src
 
       - name: Build
         run: bunx next build
+
+  a11y:
+    runs-on: ubuntu-latest
+    # Informational only for now, same posture this workflow already uses
+    # for type-check/lint/test above — see tests/a11y.spec.ts and
+    # docs/accessibility.md. The current findings are axe-core's own
+    # documented limitation on gradient/glassmorphic backgrounds (it
+    # resolves contrast against the wrong composited color), verified by
+    # screenshot to not be real rendering bugs — but that verification is
+    # a manual, human step, not something this job can assert on its own,
+    # so it stays informational rather than blocking on a false positive.
+    continue-on-error: true
+    env:
+      POSTGRES_PRISMA_URL: postgresql://ci:ci@localhost:5432/ci
+      POSTGRES_URL_NON_POOLING: postgresql://ci:ci@localhost:5432/ci
+      SESSION_SECRET: ci-only-not-a-real-secret-1234567890
+      FIELD_ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.11"
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install Playwright's Chromium
+        run: bunx playwright install --with-deps chromium
+
+      - name: Prisma generate
+        run: bunx prisma generate
+
+      - name: Accessibility scan (axe-core via Playwright)
+        run: bunx playwright test

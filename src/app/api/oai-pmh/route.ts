@@ -6,6 +6,7 @@ import { APP_BASE_URL, APP_HOST, ARTICLE_LANGUAGE } from "@/lib/site";
  * GET /api/oai-pmh?verb=Identify
  * GET /api/oai-pmh?verb=ListMetadataFormats
  * GET /api/oai-pmh?verb=ListRecords&metadataPrefix=oai_dc[&from=...&until=...]
+ * GET /api/oai-pmh?verb=ListIdentifiers&metadataPrefix=oai_dc[&from=...&until=...]
  * GET /api/oai-pmh?verb=GetRecord&metadataPrefix=oai_dc&identifier=...
  * GET /api/oai-pmh?verb=ListSets
  *
@@ -93,81 +94,23 @@ ${buildRecordXml(article)}
   }
 
   if (verb === "ListRecords") {
-    const PAGE_SIZE = 100;
-    const tokenParam = searchParams.get("resumptionToken");
-    let from = searchParams.get("from");
-    let until = searchParams.get("until");
-    let cursor: { cv: string; cid: string } | null = null;
+    const page = await resolveHarvestPage(searchParams, verb);
+    if (page instanceof NextResponse) return page;
 
-    if (tokenParam) {
-      // Per OAI-PMH spec, a resumptionToken alone determines the query —
-      // any from/until on this request are ignored in favor of what's
-      // encoded in the token, so a harvester resuming a session can't
-      // accidentally shift the selective-harvesting window mid-harvest.
-      const decoded = decodeResumptionToken(tokenParam);
-      if (!decoded) {
-        return errorResponse(verb, "badResumptionToken", "The resumptionToken is invalid or expired");
-      }
-      from = decoded.from;
-      until = decoded.until;
-      cursor = decoded.cv ? { cv: decoded.cv, cid: decoded.cid! } : null;
-    }
-    if ((from && !isValidOaiDate(from)) || (until && !isValidOaiDate(until))) {
-      return errorResponse(verb, "badArgument", "from/until must be YYYY-MM-DD or YYYY-MM-DDThh:mm:ssZ");
-    }
+    const records = page.articles.map(buildRecordXml).join("\n");
+    return xmlResponse(listRecordsXml(records, page.nextToken, page.completeListSize));
+  }
 
-    const where: any = { status: "PUBLISHED" };
-    if (from || until) {
-      where.publishedAt = {};
-      if (from) where.publishedAt.gte = new Date(normalizeOaiDate(from));
-      if (until) where.publishedAt.lte = new Date(normalizeOaiDate(until, true));
-    }
-    // Filtering by date range now happens in the indexed query itself
-    // (Article.status+publishedAt) instead of loading everything and
-    // filtering in JS.
-    const queryWhere = cursor
-      ? {
-          AND: [
-            where,
-            {
-              OR: [
-                { publishedAt: { lt: new Date(cursor.cv) } },
-                { publishedAt: { equals: new Date(cursor.cv) }, id: { lt: cursor.cid } },
-              ],
-            },
-          ],
-        }
-      : where;
+  if (verb === "ListIdentifiers") {
+    // Same selective-harvesting/pagination semantics as ListRecords, but
+    // returns only <header> elements (no <metadata>) — the OAI-PMH verb a
+    // harvester uses to enumerate identifiers/datestamps cheaply before
+    // deciding which records to actually fetch via GetRecord.
+    const page = await resolveHarvestPage(searchParams, verb);
+    if (page instanceof NextResponse) return page;
 
-    const articles = await db.article.findMany({
-      where: queryWhere,
-      include: { journal: true, issue: true },
-      orderBy: [{ publishedAt: "desc" }, { id: "desc" }],
-      take: PAGE_SIZE,
-    });
-
-    if (articles.length === 0) {
-      // Only reachable on a resumptionToken continuation (we only issue a
-      // token when a full page was returned) — treated the same as no
-      // matching records at all, since <ListRecords> requires at least one
-      // <record> child to be valid.
-      return errorResponse(verb, "noRecordsMatch", "No records match the given selective-harvesting criteria");
-    }
-
-    const completeListSize = await db.article.count({ where });
-    const last = articles[articles.length - 1];
-    const hasMore = articles.length === PAGE_SIZE;
-    const nextToken = hasMore
-      ? encodeResumptionToken({
-          cv: (last.publishedAt || last.createdAt).toISOString(),
-          cid: last.id,
-          from,
-          until,
-        })
-      : null;
-
-    const records = articles.map(buildRecordXml).join("\n");
-    return xmlResponse(listRecordsXml(records, nextToken, completeListSize));
+    const headers = page.articles.map(buildHeaderXml).join("\n");
+    return xmlResponse(listIdentifiersXml(headers, page.nextToken, page.completeListSize));
   }
 
   if (verb === "ListSets") {
@@ -197,6 +140,91 @@ ${sets}
   }
 
   return errorResponse(verb, "badVerb", `Unknown verb: ${verb}`);
+}
+
+// ---------------------------------------------------------------------------
+// Shared selective-harvesting + keyset-pagination query, used by both
+// ListRecords and ListIdentifiers so their date-range/resumptionToken/
+// paging semantics never drift apart from each other.
+// ---------------------------------------------------------------------------
+async function resolveHarvestPage(
+  searchParams: URLSearchParams,
+  verb: string
+): Promise<{ articles: any[]; nextToken: string | null; completeListSize: number } | NextResponse> {
+  const PAGE_SIZE = 100;
+  const tokenParam = searchParams.get("resumptionToken");
+  let from = searchParams.get("from");
+  let until = searchParams.get("until");
+  let cursor: { cv: string; cid: string } | null = null;
+
+  if (tokenParam) {
+    // Per OAI-PMH spec, a resumptionToken alone determines the query — any
+    // from/until on this request are ignored in favor of what's encoded in
+    // the token, so a harvester resuming a session can't accidentally
+    // shift the selective-harvesting window mid-harvest.
+    const decoded = decodeResumptionToken(tokenParam);
+    if (!decoded) {
+      return errorResponse(verb, "badResumptionToken", "The resumptionToken is invalid or expired");
+    }
+    from = decoded.from;
+    until = decoded.until;
+    cursor = decoded.cv ? { cv: decoded.cv, cid: decoded.cid! } : null;
+  }
+  if ((from && !isValidOaiDate(from)) || (until && !isValidOaiDate(until))) {
+    return errorResponse(verb, "badArgument", "from/until must be YYYY-MM-DD or YYYY-MM-DDThh:mm:ssZ");
+  }
+
+  const where: any = { status: "PUBLISHED" };
+  if (from || until) {
+    where.publishedAt = {};
+    if (from) where.publishedAt.gte = new Date(normalizeOaiDate(from));
+    if (until) where.publishedAt.lte = new Date(normalizeOaiDate(until, true));
+  }
+  // Filtering by date range now happens in the indexed query itself
+  // (Article.status+publishedAt) instead of loading everything and
+  // filtering in JS.
+  const queryWhere = cursor
+    ? {
+        AND: [
+          where,
+          {
+            OR: [
+              { publishedAt: { lt: new Date(cursor.cv) } },
+              { publishedAt: { equals: new Date(cursor.cv) }, id: { lt: cursor.cid } },
+            ],
+          },
+        ],
+      }
+    : where;
+
+  const articles = await db.article.findMany({
+    where: queryWhere,
+    include: { journal: true, issue: true },
+    orderBy: [{ publishedAt: "desc" }, { id: "desc" }],
+    take: PAGE_SIZE,
+  });
+
+  if (articles.length === 0) {
+    // Only reachable on a resumptionToken continuation (we only issue a
+    // token when a full page was returned) — treated the same as no
+    // matching records at all, since ListRecords/ListIdentifiers require
+    // at least one child element to be valid.
+    return errorResponse(verb, "noRecordsMatch", "No records match the given selective-harvesting criteria");
+  }
+
+  const completeListSize = await db.article.count({ where });
+  const last = articles[articles.length - 1];
+  const hasMore = articles.length === PAGE_SIZE;
+  const nextToken = hasMore
+    ? encodeResumptionToken({
+        cv: (last.publishedAt || last.createdAt).toISOString(),
+        cid: last.id,
+        from,
+        until,
+      })
+    : null;
+
+  return { articles, nextToken, completeListSize };
 }
 
 // ---------------------------------------------------------------------------
@@ -260,6 +288,35 @@ ${records}
 </OAI-PMH>`;
 }
 
+function listIdentifiersXml(headers: string, resumptionToken: string | null, completeListSize?: number): string {
+  const tokenAttrs = completeListSize !== undefined ? ` completeListSize="${completeListSize}"` : "";
+  const tokenEl = resumptionToken
+    ? `<resumptionToken${tokenAttrs}>${resumptionToken}</resumptionToken>`
+    : `<resumptionToken${tokenAttrs}/>`;
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/ http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd">
+  <responseDate>${new Date().toISOString()}</responseDate>
+  <request verb="ListIdentifiers" metadataPrefix="oai_dc">${BASE_URL}</request>
+  <ListIdentifiers>
+${headers}
+  ${tokenEl}
+  </ListIdentifiers>
+</OAI-PMH>`;
+}
+
+function buildHeaderXml(a: any): string {
+  const datestamp = a.publishedAt
+    ? new Date(a.publishedAt).toISOString()
+    : new Date(a.createdAt).toISOString();
+  return `    <header>
+      <identifier>${buildOaiId(a)}</identifier>
+      <datestamp>${datestamp}</datestamp>
+      <setSpec>epip:${escapeXml(a.discipline.toLowerCase().replace(/\s+/g, "_"))}</setSpec>
+    </header>`;
+}
+
 function buildRecordXml(a: any): string {
   const authors = safeParse(a.authors);
   const authorDc = authors
@@ -271,16 +328,9 @@ function buildRecordXml(a: any): string {
     .filter(Boolean)
     .map((k) => `      <dc:subject>${escapeXml(k)}</dc:subject>`)
     .join("\n");
-  const datestamp = a.publishedAt
-    ? new Date(a.publishedAt).toISOString()
-    : new Date(a.createdAt).toISOString();
 
   return `  <record>
-    <header>
-      <identifier>${buildOaiId(a)}</identifier>
-      <datestamp>${datestamp}</datestamp>
-      <setSpec>epip:${escapeXml(a.discipline.toLowerCase().replace(/\s+/g, "_"))}</setSpec>
-    </header>
+${buildHeaderXml(a)}
     <metadata>
       <oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/"
                  xmlns:dc="http://purl.org/dc/elements/1.1/"

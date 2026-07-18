@@ -507,24 +507,25 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div className="space-y-1">
-                        <Label className="text-xs">Full name</Label>
-                        <Input value={a.name} onChange={(e) => updateAuthor(i, "name", e.target.value)} placeholder="Dr. Jane Doe" />
+                        <Label className="text-xs" htmlFor={`author-${i}-name`}>Full name</Label>
+                        <Input id={`author-${i}-name`} value={a.name} onChange={(e) => updateAuthor(i, "name", e.target.value)} placeholder="Dr. Jane Doe" />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs">Email</Label>
-                        <Input type="email" value={a.email} onChange={(e) => updateAuthor(i, "email", e.target.value)} placeholder="jane@university.edu" />
+                        <Label className="text-xs" htmlFor={`author-${i}-email`}>Email</Label>
+                        <Input id={`author-${i}-email`} type="email" value={a.email} onChange={(e) => updateAuthor(i, "email", e.target.value)} placeholder="jane@university.edu" />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs">Affiliation</Label>
-                        <Input value={a.affiliation} onChange={(e) => updateAuthor(i, "affiliation", e.target.value)} placeholder="University of Example" />
+                        <Label className="text-xs" htmlFor={`author-${i}-affiliation`}>Affiliation</Label>
+                        <Input id={`author-${i}-affiliation`} value={a.affiliation} onChange={(e) => updateAuthor(i, "affiliation", e.target.value)} placeholder="University of Example" />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs">ORCID (optional)</Label>
-                        <Input value={a.orcid || ""} onChange={(e) => updateAuthor(i, "orcid", e.target.value)} placeholder="0000-0002-..." />
+                        <Label className="text-xs" htmlFor={`author-${i}-orcid`}>ORCID (optional)</Label>
+                        <Input id={`author-${i}-orcid`} value={a.orcid || ""} onChange={(e) => updateAuthor(i, "orcid", e.target.value)} placeholder="0000-0002-..." />
                       </div>
                       <div className="space-y-1 sm:col-span-2">
-                        <Label className="text-xs">ROR ID (optional)</Label>
+                        <Label className="text-xs" htmlFor={`author-${i}-ror`}>ROR ID (optional)</Label>
                         <Input
+                          id={`author-${i}-ror`}
                           value={a.rorId || ""}
                           onChange={(e) => updateAuthor(i, "rorId", e.target.value)}
                           placeholder="e.g. 057zh3y96 — from ror.org, identifies the affiliation above"
@@ -563,17 +564,17 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
                 <Card key={i} className="border-border">
                   <CardContent className="grid gap-3 p-4 sm:grid-cols-3">
                     <div className="space-y-1">
-                      <Label className="text-xs">Funder name</Label>
-                      <Input value={f.name} onChange={(e) => updateFunder(i, "name", e.target.value)} placeholder="National Science Foundation" />
+                      <Label className="text-xs" htmlFor={`funder-${i}-name`}>Funder name</Label>
+                      <Input id={`funder-${i}-name`} value={f.name} onChange={(e) => updateFunder(i, "name", e.target.value)} placeholder="National Science Foundation" />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Funder ID (optional)</Label>
-                      <Input value={f.id || ""} onChange={(e) => updateFunder(i, "id", e.target.value)} placeholder="Crossref Funder ID / ROR" />
+                      <Label className="text-xs" htmlFor={`funder-${i}-id`}>Funder ID (optional)</Label>
+                      <Input id={`funder-${i}-id`} value={f.id || ""} onChange={(e) => updateFunder(i, "id", e.target.value)} placeholder="Crossref Funder ID / ROR" />
                     </div>
                     <div className="flex items-end gap-2">
                       <div className="flex-1 space-y-1">
-                        <Label className="text-xs">Award number (optional)</Label>
-                        <Input value={f.awardNumber || ""} onChange={(e) => updateFunder(i, "awardNumber", e.target.value)} placeholder="GRANT-12345" />
+                        <Label className="text-xs" htmlFor={`funder-${i}-award`}>Award number (optional)</Label>
+                        <Input id={`funder-${i}-award`} value={f.awardNumber || ""} onChange={(e) => updateFunder(i, "awardNumber", e.target.value)} placeholder="GRANT-12345" />
                       </div>
                       <Button variant="ghost" size="sm" onClick={() => removeFunder(i)}>
                         <X className="h-3.5 w-3.5" />

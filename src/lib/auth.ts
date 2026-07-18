@@ -116,6 +116,36 @@ export function getSessionFromHeaders(headers: Headers): SessionPayload | null {
   return null;
 }
 
+export type RequireRoleResult =
+  | { ok: true; session: SessionPayload }
+  | { ok: false; status: 401 | 403; error: string };
+
+/**
+ * Centralizes the "unauthenticated → 401 / wrong role → 403" gate that was
+ * independently hand-rolled (getSessionFromHeaders + two if-blocks + two
+ * NextResponse.json calls) at ~20 API route call sites — a drift risk any
+ * time one copy used a different status code, error string, or forgot the
+ * null check entirely. Returns a plain result object rather than a
+ * NextResponse directly so it stays usable from any route regardless of
+ * runtime (Node vs Edge) or response-building convention; callers do:
+ *
+ *   const auth = requireRole(req.headers, ["SUPER_ADMIN"]);
+ *   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
+ *   const { session } = auth;
+ *
+ * Pass no roles (or an empty array) to only require authentication.
+ */
+export function requireRole(headers: Headers, allowedRoles?: readonly string[]): RequireRoleResult {
+  const session = getSessionFromHeaders(headers);
+  if (!session) {
+    return { ok: false, status: 401, error: "Unauthenticated" };
+  }
+  if (allowedRoles && allowedRoles.length > 0 && !allowedRoles.includes(session.role)) {
+    return { ok: false, status: 403, error: "Forbidden" };
+  }
+  return { ok: true, session };
+}
+
 /** True when a stored password hash is the pre-bcrypt legacy SHA-256 scheme — callers use this to transparently re-hash with bcrypt on next successful login. */
 export function needsPasswordRehash(hash: string): boolean {
   return !hash.startsWith("$2");

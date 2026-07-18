@@ -1,0 +1,161 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Eleventh Press International Publishing — Public API",
+    "version": "1.0.0",
+    "description": "The public, external-facing surface of the platform: article discovery/browsing, OAI-PMH 2.0 harvesting, COUNTER 5 / SUSHI usage reporting, and OJS-compatible export. This covers only endpoints meant for third-party/programmatic consumption — the dashboard's internal editorial-workflow API is intentionally out of scope. There is currently one implicit, unversioned API surface (no /v1/ prefix); a breaking change to any endpoint documented here would be introduced as a new path rather than silently changing this one, until a real versioning scheme is adopted.",
+    "contact": { "email": "editorial@eleventhpress.org" }
+  },
+  "servers": [{ "url": "https://eleventhpress.vercel.app", "description": "Production (override via APP_BASE_URL if self-hosted on a custom domain)" }],
+  "tags": [
+    { "name": "Articles", "description": "Public article browsing and detail" },
+    { "name": "OAI-PMH", "description": "OAI-PMH 2.0 metadata harvesting" },
+    { "name": "COUNTER", "description": "COUNTER 5 / SUSHI usage reporting" },
+    { "name": "Discovery", "description": "Keyless fan-out search across external scholarly APIs" },
+    { "name": "OJS export", "description": "PKP Open Journal Systems Native XML export" },
+    { "name": "RePEc", "description": "ReDIF feed for RePEc/IDEAS/EconPapers" }
+  ],
+  "paths": {
+    "/api/articles": {
+      "get": {
+        "tags": ["Articles"],
+        "summary": "List published articles",
+        "description": "Keyset-paginated, sortable, filterable list of PUBLISHED articles.",
+        "parameters": [
+          { "name": "q", "in": "query", "schema": { "type": "string" }, "description": "Free-text search across title/abstract" },
+          { "name": "discipline", "in": "query", "schema": { "type": "string" } },
+          { "name": "sort", "in": "query", "schema": { "type": "string", "enum": ["newest", "cited", "viewed", "title"], "default": "newest" } },
+          { "name": "pageSize", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 48, "default": 12 } },
+          { "name": "cursor", "in": "query", "schema": { "type": "string" }, "description": "Opaque keyset cursor from a previous response" },
+          { "name": "dir", "in": "query", "schema": { "type": "string", "enum": ["next", "prev"], "default": "next" } }
+        ],
+        "responses": {
+          "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object" } } } }
+        }
+      }
+    },
+    "/api/articles/{id}": {
+      "get": {
+        "tags": ["Articles"],
+        "summary": "Get one published article's full detail",
+        "description": "Non-published articles require the corresponding author's own session or editorial staff — not reachable anonymously.",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "OK" },
+          "404": { "description": "Not found (or not published, for an anonymous request)" }
+        }
+      }
+    },
+    "/api/oai-pmh": {
+      "get": {
+        "tags": ["OAI-PMH"],
+        "summary": "OAI-PMH 2.0 endpoint",
+        "description": "Implements Identify, ListMetadataFormats, ListRecords, ListIdentifiers, GetRecord, and ListSets over Dublin Core (oai_dc) records for every PUBLISHED article. Selective harvesting via from/until; pagination via resumptionToken.",
+        "parameters": [
+          { "name": "verb", "in": "query", "required": true, "schema": { "type": "string", "enum": ["Identify", "ListMetadataFormats", "ListRecords", "ListIdentifiers", "GetRecord", "ListSets"] } },
+          { "name": "metadataPrefix", "in": "query", "schema": { "type": "string", "enum": ["oai_dc"] }, "description": "Required for ListRecords/ListIdentifiers/GetRecord" },
+          { "name": "identifier", "in": "query", "schema": { "type": "string" }, "description": "Required for GetRecord — the oai:<host>:<articleId> identifier from a record's <header>" },
+          { "name": "from", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "until", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "resumptionToken", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "OAI-PMH XML response", "content": { "application/xml": {} } },
+          "400": { "description": "OAI-PMH error response (badVerb, badArgument, badResumptionToken, idDoesNotExist, noRecordsMatch)" }
+        }
+      }
+    },
+    "/api/reports/counter": {
+      "get": {
+        "tags": ["COUNTER"],
+        "summary": "COUNTER 5 SUSHI usage report",
+        "description": "Report_Response JSON per the COUNTER 5 Code of Practice. api_key is required whenever customer_id identifies a real institution (src/lib/institutions.ts verifySushiApiKey) — without it, or with a wrong key, the institution's usage data is not returned.",
+        "parameters": [
+          { "name": "report", "in": "query", "schema": { "type": "string", "enum": ["TR", "PR", "IR", "TR_J"], "default": "TR" } },
+          { "name": "begin_date", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "end_date", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "customer_id", "in": "query", "schema": { "type": "string" } },
+          { "name": "requestor_id", "in": "query", "schema": { "type": "string" } },
+          { "name": "api_key", "in": "query", "schema": { "type": "string" }, "description": "Per-institution SUSHI key, required to read a real institution's own report" }
+        ],
+        "responses": {
+          "200": { "description": "COUNTER 5 Report_Response" },
+          "403": { "description": "Missing or incorrect api_key for the given customer_id" }
+        }
+      }
+    },
+    "/api/reports/counter/status": {
+      "get": { "tags": ["COUNTER"], "summary": "SUSHI service status", "responses": { "200": { "description": "OK" } } }
+    },
+    "/api/reports/counter/reports": {
+      "get": { "tags": ["COUNTER"], "summary": "List supported COUNTER 5 report types", "responses": { "200": { "description": "OK" } } }
+    },
+    "/api/reports/counter/reports/{reportId}": {
+      "get": {
+        "tags": ["COUNTER"],
+        "summary": "Fetch one COUNTER 5 SUSHI report by report ID",
+        "parameters": [
+          { "name": "reportId", "in": "path", "required": true, "schema": { "type": "string", "enum": ["pr", "tr", "ir"] } },
+          { "name": "begin_date", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "end_date", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "customer_id", "in": "query", "schema": { "type": "string" } },
+          { "name": "api_key", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "COUNTER 5 report" }, "403": { "description": "Missing or incorrect api_key" } }
+      }
+    },
+    "/api/discover": {
+      "get": {
+        "tags": ["Discovery"],
+        "summary": "Keyless fan-out search across external scholarly APIs",
+        "description": "Searches Crossref, OpenAlex, Semantic Scholar, ERIC, PubMed Central, Zenodo, and (when configured) CORE in parallel, deduplicated by DOI. Up to 5 results per source.",
+        "parameters": [{ "name": "q", "in": "query", "required": true, "schema": { "type": "string", "minLength": 2, "maxLength": 200 } }],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/api/redif": {
+      "get": {
+        "tags": ["RePEc"],
+        "summary": "ReDIF template feed for RePEc's harvester",
+        "parameters": [{ "name": "type", "in": "query", "schema": { "type": "string", "enum": ["archive", "series", "papers"], "default": "archive" } }],
+        "responses": { "200": { "description": "ReDIF plain-text template" } }
+      }
+    },
+    "/api/redif/status": {
+      "get": { "tags": ["RePEc"], "summary": "RePEc feed / registration status", "responses": { "200": { "description": "OK" } } }
+    },
+    "/api/issues": {
+      "get": { "tags": ["OJS export"], "summary": "List issues", "responses": { "200": { "description": "OK" } } }
+    },
+    "/api/export/ojs/journal": {
+      "get": {
+        "tags": ["OJS export"],
+        "summary": "Full journal export — PKP Native XML format",
+        "description": "Every issue with at least one published article, wrapped in an <issues> root — the shape PKP's admin guide recommends for bulk import.",
+        "responses": { "200": { "description": "OJS Native XML", "content": { "application/xml": {} } } }
+      }
+    },
+    "/api/export/ojs/issue/{id}": {
+      "get": {
+        "tags": ["OJS export"],
+        "summary": "One issue export — PKP Native XML format",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "OJS Native XML", "content": { "application/xml": {} } } }
+      }
+    },
+    "/api/export/ojs/article/{id}": {
+      "get": {
+        "tags": ["OJS export"],
+        "summary": "One article export — PKP Native XML format",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "OJS Native XML", "content": { "application/xml": {} } } }
+      }
+    },
+    "/sitemap.xml": {
+      "get": { "summary": "XML sitemap (Next.js native convention)", "responses": { "200": { "description": "OK" } } }
+    },
+    "/robots.txt": {
+      "get": { "summary": "Robots directives (Next.js native convention)", "responses": { "200": { "description": "OK" } } }
+    }
+  }
+}
