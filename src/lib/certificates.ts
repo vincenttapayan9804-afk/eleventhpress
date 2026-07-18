@@ -1,15 +1,17 @@
-import crypto from "crypto";
-import { db } from "@/lib/db";
 import { PRIVILEGED_ROLES_LIST } from "@/lib/roles";
 
 /**
- * Certificate eligibility, canonical content hashing, and serial-number
- * generation for the dashboard Certificates tab. Three document types,
- * each issuable per "capacity" a user actually holds — capacity is derived
- * live from real data (published articles, User.role) rather than a
- * separately hand-maintained flag, the same "derive from the real RBAC
- * system, don't duplicate it" principle GET /api/editorial-board already
- * uses for board membership.
+ * Certificate constants, labels, and pure payload shaping — deliberately
+ * kept free of both `db` and Node's `crypto` module so this file is safe
+ * to import from Client Components (src/components/dashboard/
+ * certificates-tab.tsx does, for the type/category labels). Everything
+ * that needs the database or crypto lives in certificates-server.ts
+ * instead: a bug once let this file's db-dependent half get bundled into
+ * client-side JS (any import from a module pulls in that module's own
+ * top-level imports too, `db` included), which then unconditionally
+ * threw in the browser the moment that chunk evaluated, since browsers
+ * never receive server env vars like FIELD_ENCRYPTION_KEY. Keep this
+ * split — don't reintroduce a `db` or `crypto` import here.
  */
 
 /**
@@ -62,24 +64,6 @@ export interface CertificateEligibility {
   EDITOR: boolean;
 }
 
-export async function computeEligibility(userId: string, role: string): Promise<CertificateEligibility> {
-  const publishedCount = await db.article.count({
-    where: { correspondingAuthorId: userId, status: "PUBLISHED" },
-  });
-  return {
-    AUTHOR: publishedCount > 0,
-    REVIEWER: role === "REVIEWER",
-    EDITOR: BOARD_EDITOR_ROLES.includes(role),
-  };
-}
-
-/** EP-REC-A1B2C3D4E5 style — short, unique, and legible when printed. */
-export function generateSerialNumber(type: CertificateType): string {
-  const prefix = type === "RECOGNITION" ? "REC" : type === "MEMBERSHIP" ? "MEM" : "PAC";
-  const random = crypto.randomBytes(5).toString("hex").toUpperCase();
-  return `EP-${prefix}-${random}`;
-}
-
 export interface CertificatePayload {
   serialNumber: string;
   type: CertificateType;
@@ -111,41 +95,4 @@ export function canonicalCertificatePayload(p: CertificatePayload): string {
     type: p.type,
     workTitle: p.workTitle,
   });
-}
-
-/**
- * The exact title of the most recently published work (article or book)
- * this user corresponds to — cited on AUTHOR-category certificates so
- * "in recognition of the publication of..." names the actual work instead
- * of a generic phrase. Checks both Article and Book (a user's first
- * published work might be either) and returns whichever is more recent.
- */
-export async function latestPublishedWorkTitle(userId: string): Promise<string | null> {
-  const [article, book] = await Promise.all([
-    db.article.findFirst({
-      where: { correspondingAuthorId: userId, status: "PUBLISHED" },
-      orderBy: { publishedAt: "desc" },
-      select: { title: true, publishedAt: true },
-    }),
-    db.book.findFirst({
-      where: { correspondingAuthorId: userId, status: "PUBLISHED" },
-      orderBy: { publishedAt: "desc" },
-      select: { title: true, subtitle: true, publishedAt: true },
-    }),
-  ]);
-
-  if (!article && !book) return null;
-  if (article && (!book || !book.publishedAt || (article.publishedAt && article.publishedAt >= book.publishedAt))) {
-    return article.title;
-  }
-  if (book) return book.subtitle ? `${book.title}: ${book.subtitle}` : book.title;
-  return null;
-}
-
-export function computeContentHash(p: CertificatePayload): string {
-  return crypto.createHash("sha256").update(canonicalCertificatePayload(p)).digest("hex");
-}
-
-export function certificateStorageKey(userId: string, serialNumber: string, ext: "pdf" | "ots"): string {
-  return `certificates/${userId}/${serialNumber}.${ext}`;
 }

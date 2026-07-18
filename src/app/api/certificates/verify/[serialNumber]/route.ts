@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { computeContentHash } from "@/lib/certificates";
+import { computeContentHash } from "@/lib/certificates-server";
 
 /**
  * GET /api/certificates/verify/[serialNumber]
