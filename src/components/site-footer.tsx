@@ -63,6 +63,14 @@ export function SiteFooter() {
                   </button>
                 </li>
                 <li>{t("policyPci")}</li>
+                <li>
+                  <button
+                    onClick={() => setView("accessibility")}
+                    className="text-left underline-offset-2 hover:text-[oklch(0.42_0.18_295)] hover:underline transition-colors"
+                  >
+                    {t("accessibilityStatement")}
+                  </button>
+                </li>
               </ul>
             </div>
           </div>
@@ -72,7 +80,7 @@ export function SiteFooter() {
             <div className="flex items-center gap-4">
               <button
                 onClick={() => setView("adminPortal")}
-                className="flex items-center gap-1 text-muted-foreground/60 hover:text-primary transition-colors"
+                className="flex items-center gap-1 text-muted-foreground hover:text-primary transition-colors"
               >
                 <ShieldCheck className="h-3 w-3" /> Admin Portal
               </button>

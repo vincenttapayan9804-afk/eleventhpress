@@ -36,6 +36,7 @@
     "policyCrossref": "{registrar} DOI deposit",
     "policyGdpr": "Data rights: export & deletion",
     "policyPci": "PCI-DSS across all payment gateways",
+    "accessibilityStatement": "Accessibility statement",
     "copyright": "© {year} Eleventh Press International Publishing. All articles published under CC BY 4.0 unless otherwise noted.",
     "indexedLine": "Indexed: Google Scholar · {registrar} · OAI-PMH · DOAJ"
   },

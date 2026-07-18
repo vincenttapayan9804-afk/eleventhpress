@@ -57,6 +57,9 @@ export const PoliciesView = dynamic(() => import("./policies-view").then((m) => 
 export const PrivacyView = dynamic(() => import("./privacy-view").then((m) => m.PrivacyView), {
   loading: () => <ViewLoadingFallback />,
 });
+export const AccessibilityView = dynamic(() => import("./accessibility-view").then((m) => m.AccessibilityView), {
+  loading: () => <ViewLoadingFallback />,
+});
 export const AdminPortalView = dynamic(() => import("./admin-portal-view").then((m) => m.AdminPortalView), {
   loading: () => <ViewLoadingFallback />,
 });
