@@ -200,7 +200,16 @@ model Article {
   // instead of real names, plus AuthorResponse entries and published
   // EditorialDecision.letterBody letters. This is the transparent-but-
   // anonymous mode; openReview above is the signed mode.
-  anonymizedReviewHistory Boolean @default(false)
+  //
+  // Defaults true (platform-wide policy: every article gets a public
+  // Review History automatically) — an editor can still disable it per
+  // article from the Editorial queue dashboard for a genuine edge case,
+  // but nothing has to opt in anymore. Existing rows created before this
+  // default changed don't get rewritten by a column-default change alone
+  // (Postgres defaults only apply to new inserts), so
+  // scripts/enable-review-history.ts does the one-time catch-up — see
+  // its header comment.
+  anonymizedReviewHistory Boolean @default(true)
 
   // Real, citable DOI for the compiled review-round report — minted via
   // the same free Zenodo deposit path already used for the article's own
