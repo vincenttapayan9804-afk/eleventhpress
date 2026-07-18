@@ -527,6 +527,10 @@ model StorageObject {
   uploadStatus     String    @default("PENDING") // PENDING | UPLOADED | FAILED
   uploadedBy       String? // user id
   articleId        String?
+  // Denormalized from the latest MalwareScanJob for this object — cheap to
+  // read without a join wherever a download/publish path needs to check
+  // scan status.
+  malwareScanStatus String   @default("PENDING") // PENDING | SKIPPED | CLEAN | SUSPICIOUS | MALICIOUS | FAILED
   // Pre-signed URL metadata
   presignToken     String?   @unique
   presignExpiresAt DateTime?
@@ -586,6 +590,38 @@ model IntegrityCheckJob {
 
   @@index([status, createdAt])
   @@index([articleId])
+}
+
+// ---------------------------------------------------------------------------
+// Malware Scan Job — every uploaded file is scanned via VirusTotal
+// (src/lib/virustotal.ts), free tier, no code changes needed to go live
+// beyond setting VIRUSTOTAL_API_KEY. Unlike IntegrityCheckJob's vendor
+// webhook, VirusTotal's free public API has no webhook — completion is
+// discovered by polling GET /analyses/{id}, so SUBMITTED jobs are
+// deliberately re-included (not excluded, unlike IntegrityCheckJob) by the
+// cron sweep: polling is a read with no side effects, so re-checking a
+// SUBMITTED job is always safe, never a duplicate paid submission.
+// ---------------------------------------------------------------------------
+model MalwareScanJob {
+  id              String    @id @default(cuid())
+  storageObjectId String
+  bucket          String
+  inputKey        String // storage key of the file being scanned
+  status          String    @default("QUEUED") // QUEUED | PROCESSING | SUBMITTED | COMPLETED | FAILED
+  mode            String    @default("simulation") // "live" | "simulation" — which path produced this job's result
+  externalAnalysisId String?
+  verdict         String? // CLEAN | SUSPICIOUS | MALICIOUS — null until COMPLETED
+  maliciousCount  Int?
+  suspiciousCount Int?
+  reportUrl       String?
+  workerLog       String?
+  errorMessage    String?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([status, createdAt])
+  @@index([storageObjectId])
 }
 
 // ---------------------------------------------------------------------------
