@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { putObject, presignGet } from "@/lib/storage";
 import { validateUploadBytes } from "@/lib/uploads";
+import { queueMalwareScan } from "@/lib/malware-scan-job";
 
 /**
  * PUT /api/storage/upload-local/[token]
@@ -50,6 +51,11 @@ export async function PUT(
     where: { id: record.id },
     data: { uploadStatus: "UPLOADED", sizeBytes: bytes.length, presignToken: null, presignExpiresAt: null },
   });
+
+  // Best-effort: never fails the upload response itself (see
+  // queueMalwareScan's own try/catch) — a scan that doesn't get this far
+  // is recovered by the cron sweep in src/lib/malware-scan-job.ts.
+  await queueMalwareScan(record.id, record.bucket, record.key, record.uploadedBy);
 
   const url = await presignGet(record.key);
   return NextResponse.json({ ok: true, key: record.key, size: bytes.length, url });

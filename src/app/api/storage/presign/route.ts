@@ -3,6 +3,7 @@ import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { BUCKET_UPLOAD_RULES } from "@/lib/uploads";
+import { queueMalwareScan } from "@/lib/malware-scan-job";
 
 /**
  * POST /api/storage/presign
@@ -55,9 +56,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         // existing is what actually matters for the app to function.
         try {
           const payload = tokenPayload ? JSON.parse(tokenPayload) : {};
-          await db.storageObject.create({
+          const bucket = payload.bucket || "raw-submissions";
+          const created = await db.storageObject.create({
             data: {
-              bucket: payload.bucket || "raw-submissions",
+              bucket,
               key: blob.pathname,
               fileName: blob.pathname.split("/").pop() || blob.pathname,
               contentType: blob.contentType,
@@ -66,6 +68,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
               uploadedBy: payload.userId || null,
             },
           });
+          await queueMalwareScan(created.id, bucket, blob.pathname, payload.userId || null);
         } catch (e) {
           console.error("[storage/presign] onUploadCompleted bookkeeping failed:", e);
         }
