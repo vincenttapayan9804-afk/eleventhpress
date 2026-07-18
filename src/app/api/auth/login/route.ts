@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing credentials" }, { status: 400 });
     }
     const user = await db.user.findUnique({ where: { email } });
-    if (!user || !verifyPassword(password, user.passwordHash)) {
+    if (!user || user.deletedAt || !verifyPassword(password, user.passwordHash)) {
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
     }
 

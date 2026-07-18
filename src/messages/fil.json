@@ -33,7 +33,7 @@
     "policyOpenAccess": "Open access (CC BY 4.0)",
     "policyPeerReview": "Double-blind peer review",
     "policyCrossref": "{registrar} DOI deposit",
-    "policyGdpr": "Sumusunod sa GDPR / CCPA",
+    "policyGdpr": "Karapatan sa datos: pag-export at pagtanggal",
     "policyPci": "PCI-DSS sa lahat ng payment gateway",
     "copyright": "© {year} Eleventh Press International Publishing. Ang lahat ng artikulo ay nailathala sa ilalim ng CC BY 4.0 maliban na lang kung nakasaad.",
     "indexedLine": "Naka-index sa: Google Scholar · {registrar} · OAI-PMH · DOAJ"

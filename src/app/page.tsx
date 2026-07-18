@@ -16,6 +16,7 @@ import {
   AuthorsView,
   FaqsView,
   PoliciesView,
+  PrivacyView,
   AdminPortalView,
 } from "@/components/views/lazy";
 import { AuthSheet } from "@/components/auth-sheet";
@@ -84,6 +85,7 @@ export default function Page() {
           {view === "authors" && <AuthorsView />}
           {view === "faqs" && <FaqsView />}
           {view === "policies" && <PoliciesView />}
+          {view === "privacy" && <PrivacyView />}
           {view === "adminPortal" && <AdminPortalView />}
         </main>
         <SiteFooter />

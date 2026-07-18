@@ -54,6 +54,9 @@ export const FaqsView = dynamic(() => import("./faqs-view").then((m) => m.FaqsVi
 export const PoliciesView = dynamic(() => import("./policies-view").then((m) => m.PoliciesView), {
   loading: () => <ViewLoadingFallback />,
 });
+export const PrivacyView = dynamic(() => import("./privacy-view").then((m) => m.PrivacyView), {
+  loading: () => <ViewLoadingFallback />,
+});
 export const AdminPortalView = dynamic(() => import("./admin-portal-view").then((m) => m.AdminPortalView), {
   loading: () => <ViewLoadingFallback />,
 });

@@ -53,7 +53,14 @@ export function SiteFooter() {
                 <li>{t("policyOpenAccess")}</li>
                 <li>{t("policyPeerReview")}</li>
                 <li>{t("policyCrossref", { registrar: DOI_REGISTRAR })}</li>
-                <li>{t("policyGdpr")}</li>
+                <li>
+                  <button
+                    onClick={() => setView("privacy")}
+                    className="text-left underline-offset-2 hover:text-[oklch(0.42_0.18_295)] hover:underline transition-colors"
+                  >
+                    {t("policyGdpr")}
+                  </button>
+                </li>
                 <li>{t("policyPci")}</li>
               </ul>
             </div>

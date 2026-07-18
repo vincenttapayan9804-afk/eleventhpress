@@ -33,7 +33,7 @@
     "policyOpenAccess": "Libre accès (CC BY 4.0)",
     "policyPeerReview": "Évaluation en double aveugle",
     "policyCrossref": "Dépôt de DOI {registrar}",
-    "policyGdpr": "Conforme RGPD / CCPA",
+    "policyGdpr": "Droits sur les données : export et suppression",
     "policyPci": "PCI-DSS sur toutes les passerelles de paiement",
     "copyright": "© {year} Eleventh Press International Publishing. Tous les articles sont publiés sous licence CC BY 4.0 sauf indication contraire.",
     "indexedLine": "Indexé dans : Google Scholar · {registrar} · OAI-PMH · DOAJ"

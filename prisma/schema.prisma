@@ -80,6 +80,13 @@ model User {
   boardCitedByCount     Int?
   boardHIndex           Int?
   boardMetricsCheckedAt DateTime?
+  // GDPR/CCPA right-to-erasure marker. Set by /api/account/delete, which
+  // anonymizes this row in place rather than deleting it — the account has
+  // ~30 enforced FK relations (submissions, reviews, invoices, audit log…)
+  // and, per GDPR Art. 17(3)(d), the already-published scholarly record
+  // (DOI-bearing articles, citable peer-review reports) is exempt from
+  // erasure as archiving in the public interest. Login is rejected once set.
+  deletedAt             DateTime?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
