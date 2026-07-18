@@ -934,8 +934,17 @@ export function ArticleView() {
             {related.map((r) => (
               <Card
                 key={r.id}
-                className="paper-card cursor-pointer transition-all hover:border-primary/30 hover:shadow-md"
+                className="paper-card cursor-pointer transition-all hover:border-primary/30 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                role="button"
+                tabIndex={0}
+                aria-label={`Continue reading: ${r.title}`}
                 onClick={() => openArticle(r.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    openArticle(r.id);
+                  }
+                }}
               >
                 <CardContent className="p-4">
                   <Badge variant="outline" className={`border ${DISCIPLINE_COLORS[r.discipline]}`}>

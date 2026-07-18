@@ -372,6 +372,22 @@ export async function POST(req: NextRequest) {
         }).catch(() => {})),
       ]).catch(() => {});
 
+      // Accessibility: auto-generate alt-text suggestions for every figure
+      // in the just-generated galley HTML, rather than leaving it purely
+      // editor-discretionary (previously nothing ever ran this unless an
+      // editor remembered to trigger it manually from the Manuscript
+      // Checks panel). Suggestions are never auto-applied — see
+      // src/lib/alt-text.ts — an editor still reviews and applies them
+      // there; this only ensures suggestions exist to review by default.
+      db.article.findUnique({ where: { id: articleId }, select: { galleyHtmlKey: true } })
+        .then((a) => {
+          if (!a?.galleyHtmlKey) return;
+          return db.altTextJob.create({ data: { articleId, status: "QUEUED" } }).then((job) =>
+            import("@/lib/alt-text").then(({ runAltTextJob }) => runAltTextJob(job.id, null, { status: "QUEUED" }))
+          );
+        })
+        .catch((e) => console.error(`[workflow] auto alt-text job failed for ${articleId}:`, e));
+
       // Review report DOI — only meaningful when transparency was already
       // turned on before this publish. An editor who enables it afterward
       // uses the manual retry (POST /api/articles/[id]/review-report-doi).
