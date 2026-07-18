@@ -53,7 +53,7 @@ function initialsOf(name: string) {
 }
 
 export function ProfileTab() {
-  const { user, token, setAuth } = useApp();
+  const { user, setAuth } = useApp();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -136,7 +136,7 @@ export function ProfileTab() {
         body: JSON.stringify({ avatarUrl }),
       });
       setProfile(updated);
-      if (token && user) setAuth(token, { ...user, avatarUrl: updated.avatarUrl });
+      if (user) setAuth({ ...user, avatarUrl: updated.avatarUrl });
       toast.success("Profile picture updated");
     } catch (e: any) {
       toast.error("Upload failed", { description: e.message });
@@ -155,7 +155,7 @@ export function ProfileTab() {
       });
       setProfile(updated);
       setAvatarPreview(null);
-      if (token && user) setAuth(token, { ...user, avatarUrl: null });
+      if (user) setAuth({ ...user, avatarUrl: null });
       toast.success("Profile picture removed");
     } catch (e: any) {
       toast.error("Failed to remove photo", { description: e.message });
@@ -186,7 +186,7 @@ export function ProfileTab() {
         contactEmail: updated.contactEmail || "",
         contactPhone: updated.contactPhone || "",
       });
-      if (token && user) setAuth(token, { ...user, fullName: updated.fullName });
+      if (user) setAuth({ ...user, fullName: updated.fullName });
       toast.success("Profile updated");
     } catch (e: any) {
       toast.error("Failed to save", { description: e.message });

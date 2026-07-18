@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { signToken, hashPassword } from "@/lib/auth";
+import { signToken, hashPassword, SESSION_COOKIE_NAME, sessionCookieOptions } from "@/lib/auth";
 import crypto from "crypto";
 
 /**
@@ -142,11 +142,15 @@ export async function GET(req: NextRequest) {
       fullName: user.fullName,
     });
 
-    // Redirect to front-end with token in query (client stores it)
+    // Redirect to front-end — the session lives in an httpOnly cookie set
+    // on this response, never in the URL (a raw session JWT in a query
+    // string would end up in browser history, Referer headers, and server
+    // access logs).
     const redirectUrl = new URL("/", req.url);
-    redirectUrl.searchParams.set("orcid_token", epipToken);
+    redirectUrl.searchParams.set("orcid_linked", "1");
     redirectUrl.searchParams.set("orcid_id", orcidId);
     const res = NextResponse.redirect(redirectUrl);
+    res.cookies.set(SESSION_COOKIE_NAME, epipToken, sessionCookieOptions());
     res.cookies.delete("orcid_oauth_state");
     return res;
   } catch (e: any) {
@@ -193,10 +197,11 @@ async function simulatedMode(req: NextRequest) {
   });
 
   const redirectUrl = new URL("/", req.url);
-  redirectUrl.searchParams.set("orcid_token", epipToken);
+  redirectUrl.searchParams.set("orcid_linked", "1");
   redirectUrl.searchParams.set("orcid_id", fakeOrcid);
   redirectUrl.searchParams.set("orcid_simulated", "1");
   const res = NextResponse.redirect(redirectUrl);
+  res.cookies.set(SESSION_COOKIE_NAME, epipToken, sessionCookieOptions());
   res.cookies.delete("orcid_oauth_state");
   return res;
 }

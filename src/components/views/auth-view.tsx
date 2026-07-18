@@ -60,11 +60,11 @@ export function AuthView() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await apiFetch<{ token: string; user: any }>("/api/auth/login", {
+      const res = await apiFetch<{ user: any }>("/api/auth/login", {
         method: "POST",
         body: JSON.stringify({ email: loginEmail, password: loginPassword }),
       });
-      setAuth(res.token, res.user);
+      setAuth(res.user);
       toast.success(`Welcome back, ${res.user.fullName.split(" ")[0]}`);
       openDashboard("overview");
     } catch (e: any) {
@@ -78,11 +78,11 @@ export function AuthView() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await apiFetch<{ token: string; user: any; pendingApplication?: boolean }>("/api/auth/register", {
+      const res = await apiFetch<{ user: any; pendingApplication?: boolean }>("/api/auth/register", {
         method: "POST",
         body: JSON.stringify(reg),
       });
-      setAuth(res.token, res.user);
+      setAuth(res.user);
       if (res.pendingApplication) {
         toast.success("Account created — please complete your qualification application");
         openDashboard("application");

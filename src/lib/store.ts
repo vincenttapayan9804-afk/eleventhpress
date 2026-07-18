@@ -62,10 +62,11 @@ interface AppState {
   openDashboard: (tab?: DashboardTab) => void;
   openReviewerForm: (reviewId: string) => void;
 
-  // Auth
-  token: string | null;
+  // Auth — the session itself lives in an httpOnly cookie the browser
+  // manages; `user` here is only the non-secret profile info the UI needs
+  // to render (name/role/etc.), never the session token.
   user: SessionUser | null;
-  setAuth: (token: string, user: SessionUser) => void;
+  setAuth: (user: SessionUser) => void;
   logout: () => void;
 
   // UI
@@ -98,16 +99,19 @@ export const useApp = create<AppState>()(
       openReviewerForm: (reviewId) =>
         set({ view: "dashboard", dashboardTab: "reviewerForm", reviewId }),
 
-      token: null,
       user: null,
-      setAuth: (token, user) => set({ token, user }),
-      logout: () =>
+      setAuth: (user) => set({ user }),
+      logout: () => {
+        // Fire-and-forget: clears the httpOnly session cookie server-side
+        // (client JS can't touch it directly). Local state clears
+        // immediately regardless of whether this call succeeds.
+        fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
         set({
-          token: null,
           user: null,
           view: "home",
           dashboardTab: "overview",
-        }),
+        });
+      },
 
       authSheetOpen: false,
       setAuthSheetOpen: (v) => set({ authSheetOpen: v }),
@@ -123,7 +127,7 @@ export const useApp = create<AppState>()(
     }),
     {
       name: "epip-session",
-      partialize: (s) => ({ token: s.token, user: s.user, locale: s.locale }) as any,
+      partialize: (s) => ({ user: s.user, locale: s.locale }) as any,
     }
   )
 );

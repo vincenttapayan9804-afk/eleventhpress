@@ -1483,8 +1483,8 @@ function DatasetsSection({ articleId }: { articleId: string }) {
     license: "CC-BY-4.0",
     accessRight: "open",
   });
-  const { token, user } = useApp();
-  const canDeposit = token && user && ["AUTHOR", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"].includes(user.role);
+  const { user } = useApp();
+  const canDeposit = user && ["AUTHOR", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"].includes(user.role);
 
   useEffect(() => {
     apiFetch<{ datasets: any[] }>(`/api/datasets/zenodo?articleId=${articleId}`)

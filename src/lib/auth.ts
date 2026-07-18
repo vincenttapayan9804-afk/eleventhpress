@@ -72,9 +72,51 @@ export function verifyToken(token: string): SessionPayload | null {
   }
 }
 
+/** Name of the httpOnly cookie carrying the session JWT. */
+export const SESSION_COOKIE_NAME = "epip_session";
+
+/**
+ * Options for the httpOnly session cookie. `secure` is conditional on
+ * NODE_ENV (not hardcoded true) because local `bun dev` runs over plain
+ * HTTP — a hardcoded `secure: true` cookie would silently never be sent in
+ * local dev. `sameSite: "lax"` (not "strict") because the ORCID OAuth
+ * callback is a cross-site top-level GET redirect landing back on this
+ * origin; "strict" would drop the cookie on that redirect and break
+ * login-via-ORCID.
+ */
+export function sessionCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax" as const,
+    path: "/",
+    maxAge: 60 * 60 * 24 * 7, // 7 days, matching TOKEN_TTL
+  };
+}
+
+/**
+ * Reads the session from either the Authorization header (legacy — kept so
+ * any request still sending a Bearer token during rollout keeps working) or
+ * the httpOnly session cookie, checked second. Both live in the same
+ * `Headers` object this already receives (the raw `Cookie` header), so
+ * every existing call site keeps working unchanged — only this function's
+ * internals grew a second source to check.
+ */
 export function getSessionFromHeaders(headers: Headers): SessionPayload | null {
   const auth = headers.get("authorization") || headers.get("Authorization");
-  if (!auth) return null;
-  const token = auth.replace(/^Bearer\s+/i, "");
-  return verifyToken(token);
+  if (auth) {
+    const session = verifyToken(auth.replace(/^Bearer\s+/i, ""));
+    if (session) return session;
+  }
+  const cookieHeader = headers.get("cookie");
+  if (cookieHeader) {
+    const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE_NAME}=([^;]+)`));
+    if (match) return verifyToken(decodeURIComponent(match[1]));
+  }
+  return null;
+}
+
+/** True when a stored password hash is the pre-bcrypt legacy SHA-256 scheme — callers use this to transparently re-hash with bcrypt on next successful login. */
+export function needsPasswordRehash(hash: string): boolean {
+  return !hash.startsWith("$2");
 }

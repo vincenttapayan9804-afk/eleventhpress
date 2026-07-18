@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { hashPassword, signToken } from "@/lib/auth";
+import { hashPassword, signToken, SESSION_COOKIE_NAME, sessionCookieOptions } from "@/lib/auth";
 import { SELF_SELECTABLE_ROLES, APPLICATION_ROLES } from "@/lib/roles";
+import { isPasswordBreached } from "@/lib/password-breach";
+
+const MIN_PASSWORD_LENGTH = 8;
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,10 +22,20 @@ export async function POST(req: NextRequest) {
     if (!email || !password || !fullName) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      return NextResponse.json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` }, { status: 400 });
+    }
 
     const existing = await db.user.findUnique({ where: { email } });
     if (existing) {
       return NextResponse.json({ error: "Email already registered" }, { status: 409 });
+    }
+
+    if (await isPasswordBreached(password)) {
+      return NextResponse.json(
+        { error: "This password has appeared in a known data breach. Please choose a different password." },
+        { status: 400 }
+      );
     }
 
     const needsApplication = APPLICATION_ROLES.includes(role || "");
@@ -59,8 +72,7 @@ export async function POST(req: NextRequest) {
       fullName: user.fullName,
     });
 
-    return NextResponse.json({
-      token,
+    const res = NextResponse.json({
       pendingApplication,
       requestedRole: needsApplication ? role : undefined,
       user: {
@@ -74,6 +86,8 @@ export async function POST(req: NextRequest) {
         avatarUrl: user.avatarUrl,
       },
     });
+    res.cookies.set(SESSION_COOKIE_NAME, token, sessionCookieOptions());
+    return res;
   } catch (e) {
     console.error("[register]", e);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

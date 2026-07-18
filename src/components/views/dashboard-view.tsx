@@ -68,12 +68,12 @@ interface DashboardData {
 }
 
 export function DashboardView() {
-  const { user, token, dashboardTab, setView, openDashboard, openAdminPortal, logout, reviewId } = useApp();
+  const { user, dashboardTab, setView, openDashboard, openAdminPortal, logout, reviewId } = useApp();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
   const loadDashboard = useCallback(async () => {
-    if (!token) return;
+    if (!user) return;
     try {
       const d = await apiFetch<DashboardData>("/api/dashboard");
       setData(d);
@@ -82,20 +82,20 @@ export function DashboardView() {
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [user]);
 
   useEffect(() => {
-    if (!token) {
+    if (!user) {
       setView("login");
       return;
     }
     loadDashboard();
-  }, [token, setView, loadDashboard]);
+  }, [user, setView, loadDashboard]);
 
   // Live WebSocket updates (must be before any early return)
   const { connected: wsConnected, liveEvents } = useLiveDashboard();
 
-  if (!token || !user) {
+  if (!user) {
     return null;
   }
 

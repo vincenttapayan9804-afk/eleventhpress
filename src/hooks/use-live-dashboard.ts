@@ -12,14 +12,13 @@ import { toast } from "sonner";
  * Connects via the gateway: io("/?XTransformPort=3003")
  */
 export function useLiveDashboard() {
-  const token = useApp((s) => s.token);
   const user = useApp((s) => s.user);
   const [liveEvents, setLiveEvents] = useState<any[]>([]);
   const [connected, setConnected] = useState(false);
   const socketRef = useRef<any>(null);
 
   useEffect(() => {
-    if (!token || !user) return;
+    if (!user) return;
 
     // Dynamically import socket.io-client
     import("socket.io-client").then(({ io }) => {
@@ -84,7 +83,7 @@ export function useLiveDashboard() {
       socketRef.current?.disconnect();
       socketRef.current = null;
     };
-  }, [token, user]);
+  }, [user]);
 
   return { connected, liveEvents };
 }
