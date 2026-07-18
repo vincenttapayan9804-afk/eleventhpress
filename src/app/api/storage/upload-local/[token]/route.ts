@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { putObject, presignGet } from "@/lib/storage";
+import { validateUploadBytes } from "@/lib/uploads";
 
 /**
  * PUT /api/storage/upload-local/[token]
@@ -30,8 +31,17 @@ export async function PUT(
   }
 
   const bytes = Buffer.from(await req.arrayBuffer());
-  if (bytes.length === 0) {
-    return NextResponse.json({ error: "Empty upload body" }, { status: 400 });
+
+  const validation = validateUploadBytes(record.bucket, record.contentType, bytes);
+  if (!validation.ok) {
+    // Burn the token on a rejected upload too, not just a successful one —
+    // otherwise a rejected oversized/mismatched payload could be retried
+    // against the same presigned token indefinitely.
+    await db.storageObject.update({
+      where: { id: record.id },
+      data: { uploadStatus: "FAILED", presignToken: null, presignExpiresAt: null },
+    });
+    return NextResponse.json({ error: validation.error }, { status: validation.status });
   }
 
   await putObject(record.key, bytes, record.contentType);
