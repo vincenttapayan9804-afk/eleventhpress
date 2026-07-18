@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { useApp } from "@/lib/store";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,18 @@ import {
   Clock,
   Library,
 } from "lucide-react";
+import {
+  AuroraField,
+  AuroraStat,
+  FunnelChart,
+  RankBarList,
+  OutcomeDonut,
+  WorkloadList,
+  type FunnelStage,
+  type DonutSlice,
+  type WorkloadItem,
+  type RankItem,
+} from "@/components/dashboard/overview-charts";
 
 interface Props {
   data: any;
@@ -28,10 +41,29 @@ export function OverviewTab({ data }: Props) {
   const { user, openDashboard, openArticle } = useApp();
   const role = data.role;
 
+  const submissionFunnel = useMemo(() => bucketArticles(data.submissions || []), [data.submissions]);
+  const invoiceSlices = useMemo(() => bucketInvoices(data.invoices || []), [data.invoices]);
+  const reviewWorkload = useMemo(() => bucketReviewWorkload(data.reviews || []), [data.reviews]);
+  const reviewOutcomes = useMemo(() => bucketReviewOutcomes(data.reviews || []), [data.reviews]);
+  const editorFunnel = useMemo<FunnelStage[]>(
+    () =>
+      data.stats
+        ? [
+            { label: "Submitted", value: data.stats.submitted ?? 0 },
+            { label: "In review", value: data.stats.inReview ?? 0 },
+            { label: "Accepted", value: data.stats.accepted ?? 0 },
+            { label: "Published", value: data.stats.published ?? 0 },
+          ]
+        : [],
+    [data.stats]
+  );
+  const reviewerLoad = useMemo(() => bucketReviewerLoad(data.queue || []), [data.queue]);
+
   return (
-    <div className="space-y-6">
+    <div className="relative space-y-6">
+      <AuroraField />
       {/* Welcome card */}
-      <Card className="paper-card overflow-hidden">
+      <Card className="paper-card aurora-card aurora-enter overflow-hidden">
         <CardContent className="p-6">
           <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -66,19 +98,79 @@ export function OverviewTab({ data }: Props) {
       {/* Role-specific stat cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {getStatCards(data).map((s, i) => (
-          <Card key={i} className="paper-card">
-            <CardContent className="p-5">
-              <s.icon className="h-5 w-5 text-primary" />
-              <p className="mt-2 font-display text-2xl font-semibold">{s.value}</p>
-              <p className="text-xs text-muted-foreground">{s.label}</p>
-            </CardContent>
-          </Card>
+          <AuroraStat key={i} icon={s.icon} label={s.label} value={s.value} index={i} />
         ))}
       </div>
 
+      {/* Editorial funnel + APC invoices — this author's own submissions */}
+      {(role === "AUTHOR" || role === "SUPER_ADMIN") && data.submissions && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card className="paper-card aurora-card aurora-enter">
+            <CardHeader className="pb-3">
+              <p className="eyebrow">Editorial funnel</p>
+            </CardHeader>
+            <CardContent>
+              <FunnelChart stages={submissionFunnel} />
+            </CardContent>
+          </Card>
+          <Card className="paper-card aurora-card aurora-enter">
+            <CardHeader className="pb-3">
+              <p className="eyebrow">APC invoices</p>
+            </CardHeader>
+            <CardContent>
+              <OutcomeDonut slices={invoiceSlices} centerLabel="invoices" />
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Review workload + outcomes — this reviewer's own assignments */}
+      {(role === "REVIEWER" || role === "SUPER_ADMIN") && data.reviews && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card className="paper-card aurora-card aurora-enter">
+            <CardHeader className="pb-3">
+              <p className="eyebrow">Active review workload</p>
+            </CardHeader>
+            <CardContent>
+              <WorkloadList items={reviewWorkload} />
+            </CardContent>
+          </Card>
+          <Card className="paper-card aurora-card aurora-enter">
+            <CardHeader className="pb-3">
+              <p className="eyebrow">Review outcomes</p>
+            </CardHeader>
+            <CardContent>
+              <OutcomeDonut slices={reviewOutcomes} centerLabel="reviews" />
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Editorial-wide funnel + reviewer workload — the whole queue, not just one person's */}
+      {(role === "EDITOR" || role === "ASSOCIATE_EDITOR" || role === "SUPER_ADMIN") && data.stats && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card className="paper-card aurora-card aurora-enter">
+            <CardHeader className="pb-3">
+              <p className="eyebrow">Editorial pipeline</p>
+            </CardHeader>
+            <CardContent>
+              <FunnelChart stages={editorFunnel} />
+            </CardContent>
+          </Card>
+          <Card className="paper-card aurora-card aurora-enter">
+            <CardHeader className="pb-3">
+              <p className="eyebrow">Reviewer workload</p>
+            </CardHeader>
+            <CardContent>
+              <RankBarList items={reviewerLoad} />
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Quick actions / panels by role */}
       {(role === "AUTHOR" || role === "SUPER_ADMIN") && data.submissions && (
-        <Card className="paper-card">
+        <Card className="paper-card aurora-card aurora-enter">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <p className="eyebrow">Recent submissions</p>
@@ -117,7 +209,7 @@ export function OverviewTab({ data }: Props) {
       )}
 
       {(role === "EDITOR" || role === "ASSOCIATE_EDITOR" || role === "SUPER_ADMIN") && data.queue && (
-        <Card className="paper-card">
+        <Card className="paper-card aurora-card aurora-enter">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <p className="eyebrow">Active editorial queue</p>
@@ -155,7 +247,7 @@ export function OverviewTab({ data }: Props) {
       )}
 
       {(role === "REVIEWER" || role === "SUPER_ADMIN") && data.reviews && (
-        <Card className="paper-card">
+        <Card className="paper-card aurora-card aurora-enter">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <p className="eyebrow">Pending reviews</p>
@@ -194,7 +286,7 @@ export function OverviewTab({ data }: Props) {
 
       {/* Indexing/Discovery quick access for editors */}
       {(role === "EDITOR" || role === "ASSOCIATE_EDITOR" || role === "SUPER_ADMIN") && (
-        <Card className="paper-card bg-primary/5">
+        <Card className="paper-card aurora-card aurora-enter bg-primary/5">
           <CardContent className="flex items-center justify-between gap-4 p-5">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary text-primary-foreground">
@@ -281,4 +373,81 @@ function getStatCards(data: any): { icon: any; label: string; value: any }[] {
     { icon: Clock, label: "Renews", value: data.subscription?.currentPeriodEnd ? new Date(data.subscription.currentPeriodEnd).toLocaleDateString() : "—" },
     { icon: Eye, label: "Articles browsed", value: 0 },
   ];
+}
+
+/** Buckets a submissions list into the same four stages editors/admins already see in data.stats. */
+function bucketArticles(list: any[]): FunnelStage[] {
+  const buckets = { submitted: 0, inReview: 0, accepted: 0, published: 0 };
+  for (const a of list) {
+    if (a.status === "SUBMITTED") buckets.submitted++;
+    else if (a.status === "UNDER_REVIEW" || a.status === "REVISIONS_REQUIRED") buckets.inReview++;
+    else if (a.status === "ACCEPTED" || a.status === "IN_PRODUCTION") buckets.accepted++;
+    else if (a.status === "PUBLISHED") buckets.published++;
+  }
+  return [
+    { label: "Submitted", value: buckets.submitted },
+    { label: "In review", value: buckets.inReview },
+    { label: "Accepted", value: buckets.accepted },
+    { label: "Published", value: buckets.published },
+  ];
+}
+
+/** Buckets this user's invoices by their real Invoice.status values — no fabricated "waived" bucket. */
+function bucketInvoices(list: any[]): DonutSlice[] {
+  const paid = list.filter((i: any) => i.status === "PAID").length;
+  const open = list.filter((i: any) => i.status === "OPEN").length;
+  const other = list.filter((i: any) => i.status === "VOID" || i.status === "REFUNDED").length;
+  return [
+    { label: "Paid", value: paid, color: "var(--status-good)" },
+    { label: "Open", value: open, color: "var(--status-warn)" },
+    { label: "Void / refunded", value: other, color: "var(--muted-foreground)" },
+  ];
+}
+
+/** Active review assignments, soonest due date first, with urgency derived from the real due date. */
+function bucketReviewWorkload(reviews: any[]): WorkloadItem[] {
+  const active = reviews.filter((r: any) => ["INVITED", "ACCEPTED", "IN_PROGRESS"].includes(r.status));
+  const now = Date.now();
+  return active
+    .slice()
+    .sort((a: any, b: any) => new Date(a.dueDate ?? 0).getTime() - new Date(b.dueDate ?? 0).getTime())
+    .slice(0, 5)
+    .map((r: any) => {
+      const due = r.dueDate ? new Date(r.dueDate) : null;
+      const days = due ? Math.ceil((due.getTime() - now) / 86_400_000) : null;
+      const status: WorkloadItem["status"] = days === null ? "good" : days < 0 ? "critical" : days <= 5 ? "warn" : "good";
+      const sub =
+        days === null ? "No due date" : days < 0 ? `${Math.abs(days)}d overdue` : days === 0 ? "Due today" : `Due in ${days}d`;
+      return { label: r.article?.title || "Untitled", sub, status };
+    });
+}
+
+/** Completed / active / declined split across all of this reviewer's assignments to date. */
+function bucketReviewOutcomes(reviews: any[]): DonutSlice[] {
+  const completed = reviews.filter((r: any) => r.status === "COMPLETED").length;
+  const active = reviews.filter((r: any) => ["INVITED", "ACCEPTED", "IN_PROGRESS"].includes(r.status)).length;
+  const declined = reviews.filter((r: any) => r.status === "DECLINED").length;
+  return [
+    { label: "Completed", value: completed, color: "var(--status-good)" },
+    { label: "Active", value: active, color: "var(--royal-400)" },
+    { label: "Declined", value: declined, color: "var(--muted-foreground)" },
+  ];
+}
+
+/** Top 5 reviewers by current active assignment count, aggregated client-side from the already-fetched queue. */
+function bucketReviewerLoad(queue: any[]): RankItem[] {
+  const counts = new Map<string, number>();
+  for (const a of queue) {
+    for (const r of a.reviews || []) {
+      const name = r.reviewer?.fullName;
+      if (!name) continue;
+      if (["INVITED", "ACCEPTED", "IN_PROGRESS"].includes(r.status)) {
+        counts.set(name, (counts.get(name) || 0) + 1);
+      }
+    }
+  }
+  return Array.from(counts.entries())
+    .map(([label, value]) => ({ label, value }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 5);
 }
