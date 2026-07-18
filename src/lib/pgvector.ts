@@ -133,3 +133,90 @@ export async function pgvectorRowCount(): Promise<number> {
 export function __resetPgvectorCacheForTests(): void {
   pgvectorReadyPromise = null;
 }
+
+// ---------------------------------------------------------------------------
+// Chunk-level vector table — same schema/fail-open design as
+// article_embedding above, sized for the RAG chat feature's passage
+// embeddings (src/lib/chunk-embeddings.ts) instead of whole-article
+// title+abstract embeddings. Separate table because the dimensionality
+// differs (384 vs 256) and retrieval is always scoped to one article's
+// rows, never a corpus-wide scan.
+// ---------------------------------------------------------------------------
+
+const CHUNK_EMBEDDING_DIMS = 384;
+
+let chunkVectorReadyPromise: Promise<boolean> | null = null;
+
+/** Ensures the `vec.article_chunk_embedding` table + HNSW index exist. Same
+ * cached-promise, fail-open contract as ensurePgvector(). */
+export function ensureChunkVectorTable(): Promise<boolean> {
+  if (!chunkVectorReadyPromise) {
+    chunkVectorReadyPromise = bootstrapChunkTable().catch((e) => {
+      console.error("[pgvector] chunk table bootstrap failed, falling back to in-memory chunk search:", e);
+      return false;
+    });
+  }
+  return chunkVectorReadyPromise;
+}
+
+async function bootstrapChunkTable(): Promise<boolean> {
+  // Reuses the same `vec` schema + `vector` extension ensurePgvector()
+  // already creates — safe to call redundantly, it's idempotent and cached.
+  await ensurePgvector();
+  await db.$executeRawUnsafe(`CREATE SCHEMA IF NOT EXISTS vec`);
+  await db.$executeRawUnsafe(`CREATE EXTENSION IF NOT EXISTS vector`);
+  await db.$executeRawUnsafe(
+    `CREATE TABLE IF NOT EXISTS vec.article_chunk_embedding (
+       chunk_id   TEXT PRIMARY KEY,
+       article_id TEXT NOT NULL,
+       embedding  vector(${CHUNK_EMBEDDING_DIMS}) NOT NULL,
+       updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+     )`
+  );
+  await db.$executeRawUnsafe(
+    `CREATE INDEX IF NOT EXISTS article_chunk_embedding_article_idx
+       ON vec.article_chunk_embedding (article_id)`
+  );
+  await db.$executeRawUnsafe(
+    `CREATE INDEX IF NOT EXISTS article_chunk_embedding_hnsw_idx
+       ON vec.article_chunk_embedding USING hnsw (embedding vector_cosine_ops)`
+  );
+  return true;
+}
+
+/** Upserts a single chunk's vector. */
+export async function upsertChunkVector(chunkId: string, articleId: string, vec: number[]): Promise<void> {
+  await db.$executeRaw`
+    INSERT INTO vec.article_chunk_embedding (chunk_id, article_id, embedding, updated_at)
+    VALUES (${chunkId}, ${articleId}, ${vectorLiteral(vec)}::vector, now())
+    ON CONFLICT (chunk_id) DO UPDATE SET embedding = EXCLUDED.embedding, updated_at = now()
+  `;
+}
+
+/** Deletes every vector for an article (used when chunks are regenerated). */
+export async function deleteChunkVectors(articleId: string): Promise<void> {
+  await db.$executeRaw`DELETE FROM vec.article_chunk_embedding WHERE article_id = ${articleId}`;
+}
+
+/** Cosine-ranked chunk search scoped to a single article — small per-article
+ * corpus (dozens of chunks), so this stays index-backed via HNSW but never
+ * risks the "unbounded scan" concern the article-level fallback has. */
+export async function chunkVectorSearch(
+  articleId: string,
+  queryVec: number[],
+  limit: number
+): Promise<{ chunkId: string; score: number }[]> {
+  const literal = vectorLiteral(queryVec);
+  return db.$queryRaw<{ chunkId: string; score: number }[]>`
+    SELECT chunk_id AS "chunkId", 1 - (embedding <=> ${literal}::vector) AS score
+    FROM vec.article_chunk_embedding
+    WHERE article_id = ${articleId}
+    ORDER BY embedding <=> ${literal}::vector ASC
+    LIMIT ${limit}
+  `;
+}
+
+/** Test-only: mirrors __resetPgvectorCacheForTests() for the chunk table. */
+export function __resetChunkVectorCacheForTests(): void {
+  chunkVectorReadyPromise = null;
+}

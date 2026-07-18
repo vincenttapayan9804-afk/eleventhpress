@@ -311,6 +311,7 @@ model Article {
   auditLogs     AuditLog[]
   datasets      DatasetLink[]
   embedding     ArticleEmbedding?
+  chunks        ArticleChunk[]
   triageReport  EditorialTriageReport?
   corrections   Correction[]
   references    Reference[]
@@ -1085,6 +1086,45 @@ model ArticleEmbedding {
   updatedAt  DateTime @updatedAt
 
   article Article @relation(fields: [articleId], references: [id])
+}
+
+// ---------------------------------------------------------------------------
+// RAG: per-article passage chunks for the "Ask this paper" chat feature
+// (src/lib/chunk-embeddings.ts). Distinct from ArticleEmbedding above —
+// that one embeds title+abstract+keywords for cross-corpus similarity/
+// search; this one embeds ~800-character passages of the article's own
+// full galley text so a chat question can be answered from the specific
+// paragraph that's actually relevant, not just the abstract.
+// ---------------------------------------------------------------------------
+model ArticleChunk {
+  id         String @id @default(cuid())
+  articleId  String
+  chunkIndex Int
+  text       String
+
+  // Canonical store — JSON-stringified float array, same dual-write
+  // pattern as ArticleEmbedding: written unconditionally here; the
+  // optional vec.article_chunk_embedding pgvector table (src/lib/
+  // pgvector.ts) is a pure opportunistic upgrade for indexed retrieval,
+  // same fail-open design, deliberately kept out of this schema for the
+  // same drift-on-`db push` reason documented on ArticleEmbedding above.
+  embedding     String
+  embeddingDims Int
+  // "local-model" when the real open-source sentence embedding model
+  // (@xenova/transformers, all-MiniLM-L6-v2) loaded and ran successfully;
+  // "hash-fallback" when it wasn't available (no network to the model
+  // CDN, cold-start budget exceeded, etc.) and the same deterministic
+  // n-gram hash used by ArticleEmbedding ran instead. Retrieval only
+  // compares embeddings written in the same mode — see retrieveChunks()
+  // — so this is never silently presented as higher-quality than it is.
+  embeddingMode String
+
+  createdAt DateTime @default(now())
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([articleId, chunkIndex])
+  @@index([articleId])
 }
 
 // ---------------------------------------------------------------------------

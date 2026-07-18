@@ -363,9 +363,10 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      // --- PREMIUM: Index article for semantic search + WS broadcast ---
+      // --- PREMIUM: Index article for semantic search + RAG chat + WS broadcast ---
       Promise.all([
         import("@/lib/embeddings").then(({ indexArticle }) => indexArticle(articleId).catch(() => {})),
+        import("@/lib/chunk-embeddings").then(({ indexArticleChunks }) => indexArticleChunks(articleId).catch(() => {})),
         import("@/lib/ws-client").then(({ emitWS }) => emitWS("workflow:transition", {
           articleId, from: article.status, to: next, doi: finalDoi, title: article.title,
         }).catch(() => {})),
