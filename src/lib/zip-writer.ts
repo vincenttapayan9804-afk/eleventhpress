@@ -9,6 +9,12 @@
  * Implements just enough of the ZIP spec (PKWARE APPNOTE.TXT) to produce a
  * file real archive tools and EPUB readers open correctly: local file
  * headers, a central directory, and the end-of-central-directory record.
+ *
+ * unzip() below is the read-side counterpart, used to re-open an already-
+ * built EPUB (e.g. to stamp it at download time — src/lib/watermark.ts)
+ * without a third-party archive library. It only needs to handle the
+ * STORED method because every ZIP this codebase produces comes from
+ * buildZip() above, which never compresses.
  */
 
 export interface ZipEntry {
@@ -100,4 +106,52 @@ export function buildZip(entries: ZipEntry[]): Buffer {
   eocd.writeUInt16LE(0, 20); // comment length
 
   return Buffer.concat([...localParts, centralDirectory, eocd]);
+}
+
+/**
+ * Reads back the entries of a ZIP produced by buildZip() (STORED method
+ * only — throws on any entry compressed with a different method, which
+ * never happens for a ZIP this codebase generated itself).
+ */
+export function unzip(buf: Buffer): ZipEntry[] {
+  const EOCD_SIG = 0x06054b50;
+  let eocdOffset = -1;
+  for (let i = buf.length - 22; i >= 0; i--) {
+    if (buf.readUInt32LE(i) === EOCD_SIG) {
+      eocdOffset = i;
+      break;
+    }
+  }
+  if (eocdOffset === -1) throw new Error("Not a valid ZIP: end-of-central-directory record not found");
+
+  const totalEntries = buf.readUInt16LE(eocdOffset + 10);
+  const centralDirOffset = buf.readUInt32LE(eocdOffset + 16);
+
+  const entries: ZipEntry[] = [];
+  let ptr = centralDirOffset;
+  for (let i = 0; i < totalEntries; i++) {
+    if (buf.readUInt32LE(ptr) !== 0x02014b50) {
+      throw new Error(`Invalid ZIP: expected central directory entry at offset ${ptr}`);
+    }
+    const compressionMethod = buf.readUInt16LE(ptr + 10);
+    const compressedSize = buf.readUInt32LE(ptr + 20);
+    const nameLen = buf.readUInt16LE(ptr + 28);
+    const extraLen = buf.readUInt16LE(ptr + 30);
+    const commentLen = buf.readUInt16LE(ptr + 32);
+    const localHeaderOffset = buf.readUInt32LE(ptr + 42);
+    const name = buf.slice(ptr + 46, ptr + 46 + nameLen).toString("utf-8");
+
+    if (compressionMethod !== 0) {
+      throw new Error(`unzip() only supports the STORED method — "${name}" uses compression method ${compressionMethod}`);
+    }
+
+    const localNameLen = buf.readUInt16LE(localHeaderOffset + 26);
+    const localExtraLen = buf.readUInt16LE(localHeaderOffset + 28);
+    const dataStart = localHeaderOffset + 30 + localNameLen + localExtraLen;
+    const data = buf.slice(dataStart, dataStart + compressedSize);
+
+    entries.push({ name, data: Buffer.from(data) });
+    ptr += 46 + nameLen + extraLen + commentLen;
+  }
+  return entries;
 }

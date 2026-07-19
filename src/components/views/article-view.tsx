@@ -879,6 +879,17 @@ export function ArticleView() {
                     </a>
                   </Button>
                 )}
+                {article.contentHash && (
+                  <Button
+                    className="w-full justify-start"
+                    variant="outline"
+                    asChild
+                  >
+                    <a href={`/verify/article/${article.id}`} target="_blank" rel="noreferrer">
+                      <ShieldCheck className="mr-2 h-4 w-4" /> Verify digital provenance
+                    </a>
+                  </Button>
+                )}
               </div>
               <Separator className="my-4" />
               <div className="space-y-1.5 text-xs">

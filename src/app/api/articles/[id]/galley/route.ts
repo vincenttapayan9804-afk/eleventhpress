@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { presignGet, objectExists } from "@/lib/storage";
+import { presignGet, objectExists, getObject, putObject } from "@/lib/storage";
 import { recordCounterEvent } from "@/lib/institutions";
 import { getSessionFromHeaders } from "@/lib/auth";
+import { stampPdf, stampEpub, type DownloadStamp } from "@/lib/watermark";
+import { APP_BASE_URL } from "@/lib/site";
 
 /**
  * GET /api/articles/[id]/galley?format=pdf|html|jats|epub
@@ -72,13 +74,14 @@ export async function GET(
     );
   }
 
+  const session = getSessionFromHeaders(req.headers);
+
   // PDF downloads are the metric the reader-facing "PDF downloads" stat
   // (Article.downloads) and the COUNTER5 Total_Item_Requests report are
   // both built on — until now this route never wrote to either, so
   // downloads never moved no matter how many readers actually downloaded
   // the PDF. Scoped to PDF only, matching the metric's own label.
   if (format === "pdf") {
-    const session = getSessionFromHeaders(req.headers);
     db.article.update({ where: { id }, data: { downloads: { increment: 1 } } }).catch(() => {});
     recordCounterEvent({
       articleId: id,
@@ -90,6 +93,52 @@ export async function GET(
 
   const extension = format === "jats" ? "jats.xml" : format;
   const downloadFilename = `${article.doi?.replace(/[^a-z0-9]/gi, "-") || article.id}.${extension}`;
+
+  // PDF/EPUB downloads get a real, per-download provenance stamp (see
+  // src/lib/watermark.ts): a visible footer/banner plus embedded file
+  // metadata naming who downloaded it and when, traceable via ArticleDown-
+  // load below. This is NOT DRM — every article is CC BY 4.0, which
+  // already permits redistribution and commercial reuse with attribution
+  // — it only makes provenance traceable if a copy surfaces elsewhere.
+  // HTML/JATS aren't stamped: JATS is a machine-readable archival/indexing
+  // format, and HTML is served for in-browser reading, not carried away.
+  if (format === "pdf" || format === "epub") {
+    try {
+      const original = await getObject(galleyKey);
+      if (!original) throw new Error("galley bytes not found in storage");
+
+      const download = await db.articleDownload.create({
+        data: {
+          articleId: article.id,
+          format: format.toUpperCase(),
+          userId: session?.userId ?? null,
+          label: session?.fullName || "Anonymous reader",
+        },
+      });
+
+      const stamp: DownloadStamp = {
+        downloadId: download.id,
+        label: download.label,
+        timestampLabel: new Date().toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" }),
+        doi: article.doi,
+        verifyUrl: `${APP_BASE_URL}/verify/article/${article.id}`,
+      };
+      const stamped = format === "pdf" ? await stampPdf(original, stamp) : stampEpub(original, stamp);
+
+      const stampedKey = `published-galleys/stamped/${article.id}-${download.id}.${format}`;
+      const contentType = format === "pdf" ? "application/pdf" : "application/epub+zip";
+      await putObject(stampedKey, stamped, contentType);
+
+      const url = await presignGet(stampedKey, downloadFilename);
+      return NextResponse.json({ url, key: stampedKey, format, expiresInSeconds: 600, downloadId: download.id });
+    } catch (e: any) {
+      // Stamping is best-effort — a stamping failure must never turn a
+      // working, open-access download into a dead link. Falls back to the
+      // original, unstamped galley.
+      console.error(`[galley] provenance stamping failed for article ${id} (${format}):`, e);
+    }
+  }
+
   const url = await presignGet(galleyKey, downloadFilename);
   return NextResponse.json({ url, key: galleyKey, format, expiresInSeconds: 600 });
 }

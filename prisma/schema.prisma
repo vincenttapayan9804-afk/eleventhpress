@@ -114,6 +114,7 @@ model User {
   authorResponses            AuthorResponse[]
   following                  Follow[]            @relation("Following")
   followedBy                 Follow[]            @relation("Followers")
+  articleDownloads           ArticleDownload[]
 }
 
 // ---------------------------------------------------------------------------
@@ -134,6 +135,31 @@ model Follow {
 
   @@unique([followerId, followingId])
   @@index([followingId])
+}
+
+// ---------------------------------------------------------------------------
+// ArticleDownload — one row per stamped PDF/EPUB download. This is the
+// traceability mechanism behind the platform's provenance "Seal of
+// Quality": every PDF/EPUB handed out is stamped (visible footer/banner +
+// embedded file metadata, see src/lib/watermark.ts) with this row's id, so
+// a misattributed or fraudulently-reused copy found in the wild can be
+// traced back to who downloaded it and when. This does NOT restrict
+// reading, sharing, or reuse — every article is CC BY 4.0, which already
+// permits redistribution with attribution. It is provenance, not DRM.
+// ---------------------------------------------------------------------------
+model ArticleDownload {
+  id        String   @id @default(cuid())
+  articleId String
+  format    String // PDF | EPUB
+  userId    String? // null for an unauthenticated/anonymous download
+  label     String // display name embedded in the stamp: real name, or "Anonymous reader"
+  createdAt DateTime @default(now())
+
+  article Article @relation(fields: [articleId], references: [id])
+  user    User?   @relation(fields: [userId], references: [id])
+
+  @@index([articleId])
+  @@index([userId])
 }
 
 // ---------------------------------------------------------------------------
@@ -395,6 +421,20 @@ model Article {
   citationsPercentileMin Int? // OpenAlex cited_by_percentile_year.min, when computed for this work
   citationsPercentileMax Int?
 
+  // Digital provenance — a real, verifiable "Seal of Quality" for the
+  // published record itself (same hash/verify pattern as Certificate, just
+  // applied to a work instead of a person's credential). Computed once, at
+  // the PUBLISH transition, over the record's locked-in metadata plus the
+  // actual bytes of the generated PDF/EPUB galleys — see
+  // src/lib/article-provenance.ts. Any later alteration of the metadata or
+  // either file breaks the match at /verify/article/[id]. Null for
+  // articles published before this field existed, or not yet published.
+  // This proves authenticity/integrity; it does not restrict redistribution
+  // — every article is still CC BY 4.0, see ArticleDownload below.
+  contentHash    String?
+  galleyPdfHash  String? // SHA-256 of the exact PDF bytes hashed into contentHash
+  galleyEpubHash String? // SHA-256 of the exact EPUB bytes hashed into contentHash, when an EPUB exists
+
   journal       Journal                @relation(fields: [journalId], references: [id])
   issue         Issue?                 @relation(fields: [issueId], references: [id])
   author        User?                  @relation("AuthorArticles", fields: [correspondingAuthorId], references: [id])
@@ -412,6 +452,7 @@ model Article {
   references      Reference[]
   distributions   Distribution[]
   bookChapters    BookArticle[]
+  downloadStamps  ArticleDownload[]
 
   // Composite indexes mirror the actual query shapes used across the app:
   // public/browse listing and the dashboard queue both filter by status
