@@ -1,6 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
+import { EXPERT_APPLICATION_TIERS } from "@/lib/roles";
+import { renderAndPersistCertificate } from "@/lib/certificates-server";
+
+/**
+ * EXPERT_CONTRIBUTOR/EXPERT_COUNCIL_MEMBER are RoleApplication.requestedRole
+ * values, not real User.role values (see src/lib/roles.ts) — approving one
+ * promotes User.role to the single "EXPERT" value and records which
+ * Prestige Council tier was granted on User.expertTier, rather than writing
+ * the requestedRole string straight onto role like every other application
+ * type does.
+ */
+function resolveApprovedRole(requestedRole: string): { role: string; expertTier: string | null } {
+  if (EXPERT_APPLICATION_TIERS.includes(requestedRole)) {
+    const tier = requestedRole === "EXPERT_COUNCIL_MEMBER" ? "COUNCIL_MEMBER" : "CONTRIBUTOR";
+    return { role: "EXPERT", expertTier: tier };
+  }
+  return { role: requestedRole, expertTier: null };
+}
+
+const APPLICATION_ROLE_LABELS: Record<string, string> = {
+  REVIEWER: "peer reviewer",
+  EDITOR: "editor",
+  EXPERT_CONTRIBUTOR: "Council of Experts Contributor",
+  EXPERT_COUNCIL_MEMBER: "Council of Experts Council Member",
+};
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = getSessionFromHeaders(req.headers);
@@ -37,10 +62,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   });
 
   if (action === "APPROVE") {
+    const { role, expertTier } = resolveApprovedRole(application.requestedRole);
     await db.user.update({
       where: { id: application.userId },
-      data: { role: application.requestedRole },
+      data: { role, expertTier },
     });
+
+    // Seal of Quality — issued automatically the moment a Prestige
+    // Application is approved, since that approval *is* the vetting event
+    // the Seal represents (never self-claimed). Best-effort: a storage
+    // hiccup here shouldn't block the approval itself; the user can
+    // generate it manually from the Certificates tab if this fails.
+    if (role === "EXPERT") {
+      renderAndPersistCertificate(application.userId, "MEMBERSHIP", "EXPERT", null).catch((e) =>
+        console.error("[applications/review] Seal of Quality issuance failed", e)
+      );
+    }
   }
 
   await db.auditLog.create({
@@ -53,15 +90,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     },
   });
 
+  const roleLabel = APPLICATION_ROLE_LABELS[application.requestedRole] || application.requestedRole.toLowerCase();
+
   await db.notification.create({
     data: {
       userId: application.userId,
       type: action === "APPROVE" ? "SUCCESS" : "INFO",
       title: action === "APPROVE"
-        ? `Your ${application.requestedRole.toLowerCase()} application has been approved`
-        : `Your ${application.requestedRole.toLowerCase()} application was not approved`,
+        ? `Your ${roleLabel} application has been approved`
+        : `Your ${roleLabel} application was not approved`,
       message: action === "APPROVE"
-        ? `Congratulations! You now have ${application.requestedRole} access. Please sign out and sign back in to see your new dashboard.`
+        ? `Congratulations! You now have ${roleLabel} access. Please sign out and sign back in to see your new dashboard.`
         : note
           ? `Reason: ${note}. You may reapply with updated qualifications.`
           : "You may reapply with updated qualifications.",

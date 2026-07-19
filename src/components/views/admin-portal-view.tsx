@@ -77,6 +77,7 @@ interface RoleApp {
   orcidId: string | null;
   expertise: string | null;
   specializations: string | null;
+  yearsExperience: number | null;
   resumeKey: string | null;
   transcriptKey: string | null;
   certificateKeys: string | null;
@@ -84,6 +85,14 @@ interface RoleApp {
   createdAt: string;
   applicant: { id: string; email: string; fullName: string; affiliation: string | null; country: string | null; orcid: string | null };
 }
+
+const EXPERT_APPLICATION_ROLES = ["EXPERT_CONTRIBUTOR", "EXPERT_COUNCIL_MEMBER"];
+const APPLICATION_ROLE_LABELS: Record<string, string> = {
+  REVIEWER: "Peer Reviewer",
+  EDITOR: "Editor",
+  EXPERT_CONTRIBUTOR: "Council of Experts — Contributor",
+  EXPERT_COUNCIL_MEMBER: "Council of Experts — Council Member",
+};
 
 const ACTION_ICONS: Record<string, any> = {
   SUBMIT: Send,
@@ -465,7 +474,7 @@ function AdminDashboard() {
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              Review and approve reviewer/editor qualification applications.
+              Review and approve reviewer/editor/Council of Experts qualification applications.
             </p>
           </CardHeader>
           <CardContent>
@@ -484,7 +493,7 @@ function AdminDashboard() {
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline">{app.requestedRole}</Badge>
+                        <Badge variant="outline">{APPLICATION_ROLE_LABELS[app.requestedRole] || app.requestedRole}</Badge>
                         <Badge className="bg-amber-100 text-amber-800 border-amber-300">{app.status}</Badge>
                         <Button
                           variant="ghost"
@@ -500,9 +509,12 @@ function AdminDashboard() {
                       <div className="mt-4 space-y-3 border-t border-border pt-4">
                         <div className="grid gap-3 sm:grid-cols-2">
                           <DetailRow label="ORCID" value={app.orcidId} />
-                          <DetailRow label="Expertise" value={app.expertise} />
+                          <DetailRow label={EXPERT_APPLICATION_ROLES.includes(app.requestedRole) ? "Profession / Industry" : "Expertise"} value={app.expertise} />
                           <DetailRow label="Specializations" value={app.specializations} />
                           <DetailRow label="Country" value={app.applicant.country} />
+                          {EXPERT_APPLICATION_ROLES.includes(app.requestedRole) && (
+                            <DetailRow label="Years of Experience" value={app.yearsExperience != null ? String(app.yearsExperience) : null} />
+                          )}
                         </div>
                         {app.applicationText && (
                           <div>

@@ -48,6 +48,12 @@ export const ResourcesView = dynamic(() => import("./resources-view").then((m) =
 export const AuthorsView = dynamic(() => import("./authors-view").then((m) => m.AuthorsView), {
   loading: () => <ViewLoadingFallback />,
 });
+export const ExpertsView = dynamic(() => import("./experts-view").then((m) => m.ExpertsView), {
+  loading: () => <ViewLoadingFallback />,
+});
+export const CharterView = dynamic(() => import("./charter-view").then((m) => m.CharterView), {
+  loading: () => <ViewLoadingFallback />,
+});
 export const FaqsView = dynamic(() => import("./faqs-view").then((m) => m.FaqsView), {
   loading: () => <ViewLoadingFallback />,
 });

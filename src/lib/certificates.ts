@@ -44,13 +44,17 @@ export const CERTIFICATE_TYPE_LABELS: Record<CertificateType, string> = {
   AFFILIATION: "Professional Affiliation Card",
 };
 
-export const CERTIFICATE_CATEGORIES = ["AUTHOR", "REVIEWER", "EDITOR"] as const;
+// EXPERT — the Publication Charter's "Seal of Quality": a Certificate of
+// Membership issued only to a vetted, board-approved Council of Experts
+// member (see the review route's role-promotion flow), never self-claimed.
+export const CERTIFICATE_CATEGORIES = ["AUTHOR", "REVIEWER", "EDITOR", "EXPERT"] as const;
 export type CertificateCategory = (typeof CERTIFICATE_CATEGORIES)[number];
 
 export const CERTIFICATE_CATEGORY_LABELS: Record<CertificateCategory, string> = {
   AUTHOR: "Published Author",
   REVIEWER: "Board of Reviewers Member",
   EDITOR: "Board of Editors Member",
+  EXPERT: "Council of Experts — Seal of Quality",
 };
 
 // Same editorial-board bundle already used by GET /api/editorial-board —
@@ -62,6 +66,7 @@ export interface CertificateEligibility {
   AUTHOR: boolean;
   REVIEWER: boolean;
   EDITOR: boolean;
+  EXPERT: boolean;
 }
 
 export interface CertificatePayload {

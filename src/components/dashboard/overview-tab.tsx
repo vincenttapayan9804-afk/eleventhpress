@@ -102,7 +102,9 @@ export function OverviewTab({ data }: Props) {
         ))}
       </div>
 
-      {/* Editorial funnel + APC invoices — this author's own submissions */}
+      {/* Editorial funnel + APC invoices — this author's own submissions.
+          APC invoices don't apply to Expert Insights, so EXPERT only gets
+          the funnel, full-width. */}
       {(role === "AUTHOR" || role === "SUPER_ADMIN") && data.submissions && (
         <div className="grid gap-4 lg:grid-cols-2">
           <Card className="paper-card aurora-card aurora-enter">
@@ -122,6 +124,16 @@ export function OverviewTab({ data }: Props) {
             </CardContent>
           </Card>
         </div>
+      )}
+      {role === "EXPERT" && data.submissions && (
+        <Card className="paper-card aurora-card aurora-enter">
+          <CardHeader className="pb-3">
+            <p className="eyebrow">Insight pipeline</p>
+          </CardHeader>
+          <CardContent>
+            <FunnelChart stages={submissionFunnel} />
+          </CardContent>
+        </Card>
       )}
 
       {/* Review workload + outcomes — this reviewer's own assignments */}
@@ -169,11 +181,11 @@ export function OverviewTab({ data }: Props) {
       )}
 
       {/* Quick actions / panels by role */}
-      {(role === "AUTHOR" || role === "SUPER_ADMIN") && data.submissions && (
+      {(role === "AUTHOR" || role === "EXPERT" || role === "SUPER_ADMIN") && data.submissions && (
         <Card className="paper-card aurora-card aurora-enter">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <p className="eyebrow">Recent submissions</p>
+              <p className="eyebrow">{role === "EXPERT" ? "Recent insights" : "Recent submissions"}</p>
               <Button variant="ghost" size="sm" onClick={() => openDashboard("myArticles")}>
                 View all <ArrowRight className="ml-1 h-3 w-3" />
               </Button>
@@ -200,7 +212,7 @@ export function OverviewTab({ data }: Props) {
               ))}
               {data.submissions.length === 0 && (
                 <p className="py-6 text-center text-sm text-muted-foreground">
-                  No submissions yet — click “New submission” to begin.
+                  {role === "EXPERT" ? "No insights yet — click “New submission” to begin." : "No submissions yet — click “New submission” to begin."}
                 </p>
               )}
             </div>
@@ -317,7 +329,7 @@ function greeting(): string {
 }
 
 function canSubmit(role: string): boolean {
-  return ["AUTHOR", "SUPER_ADMIN"].includes(role);
+  return ["AUTHOR", "EXPERT", "SUPER_ADMIN"].includes(role);
 }
 
 function getRoleTagline(role: string): string {
@@ -331,6 +343,8 @@ function getRoleTagline(role: string): string {
       return "Complete your assigned double-blind reviews before the due date.";
     case "AUTHOR":
       return "Submit manuscripts, track their progress, and pay Article Processing Charges.";
+    case "EXPERT":
+      return "Publish board-reviewed Expert Insights and track your standing in the Council of Experts.";
     case "READER":
       return "PDF galleys of every published article are free — manage your subscription for bundled downloads and other convenience features.";
     default:
@@ -361,6 +375,15 @@ function getStatCards(data: any): { icon: any; label: string; value: any }[] {
     const subs = data.submissions || [];
     return [
       { icon: FileText, label: "Total submissions", value: subs.length },
+      { icon: Clock, label: "In review", value: subs.filter((s: any) => s.status === "UNDER_REVIEW" || s.status === "SUBMITTED").length },
+      { icon: CheckCircle2, label: "Accepted", value: subs.filter((s: any) => s.status === "ACCEPTED" || s.status === "IN_PRODUCTION").length },
+      { icon: Sparkles, label: "Published", value: subs.filter((s: any) => s.status === "PUBLISHED").length },
+    ];
+  }
+  if (role === "EXPERT") {
+    const subs = data.submissions || [];
+    return [
+      { icon: FileText, label: "Total insights", value: subs.length },
       { icon: Clock, label: "In review", value: subs.filter((s: any) => s.status === "UNDER_REVIEW" || s.status === "SUBMITTED").length },
       { icon: CheckCircle2, label: "Accepted", value: subs.filter((s: any) => s.status === "ACCEPTED" || s.status === "IN_PRODUCTION").length },
       { icon: Sparkles, label: "Published", value: subs.filter((s: any) => s.status === "PUBLISHED").length },

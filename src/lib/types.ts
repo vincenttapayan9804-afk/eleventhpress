@@ -23,6 +23,10 @@ export interface ArticleListItem {
 export interface ArticleDetail extends ArticleListItem {
   doiStatus: string;
   status: ArticleStatus;
+  // RESEARCH | EXPERT_INSIGHT — see prisma/schema.prisma's Article.contentType.
+  contentType?: string;
+  insightCategory?: string | null;
+  keyTakeaways?: string | null; // JSON array of exactly 5 strings, EXPERT_INSIGHT only
   manuscriptKey: string | null;
   galleyPdfKey: string | null;
   galleyHtmlKey: string | null;

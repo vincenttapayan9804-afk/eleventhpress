@@ -18,6 +18,8 @@ import {
   GraduationCap,
   Award,
   Briefcase,
+  Crown,
+  Sparkles,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { toast } from "sonner";
@@ -30,6 +32,7 @@ interface Application {
   orcidId: string | null;
   expertise: string | null;
   specializations: string | null;
+  yearsExperience: number | null;
   resumeKey: string | null;
   transcriptKey: string | null;
   certificateKeys: string | null;
@@ -49,6 +52,25 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }>
   REJECTED: { label: "Not Approved", color: "bg-rose-100 text-rose-800 border-rose-300", icon: XCircle },
 };
 
+const APPLICATION_TIERS = [
+  { value: "REVIEWER", label: "Peer Reviewer", description: "Evaluate submitted manuscripts within your discipline.", icon: FileCheck2 },
+  { value: "EDITOR", label: "Editor", description: "Manage the editorial pipeline and publication decisions.", icon: Briefcase },
+  {
+    value: "EXPERT_CONTRIBUTOR",
+    label: "Council of Experts — Contributor",
+    description: "Publish one-off Expert Insight pieces in your field.",
+    icon: Sparkles,
+  },
+  {
+    value: "EXPERT_COUNCIL_MEMBER",
+    label: "Council of Experts — Council Member",
+    description: "A committed expert providing recurring monthly insights, the platform's most prestigious contributor tier.",
+    icon: Crown,
+  },
+];
+
+const EXPERT_TIERS = ["EXPERT_CONTRIBUTOR", "EXPERT_COUNCIL_MEMBER"];
+
 export function ApplicationTab({ onRefresh }: Props) {
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,11 +81,13 @@ export function ApplicationTab({ onRefresh }: Props) {
     orcidId: "",
     expertise: "",
     specializations: "",
+    yearsExperience: "",
   });
   const [resumeKey, setResumeKey] = useState<string | null>(null);
   const [transcriptKey, setTranscriptKey] = useState<string | null>(null);
   const [certificateKeys, setCertificateKeys] = useState<string[]>([]);
   const [uploading, setUploading] = useState<string | null>(null);
+  const [starting, setStarting] = useState(false);
 
   const loadApplications = useCallback(async () => {
     try {
@@ -76,6 +100,7 @@ export function ApplicationTab({ onRefresh }: Props) {
           orcidId: active.orcidId || "",
           expertise: active.expertise || "",
           specializations: active.specializations || "",
+          yearsExperience: active.yearsExperience != null ? String(active.yearsExperience) : "",
         });
         setResumeKey(active.resumeKey);
         setTranscriptKey(active.transcriptKey);
@@ -150,6 +175,7 @@ export function ApplicationTab({ onRefresh }: Props) {
         body: JSON.stringify({
           requestedRole: activeApp.requestedRole,
           ...form,
+          yearsExperience: form.yearsExperience ? Number(form.yearsExperience) : undefined,
           resumeKey,
           transcriptKey,
           certificateKeys,
@@ -161,6 +187,22 @@ export function ApplicationTab({ onRefresh }: Props) {
       toast.error("Save failed", { description: e.message });
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function startApplication(requestedRole: string) {
+    setStarting(true);
+    try {
+      await apiFetch("/api/applications", {
+        method: "POST",
+        body: JSON.stringify({ requestedRole }),
+      });
+      toast.success("Application started");
+      loadApplications();
+    } catch (e: any) {
+      toast.error("Could not start application", { description: e.message });
+    } finally {
+      setStarting(false);
     }
   }
 
@@ -214,12 +256,39 @@ export function ApplicationTab({ onRefresh }: Props) {
   if (!activeApp) {
     return (
       <Card className="paper-card">
-        <CardContent className="py-12 text-center">
-          <p className="text-muted-foreground">No active role application found.</p>
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <Award className="h-4 w-4 text-primary" />
+            <p className="eyebrow">Apply for a Role</p>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Every application is reviewed by the editorial board before access is granted.
+          </p>
+        </CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-2">
+          {APPLICATION_TIERS.map((tier) => {
+            const Icon = tier.icon;
+            return (
+              <button
+                key={tier.value}
+                onClick={() => startApplication(tier.value)}
+                disabled={starting}
+                className="flex flex-col items-start gap-2 rounded-md border border-border p-4 text-left transition-colors hover:border-primary/40 hover:bg-primary/5 disabled:opacity-60"
+              >
+                <div className="flex items-center gap-2">
+                  <Icon className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-medium">{tier.label}</span>
+                </div>
+                <p className="text-xs text-muted-foreground">{tier.description}</p>
+              </button>
+            );
+          })}
         </CardContent>
       </Card>
     );
   }
+
+  const isExpertTier = EXPERT_TIERS.includes(activeApp.requestedRole);
 
   const statusCfg = STATUS_CONFIG[activeApp.status] || STATUS_CONFIG.PENDING;
   const StatusIcon = statusCfg.icon;
@@ -235,7 +304,7 @@ export function ApplicationTab({ onRefresh }: Props) {
             </div>
             <div className="flex-1">
               <h2 className="font-display text-xl font-semibold">
-                {activeApp.requestedRole === "REVIEWER" ? "Peer Reviewer" : "Editor"} Application
+                {APPLICATION_TIERS.find((t) => t.value === activeApp.requestedRole)?.label || activeApp.requestedRole} Application
               </h2>
               <p className="text-sm text-muted-foreground">
                 Submitted {new Date(activeApp.createdAt).toLocaleDateString("en-GB", { dateStyle: "medium" })}
@@ -278,11 +347,13 @@ export function ApplicationTab({ onRefresh }: Props) {
       <Card className="paper-card">
         <CardHeader className="pb-3">
           <div className="flex items-center gap-2">
-            <Briefcase className="h-4 w-4 text-primary" />
-            <p className="eyebrow">Qualifications & Documents</p>
+            {isExpertTier ? <Crown className="h-4 w-4 text-primary" /> : <Briefcase className="h-4 w-4 text-primary" />}
+            <p className="eyebrow">{isExpertTier ? "Prestige Application — Vetting Details" : "Qualifications & Documents"}</p>
           </div>
           <p className="text-xs text-muted-foreground">
-            Upload your professional credentials. All documents are reviewed by the editorial board.
+            {isExpertTier
+              ? "The Council of Experts vets every applicant for professional standing and industry relevance. All fields are reviewed by the editorial board."
+              : "Upload your professional credentials. All documents are reviewed by the editorial board."}
           </p>
         </CardHeader>
         <CardContent className="space-y-5">
@@ -301,11 +372,11 @@ export function ApplicationTab({ onRefresh }: Props) {
 
           {/* Expertise */}
           <div className="space-y-1.5">
-            <Label className="text-sm">Areas of Expertise</Label>
+            <Label className="text-sm">{isExpertTier ? "Profession / Industry" : "Areas of Expertise"}</Label>
             <Input
               value={form.expertise}
               onChange={(e) => setForm({ ...form, expertise: e.target.value })}
-              placeholder="e.g. Machine Learning, Natural Language Processing"
+              placeholder={isExpertTier ? "e.g. Corporate Law, Clinical Psychology, Behavioral Economics" : "e.g. Machine Learning, Natural Language Processing"}
               className="h-10"
             />
           </div>
@@ -321,6 +392,32 @@ export function ApplicationTab({ onRefresh }: Props) {
             />
           </div>
 
+          {/* Years of experience — Prestige Application Form's stated 3-5+ year bar */}
+          {isExpertTier && (
+            <div className="space-y-1.5">
+              <Label className="text-sm">Years of Industry Experience</Label>
+              <Input
+                type="number"
+                min={0}
+                value={form.yearsExperience}
+                onChange={(e) => setForm({ ...form, yearsExperience: e.target.value })}
+                placeholder="e.g. 8"
+                className="h-10 max-w-[10rem]"
+              />
+              <p className="text-xs text-muted-foreground">The Council requires 3-5+ years of relevant professional experience.</p>
+            </div>
+          )}
+
+          {isExpertTier && (
+            <div className="space-y-1.5">
+              <Label className="text-sm">Social &amp; Professional Links</Label>
+              <p className="text-xs text-muted-foreground">
+                Add your LinkedIn, website, or portfolio and a professional photo on your{" "}
+                <span className="font-medium text-foreground">Profile</span> tab — the Council Directory displays them directly from your account profile.
+              </p>
+            </div>
+          )}
+
           {/* Application narrative */}
           <div className="space-y-1.5">
             <Label className="text-sm">Application Statement</Label>
@@ -329,7 +426,11 @@ export function ApplicationTab({ onRefresh }: Props) {
               onChange={(e) => setForm({ ...form, applicationText: e.target.value })}
               rows={4}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              placeholder="Describe your qualifications, relevant experience, and motivation for becoming a reviewer/editor..."
+              placeholder={
+                isExpertTier
+                  ? "Describe your professional standing, notable engagements, and why your insights would serve the Council's readership..."
+                  : "Describe your qualifications, relevant experience, and motivation for becoming a reviewer/editor..."
+              }
             />
           </div>
 
@@ -398,10 +499,12 @@ export function ApplicationTab({ onRefresh }: Props) {
             <div className="rounded-md border border-border p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Award className="h-4 w-4 text-primary" />
-                <Label className="text-sm font-medium">Certificates & Credentials</Label>
+                <Label className="text-sm font-medium">{isExpertTier ? "Proof of License or Certification" : "Certificates & Credentials"}</Label>
               </div>
               <p className="text-xs text-muted-foreground mb-2">
-                Research certificates, peer reviewer certifications, grammarian/statistician credentials, PRC ID, etc.
+                {isExpertTier
+                  ? "Bar license, medical board certification, CPA license, professional board certification, or other credential relevant to your field."
+                  : "Research certificates, peer reviewer certifications, grammarian/statistician credentials, PRC ID, etc."}
               </p>
               {certificateKeys.length > 0 && (
                 <div className="mb-2 space-y-1">

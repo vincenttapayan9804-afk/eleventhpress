@@ -36,8 +36,13 @@ model User {
   fullName              String
   affiliation           String?
   orcid                 String?
-  // Role: SUPER_ADMIN | EDITOR | ASSOCIATE_EDITOR | REVIEWER | AUTHOR | READER
+  // Role: SUPER_ADMIN | EDITOR | ASSOCIATE_EDITOR | REVIEWER | AUTHOR | READER | EXPERT
   role                  String    @default("READER")
+  // Only meaningful when role === "EXPERT": CONTRIBUTOR (one-off Expert
+  // Insight pieces) | COUNCIL_MEMBER (vetted, committed to recurring
+  // monthly insights). Set once by the Prestige Application approval flow
+  // (see RoleApplication below) — never self-selected.
+  expertTier            String?
   bio                   String?
   expertise             String? // comma-separated keywords for reviewer matching
   country               String?
@@ -107,6 +112,28 @@ model User {
   royaltyStatementsRecorded  RoyaltyStatement[]
   certificates               Certificate[]
   authorResponses            AuthorResponse[]
+  following                  Follow[]            @relation("Following")
+  followedBy                 Follow[]            @relation("Followers")
+}
+
+// ---------------------------------------------------------------------------
+// Follow — lightweight, first-party "follow this expert/author" relation.
+// Used by the Council of Experts' Directory ranking (insights + views +
+// shares + followers) alongside a future personal reading feed; not
+// restricted to EXPERT accounts, since a reader may as reasonably follow a
+// prolific research author.
+// ---------------------------------------------------------------------------
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("Following", fields: [followerId], references: [id])
+  following User @relation("Followers", fields: [followingId], references: [id])
+
+  @@unique([followerId, followingId])
+  @@index([followingId])
 }
 
 // ---------------------------------------------------------------------------
@@ -115,16 +142,27 @@ model User {
 model RoleApplication {
   id              String  @id @default(cuid())
   userId          String
-  requestedRole   String // REVIEWER | EDITOR
+  // REVIEWER | EDITOR | EXPERT_CONTRIBUTOR | EXPERT_COUNCIL_MEMBER — the
+  // last two are the Experts' Insights "Prestige Application Form" tiers;
+  // approval of either promotes User.role to the single "EXPERT" value and
+  // sets User.expertTier to CONTRIBUTOR/COUNCIL_MEMBER respectively (see
+  // src/app/api/applications/[id]/review/route.ts).
+  requestedRole   String
   status          String  @default("PENDING") // PENDING | UNDER_REVIEW | APPROVED | REJECTED
   applicationText String?
   orcidId         String?
   expertise       String?
   specializations String?
+  // Years of relevant industry/professional experience — the Prestige
+  // Application Form's stated 3-5+ year bar for EXPERT_CONTRIBUTOR/
+  // EXPERT_COUNCIL_MEMBER applications; unused for REVIEWER/EDITOR.
+  yearsExperience Int?
 
   resumeKey       String?
   transcriptKey   String?
-  certificateKeys String? // JSON array of storage keys
+  // JSON array of storage keys — also doubles as the Prestige Application
+  // Form's "proof of license or certifications" upload for expert tiers.
+  certificateKeys String?
 
   reviewedBy String?
   reviewedAt DateTime?
@@ -184,6 +222,21 @@ model Article {
   abstract              String
   keywords              String // comma-separated
   discipline            String // Physics | Biology | Computer Science | Sociology | etc.
+  // Experts' Insights vertical (thought-leadership pieces from vetted
+  // industry experts) vs. ordinary peer-reviewed scholarship. Deliberately
+  // reuses this same Article model and its whole pipeline — editorial
+  // workflow, DOI, distribution, citation export, search indexing — rather
+  // than a parallel content type. RESEARCH | EXPERT_INSIGHT
+  contentType           String  @default("RESEARCH")
+  // Only meaningful when contentType === "EXPERT_INSIGHT". LEGAL_COMPLIANCE
+  // | ACADEMIC_PEDAGOGY | BUSINESS_TECHNOLOGY | SCIENTIFIC_CLINICAL |
+  // PSYCHOLOGY — the Insights Categories from the Publication Charter.
+  insightCategory        String?
+  // JSON array of exactly 5 strings — the mandatory "Key Takeaways /
+  // Executive Insights" box every Expert Insight article must open with
+  // (Enterprise-Grade Formatting charter requirement). Null for RESEARCH
+  // articles, which use `laySummary` instead.
+  keyTakeaways           String?
   authors               String // JSON array of {name, affiliation, orcid, email}
   correspondingAuthorId String?
 
@@ -325,6 +378,10 @@ model Article {
 
   views     Int @default(0)
   downloads Int @default(0)
+  // Incremented by the share/copy-link action on the article page and the
+  // Distribution "share kit" flows. Used, alongside insight count and
+  // views, to rank the Council of Experts' Directory.
+  shares    Int @default(0)
 
   // Real citation count from OpenAlex (src/lib/citation-metrics.ts),
   // refreshed unconditionally on every deploy by
@@ -363,6 +420,7 @@ model Article {
   @@index([status, publishedAt])
   @@index([journalId, publishedAt])
   @@index([discipline, publishedAt])
+  @@index([contentType, publishedAt])
   @@index([issueId])
   @@index([correspondingAuthorId])
   @@index([doi])

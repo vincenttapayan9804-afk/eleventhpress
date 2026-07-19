@@ -74,6 +74,32 @@ export const DISCIPLINE_COLORS: Record<string, string> = {
   "Language and Literature": "bg-[oklch(0.93_0.04_290)] text-[oklch(0.42_0.18_295)] border-[oklch(0.76_0.11_294/0.3)]",
 };
 
+/**
+ * Experts' Insights — the Publication Charter's five Insight Categories.
+ * Only meaningful when Article.contentType === "EXPERT_INSIGHT"; values are
+ * stored on Article.insightCategory. Keys are the stored/enum values, used
+ * as i18n keys (`experts.category.<key>`) — see src/messages/en.json.
+ */
+export const INSIGHT_CATEGORIES = [
+  "LEGAL_COMPLIANCE",
+  "ACADEMIC_PEDAGOGY",
+  "BUSINESS_TECHNOLOGY",
+  "SCIENTIFIC_CLINICAL",
+  "PSYCHOLOGY",
+] as const;
+export type InsightCategory = (typeof INSIGHT_CATEGORIES)[number];
+
+export const INSIGHT_CATEGORY_LABELS: Record<InsightCategory, string> = {
+  LEGAL_COMPLIANCE: "Legal & Compliance",
+  ACADEMIC_PEDAGOGY: "Academic & Pedagogy",
+  BUSINESS_TECHNOLOGY: "Business & Technology",
+  SCIENTIFIC_CLINICAL: "Scientific / Clinical",
+  PSYCHOLOGY: "Psychology",
+};
+
+/** Exactly 5 bullets, the Charter's mandatory "Key Takeaways" box. */
+export const KEY_TAKEAWAYS_COUNT = 5;
+
 export interface ArticleAuthor {
   name: string;
   affiliation: string;

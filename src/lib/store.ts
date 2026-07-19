@@ -13,6 +13,8 @@ export type ViewKey =
   | "dashboard"
   | "resources"
   | "authors"
+  | "experts"
+  | "charter"
   | "faqs"
   | "policies"
   | "privacy"
@@ -21,6 +23,7 @@ export type ViewKey =
 
 export type DashboardTab =
   | "overview"
+  | "expertDashboard"
   | "profile"
   | "submit"
   | "myArticles"
@@ -44,6 +47,9 @@ interface SessionUser {
   email: string;
   fullName: string;
   role: string;
+  // Only meaningful when role === "EXPERT" — see prisma/schema.prisma's
+  // User.expertTier comment. CONTRIBUTOR | COUNCIL_MEMBER | null.
+  expertTier?: string | null;
   affiliation?: string | null;
   expertise?: string | null;
   country?: string | null;

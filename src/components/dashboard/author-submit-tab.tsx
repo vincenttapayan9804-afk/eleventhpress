@@ -36,7 +36,7 @@ import {
   Globe2,
   Landmark,
 } from "lucide-react";
-import { DISCIPLINES, CREDIT_ROLES } from "@/lib/article";
+import { DISCIPLINES, CREDIT_ROLES, INSIGHT_CATEGORIES, INSIGHT_CATEGORY_LABELS, KEY_TAKEAWAYS_COUNT, type InsightCategory } from "@/lib/article";
 
 interface Props {
   onSubmitted: () => void;
@@ -73,6 +73,7 @@ const MAX_MANUSCRIPT_BYTES = MAX_MANUSCRIPT_MB * 1024 * 1024;
 
 export function AuthorSubmitTab({ onSubmitted }: Props) {
   const { user, openDashboard } = useApp();
+  const isExpert = user?.role === "EXPERT";
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ doi: string; plagiarismScore: number; status: string } | null>(null);
@@ -82,11 +83,18 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
     abstract: "",
     keywords: "",
     discipline: "Physics",
+    insightCategory: "" as InsightCategory | "",
     reviewModel: "DOUBLE_BLIND",
     openReview: false,
     apcWaiverRequested: false,
     apcWaiverReason: "",
   });
+  // The Publication Charter's mandatory "Key Takeaways" box — exactly 5
+  // bullets, required for every Expert Insight, unused for RESEARCH.
+  const [keyTakeaways, setKeyTakeaways] = useState<string[]>(Array(KEY_TAKEAWAYS_COUNT).fill(""));
+  function updateTakeaway(i: number, value: string) {
+    setKeyTakeaways((prev) => prev.map((t, idx) => (idx === i ? value : t)));
+  }
   const [authors, setAuthors] = useState<Author[]>([
     {
       name: user?.fullName || "",
@@ -138,10 +146,16 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
 
   function validateStep(): string | null {
     if (step === 1) {
-      if (!form.title.trim()) return "Please enter a title for your manuscript.";
+      if (!form.title.trim()) return `Please enter a title for your ${isExpert ? "insight" : "manuscript"}.`;
       if (form.title.trim().length < 6) return "Title must be at least 6 characters.";
       if (!form.abstract.trim()) return "Please enter an abstract.";
       if (form.abstract.trim().length < 50) return `Abstract must be at least 50 characters (currently ${form.abstract.trim().length}).`;
+      if (isExpert) {
+        const filled = keyTakeaways.map((t) => t.trim()).filter(Boolean);
+        if (filled.length !== KEY_TAKEAWAYS_COUNT) return `Key Takeaways must have exactly ${KEY_TAKEAWAYS_COUNT} filled-in bullet points.`;
+        const refCount = references.split("\n").map((r) => r.trim()).filter(Boolean).length;
+        if (refCount < 1) return "Per the Publication Charter, every Insight must cite at least one data source or peer-reviewed reference.";
+      }
       return null;
     }
     if (step === 2) {
@@ -150,7 +164,11 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
       return null;
     }
     if (step === 3) {
-      if (!form.discipline) return "Please select a discipline.";
+      if (isExpert) {
+        if (!form.insightCategory) return "Please select an Insight Category.";
+      } else if (!form.discipline) {
+        return "Please select a discipline.";
+      }
       if (!form.reviewModel) return "Please select a review model.";
       return null;
     }
@@ -270,6 +288,7 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
             references: references.split("\n").map((r) => r.trim()).filter(Boolean),
             manuscriptKey: uploadedFile?.key,
             manuscriptName: uploadedFile?.filename,
+            keyTakeaways: isExpert ? keyTakeaways.map((t) => t.trim()).filter(Boolean) : undefined,
           }),
         }
       );
@@ -293,9 +312,11 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
           </div>
           <h2 className="mt-4 font-display text-2xl font-semibold">Submission received</h2>
           <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-            Your manuscript has entered the editorial pipeline. A tracking reference has been
-            assigned, the manuscript has been stored in the <code className="font-mono text-xs">raw-submissions</code> bucket,
-            and the editorial office has been notified.
+            {isExpert
+              ? "Your insight has entered the Council's editorial pipeline for board review. A tracking reference has been assigned and the editorial office has been notified."
+              : <>Your manuscript has entered the editorial pipeline. A tracking reference has been
+              assigned, the manuscript has been stored in the <code className="font-mono text-xs">raw-submissions</code> bucket,
+              and the editorial office has been notified.</>}
           </p>
           <div className="mx-auto mt-6 max-w-md rounded-md border border-border bg-muted/30 p-4 text-left text-sm">
             <Row label="Tracking reference" value={<code className="font-mono text-xs">{result.doi}</code>} />
@@ -308,7 +329,7 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
             )}
           </div>
           <div className="mt-6 flex justify-center gap-3">
-            <Button onClick={() => { setResult(null); setStep(1); setForm({ title: "", abstract: "", keywords: "", discipline: "Physics", reviewModel: "DOUBLE_BLIND", openReview: false, apcWaiverRequested: false, apcWaiverReason: "" }); setUploadedFile(null); setFunders([]); setReferences(""); }}>
+            <Button onClick={() => { setResult(null); setStep(1); setForm({ title: "", abstract: "", keywords: "", discipline: "Physics", insightCategory: "", reviewModel: "DOUBLE_BLIND", openReview: false, apcWaiverRequested: false, apcWaiverReason: "" }); setUploadedFile(null); setFunders([]); setReferences(""); setKeyTakeaways(Array(KEY_TAKEAWAYS_COUNT).fill("")); }}>
               Submit another
             </Button>
             <Button variant="outline" onClick={() => { onSubmitted(); openDashboard("myArticles"); }}>
@@ -324,24 +345,23 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
     <div className="space-y-6">
       <Card className="paper-card">
         <CardHeader>
-          <p className="eyebrow">New submission</p>
+          <p className="eyebrow">{isExpert ? "New Expert Insight" : "New submission"}</p>
           <h2 className="font-display text-2xl font-semibold">
-            Submit a manuscript
+            {isExpert ? "Submit an Insight" : "Submit a manuscript"}
           </h2>
           <p className="text-sm text-muted-foreground">
-            Complete the three-step form below. A tracking reference is assigned upon
-            submission (your real, permanently-resolving DOI is minted upon publication), the
-            manuscript is uploaded to private S3-style storage via a pre-signed PUT URL, and an
-            in-corpus similarity check runs against every other article already in the journal.
+            {isExpert
+              ? "Complete the three-step form below. Every Insight opens with a Key Takeaways box, must cite at least one source, and is board-reviewed before publication — see the Publication Charter for the full standard."
+              : "Complete the three-step form below. A tracking reference is assigned upon submission (your real, permanently-resolving DOI is minted upon publication), the manuscript is uploaded to private S3-style storage via a pre-signed PUT URL, and an in-corpus similarity check runs against every other article already in the journal."}
           </p>
         </CardHeader>
         <CardContent>
           {/* Stepper */}
           <div className="mb-8 flex items-center justify-between">
             {[
-              { n: 1, label: "Manuscript details", icon: FileText },
+              { n: 1, label: isExpert ? "Insight details" : "Manuscript details", icon: FileText },
               { n: 2, label: "Authors & affiliations", icon: ShieldCheck },
-              { n: 3, label: "Classification & review", icon: FileCheck2 },
+              { n: 3, label: isExpert ? "Category & review" : "Classification & review", icon: FileCheck2 },
             ].map((s, i) => {
               const active = step === s.n;
               const done = step > s.n;
@@ -373,10 +393,10 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
           {step === 1 && (
             <div className="space-y-4">
               <div className="space-y-1.5">
-                <Label htmlFor="title">Article title</Label>
+                <Label htmlFor="title">{isExpert ? "Insight title" : "Article title"}</Label>
                 <Input
                   id="title"
-                  placeholder="e.g. Topological Signatures in Strain-Engineered Transition Metal Dichalcogenides"
+                  placeholder={isExpert ? "e.g. Why Boards Are Getting AI Governance Wrong" : "e.g. Topological Signatures in Strain-Engineered Transition Metal Dichalcogenides"}
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
                 />
@@ -392,6 +412,29 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
                 />
                 <p className="text-xs text-muted-foreground">{form.abstract.length} characters</p>
               </div>
+
+              {isExpert && (
+                <div className="space-y-1.5 rounded-md border border-primary/30 bg-primary/5 p-4">
+                  <Label className="flex items-center gap-1.5">
+                    <Sparkles className="h-3.5 w-3.5 text-primary" /> Key Takeaways (5 required Executive Insights)
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Per the Enterprise-Grade Formatting standard, every Insight opens with exactly
+                    5 bulleted takeaways for enhanced enterprise readership.
+                  </p>
+                  <div className="mt-2 space-y-2">
+                    {keyTakeaways.map((t, i) => (
+                      <Input
+                        key={i}
+                        value={t}
+                        onChange={(e) => updateTakeaway(i, e.target.value)}
+                        placeholder={`Takeaway ${i + 1}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-1.5">
                 <Label htmlFor="keywords">Keywords (comma-separated)</Label>
                 <Input
@@ -402,7 +445,7 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="references">References (optional, one per line)</Label>
+                <Label htmlFor="references">{isExpert ? "Cited sources (at least 1 required, one per line)" : "References (optional, one per line)"}</Label>
                 <Textarea
                   id="references"
                   rows={5}
@@ -411,13 +454,15 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
                   onChange={(e) => setReferences(e.target.value)}
                 />
                 <p className="text-xs text-muted-foreground">
-                  An editor will validate these against OpenAlex before publication.
+                  {isExpert
+                    ? "Even opinion pieces must cite data or peer-reviewed sources, per the Publication Charter's intellectual-rigor standard."
+                    : "An editor will validate these against OpenAlex before publication."}
                 </p>
               </div>
 
               {/* Real file upload */}
               <div className="space-y-1.5">
-                <Label htmlFor="manuscript">Manuscript file</Label>
+                <Label htmlFor="manuscript">{isExpert ? "Insight file" : "Manuscript file"}</Label>
                 <input
                   ref={fileInputRef}
                   id="manuscript"
@@ -592,24 +637,43 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
           {/* Step 3: Classification & review */}
           {step === 3 && (
             <div className="space-y-4">
+              {isExpert ? (
+                <div className="space-y-1.5">
+                  <Label htmlFor="insightCategory">Insight Category</Label>
+                  <Select value={form.insightCategory} onValueChange={(v) => setForm({ ...form, insightCategory: v as InsightCategory })}>
+                    <SelectTrigger id="insightCategory">
+                      <SelectValue placeholder="Select a category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {INSIGHT_CATEGORIES.map((c) => (
+                        <SelectItem key={c} value={c}>{INSIGHT_CATEGORY_LABELS[c]}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Determines where your Insight appears in the Council of Experts' Directory.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <Label htmlFor="discipline">Primary discipline</Label>
+                  <Select value={form.discipline} onValueChange={(v) => setForm({ ...form, discipline: v })}>
+                    <SelectTrigger id="discipline">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DISCIPLINES.map((d) => (
+                        <SelectItem key={d} value={d}>{d}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Used by Elasticsearch to match your paper against the reviewer pool.
+                  </p>
+                </div>
+              )}
               <div className="space-y-1.5">
-                <Label htmlFor="discipline">Primary discipline</Label>
-                <Select value={form.discipline} onValueChange={(v) => setForm({ ...form, discipline: v })}>
-                  <SelectTrigger id="discipline">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DISCIPLINES.map((d) => (
-                      <SelectItem key={d} value={d}>{d}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  Used by Elasticsearch to match your paper against the reviewer pool.
-                </p>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="review">Peer-review model</Label>
+                <Label htmlFor="review">{isExpert ? "Council review model" : "Peer-review model"}</Label>
                 <Select value={form.reviewModel} onValueChange={(v) => setForm({ ...form, reviewModel: v })}>
                   <SelectTrigger id="review">
                     <SelectValue />
@@ -645,38 +709,41 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
                 </div>
               </div>
 
-              {/* APC waiver request */}
-              <div className="rounded-md border border-border p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <Landmark className="h-4 w-4 text-primary" />
-                      <p className="font-display text-sm font-semibold">Request an APC waiver</p>
+              {/* APC waiver request — not applicable to Expert Insights, which
+                  carry no article processing charge */}
+              {!isExpert && (
+                <div className="rounded-md border border-border p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <Landmark className="h-4 w-4 text-primary" />
+                        <p className="font-display text-sm font-semibold">Request an APC waiver</p>
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        If you cannot cover the article processing charge (e.g. no institutional funding,
+                        based in a low/middle-income country), request a full or partial waiver. An editor
+                        will review this request before the article proceeds to production.
+                      </p>
                     </div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      If you cannot cover the article processing charge (e.g. no institutional funding,
-                      based in a low/middle-income country), request a full or partial waiver. An editor
-                      will review this request before the article proceeds to production.
-                    </p>
-                  </div>
-                  <Switch
-                    checked={form.apcWaiverRequested}
-                    onCheckedChange={(v) => setForm({ ...form, apcWaiverRequested: v })}
-                  />
-                </div>
-                {form.apcWaiverRequested && (
-                  <div className="mt-3 space-y-1.5">
-                    <Label htmlFor="waiverReason" className="text-xs">Reason for waiver request</Label>
-                    <Textarea
-                      id="waiverReason"
-                      rows={3}
-                      placeholder="Briefly explain your funding situation…"
-                      value={form.apcWaiverReason}
-                      onChange={(e) => setForm({ ...form, apcWaiverReason: e.target.value })}
+                    <Switch
+                      checked={form.apcWaiverRequested}
+                      onCheckedChange={(v) => setForm({ ...form, apcWaiverRequested: v })}
                     />
                   </div>
-                )}
-              </div>
+                  {form.apcWaiverRequested && (
+                    <div className="mt-3 space-y-1.5">
+                      <Label htmlFor="waiverReason" className="text-xs">Reason for waiver request</Label>
+                      <Textarea
+                        id="waiverReason"
+                        rows={3}
+                        placeholder="Briefly explain your funding situation…"
+                        value={form.apcWaiverReason}
+                        onChange={(e) => setForm({ ...form, apcWaiverReason: e.target.value })}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
 
               <Separator className="my-4" />
               <div className="rounded-md border border-primary/30 bg-primary/5 p-4">
@@ -685,10 +752,14 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
                 </p>
                 <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
                   <li>· A tracking reference is assigned (your real DOI is minted upon publication).</li>
-                  <li>· The manuscript is uploaded to private S3-style storage with a pre-signed PUT URL.</li>
-                  <li>· An in-corpus similarity check runs against every other article already in the journal.</li>
-                  <li>· If double-blind, an anonymised copy of your PDF is created for reviewers.</li>
-                  <li>· Editors are notified and the article enters the SUBMITTED state.</li>
+                  <li>· The {isExpert ? "insight" : "manuscript"} is uploaded to private S3-style storage with a pre-signed PUT URL.</li>
+                  <li>· An in-corpus similarity check runs against every other {isExpert ? "insight" : "article"} already published.</li>
+                  {isExpert ? (
+                    <li>· The Council board reviews it for industry relevance and professional alignment.</li>
+                  ) : (
+                    <li>· If double-blind, an anonymised copy of your PDF is created for reviewers.</li>
+                  )}
+                  <li>· Editors are notified and the {isExpert ? "insight" : "article"} enters the SUBMITTED state.</li>
                 </ul>
               </div>
             </div>
@@ -710,7 +781,7 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
             ) : (
               <Button onClick={() => { const err = validateStep(); if (err) { toast.error("Cannot submit", { description: err }); return; } submit(); }} disabled={loading}>
                 {loading ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Sparkles className="mr-1.5 h-4 w-4" />}
-                Submit manuscript
+                {isExpert ? "Submit insight" : "Submit manuscript"}
               </Button>
             )}
           </div>
