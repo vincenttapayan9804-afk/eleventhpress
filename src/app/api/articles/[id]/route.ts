@@ -94,6 +94,7 @@ export async function GET(
     galleyHtmlKey: article.galleyHtmlKey,
     galleyJatsKey: article.galleyJatsKey,
     galleyEpubKey: article.galleyEpubKey,
+    contentHash: article.contentHash,
     views: isPublished ? article.views + 1 : article.views,
     downloads: article.downloads,
     citations: article.citations,

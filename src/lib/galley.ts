@@ -407,11 +407,12 @@ year: ${meta.year}
   // htmlContent for the HTML/PDF galleys.
   let epubResultKey: string | null = null;
   try {
-    const authorNames = parseAuthors(meta.authors).map((a) => a.name).filter(Boolean);
+    const epubAuthorNames = parseAuthors(meta.authors).map((a) => a.name).filter(Boolean);
     const chapterHtml = pdfBodySource || `<p>${escapeXml(meta.abstract)}</p>`;
-    const epubBuffer = buildEpub({ id: meta.id, title: meta.title, subtitle: null, authors: authorNames }, [
-      { title: meta.title, html: chapterHtml },
-    ]);
+    const epubBuffer = buildEpub(
+      { id: meta.id, title: meta.title, subtitle: null, authors: epubAuthorNames, rights: buildLicenseNotice(meta) },
+      [{ title: meta.title, html: chapterHtml }]
+    );
     await putObject(epubKey, epubBuffer, "application/epub+zip");
     epubResultKey = epubKey;
     log.push(`Stored EPUB: ${epubKey} (${epubBuffer.length} bytes)`);
@@ -588,11 +589,17 @@ export function htmlToPlainText(html: string, stripLeadingParagraphs: (string | 
 function renderPdfKitGalley(meta: any, htmlContent: string): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     try {
+      const licenseNotice = buildLicenseNotice(meta);
       const doc = new PDFDocument({
         size: "A4",
         margins: { top: 64, bottom: 56, left: 56, right: 56 },
         bufferPages: true,
-        info: { Title: meta.title || "Untitled", Author: authorNames(meta) },
+        info: {
+          Title: meta.title || "Untitled",
+          Author: authorNames(meta),
+          Subject: licenseNotice,
+          Keywords: `CC-BY-4.0${meta.doi ? `, doi:${meta.doi}` : ""}`,
+        },
       });
       const chunks: Buffer[] = [];
       doc.on("data", (c: Buffer) => chunks.push(c));
@@ -699,4 +706,23 @@ function safeParseAuthors(authorsJson: string): any[] {
 
 function authorNames(meta: any): string {
   return safeParseAuthors(meta.authors).map((a: any) => a.name).filter(Boolean).join(", ");
+}
+
+/**
+ * Baseline license + attribution notice embedded in every generated
+ * galley's own file metadata (PDF Subject/Keywords, EPUB dc:rights) —
+ * independent of, and present even without, the per-download stamp added
+ * at request time by src/lib/watermark.ts. Ensures a copy obtained any
+ * other way than this platform's own download button still carries real
+ * CC BY 4.0 terms and a citation, reducing accidental misattribution.
+ */
+export function buildLicenseNotice(meta: {
+  authors: string;
+  title: string;
+  year: number;
+  journalName: string;
+  doi: string;
+}): string {
+  const cite = `${authorNames(meta)} (${meta.year}). ${meta.title}. ${meta.journalName}.${meta.doi ? ` https://doi.org/${meta.doi}` : ""}`;
+  return `Licensed under CC BY 4.0 — attribution required, redistribution and commercial reuse permitted. Cite as: ${cite}`;
 }

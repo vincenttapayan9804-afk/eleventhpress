@@ -32,6 +32,10 @@ export interface ArticleDetail extends ArticleListItem {
   galleyHtmlKey: string | null;
   galleyJatsKey?: string | null;
   galleyEpubKey?: string | null;
+  // SHA-256 of the record's provenance payload, sealed at publish time —
+  // see src/lib/article-provenance.ts and /verify/article/[id]. Null means
+  // "not sealed yet" (pre-existing article, or sealing failed at publish).
+  contentHash?: string | null;
   // One avatarUrl (or null) per parseAuthors(authors) entry, in the same
   // order — src/lib/author-accounts.ts resolveAuthorAvatars().
   authorAvatars?: (string | null)[];

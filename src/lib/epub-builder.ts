@@ -29,7 +29,7 @@ function escapeXml(s: string): string {
 }
 
 export function buildEpub(
-  book: { id: string; title: string; subtitle?: string | null; authors: string[] },
+  book: { id: string; title: string; subtitle?: string | null; authors: string[]; rights?: string | null },
   chapters: EpubChapter[]
 ): Buffer {
   const authorNames = book.authors.filter(Boolean);
@@ -50,6 +50,7 @@ export function buildEpub(
     <dc:language>${ARTICLE_LANGUAGE}</dc:language>
     <dc:publisher>Eleventh Press International Publishing</dc:publisher>
 ${authorNames.map((n) => `    <dc:creator>${escapeXml(n)}</dc:creator>`).join("\n")}
+    ${book.rights ? `<dc:rights>${escapeXml(book.rights)}</dc:rights>` : ""}
     <meta property="dcterms:modified">${modified}</meta>
   </metadata>
   <manifest>
