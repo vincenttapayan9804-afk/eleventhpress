@@ -35,6 +35,7 @@ export function SiteHeader() {
     { label: t("home"), view: "home" as const },
     { label: t("articles"), view: "browse" as const },
     { label: t("authors"), view: "authors" as const },
+    { label: t("experts"), view: "experts" as const },
     { label: t("resources"), view: "resources" as const },
     { label: t("about"), view: "about" as const },
     { label: t("faqs"), view: "faqs" as const },

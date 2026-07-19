@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
 
   let payload: any = { role, notifications, unreadCount: notifCount };
 
-  if (role === "AUTHOR" || role === "SUPER_ADMIN") {
+  if (role === "AUTHOR" || role === "EXPERT" || role === "SUPER_ADMIN") {
     const submissions = await db.article.findMany({
       where: { correspondingAuthorId: userId },
       orderBy: { createdAt: "desc" },

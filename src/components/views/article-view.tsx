@@ -231,6 +231,7 @@ export function ArticleView() {
   const authors = parseAuthors(article.authors);
   const funders = parseFunders(article.funders);
   const keywords = article.keywords.split(",").map((k) => k.trim()).filter(Boolean);
+  const keyTakeaways: string[] = article.keyTakeaways ? (() => { try { return JSON.parse(article.keyTakeaways); } catch { return []; } })() : [];
   const citationExportable = {
     title: article.title,
     authors: article.authors,
@@ -442,6 +443,22 @@ export function ArticleView() {
 
             <TabsContent value="article" className="mt-6">
               <div className="prose prose-stone max-w-none">
+                {/* Enterprise-Grade Formatting: every Expert Insight opens
+                    with a mandatory 5-bullet Key Takeaways box, before the
+                    abstract, per the Publication Charter. */}
+                {article.contentType === "EXPERT_INSIGHT" && keyTakeaways.length > 0 && (
+                  <div className="not-prose rounded-md border border-primary/20 bg-primary/5 p-4">
+                    <p className="eyebrow mb-2">Key Takeaways</p>
+                    <ul className="space-y-1.5">
+                      {keyTakeaways.map((k, i) => (
+                        <li key={i} className="flex gap-2 text-sm leading-relaxed text-foreground/85">
+                          <span className="mt-0.5 text-primary">•</span> {k}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between gap-3 not-prose">
                   <h2 className="font-display text-xl font-semibold">Abstract</h2>
                   {translatedAbstract && (
@@ -522,6 +539,18 @@ export function ArticleView() {
                       ))}
                     </ol>
                   </>
+                )}
+
+                {/* Publication Governance Standard's mandatory quality-
+                    assurance disclaimer — every published Expert Insight
+                    carries it, distinct from ordinary peer-review credit. */}
+                {article.contentType === "EXPERT_INSIGHT" && article.status === "PUBLISHED" && (
+                  <div className="not-prose mt-6 rounded-md border border-border bg-muted/30 p-3">
+                    <p className="flex items-center gap-1.5 text-[0.7rem] text-muted-foreground">
+                      <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
+                      This article was board-reviewed by the Council of Experts for industry relevance and professional alignment.
+                    </p>
+                  </div>
                 )}
               </div>
 

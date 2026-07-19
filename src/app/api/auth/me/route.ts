@@ -7,6 +7,7 @@ const PROFILE_SELECT = {
   email: true,
   fullName: true,
   role: true,
+  expertTier: true,
   affiliation: true,
   expertise: true,
   country: true,

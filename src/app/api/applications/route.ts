@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
+import { EXPERT_APPLICATION_TIERS } from "@/lib/roles";
+
+const REQUESTABLE_ROLES = ["REVIEWER", "EDITOR", ...EXPERT_APPLICATION_TIERS];
 
 export async function GET(req: NextRequest) {
   const session = getSessionFromHeaders(req.headers);
@@ -33,19 +36,20 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { requestedRole, applicationText, orcidId, expertise, specializations, resumeKey, transcriptKey, certificateKeys } = body as {
+  const { requestedRole, applicationText, orcidId, expertise, specializations, yearsExperience, resumeKey, transcriptKey, certificateKeys } = body as {
     requestedRole?: string;
     applicationText?: string;
     orcidId?: string;
     expertise?: string;
     specializations?: string;
+    yearsExperience?: number;
     resumeKey?: string;
     transcriptKey?: string;
     certificateKeys?: string[];
   };
 
-  if (!requestedRole || !["REVIEWER", "EDITOR"].includes(requestedRole)) {
-    return NextResponse.json({ error: "requestedRole must be REVIEWER or EDITOR" }, { status: 400 });
+  if (!requestedRole || !REQUESTABLE_ROLES.includes(requestedRole)) {
+    return NextResponse.json({ error: `requestedRole must be one of ${REQUESTABLE_ROLES.join(", ")}` }, { status: 400 });
   }
 
   const existing = await db.roleApplication.findFirst({
@@ -59,6 +63,7 @@ export async function POST(req: NextRequest) {
         orcidId: orcidId ?? existing.orcidId,
         expertise: expertise ?? existing.expertise,
         specializations: specializations ?? existing.specializations,
+        yearsExperience: yearsExperience ?? existing.yearsExperience,
         resumeKey: resumeKey ?? existing.resumeKey,
         transcriptKey: transcriptKey ?? existing.transcriptKey,
         certificateKeys: certificateKeys ? JSON.stringify(certificateKeys) : existing.certificateKeys,
@@ -75,6 +80,7 @@ export async function POST(req: NextRequest) {
       orcidId: orcidId || null,
       expertise: expertise || null,
       specializations: specializations || null,
+      yearsExperience: yearsExperience ?? null,
       resumeKey: resumeKey || null,
       transcriptKey: transcriptKey || null,
       certificateKeys: certificateKeys ? JSON.stringify(certificateKeys) : null,

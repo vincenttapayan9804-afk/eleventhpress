@@ -14,6 +14,8 @@ import {
   DashboardView,
   ResourcesView,
   AuthorsView,
+  ExpertsView,
+  CharterView,
   FaqsView,
   PoliciesView,
   PrivacyView,
@@ -90,6 +92,8 @@ export default function Page() {
           {view === "dashboard" && <DashboardView />}
           {view === "resources" && <ResourcesView />}
           {view === "authors" && <AuthorsView />}
+          {view === "experts" && <ExpertsView />}
+          {view === "charter" && <CharterView />}
           {view === "faqs" && <FaqsView />}
           {view === "policies" && <PoliciesView />}
           {view === "privacy" && <PrivacyView />}

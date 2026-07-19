@@ -109,7 +109,7 @@ export function CertificatesTab() {
         <Card className="paper-card">
           <CardContent className="p-5 text-sm text-muted-foreground">
             No certificates are available yet. Certificates unlock once you have at least one published
-            article, or hold a Board of Reviewers or Board of Editors role.
+            article, or hold a Board of Reviewers, Board of Editors, or Council of Experts role.
           </CardContent>
         </Card>
       )}

@@ -262,12 +262,14 @@ const CATEGORY_SERVICE_TEXT: Record<CertificatePayload["category"], string> = {
   AUTHOR: "the publication of peer-reviewed research",
   REVIEWER: "distinguished service as a member of the Board of Reviewers",
   EDITOR: "distinguished service as a member of the Board of Editors",
+  EXPERT: "vetted admission to the Council of Experts",
 };
 
 const MEMBERSHIP_BODY: Record<CertificatePayload["category"], string> = {
   AUTHOR: "Published Author community",
   REVIEWER: "Board of Reviewers",
   EDITOR: "Board of Editors",
+  EXPERT: "Council of Experts",
 };
 
 function recognitionBodyText(payload: CertificatePayload): string {
@@ -355,6 +357,7 @@ const CARD_ROLE_LABEL: Record<CertificatePayload["category"], string> = {
   AUTHOR: "Published Author",
   REVIEWER: "Board of Reviewers Member",
   EDITOR: "Board of Editors Member",
+  EXPERT: "Council of Experts Member",
 };
 
 /** Compact wallet/ID-card-style design, centered on a Letter page — a real

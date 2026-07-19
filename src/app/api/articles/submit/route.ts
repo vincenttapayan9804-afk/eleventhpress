@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { checkSimilarity } from "@/lib/manuscript-checks";
+import { INSIGHT_CATEGORIES, INSIGHT_CATEGORY_LABELS, KEY_TAKEAWAYS_COUNT, type InsightCategory } from "@/lib/article";
 
 /**
  * POST /api/articles/submit
@@ -17,20 +18,20 @@ export async function POST(req: NextRequest) {
   if (!session) {
     return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
-  if (!["AUTHOR", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"].includes(session.role)) {
-    return NextResponse.json({ error: "Only AUTHOR role may submit manuscripts" }, { status: 403 });
+  if (!["AUTHOR", "EXPERT", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"].includes(session.role)) {
+    return NextResponse.json({ error: "Only AUTHOR or EXPERT role may submit manuscripts" }, { status: 403 });
   }
 
   try {
     const body = await req.json();
     const {
       title, abstract, keywords, discipline, authors, reviewModel, manuscriptKey, manuscriptName, openReview,
-      funders, apcWaiverRequested, apcWaiverReason, references,
+      funders, apcWaiverRequested, apcWaiverReason, references, insightCategory, keyTakeaways,
     } = body as {
       title: string;
       abstract: string;
       keywords: string;
-      discipline: string;
+      discipline?: string;
       authors: any[];
       reviewModel: "DOUBLE_BLIND" | "SINGLE_BLIND" | "OPEN";
       manuscriptKey?: string;
@@ -40,11 +41,42 @@ export async function POST(req: NextRequest) {
       apcWaiverRequested?: boolean;
       apcWaiverReason?: string;
       references?: string[];
+      insightCategory?: string;
+      keyTakeaways?: string[];
     };
 
-    if (!title || !abstract || !discipline || !authors?.length) {
+    // Experts submit Expert Insight pieces, never ordinary RESEARCH
+    // manuscripts — the content type is implied by the submitter's role,
+    // never a self-selected toggle, matching the Publication Charter's
+    // Council-vs-Contributor and Insights-Category framing.
+    const isExpert = session.role === "EXPERT";
+    const contentType = isExpert ? "EXPERT_INSIGHT" : "RESEARCH";
+
+    if (!title || !abstract || !authors?.length) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
+    if (!isExpert && !discipline) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
+    if (isExpert) {
+      if (!insightCategory || !INSIGHT_CATEGORIES.includes(insightCategory as InsightCategory)) {
+        return NextResponse.json({ error: "Please select an Insight Category" }, { status: 400 });
+      }
+      const takeaways = (keyTakeaways ?? []).map((t) => t.trim()).filter(Boolean);
+      if (takeaways.length !== KEY_TAKEAWAYS_COUNT) {
+        return NextResponse.json({ error: `Key Takeaways must have exactly ${KEY_TAKEAWAYS_COUNT} bullet points` }, { status: 400 });
+      }
+      const refCount = (references ?? []).map((r) => r.trim()).filter(Boolean).length;
+      if (refCount < 1) {
+        return NextResponse.json({ error: "Expert Insights require at least one cited source, per the Publication Charter" }, { status: 400 });
+      }
+    }
+
+    // Insight pieces reuse `discipline` as their category axis (Browse
+    // page filtering/indexing already keys off it) rather than adding a
+    // parallel facet — see Article.insightCategory's schema comment.
+    const effectiveDiscipline = isExpert ? INSIGHT_CATEGORY_LABELS[insightCategory as InsightCategory] : discipline!;
 
     // Find journal
     const journal = await db.journal.findFirst();
@@ -75,10 +107,13 @@ export async function POST(req: NextRequest) {
         title,
         abstract,
         keywords,
-        discipline,
+        discipline: effectiveDiscipline,
+        contentType,
+        insightCategory: isExpert ? insightCategory : null,
+        keyTakeaways: isExpert ? JSON.stringify((keyTakeaways ?? []).map((t) => t.trim()).filter(Boolean)) : null,
         authors: JSON.stringify(authors),
         correspondingAuthorId: session.userId,
-        manuscriptKey: manuscriptKey || (manuscriptName ? `raw-submissions/${session.userId}/${manuscriptName}` : `raw-submissions/${discipline.toLowerCase().replace(/\s+/g, "-")}-${doiSuffix}.pdf`),
+        manuscriptKey: manuscriptKey || (manuscriptName ? `raw-submissions/${session.userId}/${manuscriptName}` : `raw-submissions/${effectiveDiscipline.toLowerCase().replace(/\s+/g, "-")}-${doiSuffix}.pdf`),
         anonymizedKey,
         status: "SUBMITTED",
         reviewModel,
@@ -110,7 +145,7 @@ export async function POST(req: NextRequest) {
         entityType: "ARTICLE",
         entityId: article.id,
         articleId: article.id,
-        metadata: JSON.stringify({ title, discipline, doi: draftDoi, plagiarismScore }),
+        metadata: JSON.stringify({ title, discipline: effectiveDiscipline, contentType, doi: draftDoi, plagiarismScore }),
       },
     });
 
@@ -122,8 +157,10 @@ export async function POST(req: NextRequest) {
       data: editors.map((e) => ({
         userId: e.id,
         type: "INFO",
-        title: "New Submission",
-        message: `New ${discipline} manuscript submitted: "${title}" (DOI ${draftDoi}). Plagiarism score: ${plagiarismScore}%.`,
+        title: isExpert ? "New Expert Insight Submission" : "New Submission",
+        message: isExpert
+          ? `New "${effectiveDiscipline}" Expert Insight submitted: "${title}" (DOI ${draftDoi}).`
+          : `New ${effectiveDiscipline} manuscript submitted: "${title}" (DOI ${draftDoi}). Plagiarism score: ${plagiarismScore}%.`,
         articleId: article.id,
       })),
     });

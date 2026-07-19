@@ -40,6 +40,7 @@ export function SiteFooter() {
                 <li><button onClick={() => setView("home")} className="text-muted-foreground hover:text-[oklch(0.42_0.18_295)] transition-colors">{t("home")}</button></li>
                 <li><button onClick={() => setView("browse")} className="text-muted-foreground hover:text-[oklch(0.42_0.18_295)] transition-colors">{t("allArticles")}</button></li>
                 <li><button onClick={() => setView("authors")} className="text-muted-foreground hover:text-[oklch(0.42_0.18_295)] transition-colors">{t("authorsDirectory")}</button></li>
+                <li><button onClick={() => setView("experts")} className="text-muted-foreground hover:text-[oklch(0.42_0.18_295)] transition-colors">{t("expertsDirectory")}</button></li>
                 <li><button onClick={() => setView("resources")} className="text-muted-foreground hover:text-[oklch(0.42_0.18_295)] transition-colors">{t("resources")}</button></li>
                 <li><button onClick={() => setView("about")} className="text-muted-foreground hover:text-[oklch(0.42_0.18_295)] transition-colors">{t("aboutJournal")}</button></li>
                 <li><button onClick={() => setView("faqs")} className="text-muted-foreground hover:text-[oklch(0.42_0.18_295)] transition-colors">{t("faqs")}</button></li>

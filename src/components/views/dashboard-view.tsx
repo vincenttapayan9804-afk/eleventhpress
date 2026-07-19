@@ -10,6 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
   LayoutDashboard,
+  Crown,
   FilePlus2,
   FolderOpen,
   Receipt,
@@ -46,6 +47,7 @@ import {
   ReaderTab,
   AdminTab,
   OverviewTab,
+  ExpertDashboardTab,
   CounterTab,
   InstitutionsTab,
   ApplicationTab,
@@ -112,9 +114,10 @@ export function DashboardView() {
   // Role-based tab list
   const TABS: { key: string; label: string; icon: any; roles: string[] }[] = [
     { key: "overview", label: "Overview", icon: LayoutDashboard, roles: ["*"] },
+    { key: "expertDashboard", label: "Professional Dashboard", icon: Crown, roles: ["EXPERT", "SUPER_ADMIN"] },
     { key: "profile", label: "Profile", icon: UserCircle, roles: ["*"] },
-    { key: "submit", label: "New submission", icon: FilePlus2, roles: ["AUTHOR", "SUPER_ADMIN"] },
-    { key: "myArticles", label: "My articles", icon: FolderOpen, roles: ["AUTHOR", "SUPER_ADMIN"] },
+    { key: "submit", label: "New submission", icon: FilePlus2, roles: ["AUTHOR", "EXPERT", "SUPER_ADMIN"] },
+    { key: "myArticles", label: "My articles", icon: FolderOpen, roles: ["AUTHOR", "EXPERT", "SUPER_ADMIN"] },
     { key: "invoices", label: "Billing & invoices", icon: Receipt, roles: ["AUTHOR", "READER", "SUPER_ADMIN"] },
     { key: "editorQueue", label: "Editorial queue", icon: ListChecks, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"] },
     { key: "reviewerQueue", label: "My reviews", icon: PenSquare, roles: ["REVIEWER", "SUPER_ADMIN"] },
@@ -271,6 +274,7 @@ export function DashboardView() {
         {/* Main panel */}
         <div className="min-w-0">
           {dashboardTab === "overview" && <OverviewTab data={data} />}
+          {dashboardTab === "expertDashboard" && <ExpertDashboardTab />}
           {dashboardTab === "profile" && <ProfileTab />}
           {dashboardTab === "submit" && <AuthorSubmitTab onSubmitted={loadDashboard} />}
           {dashboardTab === "myArticles" && <AuthorArticlesTab submissions={data.submissions || []} onRefresh={loadDashboard} />}
