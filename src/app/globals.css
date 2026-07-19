@@ -280,6 +280,22 @@
   );
 }
 
+/* Archive card click-flash — a brief purple edge-glow + 3D lift that fires
+   only while the card is pressed, right as navigation to the article starts. */
+.cover-click-glow {
+  transition: box-shadow 160ms ease-out, transform 160ms ease-out;
+}
+
+.cover-click-glow:active {
+  transform: translateY(-4px);
+  box-shadow:
+    0 1px 0 oklch(1 0 0 / 0.8) inset,
+    0 0 0 1.5px oklch(0.62 0.19 295 / 0.6),
+    0 0 28px 8px oklch(0.62 0.19 295 / 0.5),
+    0 0 56px 20px oklch(0.62 0.19 295 / 0.28),
+    0 24px 48px oklch(0.25 0.08 295 / 0.3);
+}
+
 /* Royal Glass — floating 3D glassmorphic panel, enterprise SaaS register.
    Applied platform-wide via .paper-card on every Card surface (dashboard
    tabs, article/about/authors/auth views, resources) — was previously

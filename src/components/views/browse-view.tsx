@@ -245,7 +245,7 @@ export function BrowseView() {
             return (
               <div
                 key={a.id}
-                className="pearl-card flex cursor-pointer flex-col p-6 transition-all duration-500 hover:scale-[1.02] hover:shadow-[0_24px_64px_oklch(0.38_0.18_295/0.12)]"
+                className="pearl-card cover-click-glow flex cursor-pointer flex-col p-6 transition-all duration-500 hover:scale-[1.02] hover:shadow-[0_24px_64px_oklch(0.38_0.18_295/0.12)]"
                 style={{ transitionTimingFunction: "var(--ease-luxury)", animationDelay: `${i * 60}ms` }}
                 onClick={() => openArticle(a.id)}
               >
