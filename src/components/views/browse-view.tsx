@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useApp } from "@/lib/store";
 import { apiFetch } from "@/lib/api-client";
 import { DISCIPLINES, parseAuthors } from "@/lib/article";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -14,21 +15,12 @@ import { KeywordCluster } from "@/components/three-d/lazy";
 import { useReveal } from "@/hooks/use-scroll-reveal";
 import {
   Search, SlidersHorizontal, FileX, ChevronLeft, ChevronRight,
-  Quote, Eye, Download, Sparkles, X, BadgeCheck,
+  Quote, Eye, Download, Sparkles, X,
 } from "lucide-react";
 
-// Rotates the cover-card ground color across the six premium variants
-// defined in globals.css, keyed to discipline so the same field always
-// reads the same color (like a magazine's section color-coding) while
-// the archive as a whole shows real variety rather than one repeated hue.
-const COVER_VARIANTS = ["maroon", "purple", "emerald", "navy", "bronze", "slate"] as const;
-function coverVariantClass(discipline: string): string {
-  const idx = DISCIPLINES.includes(discipline as any)
-    ? DISCIPLINES.indexOf(discipline as any)
-    : discipline.split("").reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
-  const variant = COVER_VARIANTS[idx % COVER_VARIANTS.length];
-  return variant === "maroon" ? "" : `cover-card--${variant}`;
-}
+const DISCIPLINE_COLORS: Record<string, string> = Object.fromEntries(
+  DISCIPLINES.map((d) => [d, "bg-[oklch(0.93_0.04_290)] text-[oklch(0.42_0.18_295)] border-[oklch(0.76_0.11_294/0.3)]"])
+);
 
 export function BrowseView() {
   const { openArticle } = useApp();
@@ -253,40 +245,27 @@ export function BrowseView() {
             return (
               <div
                 key={a.id}
-                className={`cover-card cursor-pointer ${coverVariantClass(a.discipline)}`}
-                style={{ animationDelay: `${i * 60}ms` }}
+                className="pearl-card cover-click-glow flex cursor-pointer flex-col p-6 transition-all duration-500 hover:scale-[1.02] hover:shadow-[0_24px_64px_oklch(0.38_0.18_295/0.12)]"
+                style={{ transitionTimingFunction: "var(--ease-luxury)", animationDelay: `${i * 60}ms` }}
                 onClick={() => openArticle(a.id)}
               >
-                <div className="cover-medallion" aria-hidden="true">
-                  <BadgeCheck className="h-3.5 w-3.5" strokeWidth={2.5} />
+                <div className="flex items-start justify-between gap-2">
+                  <Badge variant="outline" className={`border ${DISCIPLINE_COLORS[a.discipline] || DISCIPLINE_COLORS["Physics"]}`}>{a.discipline}</Badge>
+                  {semanticScores[a.id] ? (
+                    <Badge variant="outline" className="border-[oklch(0.76_0.11_294/0.3)] bg-[oklch(0.93_0.04_290/0.5)] text-[0.6rem] font-mono text-[oklch(0.42_0.18_295)]">
+                      <Sparkles className="mr-1 h-2.5 w-2.5" />
+                      {(semanticScores[a.id].score * 100).toFixed(0)}% · {semanticScores[a.id].matchType}
+                    </Badge>
+                  ) : (
+                    <span className="font-mono text-[0.6rem] text-muted-foreground">{a.doi}</span>
+                  )}
                 </div>
-
-                <p className="cover-masthead">
-                  Eleventh Press International Publishing
-                  <span className="cover-masthead-sub">Est. Open Access Research</span>
-                </p>
-                <div className="cover-rule" />
-
-                <div className="cover-plaque">
-                  <span className="cover-rivet tl" aria-hidden="true" />
-                  <span className="cover-rivet tr" aria-hidden="true" />
-                  <span className="cover-rivet bl" aria-hidden="true" />
-                  <span className="cover-rivet br" aria-hidden="true" />
-                  <h3 className="cover-headline line-clamp-4 text-base leading-snug">{a.title}</h3>
-                  <p className="cover-byline line-clamp-1 text-xs">
-                    {authors.map((au: any) => au.name).join(" · ")}
-                  </p>
-                </div>
-
-                <span className="cover-badge">
-                  {semanticScores[a.id]
-                    ? `${(semanticScores[a.id].score * 100).toFixed(0)}% · ${semanticScores[a.id].matchType}`
-                    : a.discipline}
-                </span>
-
-                <div className="cover-footer">
-                  <span className="truncate">{a.doi}</span>
-                  <span className="flex shrink-0 items-center gap-2.5">
+                <h3 className="mt-3 line-clamp-3 font-display text-base font-semibold leading-snug">{a.title}</h3>
+                <p className="mt-1.5 line-clamp-1 text-xs text-muted-foreground">{authors.map((au: any) => au.name).join(", ")}</p>
+                <p className="mt-3 line-clamp-4 flex-1 text-xs leading-relaxed text-muted-foreground">{a.abstract}</p>
+                <div className="mt-4 flex items-center justify-between border-t border-[oklch(0.76_0.11_294/0.1)] pt-3 text-[0.7rem] text-muted-foreground">
+                  <span>Vol. {a.volume}, Iss. {a.issueNumber} ({a.year})</span>
+                  <span className="flex items-center gap-3 font-mono">
                     <span className="flex items-center gap-1"><Quote className="h-3 w-3" /> {a.citations}</span>
                     <span className="flex items-center gap-1"><Eye className="h-3 w-3" /> {a.views}</span>
                     <span className="flex items-center gap-1"><Download className="h-3 w-3" /> {a.downloads}</span>
