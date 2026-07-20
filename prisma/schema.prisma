@@ -98,6 +98,7 @@ model User {
   submissions                Article[]           @relation("AuthorArticles")
   assignedReviews            Review[]            @relation("ReviewerReviews")
   editorialDecisions         EditorialDecision[]
+  readingHistory              ReadingHistory[]
   subscriptions              Subscription[]
   invoices                   Invoice[]
   notifications              Notification[]
@@ -447,6 +448,7 @@ model Article {
   embedding       ArticleEmbedding?
   chunks          ArticleChunk[]
   galleyTranslations ArticleGalleyTranslation[]
+  readingHistory  ReadingHistory[]
   authorResponses AuthorResponse[]
   triageReport    EditorialTriageReport?
   corrections     Correction[]
@@ -1315,6 +1317,24 @@ model ArticleGalleyTranslation {
 
   @@unique([articleId, locale])
   @@index([articleId])
+}
+
+// Per-reader view history — feeds the "Recommended for you" digest
+// (src/lib/recommendations.ts). Logged-in readers only (an anonymous
+// visitor has no durable identity to key this on); upserted, not
+// inserted, on every article view so re-reading bumps viewedAt rather
+// than accumulating duplicate rows.
+model ReadingHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  articleId String
+  viewedAt  DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, articleId])
+  @@index([userId, viewedAt])
 }
 
 // ---------------------------------------------------------------------------
