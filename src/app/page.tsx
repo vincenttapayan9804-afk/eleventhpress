@@ -15,6 +15,7 @@ import {
   ResourcesView,
   DatasetsView,
   PreprintsView,
+  CollectionsView,
   AuthorsView,
   ExpertsView,
   CharterView,
@@ -96,6 +97,7 @@ export default function Page() {
           {view === "resources" && <ResourcesView />}
           {view === "datasets" && <DatasetsView />}
           {view === "preprints" && <PreprintsView />}
+          {view === "collections" && <CollectionsView />}
           {view === "authors" && <AuthorsView />}
           {view === "experts" && <ExpertsView />}
           {view === "charter" && <CharterView />}

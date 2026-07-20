@@ -99,6 +99,7 @@ model User {
   assignedReviews            Review[]            @relation("ReviewerReviews")
   editorialDecisions         EditorialDecision[]
   readingHistory              ReadingHistory[]
+  collectionsCreated         Collection[]
   subscriptions              Subscription[]
   invoices                   Invoice[]
   notifications              Notification[]
@@ -457,6 +458,7 @@ model Article {
   chunks          ArticleChunk[]
   galleyTranslations ArticleGalleyTranslation[]
   readingHistory  ReadingHistory[]
+  collectionEntries CollectionArticle[]
   authorResponses AuthorResponse[]
   triageReport    EditorialTriageReport?
   corrections     Correction[]
@@ -1115,6 +1117,43 @@ model BookArticle {
 
   @@unique([bookId, articleId])
   @@index([bookId, chapterOrder])
+}
+
+// Editor-curated thematic bundle of already-PUBLISHED articles — a
+// "Special Issue" or "Collection" landing page, distinct from a Book
+// (no production pipeline, no DOI of its own, no distribution tiers) and
+// distinct from an Issue (an Issue is the journal's actual sequential
+// numbering; a Collection is a cross-cutting theme that can pull articles
+// from any issue). Direct reuse of the BookArticle join-table pattern.
+model Collection {
+  id            String    @id @default(cuid())
+  title         String
+  slug          String    @unique
+  description   String
+  coverImageKey String?
+  createdById   String
+  createdAt     DateTime  @default(now())
+  // Null while an editor is still assembling it — only publishedAt-set
+  // collections are ever returned by the public GET /api/collections.
+  publishedAt   DateTime?
+
+  createdBy User                 @relation(fields: [createdById], references: [id])
+  articles  CollectionArticle[]
+}
+
+model CollectionArticle {
+  id           String @id @default(cuid())
+  collectionId String
+  articleId    String
+  order        Int    @default(0)
+
+  createdAt DateTime @default(now())
+
+  collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  article    Article    @relation(fields: [articleId], references: [id])
+
+  @@unique([collectionId, articleId])
+  @@index([collectionId, order])
 }
 
 // Durable production queue for Book EPUB/PDF generation — same
