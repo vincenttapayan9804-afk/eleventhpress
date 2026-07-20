@@ -13,6 +13,7 @@ export type ViewKey =
   | "dashboard"
   | "resources"
   | "datasets"
+  | "preprints"
   | "authors"
   | "experts"
   | "charter"

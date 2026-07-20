@@ -44,6 +44,19 @@ export const STATUS_COLORS: Record<ArticleStatus, string> = {
   WITHDRAWN: "bg-[oklch(0.95_0.01_285)] text-muted-foreground border-[oklch(0.88_0.015_285)]",
 };
 
+// Statuses a manuscript can be posted as a public preprint under
+// (src/app/api/articles/[id]/preprint/route.ts, src/app/api/preprints/*).
+// Excludes DRAFT (not yet submitted at all), PUBLISHED (it's the real
+// archive now, not a preprint), and REJECTED/WITHDRAWN (shouldn't newly
+// become publicly browsable once in a terminal negative state).
+export const PREPRINT_ELIGIBLE_STATUSES: ArticleStatus[] = [
+  "SUBMITTED",
+  "UNDER_REVIEW",
+  "REVISIONS_REQUIRED",
+  "ACCEPTED",
+  "IN_PRODUCTION",
+];
+
 export const DISCIPLINES = [
   "Physics",
   "Biology",

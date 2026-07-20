@@ -48,6 +48,9 @@ export const ResourcesView = dynamic(() => import("./resources-view").then((m) =
 export const DatasetsView = dynamic(() => import("./datasets-view").then((m) => m.DatasetsView), {
   loading: () => <ViewLoadingFallback />,
 });
+export const PreprintsView = dynamic(() => import("./preprints-view").then((m) => m.PreprintsView), {
+  loading: () => <ViewLoadingFallback />,
+});
 export const AuthorsView = dynamic(() => import("./authors-view").then((m) => m.AuthorsView), {
   loading: () => <ViewLoadingFallback />,
 });

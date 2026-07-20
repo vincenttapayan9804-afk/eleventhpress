@@ -14,6 +14,7 @@ import {
   DashboardView,
   ResourcesView,
   DatasetsView,
+  PreprintsView,
   AuthorsView,
   ExpertsView,
   CharterView,
@@ -94,6 +95,7 @@ export default function Page() {
           {view === "dashboard" && <DashboardView />}
           {view === "resources" && <ResourcesView />}
           {view === "datasets" && <DatasetsView />}
+          {view === "preprints" && <PreprintsView />}
           {view === "authors" && <AuthorsView />}
           {view === "experts" && <ExpertsView />}
           {view === "charter" && <CharterView />}

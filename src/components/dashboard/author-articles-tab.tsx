@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { STATUS_LABELS, STATUS_COLORS, DISCIPLINE_COLORS, parseAuthors } from "@/lib/article";
+import { STATUS_LABELS, STATUS_COLORS, DISCIPLINE_COLORS, parseAuthors, PREPRINT_ELIGIBLE_STATUSES } from "@/lib/article";
 import type { ArticleStatus } from "@/lib/article";
 import {
   Eye,
@@ -18,6 +18,7 @@ import {
   Trash2,
   Loader2,
   MessageSquareReply,
+  Globe2,
 } from "lucide-react";
 import { STATUS_FLOW } from "@/lib/article";
 import { toast } from "sonner";
@@ -34,6 +35,23 @@ export function AuthorArticlesTab({ submissions, onRefresh }: Props) {
   const [respondingId, setRespondingId] = useState<string | null>(null);
   const [responseText, setResponseText] = useState("");
   const [submittingResponse, setSubmittingResponse] = useState(false);
+  const [togglingPreprintId, setTogglingPreprintId] = useState<string | null>(null);
+
+  async function togglePreprint(articleId: string, enable: boolean) {
+    setTogglingPreprintId(articleId);
+    try {
+      await apiFetch(`/api/articles/${articleId}/preprint`, {
+        method: "POST",
+        body: JSON.stringify({ enable }),
+      });
+      toast.success(enable ? "Posted as a public preprint" : "Preprint taken down");
+      onRefresh();
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setTogglingPreprintId(null);
+    }
+  }
 
   async function submitResponse(articleId: string) {
     const trimmed = responseText.trim();
@@ -221,6 +239,44 @@ export function AuthorArticlesTab({ submissions, onRefresh }: Props) {
                 <p className="mt-3 font-mono text-[0.65rem] text-muted-foreground">
                   In-corpus similarity: {s.plagiarismScore}% · Review model: {s.reviewModel.replace("_", " ")}
                 </p>
+              )}
+
+              {/* Preprint — publicly readable before/during peer review.
+                  Only offered while the manuscript is in an eligible
+                  status (src/lib/article.ts's PREPRINT_ELIGIBLE_STATUSES). */}
+              {PREPRINT_ELIGIBLE_STATUSES.includes(status) && (
+                <div className="mt-3 border-t border-border pt-3">
+                  {s.isPreprint ? (
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs text-muted-foreground">
+                        <Globe2 className="mr-1 inline h-3 w-3" /> Publicly readable as a preprint
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={togglingPreprintId === s.id}
+                        onClick={() => togglePreprint(s.id, false)}
+                      >
+                        {togglingPreprintId === s.id && <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />}
+                        Take down preprint
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={togglingPreprintId === s.id}
+                      onClick={() => togglePreprint(s.id, true)}
+                    >
+                      {togglingPreprintId === s.id ? (
+                        <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
+                      ) : (
+                        <Globe2 className="mr-1.5 h-3.5 w-3.5" />
+                      )}
+                      Post as public preprint
+                    </Button>
+                  )}
+                </div>
               )}
 
               {/* Delete is only offered pre-publication — once an article has
