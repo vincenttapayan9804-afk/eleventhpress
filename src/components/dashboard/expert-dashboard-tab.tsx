@@ -179,6 +179,9 @@ export function ExpertDashboardTab() {
         </CardContent>
       </Card>
 
+      {/* Ask an Expert inbox */}
+      {user && <ExpertQuestionsInbox expertId={user.id} />}
+
       {/* Quick links */}
       <div className="grid gap-4 sm:grid-cols-3">
         <QuickLink icon={FileText} label="My insights" onClick={() => openDashboard("myArticles")} />
@@ -186,6 +189,124 @@ export function ExpertDashboardTab() {
         <QuickLink icon={ShieldCheck} label="Publication Charter" onClick={() => setView("charter")} />
       </div>
     </div>
+  );
+}
+
+interface InboxQuestion {
+  id: string;
+  question: string;
+  answer: string | null;
+  answeredAt: string | null;
+  isPublic: boolean;
+  createdAt: string;
+  askerName: string;
+}
+
+/**
+ * "Ask an Expert" inbox — every question this expert has received,
+ * pending or answered (src/app/api/experts/[id]/questions/inbox).
+ * Answering here is what actually makes a question eligible to appear on
+ * the public Council of Experts' Directory profile — nothing here is
+ * public until the expert explicitly answers with "Publish publicly".
+ */
+function ExpertQuestionsInbox({ expertId }: { expertId: string }) {
+  const [questions, setQuestions] = useState<InboxQuestion[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [answering, setAnswering] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+  const [makePublic, setMakePublic] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  function load() {
+    setLoading(true);
+    apiFetch<{ items: InboxQuestion[] }>(`/api/experts/${expertId}/questions/inbox`)
+      .then(({ items }) => setQuestions(items))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    load();
+  }, [expertId]);
+
+  async function submitAnswer(questionId: string) {
+    const trimmed = draft.trim();
+    if (!trimmed) return;
+    setSubmitting(true);
+    try {
+      await apiFetch(`/api/experts/${expertId}/questions/${questionId}`, {
+        method: "POST",
+        body: JSON.stringify({ answer: trimmed, isPublic: makePublic }),
+      });
+      toast.success("Answer submitted");
+      setAnswering(null);
+      setDraft("");
+      load();
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const pending = questions.filter((q) => !q.answeredAt);
+  const answered = questions.filter((q) => q.answeredAt);
+
+  if (loading) return null;
+  if (questions.length === 0) return null;
+
+  return (
+    <Card className="paper-card">
+      <CardHeader>
+        <p className="eyebrow">Ask an Expert</p>
+        <p className="text-sm text-muted-foreground">
+          {pending.length} pending question{pending.length === 1 ? "" : "s"}
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {pending.map((q) => (
+          <div key={q.id} className="rounded-md border border-border p-4">
+            <p className="text-xs text-muted-foreground">From {q.askerName}</p>
+            <p className="mt-1 text-sm font-medium leading-snug">{q.question}</p>
+            {answering === q.id ? (
+              <div className="mt-3 space-y-2">
+                <textarea
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  placeholder="Your answer…"
+                  rows={4}
+                  className="w-full rounded-md border border-input bg-background p-2 text-sm"
+                />
+                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <input type="checkbox" checked={makePublic} onChange={(e) => setMakePublic(e.target.checked)} />
+                  Publish publicly on my profile
+                </label>
+                <div className="flex justify-end gap-2">
+                  <Button size="sm" variant="ghost" onClick={() => { setAnswering(null); setDraft(""); }}>
+                    Cancel
+                  </Button>
+                  <Button size="sm" disabled={submitting || !draft.trim()} onClick={() => submitAnswer(q.id)}>
+                    {submitting && <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />} Submit answer
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-2"
+                onClick={() => { setAnswering(q.id); setDraft(""); setMakePublic(true); }}
+              >
+                Answer
+              </Button>
+            )}
+          </div>
+        ))}
+        {answered.length > 0 && (
+          <p className="pt-2 text-xs text-muted-foreground">{answered.length} question{answered.length === 1 ? "" : "s"} answered</p>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
