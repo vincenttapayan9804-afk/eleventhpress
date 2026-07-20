@@ -16,7 +16,9 @@ export function SiteFooter() {
           <div className="grid gap-10 md:grid-cols-4">
             <div className="md:col-span-2">
               <div className="flex items-center gap-3">
-                <span className="wax-mark">EP</span>
+                <span className="wax-mark">
+                  <span className="wax-mark-text">EP</span>
+                </span>
                 <div>
                   <p className="font-display text-lg font-semibold text-royal-gradient">
                     Eleventh Press International Publishing
