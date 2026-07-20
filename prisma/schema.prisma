@@ -446,6 +446,7 @@ model Article {
   datasets      DatasetLink[]
   embedding       ArticleEmbedding?
   chunks          ArticleChunk[]
+  galleyTranslations ArticleGalleyTranslation[]
   authorResponses AuthorResponse[]
   triageReport    EditorialTriageReport?
   corrections     Correction[]
@@ -1291,6 +1292,28 @@ model ArticleChunk {
   article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
 
   @@unique([articleId, chunkIndex])
+  @@index([articleId])
+}
+
+// Full-text (not just abstract) translation of an article's galley body
+// into one of the site's non-English locales — src/lib/galley-translation.ts.
+// Kept in its own table rather than a JSON column on Article (unlike
+// Article.abstractTranslations, which is short enough for that) since a
+// full article's translated text, across several locales, would otherwise
+// bloat every Article row read regardless of whether a translation was
+// ever requested.
+model ArticleGalleyTranslation {
+  id             String   @id @default(cuid())
+  articleId      String
+  locale         String
+  translatedText String
+  mode           String // "llm" | "partial" | "heuristic" — see galley-translation.ts
+  model          String
+  translatedAt   DateTime @default(now())
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([articleId, locale])
   @@index([articleId])
 }
 

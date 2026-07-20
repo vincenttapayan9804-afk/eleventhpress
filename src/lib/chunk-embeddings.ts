@@ -102,7 +102,7 @@ export async function generateChunkEmbedding(text: string): Promise<ChunkEmbeddi
   return { vector: hashEmbedding(text, CHUNK_EMBEDDING_DIMS), mode: "hash-fallback" };
 }
 
-function htmlToPlainText(html: string): string {
+export function htmlToPlainText(html: string): string {
   const text = sanitizeHtml(html, { allowedTags: [], allowedAttributes: {} });
   return text.replace(/\s+/g, " ").trim();
 }
