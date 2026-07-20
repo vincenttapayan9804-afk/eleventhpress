@@ -308,6 +308,22 @@ export function ArticleView() {
       name: article.publisher,
     },
     identifier: article.doi ? `https://doi.org/${article.doi}` : undefined,
+    // Real platform-wide policy (every article here is CC BY 4.0 by
+    // default — see src/lib/watermark.ts, crossref.ts, galley.ts, which
+    // already embed this same license everywhere else), not a fabricated
+    // claim. Both properties are what Google Scholar/Dataset Search and
+    // OA-aggregators (OpenAIRE, BASE) actually key their "open access"
+    // badge detection on.
+    license: "https://creativecommons.org/licenses/by/4.0/",
+    isAccessibleForFree: true,
+    url: article.doi ? `https://doi.org/${article.doi}` : undefined,
+    ...(funders.length > 0
+      ? { funder: funders.map((f) => ({ "@type": "Organization", name: f.name })) }
+      : {}),
+    interactionStatistic: [
+      { "@type": "InteractionCounter", interactionType: "https://schema.org/ReadAction", userInteractionCount: article.views },
+      { "@type": "InteractionCounter", interactionType: "https://schema.org/DownloadAction", userInteractionCount: article.downloads },
+    ],
     inLanguage: "en",
   };
 
