@@ -216,6 +216,32 @@ export async function chunkVectorSearch(
   `;
 }
 
+/** Cosine-ranked chunk search across every PUBLISHED article's chunks at
+ * once — backs the journal-wide "Ask the Corpus" chat (src/app/api/
+ * corpus-chat/route.ts), as opposed to chunkVectorSearch()'s single-
+ * article scope. Joins to Article so a retracted/unpublished article's
+ * chunks (a stale row a re-index hasn't caught up to yet) are never
+ * surfaced, matching the same JOIN pattern checkSimilarity() already
+ * uses in manuscript-checks.ts. Over-fetches `limit`-worth extra rows
+ * since the caller still has to drop any embeddingMode mismatch
+ * (different articles can have been indexed by different embedding
+ * modes — see chunk-embeddings.ts's file header) before truncating. */
+export async function chunkVectorSearchCorpus(
+  queryVec: number[],
+  limit: number
+): Promise<{ chunkId: string; articleId: string; score: number }[]> {
+  const literal = vectorLiteral(queryVec);
+  return db.$queryRaw<{ chunkId: string; articleId: string; score: number }[]>`
+    SELECT ce.chunk_id AS "chunkId", ce.article_id AS "articleId",
+           1 - (ce.embedding <=> ${literal}::vector) AS score
+    FROM vec.article_chunk_embedding ce
+    JOIN public."Article" a ON a.id = ce.article_id
+    WHERE a.status = 'PUBLISHED'
+    ORDER BY ce.embedding <=> ${literal}::vector ASC
+    LIMIT ${limit}
+  `;
+}
+
 /** Test-only: mirrors __resetPgvectorCacheForTests() for the chunk table. */
 export function __resetChunkVectorCacheForTests(): void {
   chunkVectorReadyPromise = null;

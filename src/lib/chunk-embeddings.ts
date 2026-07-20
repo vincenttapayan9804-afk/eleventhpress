@@ -32,6 +32,7 @@ import {
   upsertChunkVector,
   deleteChunkVectors,
   chunkVectorSearch,
+  chunkVectorSearchCorpus,
 } from "@/lib/pgvector";
 
 export const CHUNK_EMBEDDING_DIMS = 384;
@@ -279,6 +280,115 @@ export async function retrieveChunks(
 
   for (const { c, score } of lexicalScored) {
     results.push({ chunkId: c.id, text: c.text, chunkIndex: c.chunkIndex, score, matchType: "lexical" });
+  }
+
+  return results;
+}
+
+export interface CorpusRetrievedChunk extends RetrievedChunk {
+  articleId: string;
+  articleTitle: string;
+}
+
+/**
+ * Journal-wide counterpart to retrieveChunks() — searches every PUBLISHED
+ * article's chunks at once instead of one article's, backing the
+ * "Ask the Corpus" chat (src/app/api/corpus-chat/route.ts). Same
+ * same-embedding-mode-only comparison and vector-then-lexical fallback
+ * contract as retrieveChunks(); the only structural difference is the
+ * corpus-wide scope and that each result also carries which article it
+ * came from, since a corpus answer has to cite its source article.
+ */
+export async function retrieveChunksAcrossCorpus(
+  query: string,
+  limit = 8
+): Promise<CorpusRetrievedChunk[]> {
+  const { vector: queryVector, mode: queryMode } = await generateChunkEmbedding(query);
+  const results: CorpusRetrievedChunk[] = [];
+
+  if (await ensureChunkVectorTable()) {
+    try {
+      const rows = await chunkVectorSearchCorpus(queryVector, limit * 2);
+      if (rows.length > 0) {
+        const chunkRows = await db.articleChunk.findMany({
+          where: { id: { in: rows.map((r) => r.chunkId) } },
+          include: { article: { select: { title: true, status: true } } },
+        });
+        const byId = new Map(chunkRows.map((c) => [c.id, c]));
+        for (const r of rows) {
+          const c = byId.get(r.chunkId);
+          if (c && c.embeddingMode === queryMode && c.article.status === "PUBLISHED") {
+            results.push({
+              chunkId: c.id,
+              text: c.text,
+              chunkIndex: c.chunkIndex,
+              score: r.score,
+              matchType: "vector",
+              articleId: c.articleId,
+              articleTitle: c.article.title,
+            });
+          }
+          if (results.length >= limit) break;
+        }
+      }
+    } catch (e) {
+      console.error("[chunk-embeddings] corpus pgvector search failed, falling back to in-memory scan:", e);
+    }
+  }
+
+  if (results.length === 0) {
+    const allChunks = await db.articleChunk.findMany({
+      where: { article: { status: "PUBLISHED" } },
+      include: { article: { select: { title: true } } },
+    });
+    const sameModeChunks = allChunks.filter(
+      (c) => c.embeddingMode === queryMode && c.embeddingDims === queryVector.length
+    );
+    const scored = sameModeChunks
+      .map((c) => ({ c, score: cosineSimilarity(queryVector, JSON.parse(c.embedding) as number[]) }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit);
+    for (const { c, score } of scored) {
+      results.push({
+        chunkId: c.id,
+        text: c.text,
+        chunkIndex: c.chunkIndex,
+        score,
+        matchType: "vector",
+        articleId: c.articleId,
+        articleTitle: c.article.title,
+      });
+    }
+  }
+
+  if (results.length >= limit) return results.slice(0, limit);
+
+  const already = new Set(results.map((r) => r.chunkId));
+  const terms = query.toLowerCase().match(/[a-z0-9]{3,}/g) ?? [];
+  const remainingChunks = await db.articleChunk.findMany({
+    where: { article: { status: "PUBLISHED" }, id: { notIn: [...already] } },
+    include: { article: { select: { title: true } } },
+  });
+  const lexicalScored = remainingChunks
+    .map((c) => {
+      const lower = c.text.toLowerCase();
+      const score = terms.reduce((s, t) => s + (lower.includes(t) ? 1 : 0), 0);
+      return { c, score };
+    })
+    .filter((r) => r.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit - results.length);
+
+  for (const { c, score } of lexicalScored) {
+    results.push({
+      chunkId: c.id,
+      text: c.text,
+      chunkIndex: c.chunkIndex,
+      score,
+      matchType: "lexical",
+      articleId: c.articleId,
+      articleTitle: c.article.title,
+    });
   }
 
   return results;

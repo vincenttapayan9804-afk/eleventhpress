@@ -25,6 +25,7 @@ import {
 import { AuthSheet } from "@/components/auth-sheet";
 import { Toaster } from "@/components/ui/sonner";
 import { I18nProvider } from "@/components/i18n-provider";
+import { CorpusChatWidget } from "@/components/corpus-chat-widget";
 
 export default function Page() {
   const view = useApp((s) => s.view);
@@ -102,6 +103,9 @@ export default function Page() {
         </main>
         <SiteFooter />
         <AuthSheet />
+        {view !== "dashboard" && view !== "adminPortal" && view !== "login" && view !== "register" && (
+          <CorpusChatWidget />
+        )}
         <Toaster richColors position="top-right" />
       </div>
     </I18nProvider>
