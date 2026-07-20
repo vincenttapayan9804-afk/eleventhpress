@@ -54,6 +54,19 @@ export async function GET(
       headers: req.headers,
       email: session?.email,
     });
+    // Feeds the "Recommended for you" digest (src/lib/recommendations.ts)
+    // — logged-in readers only, an anonymous visitor has no durable
+    // identity to key this on. Upsert, not insert, so re-reading bumps
+    // viewedAt rather than accumulating duplicate rows.
+    if (session) {
+      db.readingHistory
+        .upsert({
+          where: { userId_articleId: { userId: session.userId, articleId: id } },
+          create: { userId: session.userId, articleId: id },
+          update: { viewedAt: new Date() },
+        })
+        .catch(() => {});
+    }
   }
 
   // Cache-Control is only ever set on the PUBLISHED branch: that response

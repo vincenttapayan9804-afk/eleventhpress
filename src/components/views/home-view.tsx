@@ -51,10 +51,20 @@ const DISCIPLINE_COLORS: Record<string, string> = {
   Mathematics: "bg-[oklch(0.93_0.04_290)] text-[oklch(0.42_0.18_295)] border-[oklch(0.76_0.11_294/0.3)]",
 };
 
+interface RecommendedArticle {
+  id: string;
+  title: string;
+  discipline: string;
+  citations: number;
+  views: number;
+  becauseOf: string;
+}
+
 export function HomeView() {
-  const { setView, openArticle } = useApp();
+  const { setView, openArticle, user } = useApp();
   const t = useTranslations("home");
   const [featured, setFeatured] = useState<ArticleListItem[]>([]);
+  const [recommended, setRecommended] = useState<RecommendedArticle[]>([]);
   const [stats, setStats] = useState({ articles: 0, citations: 0, downloads: 0, countries: 28 });
   const [searchQ, setSearchQ] = useState("");
   const [loading, setLoading] = useState(true);
@@ -62,8 +72,19 @@ export function HomeView() {
   const heroReveal = useReveal();
   const statsReveal = useReveal();
   const disciplinesReveal = useReveal();
+  const recommendedReveal = useReveal();
   const featuredReveal = useReveal();
   const pipelineReveal = useReveal();
+
+  useEffect(() => {
+    if (!user) {
+      setRecommended([]);
+      return;
+    }
+    apiFetch<{ items: RecommendedArticle[] }>("/api/recommendations")
+      .then(({ items }) => setRecommended(items))
+      .catch(() => setRecommended([]));
+  }, [user]);
 
   useEffect(() => {
     apiFetch<{ items: ArticleListItem[]; total: number }>("/api/articles?sort=cited&pageSize=4")
@@ -269,6 +290,35 @@ export function HomeView() {
       {/* ════════════════════════════════════════════════════════════════
           FEATURED — glass cards with scroll reveal
           ════════════════════════════════════════════════════════════════ */}
+      {user && recommended.length > 0 && (
+        <section className="border-b border-[oklch(0.76_0.11_294/0.1)] bg-[oklch(0.97_0.006_285)]">
+          <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+            <div ref={recommendedReveal.observe} className={`reveal ${recommendedReveal.inView ? "in-view" : ""}`}>
+              <p className="eyebrow">Just for you</p>
+              <h2 className="mt-2 font-display text-3xl font-semibold">Recommended for you</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Based on articles you&apos;ve recently read.</p>
+              <div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+                {recommended.map((a) => (
+                  <div
+                    key={a.id}
+                    className="paper-card cursor-pointer p-5 transition-all hover:border-primary/30 hover:shadow-md"
+                    onClick={() => openArticle(a.id)}
+                  >
+                    <Badge variant="outline" className={`border ${DISCIPLINE_COLORS[a.discipline] ?? ""}`}>
+                      {a.discipline}
+                    </Badge>
+                    <h3 className="mt-3 line-clamp-3 font-display text-sm font-semibold leading-snug">{a.title}</h3>
+                    <p className="mt-2 text-[0.7rem] text-muted-foreground">
+                      Because you read &ldquo;{a.becauseOf}&rdquo;
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
       <section>
         <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
           <div ref={featuredReveal.observe} className={`reveal ${featuredReveal.inView ? "in-view" : ""}`}>

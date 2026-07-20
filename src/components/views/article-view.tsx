@@ -177,12 +177,24 @@ export function ArticleView() {
         apiFetch<{ bodyHtml: string | null }>(`/api/articles/${articleId}/body`)
           .then((r) => setBodyHtml(r.bodyHtml))
           .catch(() => setBodyHtml(null));
-        // Fetch related
-        apiFetch<{ items: ArticleDetail[] }>(
-          `/api/articles?discipline=${encodeURIComponent(a.discipline)}&pageSize=4`
-        ).then(({ items }) => {
-          setRelated(items.filter((i) => i.id !== a.id).slice(0, 3));
-        });
+        // Fetch related — real embedding-similarity ranking (src/lib/
+        // manuscript-checks.ts's getSimilarArticles()), not a same-
+        // discipline lookup. Falls back to the discipline lookup only if
+        // the article has no embedding yet (e.g. indexing hasn't caught
+        // up), so the section still has content rather than staying empty.
+        apiFetch<{ items: ArticleDetail[] }>(`/api/articles/${articleId}/similar?limit=3`)
+          .then(({ items }) => {
+            if (items.length > 0) {
+              setRelated(items);
+            } else {
+              apiFetch<{ items: ArticleDetail[] }>(
+                `/api/articles?discipline=${encodeURIComponent(a.discipline)}&pageSize=4`
+              ).then(({ items: fallback }) => {
+                setRelated(fallback.filter((i) => i.id !== a.id).slice(0, 3));
+              });
+            }
+          })
+          .catch(() => {});
         // Fetch public reviews (open peer review)
         apiFetch<any>(`/api/articles/${articleId}/reviews`)
           .then((r) => {
@@ -979,7 +991,7 @@ export function ArticleView() {
       {/* Related */}
       {related.length > 0 && (
         <section className="mt-12 border-t border-border pt-8">
-          <p className="eyebrow">Related articles in {article.discipline}</p>
+          <p className="eyebrow">Similar articles</p>
           <h2 className="mt-1 font-display text-2xl font-semibold">Continue reading</h2>
           <div className="mt-5 grid gap-4 md:grid-cols-3">
             {related.map((r) => (

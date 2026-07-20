@@ -99,6 +99,56 @@ export async function checkSimilarity(
   };
 }
 
+export interface SimilarArticle {
+  articleId: string;
+  score: number;
+}
+
+/**
+ * Reader-facing counterpart to checkSimilarity() — finds PUBLISHED
+ * articles most similar to an already-published one, using that article's
+ * own precomputed ArticleEmbedding (written at submit/publish time by
+ * src/lib/embeddings.ts's indexArticle()) rather than re-embedding text.
+ * Backs the article page's "Continue reading" recommendations
+ * (previously a same-discipline lookup, not a similarity ranking) — see
+ * src/app/api/articles/[id]/similar/route.ts. Returns an empty array
+ * (never a fabricated ranking) if the article has no embedding yet.
+ */
+export async function getSimilarArticles(articleId: string, limit = 3): Promise<SimilarArticle[]> {
+  const own = await db.articleEmbedding.findUnique({ where: { articleId } });
+  if (!own) return [];
+  const queryEmbedding = JSON.parse(own.embedding) as number[];
+
+  if (await ensurePgvector()) {
+    try {
+      const literal = vectorLiteral(queryEmbedding);
+      const rows = await db.$queryRaw<{ articleId: string; score: number }[]>`
+        SELECT ve.article_id AS "articleId", 1 - (ve.embedding <=> ${literal}::vector) AS score
+        FROM vec.article_embedding ve
+        JOIN public."Article" a ON a.id = ve.article_id
+        WHERE ve.article_id != ${articleId} AND a.status = 'PUBLISHED'
+        ORDER BY ve.embedding <=> ${literal}::vector ASC
+        LIMIT ${limit}
+      `;
+      return rows.map((r) => ({ articleId: r.articleId, score: Math.round(Math.max(0, r.score) * 100) }));
+    } catch (e) {
+      console.error("[manuscript-checks] pgvector getSimilarArticles failed, falling back to in-memory scan:", e);
+    }
+  }
+
+  const allEmbeddings = await db.articleEmbedding.findMany({
+    where: { articleId: { not: articleId }, article: { status: "PUBLISHED" } },
+  });
+  return allEmbeddings
+    .map((e) => ({
+      articleId: e.articleId,
+      score: Math.round(cosineSimilarity(queryEmbedding, JSON.parse(e.embedding) as number[]) * 100),
+    }))
+    .filter((m) => m.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
+}
+
 // ---------------------------------------------------------------------------
 // Statistical sanity check
 // ---------------------------------------------------------------------------
