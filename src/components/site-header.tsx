@@ -37,8 +37,6 @@ export function SiteHeader() {
     { label: t("authors"), view: "authors" as const },
     { label: t("experts"), view: "experts" as const },
     { label: t("resources"), view: "resources" as const },
-    { label: t("datasets"), view: "datasets" as const },
-    { label: t("preprints"), view: "preprints" as const },
     { label: t("collections"), view: "collections" as const },
     { label: t("about"), view: "about" as const },
     { label: t("faqs"), view: "faqs" as const },
@@ -62,7 +60,7 @@ export function SiteHeader() {
       <div className="glass-strong border-b border-[oklch(0.76_0.11_294/0.15)]">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           {/* Brand */}
-          <button onClick={() => setView("home")} className="flex items-center gap-3 text-left group">
+          <button onClick={() => setView("home")} className="flex flex-shrink-0 items-center gap-3 text-left group">
             <span className="wax-mark group-hover:scale-105 transition-transform duration-500" style={{ transitionTimingFunction: "var(--ease-luxury)" }}>
               <span className="wax-mark-text">EP</span>
             </span>
@@ -77,13 +75,13 @@ export function SiteHeader() {
           </button>
 
           {/* Desktop nav */}
-          <nav className="hidden items-center gap-5 lg:flex">
+          <nav className="hidden min-w-0 flex-1 items-center justify-center gap-4 overflow-x-auto whitespace-nowrap px-2 xl:flex">
             {NAV_ITEMS.map((item) => (
               <button
                 key={item.view}
                 onClick={() => setView(item.view)}
                 data-active={view === item.view}
-                className="nav-underline font-sans text-sm font-medium text-foreground/80 hover:text-foreground transition-colors"
+                className="nav-underline flex-shrink-0 font-sans text-sm font-medium text-foreground/80 hover:text-foreground transition-colors"
               >
                 {item.label}
               </button>
@@ -92,7 +90,7 @@ export function SiteHeader() {
               <button
                 onClick={() => openDashboard("overview")}
                 data-active={view === "dashboard"}
-                className="nav-underline flex items-center gap-1.5 font-sans text-sm font-medium text-foreground/80 hover:text-foreground transition-colors"
+                className="nav-underline flex flex-shrink-0 items-center gap-1.5 font-sans text-sm font-medium text-foreground/80 hover:text-foreground transition-colors"
               >
                 <LayoutDashboard className="h-3.5 w-3.5" /> {t("dashboard")}
               </button>
@@ -100,7 +98,7 @@ export function SiteHeader() {
           </nav>
 
           {/* Right side */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-shrink-0 items-center gap-2">
             {user ? (
               <>
                 {unread > 0 && (
@@ -166,7 +164,7 @@ export function SiteHeader() {
             {/* Mobile nav */}
             <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="lg:hidden" aria-label={t("menu")}>
+                <Button variant="ghost" size="icon" className="xl:hidden" aria-label={t("menu")}>
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
