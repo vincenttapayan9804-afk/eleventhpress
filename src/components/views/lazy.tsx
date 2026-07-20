@@ -45,6 +45,9 @@ export const DashboardView = dynamic(() => import("./dashboard-view").then((m) =
 export const ResourcesView = dynamic(() => import("./resources-view").then((m) => m.ResourcesView), {
   loading: () => <ViewLoadingFallback />,
 });
+export const DatasetsView = dynamic(() => import("./datasets-view").then((m) => m.DatasetsView), {
+  loading: () => <ViewLoadingFallback />,
+});
 export const AuthorsView = dynamic(() => import("./authors-view").then((m) => m.AuthorsView), {
   loading: () => <ViewLoadingFallback />,
 });

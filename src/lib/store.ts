@@ -12,6 +12,7 @@ export type ViewKey =
   | "register"
   | "dashboard"
   | "resources"
+  | "datasets"
   | "authors"
   | "experts"
   | "charter"
