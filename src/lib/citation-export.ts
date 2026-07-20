@@ -62,6 +62,56 @@ ER  - `;
 }
 
 /**
+ * Wikidata QuickStatements V1 batch — the real, documented input format
+ * (https://quickstatements.toolforge.org/) editors and WikiProject
+ * Source MetaData volunteers already use to bulk-create "scholarly
+ * article" (Q13442814) items from a journal's bibliographic data. There
+ * is no public unauthenticated submission API for Wikidata items (every
+ * edit requires a logged-in Wikidata account, by design, to keep
+ * provenance and vandalism-reversion working) — this generates the exact
+ * command batch an editor pastes into QuickStatements' own web tool,
+ * same "real, free, well-documented standard, applied through its own
+ * actual workflow" honesty bar as directory-listings.ts's DOAJ/ROAD/etc.
+ * entries. Only ever emits statements the platform actually has real
+ * values for (title, DOI, pub date, author name strings, canonical URL)
+ * — no fabricated Wikidata QIDs for authors, journal, or subject, since
+ * this codebase doesn't track those.
+ */
+const WIKIDATA_INSTANCE_OF_SCHOLARLY_ARTICLE = "Q13442814"; // scholarly article
+const WIKIDATA_LANGUAGE_ENGLISH = "Q1860"; // English — every published galley here originates in English (src/lib/galley-translation.ts translates FROM it)
+
+function qsEscape(s: string): string {
+  return s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
+function qsDate(d: Date): string {
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `+${y}-${m}-${day}T00:00:00Z/11`;
+}
+
+export function buildWikidataQuickStatements(article: ExportableArticle): string {
+  const authors = authorsOf(article);
+  const lines = ["CREATE"];
+  lines.push(`LAST|Len|"${qsEscape(article.title)}"`);
+  lines.push(`LAST|P31|${WIKIDATA_INSTANCE_OF_SCHOLARLY_ARTICLE}`);
+  lines.push(`LAST|P1476|en:"${qsEscape(article.title)}"`);
+  lines.push(`LAST|P407|${WIKIDATA_LANGUAGE_ENGLISH}`);
+  if (article.publishedAt) {
+    lines.push(`LAST|P577|${qsDate(new Date(article.publishedAt))}`);
+  }
+  if (article.doi) {
+    lines.push(`LAST|P356|"${qsEscape(article.doi)}"`);
+    lines.push(`LAST|P953|"https://doi.org/${qsEscape(article.doi)}"`);
+  }
+  for (const a of authors) {
+    lines.push(`LAST|P2093|"${qsEscape(a.name)}"`);
+  }
+  return lines.join("\n");
+}
+
+/**
  * OpenURL ContextObject KEV encoding (Z39.88-2004) — the query-string
  * format Zotero's/Mendeley's browser connectors and OpenURL link resolvers
  * scan a page for via a `<span class="Z3988" title="...">` marker. Returns

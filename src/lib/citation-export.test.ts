@@ -1,6 +1,6 @@
 /// <reference types="bun-types" />
 import { describe, test, expect } from "bun:test";
-import { buildBibTeX, buildRis, coinsSpanProps, type ExportableArticle } from "@/lib/citation-export";
+import { buildBibTeX, buildRis, buildWikidataQuickStatements, coinsSpanProps, type ExportableArticle } from "@/lib/citation-export";
 
 const FULL: ExportableArticle = {
   title: "On the Distribution of Prime Gaps",
@@ -67,6 +67,36 @@ describe("buildRis", () => {
     expect(out).toContain("IS  - \n");
     expect(out).toContain("DO  - \n");
     expect(out).not.toContain("undefined");
+  });
+});
+
+describe("buildWikidataQuickStatements", () => {
+  test("emits a CREATE batch with title, instance-of, date, DOI, and one P2093 line per author", () => {
+    const out = buildWikidataQuickStatements(FULL);
+    const lines = out.split("\n");
+    expect(lines[0]).toBe("CREATE");
+    expect(out).toContain('LAST|Len|"On the Distribution of Prime Gaps"');
+    expect(out).toContain("LAST|P31|Q13442814");
+    expect(out).toContain('LAST|P1476|en:"On the Distribution of Prime Gaps"');
+    expect(out).toContain("LAST|P577|+2025-03-01T00:00:00Z/11");
+    expect(out).toContain('LAST|P356|"10.5281/zenodo.123456"');
+    expect(out).toContain('LAST|P953|"https://doi.org/10.5281/zenodo.123456"');
+    expect(out).toContain('LAST|P2093|"Ada Lovelace"');
+    expect(out).toContain('LAST|P2093|"Alan Turing"');
+  });
+
+  test("omits P577/P356/P953 when publishedAt/doi are absent, never emits 'undefined'", () => {
+    const out = buildWikidataQuickStatements(MINIMAL);
+    expect(out).not.toContain("P577");
+    expect(out).not.toContain("P356");
+    expect(out).not.toContain("P953");
+    expect(out).not.toContain("undefined");
+    expect(out).toContain('LAST|P2093|"Solo Author"');
+  });
+
+  test("escapes embedded double quotes in the title", () => {
+    const out = buildWikidataQuickStatements({ ...MINIMAL, title: 'A "Quoted" Title' });
+    expect(out).toContain('LAST|Len|"A \\"Quoted\\" Title"');
   });
 });
 
