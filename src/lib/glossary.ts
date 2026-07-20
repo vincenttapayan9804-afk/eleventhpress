@@ -16,7 +16,7 @@
  * deliberate exception to this codebase's "AI content is always
  * human-triggered" convention, per explicit product decision.
  */
-import { isLLMAvailable, chatJSON } from "@/lib/llm";
+import { anyLLMAvailable, chatJSON } from "@/lib/llm";
 
 export interface GlossaryTerm {
   term: string;
@@ -44,7 +44,7 @@ export async function generateGlossary(article: {
   discipline: string;
 }): Promise<GlossaryResult> {
   const generatedAt = new Date().toISOString();
-  if (isLLMAvailable()) {
+  if (anyLLMAvailable()) {
     try {
       const { data, model } = await chatJSON<{ terms: GlossaryTerm[] }>(
         GLOSSARY_SYSTEM_PROMPT,
