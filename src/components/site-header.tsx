@@ -39,6 +39,7 @@ export function SiteHeader() {
     { label: t("resources"), view: "resources" as const },
     { label: t("datasets"), view: "datasets" as const },
     { label: t("preprints"), view: "preprints" as const },
+    { label: t("collections"), view: "collections" as const },
     { label: t("about"), view: "about" as const },
     { label: t("faqs"), view: "faqs" as const },
     { label: t("policies"), view: "policies" as const },
