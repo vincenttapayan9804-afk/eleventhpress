@@ -277,6 +277,14 @@ model Article {
   // Workflow state machine
   // DRAFT | SUBMITTED | UNDER_REVIEW | REVISIONS_REQUIRED | ACCEPTED | IN_PRODUCTION | PUBLISHED | REJECTED | WITHDRAWN
   status      String  @default("DRAFT")
+  // Preprint server: the corresponding author (or an editor) can opt to
+  // make a pre-decision manuscript publicly readable before/during peer
+  // review — src/lib/article.ts's PREPRINT_ELIGIBLE_STATUSES,
+  // src/app/api/preprints/*. Orthogonal to `status` (never a status value
+  // itself) so this never touches the existing workflow state machine or
+  // any of the role-based visibility logic keyed on it.
+  isPreprint       Boolean   @default(false)
+  preprintPostedAt DateTime?
   reviewModel String  @default("DOUBLE_BLIND") // SINGLE_BLIND | DOUBLE_BLIND | OPEN
   openReview  Boolean @default(false) // If true, completed reviews are made public (with real reviewer identities) when article is published — signed open review
 
