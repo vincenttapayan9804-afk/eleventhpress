@@ -20,7 +20,7 @@ export function SiteFooter() {
                   <span className="wax-mark-text">EP</span>
                 </span>
                 <div>
-                  <p className="font-display text-lg font-semibold text-royal-gradient">
+                  <p className="font-display text-lg font-semibold text-foreground">
                     Eleventh Press International Publishing
                   </p>
                   <p className="text-xs text-muted-foreground mt-0.5">

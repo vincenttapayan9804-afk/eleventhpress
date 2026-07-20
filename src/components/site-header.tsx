@@ -64,7 +64,7 @@ export function SiteHeader() {
               <span className="wax-mark-text">EP</span>
             </span>
             <span className="hidden flex-col leading-tight sm:flex">
-              <span className="font-display text-base font-semibold text-royal-gradient">
+              <span className="font-display text-base font-semibold text-foreground">
                 {tHeader("brandName")}
               </span>
               <span className="text-[0.62rem] font-sans font-medium uppercase tracking-[0.22em] text-muted-foreground">
@@ -169,7 +169,7 @@ export function SiteHeader() {
               </SheetTrigger>
               <SheetContent side="right" className="glass-strong w-72">
                 <SheetHeader>
-                  <SheetTitle className="font-display text-royal-gradient">
+                  <SheetTitle className="font-display text-foreground">
                     Eleventh Press
                   </SheetTitle>
                 </SheetHeader>
