@@ -33,6 +33,51 @@ const ANTHROPIC_MODEL = "claude-sonnet-5";
 const OSS_MODEL = process.env.OPENROUTER_MODEL || "z-ai/glm-4.5-air:free";
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
+// A third, genuinely airgapped tier: a small open-weight instruct model run
+// in-process via @xenova/transformers (same runtime this codebase already
+// uses for local embeddings — src/lib/chunk-embeddings.ts) instead of any
+// external API call at all. Opt-in only (AIRGAPPED_MODE=true) — unlike the
+// two API tiers above, loading a generative model has real memory/latency
+// cost, so this is never attempted unless an operator has explicitly
+// chosen "no manuscript text leaves this deployment" over answer quality.
+// When on, chatJSON() calls ONLY this tier and never falls through to
+// Anthropic or OpenRouter even if those keys happen to be set, since
+// falling through would silently break the data-residency guarantee this
+// mode exists for. A smaller model means weaker JSON-formatting
+// reliability than the two cloud tiers — every result is honestly tagged
+// provider: "local-airgapped", same as embeddingMode never presents a
+// hash-fallback embedding as the real local model's output.
+const LOCAL_LLM_MODEL = process.env.LOCAL_LLM_MODEL || "Xenova/Qwen1.5-0.5B-Chat";
+
+export function isAirgappedMode(): boolean {
+  return process.env.AIRGAPPED_MODE === "true";
+}
+
+let localGeneratorPromise: Promise<any | null> | null = null;
+
+/** Lazily loads the local generative model once per warm instance.
+ * Resolves null (never throws) if it can't load, same fail-open contract
+ * as chunk-embeddings.ts's getExtractor(). */
+function getLocalGenerator(): Promise<any | null> {
+  if (!localGeneratorPromise) {
+    localGeneratorPromise = (async () => {
+      try {
+        const { pipeline } = await import("@xenova/transformers");
+        return await pipeline("text-generation", LOCAL_LLM_MODEL);
+      } catch (e) {
+        console.error("[llm] local airgapped model failed to load:", e);
+        return null;
+      }
+    })();
+  }
+  return localGeneratorPromise;
+}
+
+/** Test-only: clears the cached local-model-load promise. */
+export function __resetLocalGeneratorCacheForTests(): void {
+  localGeneratorPromise = null;
+}
+
 let client: Anthropic | null = null;
 
 /** True if the Anthropic tier specifically is configured. */
@@ -52,7 +97,7 @@ export function ossLLMAvailable(): boolean {
  * so the feature also lights up with just a free OPENROUTER_API_KEY.
  */
 export function anyLLMAvailable(): boolean {
-  return isLLMAvailable() || ossLLMAvailable();
+  return isAirgappedMode() || isLLMAvailable() || ossLLMAvailable();
 }
 
 function getClient(): Anthropic {
@@ -66,7 +111,7 @@ export interface ChatJSONResult<T> {
   data: T;
   rawResponse: string;
   model: string;
-  provider: "anthropic" | "oss-free";
+  provider: "anthropic" | "oss-free" | "local-airgapped";
 }
 
 function extractJSON<T>(text: string): T {
@@ -142,10 +187,48 @@ async function chatJSONOss<T>(
   return { data: extractJSON<T>(text), rawResponse: text, model: OSS_MODEL, provider: "oss-free" };
 }
 
+async function chatJSONLocal<T>(
+  systemPrompt: string,
+  userPrompt: string,
+  maxTokens: number
+): Promise<ChatJSONResult<T>> {
+  const generator = await getLocalGenerator();
+  if (!generator) {
+    throw new Error(`Local airgapped model (${LOCAL_LLM_MODEL}) is not available in this deployment`);
+  }
+
+  const messages = [
+    { role: "system", content: systemPrompt },
+    { role: "user", content: userPrompt },
+  ];
+  const output = await generator(messages, {
+    max_new_tokens: Math.min(maxTokens, 512),
+    do_sample: false,
+  });
+  const generated = Array.isArray(output) ? output[0] : output;
+  const generatedText = generated?.generated_text;
+  const text: string =
+    typeof generatedText === "string"
+      ? generatedText
+      : Array.isArray(generatedText)
+        ? generatedText.at(-1)?.content ?? ""
+        : "";
+
+  if (!text) {
+    throw new Error("Local airgapped model produced no text output");
+  }
+
+  return { data: extractJSON<T>(text), rawResponse: text, model: LOCAL_LLM_MODEL, provider: "local-airgapped" };
+}
+
 /**
- * Sends a system + user prompt pair and parses the reply as JSON, trying
- * the Anthropic tier then the free OSS tier in order. Throws only once
- * every configured tier is unavailable or has failed — callers are
+ * Sends a system + user prompt pair and parses the reply as JSON.
+ *
+ * In airgapped mode (AIRGAPPED_MODE=true), tries ONLY the local tier and
+ * never falls through to a cloud API even if one is configured — see the
+ * LOCAL_LLM_MODEL comment above for why. Otherwise tries the Anthropic
+ * tier then the free OSS tier in order. Throws only once every tier this
+ * call is allowed to use is unavailable or has failed — callers are
  * expected to catch and fall back to a heuristic rather than treat a
  * throw as fatal.
  */
@@ -155,6 +238,11 @@ export async function chatJSON<T = any>(
   opts: { maxTokens?: number } = {}
 ): Promise<ChatJSONResult<T>> {
   const maxTokens = opts.maxTokens ?? 4096;
+
+  if (isAirgappedMode()) {
+    return chatJSONLocal<T>(systemPrompt, userPrompt, maxTokens);
+  }
+
   let anthropicError: Error | undefined;
 
   if (isLLMAvailable()) {
