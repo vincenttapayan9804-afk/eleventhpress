@@ -13,6 +13,7 @@ import {
   AuthView,
   DashboardView,
   ResourcesView,
+  DatasetsView,
   AuthorsView,
   ExpertsView,
   CharterView,
@@ -92,6 +93,7 @@ export default function Page() {
           {(view === "login" || view === "register") && <AuthView />}
           {view === "dashboard" && <DashboardView />}
           {view === "resources" && <ResourcesView />}
+          {view === "datasets" && <DatasetsView />}
           {view === "authors" && <AuthorsView />}
           {view === "experts" && <ExpertsView />}
           {view === "charter" && <CharterView />}
