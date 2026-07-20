@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { extractRequestIp } from "@/lib/institutions";
 import { checkRateLimit } from "@/lib/ratelimit";
-import { isLLMAvailable, chatJSON } from "@/lib/llm";
+import { chatJSON, anyLLMAvailable } from "@/lib/llm";
 import { retrieveChunks, indexArticleChunks } from "@/lib/chunk-embeddings";
 
 /**
@@ -85,10 +85,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Article not found" }, { status: 404 });
   }
 
-  if (!isLLMAvailable()) {
+  if (!anyLLMAvailable()) {
     return NextResponse.json({
       mode: "unavailable",
-      message: "AI chat is not configured for this deployment (no ANTHROPIC_API_KEY set).",
+      message: "AI chat is not configured for this deployment (no ANTHROPIC_API_KEY or OPENROUTER_API_KEY set).",
     });
   }
 

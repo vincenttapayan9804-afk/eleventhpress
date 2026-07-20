@@ -16,6 +16,7 @@ let chatJSONResult: { terms: { term: string; definition: string }[] } = {
 
 mock.module("@/lib/llm", () => ({
   isLLMAvailable: () => llmAvailable,
+  anyLLMAvailable: () => llmAvailable,
   chatJSON: mock(async () => {
     if (chatJSONShouldFail) throw new Error("mock LLM failure");
     return { data: chatJSONResult, rawResponse: "", model: "claude-sonnet-5" };

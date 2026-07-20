@@ -16,7 +16,7 @@
  */
 import { db } from "@/lib/db";
 import { parseAuthors, DISCIPLINES } from "@/lib/article";
-import { chatJSON, isLLMAvailable } from "@/lib/llm";
+import { chatJSON, anyLLMAvailable } from "@/lib/llm";
 
 const AIMS_SCOPE = `Eleventh Press International Publishing is committed to rigorous, transparent, and rapid dissemination of scholarship. The journal welcomes original research submissions spanning the natural sciences, engineering, social sciences, and humanities. Disciplines: Physics, Biology, Computer Science, Sociology, Economics, Psychology, Environmental Science, Mathematics.`;
 
@@ -141,7 +141,7 @@ export async function runEditorialTriage(articleId: string): Promise<TriageResul
 }
 
 async function callLLM(article: any, authors: any[], reviewerPool: any[]): Promise<TriageResult | null> {
-  if (!isLLMAvailable()) return null;
+  if (!anyLLMAvailable()) return null;
 
   const reviewerPoolText = reviewerPool
     .map((r) => `- ${r.fullName} (${r.affiliation || "no affiliation"}): expertise = ${r.expertise || "not specified"}`)

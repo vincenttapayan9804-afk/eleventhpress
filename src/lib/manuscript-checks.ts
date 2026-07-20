@@ -15,7 +15,7 @@
  * pattern as src/lib/triage.ts.
  */
 import { db } from "@/lib/db";
-import { chatJSON, isLLMAvailable } from "@/lib/llm";
+import { chatJSON, anyLLMAvailable } from "@/lib/llm";
 import { generateEmbedding } from "@/lib/embeddings";
 import { cosineSimilarity } from "@/lib/vector-math";
 import { ensurePgvector, vectorLiteral } from "@/lib/pgvector";
@@ -132,7 +132,7 @@ export async function checkStatisticalSanity(article: {
   title: string;
   abstract: string;
 }): Promise<StatisticalCheckResult> {
-  if (isLLMAvailable()) {
+  if (anyLLMAvailable()) {
     try {
       const { data, model } = await chatJSON<{ flags: StatisticalFlag[] }>(
         STATS_SYSTEM_PROMPT,
@@ -210,7 +210,7 @@ export async function suggestKeywordsAndSummary(article: {
   abstract: string;
   keywords: string;
 }): Promise<AiAssistResult> {
-  if (isLLMAvailable()) {
+  if (anyLLMAvailable()) {
     try {
       const { data, model } = await chatJSON<{ laySummary: string; suggestedKeywords: string[] }>(
         AI_ASSIST_SYSTEM_PROMPT,
@@ -267,7 +267,7 @@ export async function translateAbstract(
   article: { title: string; abstract: string },
   targetLocale: TranslatableLocale
 ): Promise<TranslateAbstractResult> {
-  if (isLLMAvailable()) {
+  if (anyLLMAvailable()) {
     try {
       const { data, model } = await chatJSON<{ translatedAbstract: string }>(
         TRANSLATE_SYSTEM_PROMPT(LOCALE_NAMES[targetLocale]),
