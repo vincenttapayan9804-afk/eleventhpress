@@ -100,6 +100,8 @@ model User {
   editorialDecisions         EditorialDecision[]
   readingHistory              ReadingHistory[]
   collectionsCreated         Collection[]
+  expertQuestionsReceived    ExpertQuestion[] @relation("ExpertQuestionsReceived")
+  expertQuestionsAsked       ExpertQuestion[] @relation("ExpertQuestionsAsked")
   subscriptions              Subscription[]
   invoices                   Invoice[]
   notifications              Notification[]
@@ -201,6 +203,27 @@ model RoleApplication {
 
   applicant User  @relation("ApplicantApplications", fields: [userId], references: [id])
   reviewer  User? @relation("ReviewerApplications", fields: [reviewedBy], references: [id])
+}
+
+// "Ask an Expert" — a reader-facing Q&A extension of Experts' Insights
+// (User.role === "EXPERT"). Requires a logged-in asker (no anonymous
+// questions, same accountability bar as the review/follow features) but
+// an expert can still choose to answer privately (isPublic: false) —
+// only public, answered questions are ever shown on the expert's profile.
+model ExpertQuestion {
+  id         String    @id @default(cuid())
+  expertId   String
+  askedById  String
+  question   String
+  answer     String?
+  answeredAt DateTime?
+  isPublic   Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+
+  expert  User @relation("ExpertQuestionsReceived", fields: [expertId], references: [id])
+  askedBy User @relation("ExpertQuestionsAsked", fields: [askedById], references: [id])
+
+  @@index([expertId, answeredAt])
 }
 
 // ---------------------------------------------------------------------------

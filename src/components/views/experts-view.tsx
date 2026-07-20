@@ -41,8 +41,11 @@ import {
   Phone,
   ChevronRight,
   ShieldCheck,
+  MessageCircleQuestion,
+  Send,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Textarea } from "@/components/ui/textarea";
 
 interface ExpertInsight {
   id: string;
@@ -510,6 +513,8 @@ export function ExpertsView() {
                   )}
                 </div>
               </div>
+
+              {selected.key !== user?.id && <AskExpertSection expertId={selected.key} expertName={selected.name} />}
             </>
           )}
         </DialogContent>
@@ -558,6 +563,99 @@ function TickerStat({ label, value }: { label: string; value: number }) {
     <div className="mx-6 flex items-center gap-2 whitespace-nowrap">
       <span className="font-mono text-lg font-semibold text-[oklch(0.42_0.18_295)]">{value.toLocaleString()}</span>
       <span className="text-[0.65rem] uppercase tracking-wide text-muted-foreground">{label}</span>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// AskExpertSection — "Ask an Expert" Q&A (GET/POST /api/experts/[id]/
+// questions). Shows previously answered, public Q&A pairs, plus a form
+// for a logged-in reader to ask a new one. Never shows a question the
+// expert hasn't answered yet or chose to answer privately — those only
+// ever appear in the expert's own inbox (dashboard).
+// ---------------------------------------------------------------------------
+
+interface PublicQuestion {
+  id: string;
+  question: string;
+  answer: string;
+  answeredAt: string;
+}
+
+function AskExpertSection({ expertId, expertName }: { expertId: string; expertName: string }) {
+  const user = useApp((s) => s.user);
+  const setView = useApp((s) => s.setView);
+  const [questions, setQuestions] = useState<PublicQuestion[]>([]);
+  const [draft, setDraft] = useState("");
+  const [sending, setSending] = useState(false);
+  const [asked, setAsked] = useState(false);
+
+  useEffect(() => {
+    apiFetch<{ items: PublicQuestion[] }>(`/api/experts/${expertId}/questions`)
+      .then(({ items }) => setQuestions(items))
+      .catch(() => {});
+  }, [expertId]);
+
+  async function ask() {
+    if (!user) {
+      setView("login");
+      return;
+    }
+    const trimmed = draft.trim();
+    if (!trimmed) return;
+    setSending(true);
+    try {
+      await apiFetch(`/api/experts/${expertId}/questions`, {
+        method: "POST",
+        body: JSON.stringify({ question: trimmed }),
+      });
+      setDraft("");
+      setAsked(true);
+      toast.success(`Question sent to ${expertName}`);
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div className="mt-4 border-t border-border pt-4">
+      <p className="eyebrow flex items-center gap-1.5">
+        <MessageCircleQuestion className="h-3.5 w-3.5" /> Ask {expertName.split(" ")[0]} a question
+      </p>
+
+      {questions.length > 0 && (
+        <div className="mt-2 space-y-2">
+          {questions.map((q) => (
+            <div key={q.id} className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm">
+              <p className="font-medium leading-snug">{q.question}</p>
+              <p className="mt-1.5 leading-relaxed text-muted-foreground">{q.answer}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {asked ? (
+        <p className="mt-3 text-xs text-muted-foreground">
+          Your question has been sent — the expert may answer it publicly here.
+        </p>
+      ) : (
+        <div className="mt-3 flex items-end gap-2">
+          <Textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder={user ? "Type your question…" : "Sign in to ask a question"}
+            className="min-h-[2.5rem] resize-none text-sm"
+            rows={1}
+            maxLength={1000}
+            disabled={sending}
+          />
+          <Button size="icon" onClick={ask} disabled={sending || (!!user && !draft.trim())} aria-label="Send">
+            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
