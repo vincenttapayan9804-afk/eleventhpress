@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { HeroGlobe, ImpactSphere } from "@/components/three-d/lazy";
 import { useReveal } from "@/hooks/use-scroll-reveal";
+import { Tilt3D } from "@/components/tilt-3d";
 import {
   Search, ArrowRight, Sparkles, FileText, Quote, TrendingUp, Globe2,
   Atom, Microscope, Cpu, Users, BarChart3, Brain, Leaf, Calculator,
@@ -299,9 +300,9 @@ export function HomeView() {
               <p className="mt-1 text-sm text-muted-foreground">Based on articles you&apos;ve recently read.</p>
               <div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
                 {recommended.map((a) => (
-                  <div
+                  <Tilt3D
                     key={a.id}
-                    className="paper-card cursor-pointer p-5 transition-all hover:border-primary/30 hover:shadow-md"
+                    className="paper-card cursor-pointer p-5 transition-shadow hover:border-primary/30 hover:shadow-md"
                     onClick={() => openArticle(a.id)}
                   >
                     <Badge variant="outline" className={`border ${DISCIPLINE_COLORS[a.discipline] ?? ""}`}>
@@ -311,7 +312,7 @@ export function HomeView() {
                     <p className="mt-2 text-[0.7rem] text-muted-foreground">
                       Because you read &ldquo;{a.becauseOf}&rdquo;
                     </p>
-                  </div>
+                  </Tilt3D>
                 ))}
               </div>
             </div>
@@ -341,10 +342,10 @@ export function HomeView() {
                 featured.map((a, i) => {
                   const authors = parseAuthors(a.authors);
                   return (
-                    <div
+                    <Tilt3D
                       key={a.id}
-                      className="pearl-card cursor-pointer p-7 transition-all duration-500 hover:scale-[1.02] hover:shadow-[0_24px_64px_oklch(0.38_0.18_295/0.12)]"
-                      style={{ transitionTimingFunction: "var(--ease-luxury)", animationDelay: `${i * 100}ms` }}
+                      className="pearl-card cursor-pointer p-7 transition-shadow duration-500 hover:shadow-[0_24px_64px_oklch(0.38_0.18_295/0.12)]"
+                      style={{ animationDelay: `${i * 100}ms` }}
                       onClick={() => openArticle(a.id)}
                     >
                       <div className="flex items-center gap-2 text-xs">
@@ -363,7 +364,7 @@ export function HomeView() {
                           <span>{a.views} views</span>
                         </span>
                       </div>
-                    </div>
+                    </Tilt3D>
                   );
                 })
               )}
