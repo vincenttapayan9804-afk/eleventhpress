@@ -13,8 +13,6 @@ import {
   AuthView,
   DashboardView,
   ResourcesView,
-  DatasetsView,
-  PreprintsView,
   CollectionsView,
   AuthorsView,
   ExpertsView,
@@ -95,8 +93,6 @@ export default function Page() {
           {(view === "login" || view === "register") && <AuthView />}
           {view === "dashboard" && <DashboardView />}
           {view === "resources" && <ResourcesView />}
-          {view === "datasets" && <DatasetsView />}
-          {view === "preprints" && <PreprintsView />}
           {view === "collections" && <CollectionsView />}
           {view === "authors" && <AuthorsView />}
           {view === "experts" && <ExpertsView />}

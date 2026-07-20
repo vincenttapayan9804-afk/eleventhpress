@@ -12,8 +12,6 @@ export type ViewKey =
   | "register"
   | "dashboard"
   | "resources"
-  | "datasets"
-  | "preprints"
   | "collections"
   | "authors"
   | "experts"
