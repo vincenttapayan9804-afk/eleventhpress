@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { extractRequestIp } from "@/lib/institutions";
 import { checkRateLimit } from "@/lib/ratelimit";
 import { isLLMAvailable, chatJSON } from "@/lib/llm";
-import { retrieveChunks } from "@/lib/chunk-embeddings";
+import { retrieveChunks, indexArticleChunks } from "@/lib/chunk-embeddings";
 
 /**
  * POST /api/articles/[id]/chat — "Ask this paper" RAG chat.
@@ -20,9 +20,30 @@ import { retrieveChunks } from "@/lib/chunk-embeddings";
  *
  * Honest unavailable states, matching every other LLM-backed feature in
  * this codebase (glossary.ts, manuscript-checks.ts): no ANTHROPIC_API_KEY
- * configured, or the article hasn't been chunk-indexed yet, both return a
- * 200 with an explicit `mode` rather than a fabricated answer.
+ * configured, or the article genuinely has no chunkable text, both return
+ * a 200 with an explicit `mode` rather than a fabricated answer.
+ *
+ * Every PUBLISHED article is chunk-indexed at publish time (fire-and-forget,
+ * src/app/api/articles/workflow/route.ts) and, for anything published
+ * before that shipped, on every production build (scripts/backfill-
+ * galleys.ts, run from package.json's "build" script). Those two paths
+ * cover the steady state, but neither is guaranteed to have run yet for a
+ * given article at the moment someone asks it a question — a transient
+ * failure in the fire-and-forget publish-time call, or simply no
+ * production build having happened since publish. Rather than leave a
+ * reader stuck on "try again shortly" until the next deploy, this route
+ * self-heals: on a cache miss it indexes on demand, right here, and
+ * retries once before giving up.
  */
+
+// On-demand indexing embeds every ~800-char passage of the article's full
+// galley text sequentially (src/lib/chunk-embeddings.ts) and, on a cold
+// serverless instance, first pays the local embedding model's one-time
+// load cost — comfortably past the 10s platform default for a
+// full-length article. 60s is the ceiling Vercel allows without a Pro
+// plan and covers this worst case (cold model load + a full article's
+// passages) with headroom.
+export const maxDuration = 60;
 
 interface ChatTurn {
   role: "user" | "assistant";
@@ -71,11 +92,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     });
   }
 
-  const chunks = await retrieveChunks(articleId, question, 6);
+  let chunks = await retrieveChunks(articleId, question, 6);
+  if (chunks.length === 0) {
+    try {
+      const indexResult = await indexArticleChunks(articleId);
+      if (indexResult.chunkCount > 0) {
+        chunks = await retrieveChunks(articleId, question, 6);
+      }
+    } catch (e) {
+      console.error(`[article-chat] on-demand indexing failed for article ${articleId}:`, e);
+    }
+  }
   if (chunks.length === 0) {
     return NextResponse.json({
       mode: "not-indexed",
-      message: "This article hasn't been indexed for chat yet — try again shortly, or ask an editor to re-run indexing.",
+      message: "This article couldn't be indexed for chat — it may have no readable galley text yet. Ask an editor to check its production files.",
     });
   }
 
