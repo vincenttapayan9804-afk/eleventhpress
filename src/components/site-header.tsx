@@ -60,7 +60,9 @@ export function SiteHeader() {
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           {/* Brand */}
           <button onClick={() => setView("home")} className="flex items-center gap-3 text-left group">
-            <span className="wax-mark group-hover:scale-105 transition-transform duration-500" style={{ transitionTimingFunction: "var(--ease-luxury)" }}>EP</span>
+            <span className="wax-mark group-hover:scale-105 transition-transform duration-500" style={{ transitionTimingFunction: "var(--ease-luxury)" }}>
+              <span className="wax-mark-text">EP</span>
+            </span>
             <span className="hidden flex-col leading-tight sm:flex">
               <span className="font-display text-base font-semibold text-royal-gradient">
                 {tHeader("brandName")}

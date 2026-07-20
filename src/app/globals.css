@@ -99,6 +99,13 @@
   --royal-800: oklch(0.30 0.13 293);
   --royal-900: oklch(0.24 0.10 292);
 
+  /* Metallic gold gradient stops — medallion ring + embossed monogram */
+  --gold-200: oklch(0.93 0.06 85);
+  --gold-300: oklch(0.86 0.09 82);
+  --gold-400: oklch(0.78 0.12 80);
+  --gold-500: oklch(0.68 0.13 75);
+  --gold-600: oklch(0.56 0.12 68);
+
   /* Pearlescent gradient stops */
   --pearl-50: oklch(0.995 0.002 285);
   --pearl-100: oklch(0.99 0.004 285);
@@ -529,24 +536,48 @@
   transform: scaleX(1);
 }
 
-/* Wax seal mark — now royal purple */
+/* Wax seal mark — premium 3D purple + gold medallion. Two layers: the
+   outer .wax-mark is the glossy purple disc + gold ring + drop shadow;
+   the inner .wax-mark-text carries the embossed gold "EP" monogram. They
+   have to be separate elements because background-clip:text (needed for
+   the gold gradient letters) would otherwise also clip the disc's own
+   background, making the circle itself invisible. */
 .wax-mark {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 2.75rem;
   height: 2.75rem;
+  flex-shrink: 0;
   border-radius: 9999px;
-  background: linear-gradient(135deg, var(--royal-500), var(--royal-700));
-  color: oklch(0.985 0.004 285);
+  background: radial-gradient(
+    circle at 32% 26%,
+    var(--royal-300) 0%,
+    var(--royal-500) 46%,
+    var(--royal-700) 80%,
+    var(--royal-900) 100%
+  );
+  box-shadow:
+    0 0 0 1.5px var(--gold-300),
+    0 0 0 3px var(--gold-600),
+    inset 0 2px 2px oklch(1 0 0 / 0.5),
+    inset 0 -6px 9px oklch(0.20 0.09 292 / 0.6),
+    0 10px 22px oklch(0.30 0.13 293 / 0.4),
+    0 3px 6px oklch(0.24 0.10 292 / 0.35);
+}
+
+.wax-mark-text {
   font-family: var(--font-serif);
   font-weight: 700;
-  font-size: 1rem;
-  box-shadow:
-    0 0 0 2px oklch(0.985 0.004 285),
-    0 0 0 3px oklch(0.76 0.11 294 / 0.4),
-    0 8px 24px oklch(0.38 0.18 295 / 0.2);
-  letter-spacing: 0.02em;
+  font-size: 1.05rem;
+  letter-spacing: 0.01em;
+  background: linear-gradient(160deg, var(--gold-200) 15%, var(--gold-500) 55%, var(--gold-600) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter:
+    drop-shadow(0 1px 0 oklch(1 0 0 / 0.4))
+    drop-shadow(0 1.5px 1px oklch(0.18 0.06 70 / 0.55));
 }
 
 /* Premium button hover glow */
