@@ -410,6 +410,22 @@ export async function POST(req: NextRequest) {
         import("@/lib/ws-client").then(({ emitWS }) => emitWS("workflow:transition", {
           articleId, from: article.status, to: next, doi: finalDoi, title: article.title,
         }).catch(() => {})),
+        article.correspondingAuthorId
+          ? import("@/lib/orcid-works").then(({ pushWorkToOrcid }) =>
+              pushWorkToOrcid(article.correspondingAuthorId!, {
+                title: article.title,
+                doi: finalDoi,
+                publishedAt: new Date(),
+                journalName: article.journal?.name,
+              })
+                .then((result) => {
+                  if (result.mode === "failed") {
+                    console.error(`[orcid-works] push failed for article ${articleId}:`, result.reason);
+                  }
+                })
+                .catch(() => {})
+            )
+          : Promise.resolve(),
       ]).catch(() => {});
 
       // Accessibility: auto-generate alt-text suggestions for every figure
