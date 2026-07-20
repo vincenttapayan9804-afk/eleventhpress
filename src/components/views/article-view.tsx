@@ -8,7 +8,7 @@ import { DISCIPLINE_COLORS, parseAuthors, parseFunders, CORRECTION_TYPE_LABELS, 
 import { DOI_REGISTRAR } from "@/lib/site";
 import { attentionMetricsConfigured } from "@/lib/attention-metrics";
 import { AltmetricBadge, PlumXBadge } from "@/components/attention-badges";
-import { buildBibTeX, buildRis, coinsSpanProps } from "@/lib/citation-export";
+import { buildBibTeX, buildRis, buildWikidataQuickStatements, coinsSpanProps } from "@/lib/citation-export";
 import { CITATION_STYLES, formatCitationStyle, type CitationStyleId } from "@/lib/citation-styles";
 import { MetricsBarChart3D, MetricsFillGauge3D } from "@/components/three-d/lazy";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -144,7 +144,7 @@ export function ArticleView() {
   const [showOriginalAbstract, setShowOriginalAbstract] = useState(false);
   const [related, setRelated] = useState<ArticleDetail[]>([]);
   const [loading, setLoading] = useState(true);
-  const [citationFormat, setCitationFormat] = useState<CitationStyleId | "bibtex" | "ris">("apa");
+  const [citationFormat, setCitationFormat] = useState<CitationStyleId | "bibtex" | "ris" | "wikidata">("apa");
   const [publicReviews, setPublicReviews] = useState<any[] | null>(null);
   const [openReviewStatus, setOpenReviewStatus] = useState<{ openReview: boolean; published: boolean } | null>(null);
   const [reviewHistory, setReviewHistory] = useState<ReviewHistoryData | null>(null);
@@ -261,11 +261,24 @@ export function ArticleView() {
   };
   const bibtex = buildBibTeX(citationExportable);
   const ris = buildRis(citationExportable);
+  const wikidataQuickStatements = buildWikidataQuickStatements(citationExportable);
   const coins = coinsSpanProps(citationExportable);
   const citationPreview =
-    citationFormat === "bibtex" ? bibtex : citationFormat === "ris" ? ris : formatCitationStyle(citationExportable, citationFormat);
+    citationFormat === "bibtex"
+      ? bibtex
+      : citationFormat === "ris"
+        ? ris
+        : citationFormat === "wikidata"
+          ? wikidataQuickStatements
+          : formatCitationStyle(citationExportable, citationFormat);
   const citationFormatLabel =
-    citationFormat === "bibtex" ? "BibTeX" : citationFormat === "ris" ? "RIS" : CITATION_STYLES.find((s) => s.id === citationFormat)?.label ?? "APA";
+    citationFormat === "bibtex"
+      ? "BibTeX"
+      : citationFormat === "ris"
+        ? "RIS"
+        : citationFormat === "wikidata"
+          ? "Wikidata (QuickStatements)"
+          : CITATION_STYLES.find((s) => s.id === citationFormat)?.label ?? "APA";
 
   // AI-assisted abstract translation (Phase 5b) — only ever shows a
   // translation that was actually produced by the LLM (never the English
@@ -743,6 +756,10 @@ export function ArticleView() {
                     <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
                     JSON-LD ScholarlyArticle structured data embedded
                   </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                    Wikidata QuickStatements batch available (Cite tab)
+                  </li>
                 </ul>
               </div>
             </TabsContent>
@@ -756,7 +773,7 @@ export function ArticleView() {
                 <CardContent className="p-5">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <p className="eyebrow">Cite this article</p>
-                    <Select value={citationFormat} onValueChange={(v) => setCitationFormat(v as CitationStyleId | "bibtex" | "ris")}>
+                    <Select value={citationFormat} onValueChange={(v) => setCitationFormat(v as CitationStyleId | "bibtex" | "ris" | "wikidata")}>
                       <SelectTrigger className="h-8 w-[15rem] text-xs" size="sm">
                         <SelectValue />
                       </SelectTrigger>
@@ -772,6 +789,7 @@ export function ArticleView() {
                           <SelectLabel>Export formats</SelectLabel>
                           <SelectItem value="bibtex">BibTeX</SelectItem>
                           <SelectItem value="ris">RIS</SelectItem>
+                          <SelectItem value="wikidata">Wikidata (QuickStatements)</SelectItem>
                         </SelectGroup>
                       </SelectContent>
                     </Select>
@@ -790,6 +808,18 @@ export function ArticleView() {
                         <Download className="mr-1.5 h-3.5 w-3.5" /> Download .bib
                       </a>
                     </Button>
+                    <Button size="sm" variant="outline" asChild>
+                      <a href={`/api/articles/${article.id}/export?format=wikidata`} download>
+                        <Download className="mr-1.5 h-3.5 w-3.5" /> Download Wikidata batch
+                      </a>
+                    </Button>
+                    {citationFormat === "wikidata" && (
+                      <Button size="sm" variant="outline" asChild>
+                        <a href="https://quickstatements.toolforge.org/" target="_blank" rel="noopener noreferrer">
+                          Open QuickStatements
+                        </a>
+                      </Button>
+                    )}
                     <Button size="sm" onClick={copyCitation}>
                       <FileText className="mr-1.5 h-3.5 w-3.5" /> Copy citation
                     </Button>
@@ -988,6 +1018,11 @@ export function ArticleView() {
                 <Button variant="outline" size="sm" className="w-full justify-start" asChild>
                   <a href={`/api/articles/${article.id}/export?format=bibtex`} download>
                     <Download className="mr-2 h-3.5 w-3.5" /> BibTeX (Mendeley, LaTeX)
+                  </a>
+                </Button>
+                <Button variant="outline" size="sm" className="w-full justify-start" asChild>
+                  <a href={`/api/articles/${article.id}/export?format=wikidata`} download>
+                    <Download className="mr-2 h-3.5 w-3.5" /> Wikidata (QuickStatements)
                   </a>
                 </Button>
               </div>
