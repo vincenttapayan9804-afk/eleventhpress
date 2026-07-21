@@ -217,6 +217,7 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
   const [lastDecisionId, setLastDecisionId] = useState<string | null>(null);
   const [letterBody, setLetterBody] = useState("");
   const [savingLetter, setSavingLetter] = useState(false);
+  const [draftingLetter, setDraftingLetter] = useState(false);
   const [mintingReportDoi, setMintingReportDoi] = useState(false);
 
   if (!article) return null;
@@ -297,6 +298,27 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
       toast.error(e.message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function draftLetter() {
+    if (!lastDecisionId) return;
+    setDraftingLetter(true);
+    try {
+      const res = await apiFetch<{ letterBody: string; mode: string }>(
+        `/api/articles/${article.id}/decision-letter/draft`,
+        { method: "POST", body: JSON.stringify({ decisionId: lastDecisionId }) }
+      );
+      if (res.mode === "llm" && res.letterBody) {
+        setLetterBody(res.letterBody);
+        toast.success("Draft ready — review and edit before publishing.");
+      } else {
+        toast.error("AI draft unavailable", { description: "No LLM configured for this deployment." });
+      }
+    } catch (e: any) {
+      toast.error("AI draft failed", { description: e.message });
+    } finally {
+      setDraftingLetter(false);
     }
   }
 
@@ -435,6 +457,10 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
                       className="text-sm"
                     />
                     <div className="flex justify-end gap-2">
+                      <Button size="sm" variant="ghost" onClick={draftLetter} disabled={draftingLetter}>
+                        {draftingLetter && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+                        AI draft
+                      </Button>
                       <Button size="sm" variant="ghost" onClick={() => { setLastDecisionId(null); setLetterBody(""); }}>
                         Skip
                       </Button>
