@@ -590,7 +590,7 @@ export function CitationNetwork({ citations = 0, className = "" }: { citations?:
 // 3. KEYWORD CLUSTER — floating orbs (kept for browse page)
 // ═══════════════════════════════════════════════════════════════════════
 
-export function KeywordCluster({ keywords = [], className = "" }: { keywords?: string[]; className?: string }) {
+export function KeywordCluster({ keywords = [], className = "", allowMotion = true }: { keywords?: string[]; className?: string; allowMotion?: boolean }) {
   const orbs = useMemo(() => {
     const colors = [ROYAL_PURPLE, ROYAL_LIGHT, ROYAL_DEEP, "#B68FD4", "#9D5BC4"];
     return keywords.slice(0, 8).map((kw, i) => {
@@ -606,19 +606,33 @@ export function KeywordCluster({ keywords = [], className = "" }: { keywords?: s
     });
   }, [keywords]);
 
+  const spheres = (
+    <group>
+      {orbs.map((o, i) => (
+        <mesh key={i} position={o.position} scale={o.scale}>
+          <sphereGeometry args={[0.5, 24, 24]} />
+          <meshStandardMaterial color={o.color} roughness={0.2} metalness={0.7} transparent opacity={0.85} />
+        </mesh>
+      ))}
+    </group>
+  );
+
   return (
     <div className={`webgl-container ${className}`}>
       <SceneWrapper cameraPosition={[0, 0, 6]}>
-        <Float speed={1.2} rotationIntensity={0.3} floatIntensity={0.5}>
-          <group>
-            {orbs.map((o, i) => (
-              <mesh key={i} position={o.position} scale={o.scale}>
-                <sphereGeometry args={[0.5, 24, 24]} />
-                <meshStandardMaterial color={o.color} roughness={0.2} metalness={0.7} transparent opacity={0.85} />
-              </mesh>
-            ))}
-          </group>
-        </Float>
+        {/* Unlike the purely ambient/decorative scenes (HeroGlobe,
+            ImpactSphere), this one is only ever mounted after the user
+            explicitly clicks "3D Cluster" — skipping it entirely under
+            prefers-reduced-motion would remove the content they asked
+            for, not just motion. Only the floating/rotating animation
+            itself is gated; the orbs still render statically. */}
+        {allowMotion ? (
+          <Float speed={1.2} rotationIntensity={0.3} floatIntensity={0.5}>
+            {spheres}
+          </Float>
+        ) : (
+          spheres
+        )}
       </SceneWrapper>
     </div>
   );
