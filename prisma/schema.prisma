@@ -904,6 +904,54 @@ model TableExtractionJob {
 }
 
 // ---------------------------------------------------------------------------
+// Eleventh Research Lab — dashboard tab for author/expert/reviewer/editor/
+// admin accounts (src/components/dashboard/research-lab-tab.tsx). Both
+// models deliberately have no Prisma relation to User, just a loose
+// userId String — same convention as AltTextJob/TableAccessibilityJob's
+// loose articleId above.
+// ---------------------------------------------------------------------------
+
+// A saved output from the Research Gap Finder or the Systematic Review /
+// PRISMA drafting tool (src/lib/research-gap-finder.ts,
+// src/lib/prisma-draft.ts). Only ever written on a real LLM success — same
+// cache-but-only-on-success convention as ArticleSimilarityExplanation —
+// so a run that came back "unavailable" (no LLM configured) never shows up
+// as false history.
+model ResearchLabDocument {
+  id         String   @id @default(cuid())
+  userId     String
+  kind       String // "GAP_ANALYSIS" | "PRISMA_DRAFT"
+  title      String
+  inputJson  String // JSON: the sources/article ids this was generated from
+  resultJson String // JSON: the gaps[] or draft text
+  model      String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, kind, createdAt])
+}
+
+// Qualitative-data transcription job (src/lib/transcription.ts) — runs a
+// real, free, open-source Whisper model locally via @xenova/transformers
+// over a researcher-uploaded WAV file. No heuristic fallback exists for
+// "guess what audio says", so an unusable result is a FAILED job with a
+// real errorMessage, never a fabricated transcript.
+model TranscriptionJob {
+  id           String    @id @default(cuid())
+  userId       String
+  audioKey     String
+  fileName     String
+  status       String    @default("QUEUED") // QUEUED | PROCESSING | COMPLETED | FAILED
+  transcript   String?
+  model        String?
+  errorMessage String?
+  startedAt    DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([userId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
 // Preservation Deposit — dark-archive preservation status with CLOCKSS /
 // Portico (src/lib/preservation.ts). Neither service exposes a public
 // per-article API — they harvest bulk content (via OAI-PMH, among other

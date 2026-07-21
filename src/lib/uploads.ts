@@ -49,6 +49,10 @@ export const BUCKET_UPLOAD_RULES: Record<string, BucketUploadRules> = {
     ],
     maxSizeBytes: 50 * 1024 * 1024,
   },
+  "research-audio": {
+    contentTypes: ["audio/wav", "audio/x-wav", "audio/wave"],
+    maxSizeBytes: 25 * 1024 * 1024,
+  },
 };
 
 /**
@@ -81,7 +85,16 @@ const MAGIC_SNIFFERS: Record<string, (bytes: Buffer) => boolean> = {
   "application/msword": (b) =>
     b.length >= 8 &&
     [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1].every((byte, i) => b[i] === byte),
+  // WAV is a RIFF container declaring "WAVE" as its form type.
+  "audio/wav": (b) =>
+    b.length >= 12 &&
+    b.subarray(0, 4).toString("latin1") === "RIFF" &&
+    b.subarray(8, 12).toString("latin1") === "WAVE",
 };
+// audio/x-wav and audio/wave are the same on-disk format as audio/wav —
+// the browser/OS just disagrees on which MIME string to send.
+MAGIC_SNIFFERS["audio/x-wav"] = MAGIC_SNIFFERS["audio/wav"];
+MAGIC_SNIFFERS["audio/wave"] = MAGIC_SNIFFERS["audio/wav"];
 
 function formatBytes(n: number): string {
   return n >= 1024 * 1024 ? `${Math.round(n / (1024 * 1024))} MB` : `${Math.round(n / 1024)} KB`;

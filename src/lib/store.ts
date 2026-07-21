@@ -41,6 +41,7 @@ export type DashboardTab =
   | "myBooks"
   | "bookAcquisitions"
   | "certificates"
+  | "researchLab"
   | "admin";
 
 interface SessionUser {

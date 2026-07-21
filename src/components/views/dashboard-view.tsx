@@ -32,6 +32,7 @@ import {
   BookOpen,
   Library as LibraryIcon,
   Award,
+  FlaskConical,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -55,6 +56,7 @@ import {
   MyBooksTab,
   BookAcquisitionsTab,
   CertificatesTab,
+  ResearchLabTab,
 } from "@/components/dashboard/lazy";
 import { useLiveDashboard } from "@/hooks/use-live-dashboard";
 
@@ -130,6 +132,12 @@ export function DashboardView() {
     { key: "bookAcquisitions", label: "Book acquisitions", icon: LibraryIcon, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"] },
     { key: "reader", label: "Subscription", icon: Library, roles: ["READER", "AUTHOR", "REVIEWER", "SUPER_ADMIN"] },
     { key: "certificates", label: "Certificates", icon: Award, roles: ["AUTHOR", "REVIEWER", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"] },
+    {
+      key: "researchLab",
+      label: "Eleventh Research Lab",
+      icon: FlaskConical,
+      roles: ["AUTHOR", "EXPERT", "REVIEWER", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"],
+    },
     { key: "admin", label: "Admin & audit", icon: Users, roles: ["SUPER_ADMIN"] },
   ];
 
@@ -291,6 +299,7 @@ export function DashboardView() {
           {dashboardTab === "bookAcquisitions" && <BookAcquisitionsTab />}
           {dashboardTab === "reader" && <ReaderTab subscription={data.subscription} onRefresh={loadDashboard} />}
           {dashboardTab === "certificates" && <CertificatesTab />}
+          {dashboardTab === "researchLab" && <ResearchLabTab />}
           {dashboardTab === "admin" && <AdminTab audit={data.recentAudit || []} stats={data.stats} />}
         </div>
       </div>
