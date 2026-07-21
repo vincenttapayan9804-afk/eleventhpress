@@ -235,6 +235,80 @@ function heuristicStatisticalFlags(abstract: string): StatisticalFlag[] {
 }
 
 // ---------------------------------------------------------------------------
+// House-style consistency check
+// ---------------------------------------------------------------------------
+
+export interface StyleFlag {
+  flag: string;
+  severity: "info" | "warning" | "concern";
+  explanation: string;
+}
+
+export interface StyleCheckResult {
+  flags: StyleFlag[];
+  mode: "llm" | "heuristic";
+  model: string;
+}
+
+const STYLE_SYSTEM_PROMPT = `You are a copyeditor checking an academic manuscript's title and abstract for house-style consistency issues — not grammar or content, only internal inconsistency.
+
+Look specifically for: the same term spelled two different ways in the same text (e.g. "e-mail" and "email", "randomised" and "randomized" mixed together), inconsistent capitalization of a repeated key term or proper noun, inconsistent number formatting (spelled-out vs numeral for the same kind of quantity), and inconsistent hyphenation of the same compound term. Only flag something that actually appears inconsistently within the given text — never flag a single, consistently-used style choice as wrong.
+
+Respond with a single JSON object (no markdown, no preamble):
+{
+  "flags": [
+    {"flag": "<short label>", "severity": "info|warning|concern", "explanation": "<one sentence, quote the two conflicting forms found>"}
+  ]
+}
+
+If nothing notable is present, return {"flags": []}. Do not invent issues to fill the list.`;
+
+export async function checkHouseStyle(article: {
+  title: string;
+  abstract: string;
+}): Promise<StyleCheckResult> {
+  if (anyLLMAvailable()) {
+    try {
+      const { data, model } = await chatJSON<{ flags: StyleFlag[] }>(
+        STYLE_SYSTEM_PROMPT,
+        `Title: ${article.title}\n\nAbstract:\n${article.abstract}`,
+        { maxTokens: 1000, priority: "cost-first" }
+      );
+      return { flags: data.flags ?? [], mode: "llm", model };
+    } catch (e) {
+      console.error("[manuscript-checks] house-style LLM call failed, falling back:", e);
+    }
+  }
+  return { flags: heuristicStyleFlags(article.title, article.abstract), mode: "heuristic", model: "heuristic-fallback" };
+}
+
+/** Deterministic fallback: flags a same-root spelling variant appearing in
+ * both its British and American forms within the combined title+abstract —
+ * a much narrower check than the LLM prompt above, but honestly labeled
+ * heuristic rather than a fabricated style review. */
+function heuristicStyleFlags(title: string, abstract: string): StyleFlag[] {
+  const text = `${title} ${abstract}`;
+  const flags: StyleFlag[] = [];
+  const hasBritish = /\borganise|\brandomised|\bcolour/i.test(text);
+  const hasAmerican = /\borganize|\brandomized|\bcolor\b/i.test(text);
+  if (hasBritish && hasAmerican) {
+    flags.push({
+      flag: "Mixed British/American spelling",
+      severity: "info",
+      explanation: "The text appears to mix British and American spelling variants — consider standardizing on one.",
+    });
+  }
+  if (/\be-mail/i.test(text) && /\bemail\b/i.test(text)) {
+    flags.push({
+      flag: "Inconsistent hyphenation",
+      severity: "info",
+      explanation: "Both \"e-mail\" and \"email\" appear — consider standardizing on one form.",
+    });
+  }
+  return flags;
+}
+
+// ---------------------------------------------------------------------------
 // AI lay summary + keyword suggestion
 // ---------------------------------------------------------------------------
 
