@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Lazy wrappers around the 18 dashboard tabs rendered by
+ * Lazy wrappers around the dashboard tabs rendered by
  * src/components/views/dashboard-view.tsx. Only one tab renders at a time
  * (dashboardTab is client-only zustand state, never persisted, always
  * "overview" on a fresh load — see src/lib/store.ts), so statically
@@ -78,5 +78,8 @@ export const CertificatesTab = dynamic(() => import("./certificates-tab").then((
   loading: () => <TabLoadingFallback />,
 });
 export const AdminTab = dynamic(() => import("./admin-tab").then((m) => m.AdminTab), {
+  loading: () => <TabLoadingFallback />,
+});
+export const ResearchLabTab = dynamic(() => import("./research-lab-tab").then((m) => m.ResearchLabTab), {
   loading: () => <TabLoadingFallback />,
 });
