@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -29,6 +28,186 @@ import {
 interface ArticleHit {
   id: string;
   title: string;
+}
+
+interface ExternalSource {
+  url: string;
+  title: string;
+}
+
+interface DiscoveryResult {
+  source: string;
+  title: string;
+  authors: string;
+  year: number | null;
+  venue: string | null;
+  doi: string | null;
+  url: string;
+  openAccessUrl: string | null;
+}
+
+/** Maps a mode:"unavailable" reason onto an honest, specific description —
+ * replaces a blanket "no LLM configured" message that was misleading
+ * whenever the real cause was a transient call failure, not a missing
+ * provider. */
+function unavailableDescription(reason: string | undefined): string {
+  switch (reason) {
+    case "no_provider":
+      return "No LLM is configured on this deployment.";
+    case "call_failed":
+      return "The LLM call failed after a retry — try again in a moment.";
+    case "insufficient_sources":
+      return "Add more sources that could actually be read.";
+    default:
+      return "Try again in a moment.";
+  }
+}
+
+const SOURCE_LABELS: Record<string, string> = {
+  crossref: "Crossref",
+  openalex: "OpenAlex",
+  semantic_scholar: "Semantic Scholar",
+  eric: "ERIC",
+  pubmed_central: "PubMed Central",
+  zenodo: "Zenodo",
+  core: "CORE",
+};
+
+/** Search-as-you-type over the platform's existing open-data discovery
+ * fan-out (Crossref, OpenAlex, Semantic Scholar, ERIC, PubMed Central,
+ * Zenodo, CORE — see /api/discover, also used by Resources → Discover).
+ * Reused by both the Gap Finder and the PRISMA drafting tool so a
+ * researcher can find external sources by topic instead of needing to
+ * already have a URL to paste. A manual-paste fallback stays available
+ * for anything the search doesn't surface. */
+function ExternalSourceSearch({
+  selected,
+  onChange,
+  maxSelected,
+}: {
+  selected: ExternalSource[];
+  onChange: (next: ExternalSource[]) => void;
+  maxSelected: number;
+}) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<DiscoveryResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [manualUrl, setManualUrl] = useState("");
+
+  useEffect(() => {
+    if (query.trim().length < 2) {
+      setResults([]);
+      return;
+    }
+    const handle = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const r = await apiFetch<{ results: DiscoveryResult[] }>(`/api/discover?q=${encodeURIComponent(query)}`);
+        setResults(r.results.slice(0, 8));
+      } catch {
+        setResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 400);
+    return () => clearTimeout(handle);
+  }, [query]);
+
+  const selectedUrls = new Set(selected.map((s) => s.url));
+  const atLimit = selected.length >= maxSelected;
+
+  function addSource(url: string, title: string) {
+    if (!url || selectedUrls.has(url) || atLimit) return;
+    onChange([...selected, { url, title }]);
+  }
+
+  return (
+    <div>
+      <div className="relative">
+        <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search Crossref, OpenAlex, Semantic Scholar, PubMed Central, Zenodo, and more..."
+          className="h-8 pl-8 text-xs"
+          disabled={atLimit}
+        />
+      </div>
+      {query.trim().length >= 2 && (
+        <div className="mt-1.5 space-y-1 rounded-md border border-border p-1.5">
+          {searching ? (
+            <p className="flex items-center gap-1.5 p-1.5 text-xs text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" /> Searching open-access sources...
+            </p>
+          ) : results.length === 0 ? (
+            <p className="p-1.5 text-xs text-muted-foreground">No matches.</p>
+          ) : (
+            results.map((r) => {
+              const url = r.openAccessUrl || r.url;
+              const already = selectedUrls.has(url);
+              return (
+                <button
+                  key={`${r.source}-${r.doi || r.url}`}
+                  type="button"
+                  disabled={already || atLimit}
+                  onClick={() => addSource(url, r.title)}
+                  className="flex w-full items-start justify-between gap-2 rounded px-1.5 py-1 text-left text-xs hover:bg-accent disabled:opacity-40"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="line-clamp-2">{r.title}</span>
+                    <span className="mt-0.5 block text-[0.65rem] text-muted-foreground">
+                      {[r.authors, r.year, r.venue].filter(Boolean).join(" · ")}
+                    </span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-1">
+                    {r.openAccessUrl && (
+                      <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-[0.55rem] text-emerald-700">
+                        OA
+                      </Badge>
+                    )}
+                    <Badge variant="outline" className="text-[0.55rem]">{SOURCE_LABELS[r.source] || r.source}</Badge>
+                  </span>
+                </button>
+              );
+            })
+          )}
+        </div>
+      )}
+      <div className="mt-1.5 flex gap-1.5">
+        <Input
+          value={manualUrl}
+          onChange={(e) => setManualUrl(e.target.value)}
+          placeholder="...or paste a URL directly"
+          className="h-7 text-xs"
+          disabled={atLimit}
+        />
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 shrink-0 px-2 text-xs"
+          disabled={atLimit || !manualUrl.trim()}
+          onClick={() => {
+            addSource(manualUrl.trim(), manualUrl.trim());
+            setManualUrl("");
+          }}
+        >
+          Add
+        </Button>
+      </div>
+      {selected.length > 0 && (
+        <div className="mt-1.5 flex flex-wrap gap-1.5">
+          {selected.map((s) => (
+            <Badge key={s.url} variant="secondary" className="gap-1 pr-1 text-[0.65rem]">
+              <span className="max-w-[14rem] truncate">{s.title}</span>
+              <button type="button" onClick={() => onChange(selected.filter((x) => x.url !== s.url))} aria-label="Remove">
+                <X className="h-2.5 w-2.5" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 /** Search-as-you-type picker over this platform's own published articles —
@@ -138,35 +317,35 @@ interface GapAnalysisResult {
   gaps: ResearchGap[];
   skippedUrls: { url: string; reason: string }[];
   mode: "llm" | "unavailable";
+  reason?: string;
   model?: string;
 }
 
 function GapFinderPanel() {
   const [selectedArticles, setSelectedArticles] = useState<ArticleHit[]>([]);
-  const [externalUrlsText, setExternalUrlsText] = useState("");
+  const [externalSources, setExternalSources] = useState<ExternalSource[]>([]);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<GapAnalysisResult | null>(null);
 
   async function run() {
-    const externalUrls = externalUrlsText
-      .split("\n")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    if (selectedArticles.length + externalUrls.length < 2) {
-      toast.error("Add at least two sources", { description: "Pick published articles and/or paste external links." });
+    if (selectedArticles.length + externalSources.length < 2) {
+      toast.error("Add at least two sources", { description: "Pick published articles and/or external sources." });
       return;
     }
     setLoading(true);
     try {
       const r = await apiFetch<GapAnalysisResult>("/api/research-lab/gap-analysis", {
         method: "POST",
-        body: JSON.stringify({ internalArticleIds: selectedArticles.map((a) => a.id), externalUrls }),
+        body: JSON.stringify({
+          internalArticleIds: selectedArticles.map((a) => a.id),
+          externalUrls: externalSources.map((s) => s.url),
+        }),
       });
       setResult(r);
       if (r.mode === "llm") {
         toast.success(`Identified ${r.gaps.length} potential gap(s)`);
       } else {
-        toast.error("Gap analysis unavailable", { description: "No LLM configured, or too few sources could be read." });
+        toast.error("Gap analysis unavailable", { description: unavailableDescription(r.reason) });
       }
     } catch (e: any) {
       toast.error("Gap analysis failed", { description: e.message });
@@ -180,7 +359,7 @@ function GapFinderPanel() {
       <CardHeader className="pb-3">
         <p className="eyebrow flex items-center gap-1.5"><Search className="h-3 w-3" /> Research Gap Finder</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Pick internal articles and/or paste external links (papers, preprints, reports), then get a structured gap analysis grounded in what you provide.
+          Pick internal articles and/or find external sources across Crossref, OpenAlex, Semantic Scholar, and more — then get a structured gap analysis grounded in what you provide.
         </p>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -189,13 +368,8 @@ function GapFinderPanel() {
           <ArticlePicker selected={selectedArticles} onChange={setSelectedArticles} maxSelected={8} />
         </div>
         <div>
-          <p className="mb-1 text-xs font-medium">External URLs (one per line)</p>
-          <Textarea
-            value={externalUrlsText}
-            onChange={(e) => setExternalUrlsText(e.target.value)}
-            placeholder={"https://example.org/some-paper\nhttps://example.org/another-report"}
-            className="min-h-20 text-xs"
-          />
+          <p className="mb-1 text-xs font-medium">External sources</p>
+          <ExternalSourceSearch selected={externalSources} onChange={setExternalSources} maxSelected={8} />
         </div>
         <Button size="sm" onClick={run} disabled={loading} className="gap-1.5">
           {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
@@ -216,7 +390,7 @@ function GapFinderPanel() {
             )}
             {result.mode === "unavailable" ? (
               <p className="text-xs text-muted-foreground">
-                No gap analysis available — no LLM is configured, or fewer than two sources could be read.
+                No gap analysis available — {unavailableDescription(result.reason)}
               </p>
             ) : result.gaps.length === 0 ? (
               <p className="flex items-center gap-1 text-xs text-emerald-700">
@@ -241,24 +415,28 @@ function GapFinderPanel() {
 }
 
 interface PrismaDraftSource {
-  articleId: string;
+  kind: "internal" | "external";
+  id: string;
   title: string;
-  abstract: string;
+  excerpt: string;
 }
 interface PrismaDraftResult {
   sources: PrismaDraftSource[];
+  skippedUrls: { url: string; reason: string }[];
   draft: string;
   mode: "llm" | "unavailable";
+  reason?: string;
   model?: string;
 }
 
 function PrismaDraftPanel() {
   const [selectedArticles, setSelectedArticles] = useState<ArticleHit[]>([]);
+  const [externalSources, setExternalSources] = useState<ExternalSource[]>([]);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<PrismaDraftResult | null>(null);
 
   async function run() {
-    if (selectedArticles.length === 0) {
+    if (selectedArticles.length + externalSources.length === 0) {
       toast.error("Select at least one included study");
       return;
     }
@@ -266,13 +444,16 @@ function PrismaDraftPanel() {
     try {
       const r = await apiFetch<PrismaDraftResult>("/api/research-lab/prisma-draft", {
         method: "POST",
-        body: JSON.stringify({ articleIds: selectedArticles.map((a) => a.id) }),
+        body: JSON.stringify({
+          articleIds: selectedArticles.map((a) => a.id),
+          externalUrls: externalSources.map((s) => s.url),
+        }),
       });
       setResult(r);
       if (r.mode === "llm") {
         toast.success("Review scaffold drafted");
       } else {
-        toast.error("Draft unavailable", { description: "No LLM configured." });
+        toast.error("Draft unavailable", { description: unavailableDescription(r.reason) });
       }
     } catch (e: any) {
       toast.error("Draft failed", { description: e.message });
@@ -292,13 +473,17 @@ function PrismaDraftPanel() {
       <CardHeader className="pb-3">
         <p className="eyebrow flex items-center gap-1.5"><FileText className="h-3 w-3" /> Systematic Review / PRISMA Drafting Tool</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Select published articles as your included studies — drafts a review scaffold (rationale, synthesis, limitations) grounded only in their abstracts. A first draft to revise, not a finished review.
+          Select published articles and/or find external sources as your included studies — drafts a review scaffold (rationale, synthesis, limitations) grounded only in what you provide. A first draft to revise, not a finished review.
         </p>
       </CardHeader>
       <CardContent className="space-y-3">
         <div>
-          <p className="mb-1 text-xs font-medium">Included studies</p>
+          <p className="mb-1 text-xs font-medium">Internal articles</p>
           <ArticlePicker selected={selectedArticles} onChange={setSelectedArticles} maxSelected={20} />
+        </div>
+        <div>
+          <p className="mb-1 text-xs font-medium">External sources</p>
+          <ExternalSourceSearch selected={externalSources} onChange={setExternalSources} maxSelected={8} />
         </div>
         <Button size="sm" onClick={run} disabled={loading} className="gap-1.5">
           {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
@@ -308,8 +493,17 @@ function PrismaDraftPanel() {
         {result && (
           <>
             <Separator />
+            {result.skippedUrls.length > 0 && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
+                {result.skippedUrls.map((s) => (
+                  <p key={s.url} className="flex items-start gap-1.5">
+                    <AlertCircle className="mt-0.5 h-3 w-3 flex-shrink-0" /> Couldn&apos;t read {s.url} — {s.reason}
+                  </p>
+                ))}
+              </div>
+            )}
             {result.mode === "unavailable" ? (
-              <p className="text-xs text-muted-foreground">No draft available — no LLM is configured.</p>
+              <p className="text-xs text-muted-foreground">No draft available — {unavailableDescription(result.reason)}</p>
             ) : (
               <div className="rounded-md border border-border p-2 text-xs">
                 <div className="mb-1.5 flex items-center justify-between">
