@@ -73,7 +73,7 @@ async function translateBatch(text: string, targetLocale: TranslatableLocale) {
   const { data, model: usedModel } = await chatJSON<{ translatedText: string }>(
     TRANSLATE_BATCH_SYSTEM_PROMPT(LOCALE_NAMES[targetLocale]),
     text,
-    { maxTokens: 3000 }
+    { maxTokens: 3000, priority: "cost-first" }
   );
   return { text: data.translatedText?.trim() || "", model: usedModel };
 }

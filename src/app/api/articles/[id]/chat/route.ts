@@ -136,7 +136,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const result = await chatJSON<{ answer: string; usedPassages?: number[]; grounded?: boolean }>(
       systemPrompt,
       userPrompt,
-      { maxTokens: 700 }
+      { maxTokens: 700, priority: "cost-first" }
     );
 
     const usedPassages = Array.isArray(result.data.usedPassages) ? result.data.usedPassages : [];

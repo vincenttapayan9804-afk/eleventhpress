@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
     const result = await chatJSON<{ answer: string; usedPassages?: number[]; grounded?: boolean }>(
       systemPrompt,
       userPrompt,
-      { maxTokens: 900 }
+      { maxTokens: 900, priority: "cost-first" }
     );
 
     const usedPassages = Array.isArray(result.data.usedPassages) ? result.data.usedPassages : [];

@@ -49,7 +49,7 @@ export async function generateGlossary(article: {
       const { data, model } = await chatJSON<{ terms: GlossaryTerm[] }>(
         GLOSSARY_SYSTEM_PROMPT,
         `Discipline: ${article.discipline}\n\nTitle: ${article.title}\n\nAbstract:\n${article.abstract}\n\nKeywords: ${article.keywords || "(none)"}`,
-        { maxTokens: 1500 }
+        { maxTokens: 1500, priority: "cost-first" }
       );
       const terms = (data.terms ?? []).filter((t) => t.term?.trim() && t.definition?.trim());
       return { terms, mode: "llm", model, generatedAt };

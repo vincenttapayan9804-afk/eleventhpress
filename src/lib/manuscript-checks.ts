@@ -265,7 +265,7 @@ export async function suggestKeywordsAndSummary(article: {
       const { data, model } = await chatJSON<{ laySummary: string; suggestedKeywords: string[] }>(
         AI_ASSIST_SYSTEM_PROMPT,
         `Title: ${article.title}\n\nAbstract:\n${article.abstract}\n\nExisting keywords: ${article.keywords || "(none)"}`,
-        { maxTokens: 1000 }
+        { maxTokens: 1000, priority: "cost-first" }
       );
       return {
         laySummary: data.laySummary ?? "",
@@ -322,7 +322,7 @@ export async function translateAbstract(
       const { data, model } = await chatJSON<{ translatedAbstract: string }>(
         TRANSLATE_SYSTEM_PROMPT(LOCALE_NAMES[targetLocale]),
         `Title: ${article.title}\n\nAbstract:\n${article.abstract}`,
-        { maxTokens: 1500 }
+        { maxTokens: 1500, priority: "cost-first" }
       );
       if (data.translatedAbstract?.trim()) {
         return { translatedAbstract: data.translatedAbstract.trim(), mode: "llm", model };
