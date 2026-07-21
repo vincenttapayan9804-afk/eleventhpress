@@ -25,6 +25,8 @@ import {
   ImageIcon,
   Languages,
   SpellCheck2,
+  Table2,
+  Download,
 } from "lucide-react";
 
 interface SimilarityMatch {
@@ -95,6 +97,22 @@ interface TableAccessibilityJob {
   errorMessage: string | null;
 }
 
+interface TableExtractionResult {
+  index: number;
+  columns: string[];
+  rows: string[][];
+  notes: string;
+  notesMode: "llm" | "unavailable";
+}
+
+interface TableExtractionJob {
+  id: string;
+  status: "QUEUED" | "PROCESSING" | "COMPLETED" | "FAILED";
+  tablesFound: number;
+  results: TableExtractionResult[];
+  errorMessage: string | null;
+}
+
 const TRANSLATION_LOCALES: { code: string; label: string }[] = [
   { code: "es", label: "Spanish" },
   { code: "fr", label: "French" },
@@ -117,6 +135,7 @@ export function ManuscriptChecksPanel({ articleId }: Props) {
   const [editedAlt, setEditedAlt] = useState<Record<string, string>>({});
   const [tableA11yJob, setTableA11yJob] = useState<TableAccessibilityJob | null>(null);
   const [editedCaption, setEditedCaption] = useState<Record<number, string>>({});
+  const [tableExtractionJob, setTableExtractionJob] = useState<TableExtractionJob | null>(null);
   const [translations, setTranslations] = useState<Record<string, { mode: string }>>({});
   const [loading, setLoading] = useState<string | null>(null);
 
@@ -154,6 +173,9 @@ export function ManuscriptChecksPanel({ articleId }: Props) {
         }
       })
       .catch(() => setTableA11yJob(null));
+    apiFetch<{ jobs: TableExtractionJob[] }>(`/api/articles/${articleId}/table-extraction`)
+      .then((r) => setTableExtractionJob(r.jobs?.[0] ?? null))
+      .catch(() => setTableExtractionJob(null));
   }, [articleId]);
 
   async function runSimilarity() {
@@ -282,6 +304,40 @@ export function ManuscriptChecksPanel({ articleId }: Props) {
     } finally {
       setLoading(null);
     }
+  }
+
+  async function runTableExtraction() {
+    setLoading("table-extraction");
+    try {
+      const r = await apiFetch<{ success: boolean; deduped?: boolean; job: TableExtractionJob }>(
+        `/api/articles/${articleId}/table-extraction`,
+        { method: "POST" }
+      );
+      setTableExtractionJob(r.job);
+      if (r.deduped) {
+        toast.info("A table-extraction job is already in flight for this article");
+      } else if (r.job.status === "COMPLETED") {
+        toast.success(`Extracted data from ${r.job.tablesFound} table(s)`);
+      } else {
+        toast.error("Table extraction failed", { description: r.job.errorMessage ?? undefined });
+      }
+    } catch (e: any) {
+      toast.error("Table extraction failed", { description: e.message });
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  function downloadTableCsv(result: TableExtractionResult) {
+    const escapeCsv = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+    const csv = [result.columns, ...result.rows].map((row) => row.map(escapeCsv).join(",")).join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `table-${result.index + 1}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   async function runTranslate(locale: string) {
@@ -691,6 +747,60 @@ export function ManuscriptChecksPanel({ articleId }: Props) {
             <p className="mt-1 text-xs text-muted-foreground">No tables found in the galley HTML.</p>
           ) : tableA11yJob?.status === "FAILED" ? (
             <p className="mt-1 text-xs text-rose-700">{tableA11yJob.errorMessage}</p>
+          ) : (
+            <p className="mt-1 text-xs text-muted-foreground">Not yet generated.</p>
+          )}
+        </div>
+
+        <Separator />
+
+        {/* Table/dataset extraction — columns/rows are parsed straight out
+            of the table's own markup (always real, never an LLM guess);
+            the one-sentence "notes" field is a genuine LLM enhancement
+            that's simply absent (not faked) when no LLM is available. No
+            "apply to galley" here — the output is a downloadable dataset,
+            not a galley edit. */}
+        <div>
+          <div className="flex items-center justify-between">
+            <p className="eyebrow flex items-center gap-1"><Table2 className="h-3 w-3" /> Table/dataset extraction</p>
+            <Button size="sm" variant="outline" onClick={runTableExtraction} disabled={loading === "table-extraction"}>
+              {loading === "table-extraction" ? <Loader2 className="h-3 w-3 animate-spin" /> : "Generate"}
+            </Button>
+          </div>
+          {tableExtractionJob?.status === "COMPLETED" && tableExtractionJob.results.length > 0 ? (
+            <div className="mt-2 space-y-2">
+              {tableExtractionJob.results.map((r) => (
+                <div key={r.index} className="rounded-md border border-border p-2 text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-muted-foreground">
+                      Table {r.index + 1} — {r.columns.length} column(s), {r.rows.length} row(s)
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 gap-1 px-2 text-[0.65rem]"
+                      onClick={() => downloadTableCsv(r)}
+                      disabled={r.rows.length === 0}
+                    >
+                      <Download className="h-3 w-3" /> CSV
+                    </Button>
+                  </div>
+                  {r.columns.length > 0 && (
+                    <p className="mt-1 truncate text-muted-foreground/80" title={r.columns.join(", ")}>
+                      Columns: {r.columns.join(", ")}
+                    </p>
+                  )}
+                  <div className="mt-1.5 flex items-start gap-1.5">
+                    <Badge variant="outline" className="shrink-0 text-[0.55rem]">{r.notesMode}</Badge>
+                    <p className="text-foreground/85">{r.notes || "No summary available — LLM unavailable."}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : tableExtractionJob?.status === "COMPLETED" ? (
+            <p className="mt-1 text-xs text-muted-foreground">No tables found in the galley HTML.</p>
+          ) : tableExtractionJob?.status === "FAILED" ? (
+            <p className="mt-1 text-xs text-rose-700">{tableExtractionJob.errorMessage}</p>
           ) : (
             <p className="mt-1 text-xs text-muted-foreground">Not yet generated.</p>
           )}

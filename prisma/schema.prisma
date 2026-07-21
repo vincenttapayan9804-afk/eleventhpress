@@ -881,6 +881,29 @@ model TableAccessibilityJob {
 }
 
 // ---------------------------------------------------------------------------
+// Table/dataset extraction — the "AI & checks" tab's structured-data
+// counterpart to TableAccessibilityJob's captions (src/lib/
+// table-extraction.ts). Deliberately no Prisma relation to Article, just a
+// loose articleId String — same convention as AltTextJob/
+// TableAccessibilityJob above.
+// ---------------------------------------------------------------------------
+model TableExtractionJob {
+  id              String    @id @default(cuid())
+  articleId       String
+  status          String    @default("QUEUED") // QUEUED | PROCESSING | COMPLETED | FAILED
+  tablesFound     Int       @default(0)
+  tablesProcessed Int       @default(0)
+  results         String? // JSON: [{index, columns, rows, notes, notesMode}]
+  errorMessage    String?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([status, createdAt])
+  @@index([articleId])
+}
+
+// ---------------------------------------------------------------------------
 // Preservation Deposit — dark-archive preservation status with CLOCKSS /
 // Portico (src/lib/preservation.ts). Neither service exposes a public
 // per-article API — they harvest bulk content (via OAI-PMH, among other
