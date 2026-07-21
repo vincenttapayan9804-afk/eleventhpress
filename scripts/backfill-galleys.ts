@@ -1,10 +1,11 @@
 /**
  * Backfill for PUBLISHED articles missing the EPUB galley (Phase A), AI
- * glossary (Phase D), auto-generated lay summary, or RAG chunk embeddings
- * (src/lib/chunk-embeddings.ts) — all four are now generated automatically
- * at publish time (src/app/api/articles/workflow/route.ts), but articles
- * published before each feature shipped predate it and need a one-time
- * catch-up.
+ * glossary (Phase D), auto-generated lay summary, RAG chunk embeddings
+ * (src/lib/chunk-embeddings.ts), or a full-text translation into every
+ * supported locale (src/lib/galley-translation.ts) — all five are now
+ * generated automatically at publish time
+ * (src/app/api/articles/workflow/route.ts), but articles published before
+ * each feature shipped predate it and need a one-time catch-up.
  *
  * Runs in two contexts:
  *  1. Automatically, idempotently, on every production build — package.json's
@@ -25,11 +26,13 @@
  * the live publish path (src/lib/galley-regenerate.ts) rather than
  * duplicating it.
  *
- * COST NOTE: glossary and summary backfill each make a real, billed
- * Anthropic API call per article (src/lib/glossary.ts,
- * src/lib/manuscript-checks.ts). Galley backfill does real PDF/HTML/
- * EPUB/JATS rendering work. All three are idempotent — once an article
- * has the field, later runs skip it — so steady-state cost after the
+ * COST NOTE: glossary, summary, and translation backfill each make real
+ * chatJSON calls (src/lib/glossary.ts, src/lib/manuscript-checks.ts,
+ * src/lib/galley-translation.ts) — cost-first as of Phase A/C, so the free
+ * OpenRouter tier is tried before any billed Anthropic call. Galley
+ * backfill does real PDF/HTML/EPUB/JATS rendering work. All four are
+ * idempotent — once an article has the field (or, for translation, has
+ * every locale), later runs skip it — so steady-state cost after the
  * first backfill is zero.
  *
  * Usage:
@@ -39,6 +42,7 @@
  *   bun run scripts/backfill-galleys.ts --confirm --skip-glossary
  *   bun run scripts/backfill-galleys.ts --confirm --skip-summary
  *   bun run scripts/backfill-galleys.ts --confirm --skip-chunks
+ *   bun run scripts/backfill-galleys.ts --confirm --skip-translation
  *   bun run scripts/backfill-galleys.ts --confirm --force       # regenerate even if already present
  *   bun run scripts/backfill-galleys.ts --confirm --limit 10
  *   bun run scripts/backfill-galleys.ts --confirm --article-id <id>
@@ -48,6 +52,7 @@ import { generateGalleysForArticle } from "../src/lib/galley-regenerate";
 import { generateGlossary } from "../src/lib/glossary";
 import { suggestKeywordsAndSummary } from "../src/lib/manuscript-checks";
 import { indexArticleChunks } from "../src/lib/chunk-embeddings";
+import { translateGalleyText, TRANSLATABLE_LOCALES, type TranslatableLocale } from "../src/lib/galley-translation";
 
 function flagValue(args: string[], name: string): string | null {
   const idx = args.indexOf(name);
@@ -63,6 +68,7 @@ async function main() {
   const doGlossary = !args.includes("--skip-glossary");
   const doSummary = !args.includes("--skip-summary");
   const doChunks = !args.includes("--skip-chunks");
+  const doTranslation = !args.includes("--skip-translation");
   const articleId = flagValue(args, "--article-id");
   const limitArg = flagValue(args, "--limit");
   const limit = limitArg ? parseInt(limitArg, 10) : undefined;
@@ -81,17 +87,31 @@ async function main() {
     (await db.articleChunk.groupBy({ by: ["articleId"] })).map((r) => r.articleId)
   );
 
+  // Bulk pre-check for translation coverage — one row per article+locale,
+  // so "fully translated" means all of TRANSLATABLE_LOCALES are present.
+  const translatedLocalesByArticle = new Map<string, Set<string>>();
+  for (const row of await db.articleGalleyTranslation.findMany({ select: { articleId: true, locale: true } })) {
+    if (!translatedLocalesByArticle.has(row.articleId)) translatedLocalesByArticle.set(row.articleId, new Set());
+    translatedLocalesByArticle.get(row.articleId)!.add(row.locale);
+  }
+  const missingLocales = (a: (typeof candidates)[number]): TranslatableLocale[] => {
+    const have = translatedLocalesByArticle.get(a.id);
+    return TRANSLATABLE_LOCALES.filter((locale) => force || !have?.has(locale));
+  };
+
   const needsGalleys = (a: (typeof candidates)[number]) => force || !a.galleyEpubKey;
   const needsGlossary = (a: (typeof candidates)[number]) => force || !a.glossary;
   const needsSummary = (a: (typeof candidates)[number]) => force || !a.laySummary;
   const needsChunks = (a: (typeof candidates)[number]) => force || !chunkedArticleIds.has(a.id);
+  const needsTranslation = (a: (typeof candidates)[number]) => missingLocales(a).length > 0;
 
   const targets = candidates.filter(
     (a) =>
       (doGalleys && needsGalleys(a)) ||
       (doGlossary && needsGlossary(a)) ||
       (doSummary && needsSummary(a)) ||
-      (doChunks && needsChunks(a))
+      (doChunks && needsChunks(a)) ||
+      (doTranslation && needsTranslation(a))
   );
 
   console.log(`Found ${candidates.length} published article(s)${articleId ? " (single-article mode)" : ""}.`);
@@ -102,6 +122,7 @@ async function main() {
     if (doGlossary && needsGlossary(a)) work.push("glossary");
     if (doSummary && needsSummary(a)) work.push("lay summary");
     if (doChunks && needsChunks(a)) work.push("RAG chunks");
+    if (doTranslation && needsTranslation(a)) work.push(`translation (${missingLocales(a).join(", ")})`);
     console.log(`  - [${a.id}] "${a.title}" (${work.join(", ")})`);
   }
 
@@ -111,9 +132,9 @@ async function main() {
   }
 
   if (!confirm) {
-    const llmCalls = [doGlossary && "glossary", doSummary && "lay summary"].filter(Boolean).join(" + ");
+    const llmCalls = [doGlossary && "glossary", doSummary && "lay summary", doTranslation && "translation"].filter(Boolean).join(" + ");
     console.log(
-      `\nDry run only — no changes made. This will make ${llmCalls ? `real, billed Anthropic API calls (${llmCalls})` : "no LLM calls"}` +
+      `\nDry run only — no changes made. This will make ${llmCalls ? `real AI calls (cost-first: free tier tried before any billed Anthropic call) (${llmCalls})` : "no LLM calls"}` +
         `${doGalleys ? " and real PDF/HTML/EPUB/JATS rendering work (galleys)" : ""}.` +
         `\nRe-run with --confirm to backfill ${targets.length} article(s).`
     );
@@ -127,6 +148,7 @@ async function main() {
   let glossaryDone = 0;
   let summaryDone = 0;
   let chunksDone = 0;
+  let translationsDone = 0;
 
   for (const article of targets) {
     try {
@@ -203,6 +225,19 @@ async function main() {
         );
       }
 
+      if (doTranslation && needsTranslation(article)) {
+        // One translateGalleyText call per missing locale — same
+        // per-article read of galleyHtmlKey it always does, so this also
+        // picks up any galley regeneration from earlier in this iteration.
+        for (const locale of missingLocales(article)) {
+          const translationResult = await translateGalleyText(article.id, locale);
+          if (translationResult.mode !== "heuristic") translationsDone++;
+          console.log(
+            `  [${article.id}] translation (${locale}) ${translationResult.mode === "llm" ? "generated" : translationResult.mode === "partial" ? `generated (partial, ${translationResult.translatedChars}/${translationResult.totalChars} chars)` : "unavailable — no LLM configured"}`
+          );
+        }
+      }
+
       await db.auditLog.create({
         data: {
           action: "GALLEY_GENERATED",
@@ -219,7 +254,7 @@ async function main() {
   }
 
   console.log(
-    `\nDone. Galleys backfilled: ${galleysDone}. Glossaries backfilled: ${glossaryDone}. Lay summaries backfilled: ${summaryDone}. RAG chunks backfilled: ${chunksDone}. ` +
+    `\nDone. Galleys backfilled: ${galleysDone}. Glossaries backfilled: ${glossaryDone}. Lay summaries backfilled: ${summaryDone}. RAG chunks backfilled: ${chunksDone}. Translations backfilled: ${translationsDone}. ` +
       `${targets.length - failures.length}/${targets.length} article(s) completed without error.`
   );
   if (failures.length > 0) {

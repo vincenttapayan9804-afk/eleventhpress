@@ -407,6 +407,15 @@ export async function POST(req: NextRequest) {
       Promise.all([
         import("@/lib/embeddings").then(({ indexArticle }) => indexArticle(articleId).catch(() => {})),
         import("@/lib/chunk-embeddings").then(({ indexArticleChunks }) => indexArticleChunks(articleId).catch(() => {})),
+        // Auto-translate into every supported locale at publish time (cost-
+        // first — see galley-translation.ts) instead of waiting for a
+        // reader to click "translate". Fire-and-forget, same as the other
+        // entries in this array: never blocks the publish response, and a
+        // failed locale here just means that locale falls back to the
+        // original English text until a reader/editor re-triggers it.
+        import("@/lib/galley-translation").then(({ translateGalleyText, TRANSLATABLE_LOCALES }) =>
+          Promise.all(TRANSLATABLE_LOCALES.map((locale) => translateGalleyText(articleId, locale).catch(() => {})))
+        ).catch(() => {}),
         import("@/lib/ws-client").then(({ emitWS }) => emitWS("workflow:transition", {
           articleId, from: article.status, to: next, doi: finalDoi, title: article.title,
         }).catch(() => {})),
