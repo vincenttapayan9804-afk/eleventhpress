@@ -5,11 +5,14 @@ import { draftSystematicReview } from "@/lib/prisma-draft";
 
 const RESEARCH_LAB_ROLES = ["AUTHOR", "EXPERT", "REVIEWER", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"];
 const MAX_ARTICLES_PER_REQUEST = 20;
+const MAX_EXTERNAL_PER_REQUEST = 8;
 
 /**
  * POST /api/research-lab/prisma-draft
- * Drafts a systematic-review scaffold from a set of this platform's own
- * published articles. Only persists a ResearchLabDocument on a real LLM
+ * Drafts a systematic-review scaffold from a set of "included studies" —
+ * this platform's own published articles and/or external sources
+ * (hand-pasted or picked from the open-data source search, see
+ * /api/discover). Only persists a ResearchLabDocument on a real LLM
  * success, same convention as the gap-analysis route.
  */
 export async function POST(req: NextRequest) {
@@ -21,13 +24,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Not available for this role" }, { status: 403 });
   }
 
-  const body = (await req.json().catch(() => ({}))) as { articleIds?: string[] };
+  const body = (await req.json().catch(() => ({}))) as { articleIds?: string[]; externalUrls?: string[] };
   const articleIds = (body.articleIds ?? []).filter((s) => typeof s === "string").slice(0, MAX_ARTICLES_PER_REQUEST);
-  if (articleIds.length === 0) {
+  const externalUrls = (body.externalUrls ?? []).filter((s) => typeof s === "string" && s.trim()).slice(0, MAX_EXTERNAL_PER_REQUEST);
+  if (articleIds.length === 0 && externalUrls.length === 0) {
     return NextResponse.json({ error: "Select at least one included study" }, { status: 400 });
   }
 
-  const result = await draftSystematicReview(articleIds);
+  const result = await draftSystematicReview({ articleIds, externalUrls });
 
   if (result.mode === "llm") {
     await db.researchLabDocument.create({
@@ -35,7 +39,7 @@ export async function POST(req: NextRequest) {
         userId: session.userId,
         kind: "PRISMA_DRAFT",
         title: `Review draft — ${result.sources.length} included stud${result.sources.length === 1 ? "y" : "ies"}`,
-        inputJson: JSON.stringify({ articleIds }),
+        inputJson: JSON.stringify({ articleIds, externalUrls }),
         resultJson: JSON.stringify({ sources: result.sources, draft: result.draft }),
         model: result.model,
       },

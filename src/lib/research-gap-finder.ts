@@ -1,15 +1,19 @@
 /**
  * Research Gap Finder (Eleventh Research Lab) — given a mix of this
- * platform's own published articles and researcher-pasted external URLs,
- * asks the LLM to identify genuine gaps: questions or angles none of the
- * sources address, or where their findings conflict.
+ * platform's own published articles and researcher-pasted/searched
+ * external URLs, asks the LLM to identify genuine gaps: questions or
+ * angles none of the sources address, or where their findings conflict.
  *
  * Real-or-nothing contract, same family as glossary.ts/
  * related-explanation.ts: a wrong-but-plausible "gap" would actively
  * mislead a researcher's actual work, so there is no heuristic fallback —
- * mode is "llm" or "unavailable", never fabricated. Quality-first (not
- * cost-first): this shapes real research direction, closer in stakes to
- * the decision-letter drafter than to a chat reply or translation.
+ * mode is "llm" or "unavailable", never fabricated. Cost-first: tries the
+ * free OpenRouter tier before any billed Anthropic call, same as the
+ * platform's other free-LLM-first features, falling back to Anthropic
+ * only if the free tier itself fails. A single retry on a transient LLM
+ * failure (rate limit, momentary network error) before giving up —
+ * research tools like this one saw "unavailable" more often than the
+ * underlying LLM was actually unreachable.
  */
 import dns from "dns/promises";
 import { db } from "@/lib/db";
@@ -82,7 +86,7 @@ async function assertPublicUrl(rawUrl: string): Promise<URL> {
   return url;
 }
 
-interface FetchedSource {
+export interface FetchedSource {
   url: string;
   title: string;
   text: string;
@@ -96,7 +100,13 @@ function extractTitle(html: string, fallback: string): string {
   return title || fallback;
 }
 
-async function fetchExternalSource(rawUrl: string): Promise<FetchedSource | null> {
+/**
+ * Fetches and extracts readable text from a researcher-supplied URL —
+ * either hand-pasted or picked from the open-data source search (see
+ * src/app/api/discover/route.ts). Exported so prisma-draft.ts can reuse
+ * the exact same SSRF-safe fetch instead of duplicating it.
+ */
+export async function fetchExternalSource(rawUrl: string): Promise<FetchedSource | null> {
   try {
     const url = await assertPublicUrl(rawUrl);
     const res = await fetch(url.toString(), {
@@ -139,11 +149,32 @@ export interface GapAnalysisResult {
   gaps: ResearchGap[];
   skippedUrls: { url: string; reason: string }[];
   mode: "llm" | "unavailable";
+  /** Why mode is "unavailable" — lets the UI say something more honest
+   * than a blanket "no LLM configured" when the real cause was a
+   * transient call failure. Absent when mode is "llm". */
+  reason?: "insufficient_sources" | "no_provider" | "call_failed";
   model?: string;
 }
 
 const GAP_ANALYSIS_SYSTEM_PROMPT =
   "You are a research assistant helping a scholar identify genuine gaps in a set of sources: questions or angles none of them address, or points where their findings conflict. Ground every gap in specific evidence from the sources provided — never invent a gap that isn't actually supported by what's missing or conflicting in the material. If you can't identify any genuine gap, return an empty array rather than manufacture one.";
+
+/** One retry on a transient failure (rate limit, momentary network error)
+ * before giving up — chatJSON() already retries across tiers internally,
+ * this covers the case where the same transient condition affects both. */
+async function chatJSONWithRetry<T>(system: string, user: string, maxTokens: number): Promise<{ data: T; model: string }> {
+  try {
+    return await chatJSON<T>(system, user, { maxTokens, priority: "cost-first" });
+  } catch (firstError) {
+    await new Promise((r) => setTimeout(r, 750));
+    try {
+      return await chatJSON<T>(system, user, { maxTokens, priority: "cost-first" });
+    } catch (secondError) {
+      console.error("[research-gap-finder] retry also failed:", secondError);
+      throw secondError;
+    }
+  }
+}
 
 export async function findResearchGaps(input: {
   internalArticleIds: string[];
@@ -171,20 +202,23 @@ export async function findResearchGaps(input: {
     }
   }
 
-  if (sources.length < 2 || !anyLLMAvailable()) {
-    return { sources, gaps: [], skippedUrls, mode: "unavailable" };
+  if (sources.length < 2) {
+    return { sources, gaps: [], skippedUrls, mode: "unavailable", reason: "insufficient_sources" };
+  }
+  if (!anyLLMAvailable()) {
+    return { sources, gaps: [], skippedUrls, mode: "unavailable", reason: "no_provider" };
   }
 
   try {
     const sourceList = sources.map((s, i) => `[${i + 1}] ${s.title}\n${s.excerpt}`).join("\n\n---\n\n");
-    const { data, model } = await chatJSON<{ gaps: ResearchGap[] }>(
+    const { data, model } = await chatJSONWithRetry<{ gaps: ResearchGap[] }>(
       GAP_ANALYSIS_SYSTEM_PROMPT,
       `Here are ${sources.length} sources on a related research area:\n\n${sourceList}\n\nRespond with a single JSON object: {"gaps": [{"gap": "<short label, one sentence>", "explanation": "<1-2 sentences grounded in the sources above>"}]}. Return at most 6 gaps.`,
-      { maxTokens: 1400 }
+      1400
     );
     return { sources, gaps: data.gaps ?? [], skippedUrls, mode: "llm", model };
   } catch (e) {
     console.error("[research-gap-finder] LLM call failed:", e);
-    return { sources, gaps: [], skippedUrls, mode: "unavailable" };
+    return { sources, gaps: [], skippedUrls, mode: "unavailable", reason: "call_failed" };
   }
 }
