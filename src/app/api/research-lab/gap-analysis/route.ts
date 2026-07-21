@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
-import { findResearchGaps } from "@/lib/research-gap-finder";
+import { findResearchGaps, parseExternalSources } from "@/lib/research-gap-finder";
 
 const RESEARCH_LAB_ROLES = ["AUTHOR", "EXPERT", "REVIEWER", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"];
 const MAX_SOURCES_PER_REQUEST = 8;
@@ -25,16 +25,16 @@ export async function POST(req: NextRequest) {
 
   const body = (await req.json().catch(() => ({}))) as {
     internalArticleIds?: string[];
-    externalUrls?: string[];
+    externalSources?: unknown;
   };
   const internalArticleIds = (body.internalArticleIds ?? []).filter((s) => typeof s === "string").slice(0, MAX_SOURCES_PER_REQUEST);
-  const externalUrls = (body.externalUrls ?? []).filter((s) => typeof s === "string" && s.trim()).slice(0, MAX_SOURCES_PER_REQUEST);
+  const externalSources = parseExternalSources(body.externalSources, MAX_SOURCES_PER_REQUEST);
 
-  if (internalArticleIds.length + externalUrls.length < 2) {
-    return NextResponse.json({ error: "Provide at least two sources (internal articles and/or external URLs)" }, { status: 400 });
+  if (internalArticleIds.length + externalSources.length < 2) {
+    return NextResponse.json({ error: "Provide at least two sources (internal articles and/or external sources)" }, { status: 400 });
   }
 
-  const result = await findResearchGaps({ internalArticleIds, externalUrls });
+  const result = await findResearchGaps({ internalArticleIds, externalSources });
 
   if (result.mode === "llm") {
     await db.researchLabDocument.create({
@@ -42,8 +42,8 @@ export async function POST(req: NextRequest) {
         userId: session.userId,
         kind: "GAP_ANALYSIS",
         title: `Gap analysis — ${result.sources.length} source(s)`,
-        inputJson: JSON.stringify({ internalArticleIds, externalUrls }),
-        resultJson: JSON.stringify({ sources: result.sources, gaps: result.gaps }),
+        inputJson: JSON.stringify({ internalArticleIds, externalSources }),
+        resultJson: JSON.stringify({ sources: result.sources, overview: result.overview, gaps: result.gaps }),
         model: result.model,
       },
     });

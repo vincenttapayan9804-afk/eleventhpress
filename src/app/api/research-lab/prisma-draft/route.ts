@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { draftSystematicReview } from "@/lib/prisma-draft";
+import { parseExternalSources } from "@/lib/research-gap-finder";
 
 const RESEARCH_LAB_ROLES = ["AUTHOR", "EXPERT", "REVIEWER", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"];
 const MAX_ARTICLES_PER_REQUEST = 20;
@@ -24,14 +25,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Not available for this role" }, { status: 403 });
   }
 
-  const body = (await req.json().catch(() => ({}))) as { articleIds?: string[]; externalUrls?: string[] };
+  const body = (await req.json().catch(() => ({}))) as { articleIds?: string[]; externalSources?: unknown };
   const articleIds = (body.articleIds ?? []).filter((s) => typeof s === "string").slice(0, MAX_ARTICLES_PER_REQUEST);
-  const externalUrls = (body.externalUrls ?? []).filter((s) => typeof s === "string" && s.trim()).slice(0, MAX_EXTERNAL_PER_REQUEST);
-  if (articleIds.length === 0 && externalUrls.length === 0) {
+  const externalSources = parseExternalSources(body.externalSources, MAX_EXTERNAL_PER_REQUEST);
+  if (articleIds.length === 0 && externalSources.length === 0) {
     return NextResponse.json({ error: "Select at least one included study" }, { status: 400 });
   }
 
-  const result = await draftSystematicReview({ articleIds, externalUrls });
+  const result = await draftSystematicReview({ articleIds, externalSources });
 
   if (result.mode === "llm") {
     await db.researchLabDocument.create({
@@ -39,7 +40,7 @@ export async function POST(req: NextRequest) {
         userId: session.userId,
         kind: "PRISMA_DRAFT",
         title: `Review draft — ${result.sources.length} included stud${result.sources.length === 1 ? "y" : "ies"}`,
-        inputJson: JSON.stringify({ articleIds, externalUrls }),
+        inputJson: JSON.stringify({ articleIds, externalSources }),
         resultJson: JSON.stringify({ sources: result.sources, draft: result.draft }),
         model: result.model,
       },
