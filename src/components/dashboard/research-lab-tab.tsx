@@ -305,15 +305,88 @@ function ArticlePicker({
   );
 }
 
+interface SourceMatrixEntry {
+  researchDesign: string;
+  participants: string;
+  population: string;
+  locale: string;
+  theoreticalFramework: string;
+  methodology: string;
+  keyFindings: string;
+  conclusions: string;
+  recommendations: string;
+  reference: string;
+}
 interface GapAnalysisSource {
   kind: "internal" | "external";
   id: string;
   title: string;
   excerpt: string;
+  matrix: SourceMatrixEntry;
 }
 interface ResearchGap {
   gap: string;
   explanation: string;
+}
+
+const MATRIX_COLUMNS: { key: keyof Omit<SourceMatrixEntry, "reference">; label: string }[] = [
+  { key: "researchDesign", label: "Research Design" },
+  { key: "participants", label: "Respondents/Participants" },
+  { key: "population", label: "Population/Sample" },
+  { key: "locale", label: "Locale/Setting" },
+  { key: "theoreticalFramework", label: "Theoretical Lens/Framework" },
+  { key: "methodology", label: "Methodology" },
+  { key: "keyFindings", label: "Key Findings" },
+  { key: "conclusions", label: "Conclusions" },
+  { key: "recommendations", label: "Recommendations" },
+];
+
+/** Renders the standard literature-review matrix (research design,
+ * participants, population, locale, theoretical framework, methodology,
+ * key findings, conclusions, recommendations) plus an APA 7th-edition
+ * reference list — shared rendering for the Gap Finder's structured
+ * result (the Systematic Review tool bakes the same matrix + references
+ * directly into its markdown draft instead, see prisma-draft.ts). */
+function SourceMatrixTable({ sources }: { sources: GapAnalysisSource[] }) {
+  const hasAnalysis = sources.some((s) => s.matrix.researchDesign);
+  return (
+    <div className="space-y-2">
+      {hasAnalysis && (
+        <div className="overflow-x-auto rounded-md border border-border">
+          <table className="w-full min-w-[900px] border-collapse text-[0.7rem]">
+            <thead>
+              <tr className="bg-accent/40">
+                <th className="border-b border-border p-1.5 text-left font-medium">Study</th>
+                {MATRIX_COLUMNS.map((c) => (
+                  <th key={c.key} className="border-b border-border p-1.5 text-left font-medium">{c.label}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {sources.map((s) => (
+                <tr key={s.id} className="align-top odd:bg-accent/10">
+                  <td className="max-w-[10rem] border-b border-border p-1.5 font-medium">{s.title}</td>
+                  {MATRIX_COLUMNS.map((c) => (
+                    <td key={c.key} className="max-w-[12rem] border-b border-border p-1.5 text-muted-foreground">
+                      {s.matrix[c.key] || "—"}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <div className="rounded-md border border-border p-2 text-[0.7rem]">
+        <p className="mb-1 font-medium">References (APA 7th ed.)</p>
+        <div className="space-y-1.5">
+          {sources.map((s) => (
+            <p key={s.id} className="text-muted-foreground">{s.matrix.reference}</p>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
 interface GapAnalysisResult {
   sources: GapAnalysisSource[];
@@ -397,21 +470,24 @@ function GapFinderPanel() {
                 No gap analysis available — {unavailableDescription(result.reason)}
               </p>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {result.overview && (
                   <p className="rounded-md border border-border bg-accent/40 p-2 text-xs text-foreground/85">{result.overview}</p>
                 )}
+                <SourceMatrixTable sources={result.sources} />
                 {result.gaps.length === 0 ? (
                   <p className="flex items-center gap-1 text-xs text-emerald-700">
                     <CheckCircle2 className="h-3 w-3" /> No clear gaps identified from these sources.
                   </p>
                 ) : (
-                  result.gaps.map((g, i) => (
-                    <div key={i} className="rounded-md border border-border p-2 text-xs">
-                      <p className="font-medium">{g.gap}</p>
-                      <p className="mt-0.5 text-muted-foreground">{g.explanation}</p>
-                    </div>
-                  ))
+                  <div className="space-y-2">
+                    {result.gaps.map((g, i) => (
+                      <div key={i} className="rounded-md border border-border p-2 text-xs">
+                        <p className="font-medium">{g.gap}</p>
+                        <p className="mt-0.5 text-muted-foreground">{g.explanation}</p>
+                      </div>
+                    ))}
+                  </div>
                 )}
                 {result.model && <p className="text-[0.65rem] text-muted-foreground">Generated by {result.model}</p>}
               </div>

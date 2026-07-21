@@ -19,6 +19,7 @@ import dns from "dns/promises";
 import { db } from "@/lib/db";
 import { chatJSON, anyLLMAvailable } from "@/lib/llm";
 import { htmlToPlainText } from "@/lib/chunk-embeddings";
+import { formatCitation } from "@/lib/article";
 
 const EXTERNAL_FETCH_TIMEOUT_MS = 10_000;
 const EXTERNAL_FETCH_USER_AGENT = "EleventhPressResearchLab/1.0 (+https://eleventhpress.org)";
@@ -226,15 +227,116 @@ export async function resolveExternalSource(
 ): Promise<{ source: GapAnalysisSource } | { skipped: { url: string; reason: string } }> {
   const fetched = await fetchExternalSource(input.url);
   if (fetched) {
-    return { source: { kind: "external", id: fetched.url, title: fetched.title || input.title || fetched.url, excerpt: fetched.text } };
+    const title = fetched.title || input.title || fetched.url;
+    return {
+      source: {
+        kind: "external",
+        id: fetched.url,
+        title,
+        excerpt: fetched.text,
+        matrix: { ...blankMatrixFields(), reference: formatApaReferenceExternal(input, title) },
+      },
+    };
   }
   const metaExcerpt = [input.authors, input.year, input.venue].filter(Boolean).join(" · ");
   if (input.title && metaExcerpt) {
     return {
-      source: { kind: "external", id: input.url, title: input.title, excerpt: `${input.title} — ${metaExcerpt}` },
+      source: {
+        kind: "external",
+        id: input.url,
+        title: input.title,
+        excerpt: `${input.title} — ${metaExcerpt}`,
+        matrix: { ...blankMatrixFields(), reference: formatApaReferenceExternal(input, input.title) },
+      },
     };
   }
   return { skipped: { url: input.url, reason: "Could not fetch or read this URL as text/HTML" } };
+}
+
+/**
+ * The standard literature-review-matrix dimensions researchers compare
+ * across included studies. The nine qualitative fields are LLM-extracted
+ * strictly from each source's own excerpt (never inferred) — `reference`
+ * is never LLM-generated at all: it's built deterministically, reusing
+ * the platform's own APA 7 formatter (src/lib/article.ts's
+ * formatCitation()) for internal articles, and a best-effort equivalent
+ * from real discovery-search metadata for external ones — so citation
+ * accuracy never depends on the model getting punctuation right.
+ */
+export interface SourceMatrixEntry {
+  researchDesign: string;
+  participants: string;
+  population: string;
+  locale: string;
+  theoreticalFramework: string;
+  methodology: string;
+  keyFindings: string;
+  conclusions: string;
+  recommendations: string;
+  /** APA 7th-edition formatted reference — always populated, independent
+   * of whether the LLM ran at all. */
+  reference: string;
+}
+
+/** The nine qualitative fields are blank (not "Not stated") until the LLM
+ * actually examines the source — a blank means "not yet analyzed", a
+ * literal "Not stated in the source material provided." (the model's own
+ * words, per the prompt) means "the model looked and it genuinely isn't
+ * there". Different meanings, both honestly distinguishable in the UI. */
+function blankMatrixFields(): Omit<SourceMatrixEntry, "reference"> {
+  return {
+    researchDesign: "",
+    participants: "",
+    population: "",
+    locale: "",
+    theoreticalFramework: "",
+    methodology: "",
+    keyFindings: "",
+    conclusions: "",
+    recommendations: "",
+  };
+}
+
+/** Formats a discovery-search "First Last, First Last" author string into
+ * APA 7's "Last, F. M., & Last, F. M." form. Best-effort — external
+ * sources don't carry structured given/family name parts the way this
+ * platform's own author records do, so this is a real but approximate
+ * equivalent of formatCitation()'s internal-article logic, not a
+ * guarantee of perfect APA name order for every source. */
+function formatApaAuthorsFromString(authorsStr: string | undefined): string {
+  if (!authorsStr?.trim()) return "";
+  const names = authorsStr
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((n) => {
+      const parts = n.replace(/^Dr\.?\s+|^Prof\.?\s+/, "").trim().split(/\s+/);
+      if (parts.length < 2) return n;
+      const last = parts[parts.length - 1];
+      const initials = parts
+        .slice(0, -1)
+        .map((p) => p.charAt(0))
+        .filter(Boolean)
+        .join(". ") + ".";
+      return `${last}, ${initials}`;
+    });
+  if (names.length === 0) return "";
+  if (names.length === 1) return names[0];
+  return names.slice(0, -1).join(", ") + ", & " + names[names.length - 1];
+}
+
+/** Best-effort APA 7 reference for an external source, built only from
+ * real metadata the discovery search or the researcher actually
+ * supplied — an undated/unauthored web source still gets a valid APA
+ * "(n.d.)" citation rather than an invented author or year. */
+function formatApaReferenceExternal(input: ExternalSourceInput, resolvedTitle: string): string {
+  const authors = formatApaAuthorsFromString(input.authors);
+  const year = input.year ? `(${input.year}).` : "(n.d.).";
+  const title = resolvedTitle.replace(/\.+$/, "");
+  const venue = input.venue ? ` ${input.venue}.` : "";
+  const link = input.url ? ` ${input.url}` : "";
+  const authorPart = authors ? `${authors} ` : "";
+  return `${authorPart}${year} ${title}.${venue}${link}`.replace(/\s+/g, " ").trim();
 }
 
 export interface GapAnalysisSource {
@@ -242,6 +344,48 @@ export interface GapAnalysisSource {
   id: string; // articleId for internal, the resolved URL for external
   title: string;
   excerpt: string;
+  matrix: SourceMatrixEntry;
+}
+
+/**
+ * Resolves this platform's own published articles into GapAnalysisSource
+ * rows — real APA 7 reference via formatCitation(), same as the article
+ * page's own Cite panel. Shared by findResearchGaps and
+ * draftSystematicReview so both tools cite internal articles identically.
+ */
+export async function fetchInternalSources(articleIds: string[]): Promise<GapAnalysisSource[]> {
+  if (articleIds.length === 0) return [];
+  const articles = await db.article.findMany({
+    where: { id: { in: articleIds }, status: "PUBLISHED" },
+    select: {
+      id: true,
+      title: true,
+      abstract: true,
+      authors: true,
+      publishedAt: true,
+      doi: true,
+      journal: { select: { name: true } },
+      issue: { select: { volume: true, issueNumber: true } },
+    },
+  });
+  return articles.map((a) => ({
+    kind: "internal" as const,
+    id: a.id,
+    title: a.title,
+    excerpt: a.abstract.slice(0, MAX_EXCERPT_CHARS),
+    matrix: {
+      ...blankMatrixFields(),
+      reference: formatCitation({
+        title: a.title,
+        authors: a.authors,
+        publishedAt: a.publishedAt,
+        doi: a.doi,
+        journalName: a.journal?.name,
+        volume: a.issue?.volume,
+        issueNumber: a.issue?.issueNumber,
+      }),
+    },
+  }));
 }
 
 export interface ResearchGap {
@@ -267,12 +411,55 @@ export interface GapAnalysisResult {
 }
 
 const GAP_ANALYSIS_SYSTEM_PROMPT =
-  "You are a research assistant helping a scholar compare a set of sources in depth. Real academic sources on a shared topic almost always differ in population, context, methodology, scope, timeframe, or emphasis — your job is to surface those differences concretely, not to look for a reason to say nothing. Ground every observation in specific evidence from the sources provided; never invent a finding, statistic, or claim that isn't actually in the material. An empty gaps list is only appropriate when the sources are near-duplicates of each other (e.g. the same study indexed twice) — for any genuinely distinct set of sources, identify at least 2-3 concrete gaps: an angle only one source covers, a population/context none of them address, a methodological limitation shared across all of them, or an apparent contradiction between findings.";
+  "You are a research assistant helping a scholar compare a set of sources in depth, in the standard literature-review-matrix format (research design, participants, population/sample, locale/setting, theoretical framework, methodology, key findings, conclusions, recommendations). Extract every matrix field strictly from what's stated in that source's own excerpt — write exactly 'Not stated in the source material provided.' for any field the excerpt doesn't actually address; never infer, guess, or carry a detail over from a different source. Real academic sources on a shared topic almost always differ in population, context, methodology, scope, timeframe, or emphasis — your job in the gap analysis is to surface those differences concretely, not to look for a reason to say nothing. An empty gaps list is only appropriate when the sources are near-duplicates of each other (e.g. the same study indexed twice) — for any genuinely distinct set of sources, identify at least 2-3 concrete gaps: an angle only one source covers, a population/context none of them address, a methodological limitation shared across all of them, or an apparent contradiction between findings.";
+
+export interface RawSourceAnalysis {
+  index: number;
+  researchDesign: string;
+  participants: string;
+  population: string;
+  locale: string;
+  theoreticalFramework: string;
+  methodology: string;
+  keyFindings: string;
+  conclusions: string;
+  recommendations: string;
+}
+
+export const SOURCE_ANALYSIS_FIELD_SCHEMA =
+  '{"index": <1-based source number>, "researchDesign": "...", "participants": "...", "population": "...", "locale": "...", "theoreticalFramework": "...", "methodology": "...", "keyFindings": "...", "conclusions": "...", "recommendations": "..."}';
+
+/** Merges the LLM's per-source matrix analysis back onto the resolved
+ * source list by index — shared shape/logic between findResearchGaps and
+ * draftSystematicReview. */
+export function mergeSourceAnalyses(sources: GapAnalysisSource[], analyses: RawSourceAnalysis[] | undefined): GapAnalysisSource[] {
+  const byIndex = new Map((analyses ?? []).map((a) => [a.index, a]));
+  return sources.map((s, i) => {
+    const a = byIndex.get(i + 1);
+    if (!a) return s;
+    return {
+      ...s,
+      matrix: {
+        ...s.matrix,
+        researchDesign: a.researchDesign ?? "",
+        participants: a.participants ?? "",
+        population: a.population ?? "",
+        locale: a.locale ?? "",
+        theoreticalFramework: a.theoreticalFramework ?? "",
+        methodology: a.methodology ?? "",
+        keyFindings: a.keyFindings ?? "",
+        conclusions: a.conclusions ?? "",
+        recommendations: a.recommendations ?? "",
+      },
+    };
+  });
+}
 
 /** One retry on a transient failure (rate limit, momentary network error)
  * before giving up — chatJSON() already retries across tiers internally,
- * this covers the case where the same transient condition affects both. */
-async function chatJSONWithRetry<T>(system: string, user: string, maxTokens: number): Promise<{ data: T; model: string }> {
+ * this covers the case where the same transient condition affects both.
+ * Exported so prisma-draft.ts shares the exact same retry policy. */
+export async function chatJSONWithRetry<T>(system: string, user: string, maxTokens: number): Promise<{ data: T; model: string }> {
   try {
     return await chatJSON<T>(system, user, { maxTokens, priority: "cost-first" });
   } catch (firstError) {
@@ -290,18 +477,8 @@ export async function findResearchGaps(input: {
   internalArticleIds: string[];
   externalSources: ExternalSourceInput[];
 }): Promise<GapAnalysisResult> {
-  const sources: GapAnalysisSource[] = [];
+  const sources: GapAnalysisSource[] = await fetchInternalSources(input.internalArticleIds);
   const skippedUrls: { url: string; reason: string }[] = [];
-
-  if (input.internalArticleIds.length > 0) {
-    const articles = await db.article.findMany({
-      where: { id: { in: input.internalArticleIds }, status: "PUBLISHED" },
-      select: { id: true, title: true, abstract: true },
-    });
-    for (const a of articles) {
-      sources.push({ kind: "internal", id: a.id, title: a.title, excerpt: a.abstract.slice(0, MAX_EXCERPT_CHARS) });
-    }
-  }
 
   for (const ext of input.externalSources) {
     const resolved = await resolveExternalSource(ext);
@@ -318,15 +495,27 @@ export async function findResearchGaps(input: {
 
   try {
     const sourceList = sources.map((s, i) => `[${i + 1}] ${s.title}\n${s.excerpt}`).join("\n\n---\n\n");
-    const { data, model } = await chatJSONWithRetry<{ overview: string; gaps: ResearchGap[] }>(
+    const { data, model } = await chatJSONWithRetry<{
+      overview: string;
+      sourceAnalyses: RawSourceAnalysis[];
+      gaps: ResearchGap[];
+    }>(
       GAP_ANALYSIS_SYSTEM_PROMPT,
       `Here are ${sources.length} sources on a related research area:\n\n${sourceList}\n\n` +
         `Respond with a single JSON object: {"overview": "<2-4 sentences synthesizing what these sources collectively ` +
-        `show and where they diverge — always fill this in>", "gaps": [{"gap": "<short label, one sentence>", ` +
+        `show and where they diverge — always fill this in>", "sourceAnalyses": [<one entry per source, in order, ` +
+        `each shaped exactly like ${SOURCE_ANALYSIS_FIELD_SCHEMA}>], "gaps": [{"gap": "<short label, one sentence>", ` +
         `"explanation": "<1-2 sentences grounded in the sources above>"}]}. Return at most 6 gaps.`,
-      1800
+      3800
     );
-    return { sources, overview: data.overview?.trim() ?? "", gaps: data.gaps ?? [], skippedUrls, mode: "llm", model };
+    return {
+      sources: mergeSourceAnalyses(sources, data.sourceAnalyses),
+      overview: data.overview?.trim() ?? "",
+      gaps: data.gaps ?? [],
+      skippedUrls,
+      mode: "llm",
+      model,
+    };
   } catch (e) {
     console.error("[research-gap-finder] LLM call failed:", e);
     return { sources, overview: "", gaps: [], skippedUrls, mode: "unavailable", reason: "call_failed" };
