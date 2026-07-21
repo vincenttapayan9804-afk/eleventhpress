@@ -24,6 +24,7 @@ import {
   ExternalLink,
   ImageIcon,
   Languages,
+  SpellCheck2,
 } from "lucide-react";
 
 interface SimilarityMatch {
@@ -33,6 +34,12 @@ interface SimilarityMatch {
 }
 
 interface StatisticalFlag {
+  flag: string;
+  severity: "info" | "warning" | "concern";
+  explanation: string;
+}
+
+interface StyleFlag {
   flag: string;
   severity: "info" | "warning" | "concern";
   explanation: string;
@@ -86,6 +93,7 @@ interface Props {
 export function ManuscriptChecksPanel({ articleId }: Props) {
   const [similarity, setSimilarity] = useState<{ score: number; matches: SimilarityMatch[] } | null>(null);
   const [statistical, setStatistical] = useState<{ flags: StatisticalFlag[] } | null>(null);
+  const [style, setStyle] = useState<{ flags: StyleFlag[] } | null>(null);
   const [references, setReferences] = useState<ReferenceItem[]>([]);
   const [aiAssist, setAiAssist] = useState<{ laySummary: string; suggestedKeywords: string[]; mode: string } | null>(null);
   const [integrityJob, setIntegrityJob] = useState<IntegrityJob | null>(null);
@@ -101,6 +109,9 @@ export function ManuscriptChecksPanel({ articleId }: Props) {
     apiFetch<{ flags: StatisticalFlag[] }>(`/api/articles/${articleId}/checks/statistical`)
       .then(setStatistical)
       .catch(() => setStatistical(null));
+    apiFetch<{ flags: StyleFlag[] }>(`/api/articles/${articleId}/checks/style`)
+      .then(setStyle)
+      .catch(() => setStyle(null));
     apiFetch<{ references: ReferenceItem[] }>(`/api/articles/${articleId}/references`)
       .then((r) => setReferences(r.references || []))
       .catch(() => setReferences([]));
@@ -241,6 +252,24 @@ export function ManuscriptChecksPanel({ articleId }: Props) {
     }
   }
 
+  async function runStyle() {
+    setLoading("style");
+    try {
+      const r = await apiFetch<{ flags: StyleFlag[]; mode: string }>(
+        `/api/articles/${articleId}/checks/style`,
+        { method: "POST" }
+      );
+      setStyle(r);
+      toast.success("House-style check complete", {
+        description: r.mode === "heuristic" ? "Heuristic analysis (LLM unavailable)" : "LLM analysis",
+      });
+    } catch (e: any) {
+      toast.error("Style check failed", { description: e.message });
+    } finally {
+      setLoading(null);
+    }
+  }
+
   async function runAiAssist() {
     setLoading("ai-assist");
     try {
@@ -289,7 +318,7 @@ export function ManuscriptChecksPanel({ articleId }: Props) {
           <ShieldAlert className="h-3 w-3" /> Manuscript checks
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
-          In-corpus similarity, statistical sanity, and reference validation.
+          In-corpus similarity, statistical sanity, house-style consistency, and reference validation.
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -425,6 +454,46 @@ export function ManuscriptChecksPanel({ articleId }: Props) {
             )
           ) : (
             <p className="mt-1 text-xs text-muted-foreground">Not yet run.</p>
+          )}
+        </div>
+
+        <Separator />
+
+        {/* House-style consistency */}
+        <div>
+          <div className="flex items-center justify-between">
+            <p className="eyebrow flex items-center gap-1"><SpellCheck2 className="h-3 w-3" /> House-style consistency</p>
+            <Button size="sm" variant="outline" onClick={runStyle} disabled={loading === "style"}>
+              {loading === "style" ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+            </Button>
+          </div>
+          {style ? (
+            style.flags.length > 0 ? (
+              <div className="mt-2 space-y-1.5">
+                {style.flags.map((f, i) => (
+                  <div key={i} className="flex items-start gap-2 rounded-md border border-border p-2 text-xs">
+                    {f.severity === "concern" ? (
+                      <ShieldAlert className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-rose-600" />
+                    ) : f.severity === "warning" ? (
+                      <AlertCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-amber-600" />
+                    ) : (
+                      <Info className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-primary" />
+                    )}
+                    <div className="flex-1">
+                      <p className="font-medium">{f.flag}</p>
+                      <p className="text-muted-foreground">{f.explanation}</p>
+                    </div>
+                    <Badge variant="outline" className="text-[0.55rem]">{f.severity}</Badge>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-1 flex items-center gap-1 text-xs text-emerald-700">
+                <CheckCircle2 className="h-3 w-3" /> No inconsistencies detected.
+              </p>
+            )
+          ) : (
+            <p className="mt-1 text-xs text-muted-foreground">Not yet run. Works on articles of any status, including already-published ones.</p>
           )}
         </div>
 

@@ -377,6 +377,8 @@ model Article {
   aiKeywordSuggestions String? // JSON array of suggested keyword strings
   statisticalFlags     String? // JSON array of {flag, severity, explanation}
   statisticalCheckedAt DateTime?
+  styleFlags     String? // JSON array of {flag, severity, explanation} — house-style consistency, see checkHouseStyle()
+  styleCheckedAt DateTime?
 
   // AI-assisted abstract translation, feeding the site's existing 5-locale
   // i18n (src/messages/*.json) rather than being a UI-only translation.
