@@ -859,6 +859,27 @@ model AltTextJob {
   @@index([articleId])
 }
 
+// Table counterpart to AltTextJob — AI-generated accessibility captions
+// for <table> elements in an article's galley HTML (src/lib/
+// table-accessibility.ts), same durable atomic-claim shape and same
+// "suggestions stored for editor review, never auto-applied" contract.
+model TableAccessibilityJob {
+  id              String    @id @default(cuid())
+  articleId       String
+  status          String    @default("QUEUED") // QUEUED | PROCESSING | COMPLETED | FAILED
+  tablesFound     Int       @default(0)
+  tablesProcessed Int       @default(0)
+  results         String? // JSON: [{index, existingCaption, suggestedCaption, mode}]
+  appliedAt       DateTime? // set once an editor applies results to the galley HTML
+  errorMessage    String?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([status, createdAt])
+  @@index([articleId])
+}
+
 // ---------------------------------------------------------------------------
 // Preservation Deposit — dark-archive preservation status with CLOCKSS /
 // Portico (src/lib/preservation.ts). Neither service exposes a public

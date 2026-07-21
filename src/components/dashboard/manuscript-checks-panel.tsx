@@ -79,6 +79,22 @@ interface AltTextJob {
   errorMessage: string | null;
 }
 
+interface TableAccessibilitySuggestion {
+  index: number;
+  existingCaption: string;
+  suggestedCaption: string;
+  mode: "llm" | "heuristic";
+}
+
+interface TableAccessibilityJob {
+  id: string;
+  status: "QUEUED" | "PROCESSING" | "COMPLETED" | "FAILED";
+  tablesFound: number;
+  results: TableAccessibilitySuggestion[];
+  appliedAt: string | null;
+  errorMessage: string | null;
+}
+
 const TRANSLATION_LOCALES: { code: string; label: string }[] = [
   { code: "es", label: "Spanish" },
   { code: "fr", label: "French" },
@@ -99,6 +115,8 @@ export function ManuscriptChecksPanel({ articleId }: Props) {
   const [integrityJob, setIntegrityJob] = useState<IntegrityJob | null>(null);
   const [altTextJob, setAltTextJob] = useState<AltTextJob | null>(null);
   const [editedAlt, setEditedAlt] = useState<Record<string, string>>({});
+  const [tableA11yJob, setTableA11yJob] = useState<TableAccessibilityJob | null>(null);
+  const [editedCaption, setEditedCaption] = useState<Record<number, string>>({});
   const [translations, setTranslations] = useState<Record<string, { mode: string }>>({});
   const [loading, setLoading] = useState<string | null>(null);
 
@@ -127,6 +145,15 @@ export function ManuscriptChecksPanel({ articleId }: Props) {
         }
       })
       .catch(() => setAltTextJob(null));
+    apiFetch<{ jobs: TableAccessibilityJob[] }>(`/api/articles/${articleId}/table-accessibility`)
+      .then((r) => {
+        const latest = r.jobs?.[0] ?? null;
+        setTableA11yJob(latest);
+        if (latest?.results) {
+          setEditedCaption(Object.fromEntries(latest.results.map((s) => [s.index, s.suggestedCaption])));
+        }
+      })
+      .catch(() => setTableA11yJob(null));
   }, [articleId]);
 
   async function runSimilarity() {
@@ -209,6 +236,49 @@ export function ManuscriptChecksPanel({ articleId }: Props) {
       toast.success("Alt text applied to the published galley");
     } catch (e: any) {
       toast.error("Failed to apply alt text", { description: e.message });
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function runTableAccessibility() {
+    setLoading("table-a11y");
+    try {
+      const r = await apiFetch<{ success: boolean; deduped?: boolean; job: TableAccessibilityJob }>(
+        `/api/articles/${articleId}/table-accessibility`,
+        { method: "POST" }
+      );
+      setTableA11yJob(r.job);
+      if (r.job.results) {
+        setEditedCaption(Object.fromEntries(r.job.results.map((s) => [s.index, s.suggestedCaption])));
+      }
+      if (r.deduped) {
+        toast.info("A table-accessibility check is already in flight for this article");
+      } else if (r.job.status === "COMPLETED") {
+        toast.success(`Generated caption suggestions for ${r.job.tablesFound} table(s)`);
+      } else {
+        toast.error("Table accessibility generation failed", { description: r.job.errorMessage ?? undefined });
+      }
+    } catch (e: any) {
+      toast.error("Table accessibility generation failed", { description: e.message });
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function applyTableAccessibility() {
+    if (!tableA11yJob) return;
+    setLoading("table-a11y-apply");
+    try {
+      const results = tableA11yJob.results.map((s) => ({ index: s.index, caption: editedCaption[s.index] ?? s.suggestedCaption }));
+      await apiFetch(`/api/articles/${articleId}/table-accessibility/apply`, {
+        method: "POST",
+        body: JSON.stringify({ jobId: tableA11yJob.id, results }),
+      });
+      setTableA11yJob({ ...tableA11yJob, appliedAt: new Date().toISOString() });
+      toast.success("Captions applied to the published galley");
+    } catch (e: any) {
+      toast.error("Failed to apply captions", { description: e.message });
     } finally {
       setLoading(null);
     }
@@ -575,6 +645,52 @@ export function ManuscriptChecksPanel({ articleId }: Props) {
             <p className="mt-1 text-xs text-muted-foreground">No figures found in the galley HTML.</p>
           ) : altTextJob?.status === "FAILED" ? (
             <p className="mt-1 text-xs text-rose-700">{altTextJob.errorMessage}</p>
+          ) : (
+            <p className="mt-1 text-xs text-muted-foreground">Not yet generated.</p>
+          )}
+        </div>
+
+        <Separator />
+
+        {/* Table accessibility — same never-auto-applied review contract as
+            figure alt-text above, committed as a native <caption> element. */}
+        <div>
+          <div className="flex items-center justify-between">
+            <p className="eyebrow flex items-center gap-1"><BookOpen className="h-3 w-3" /> Table accessibility</p>
+            <Button size="sm" variant="outline" onClick={runTableAccessibility} disabled={loading === "table-a11y"}>
+              {loading === "table-a11y" ? <Loader2 className="h-3 w-3 animate-spin" /> : "Generate"}
+            </Button>
+          </div>
+          {tableA11yJob?.status === "COMPLETED" && tableA11yJob.results.length > 0 ? (
+            <div className="mt-2 space-y-2">
+              {tableA11yJob.results.map((s) => (
+                <div key={s.index} className="rounded-md border border-border p-2 text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-muted-foreground">Table {s.index + 1}</p>
+                    <Badge variant="outline" className="shrink-0 text-[0.55rem]">{s.mode}</Badge>
+                  </div>
+                  <Textarea
+                    value={editedCaption[s.index] ?? s.suggestedCaption}
+                    onChange={(e) => setEditedCaption((prev) => ({ ...prev, [s.index]: e.target.value }))}
+                    className="mt-1.5 min-h-14 text-xs"
+                    disabled={!!tableA11yJob.appliedAt}
+                  />
+                </div>
+              ))}
+              {tableA11yJob.appliedAt ? (
+                <p className="flex items-center gap-1 text-xs text-emerald-700">
+                  <CheckCircle2 className="h-3 w-3" /> Applied to the published galley.
+                </p>
+              ) : (
+                <Button size="sm" className="w-full" onClick={applyTableAccessibility} disabled={loading === "table-a11y-apply"}>
+                  {loading === "table-a11y-apply" ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : null} Apply to galley
+                </Button>
+              )}
+            </div>
+          ) : tableA11yJob?.status === "COMPLETED" ? (
+            <p className="mt-1 text-xs text-muted-foreground">No tables found in the galley HTML.</p>
+          ) : tableA11yJob?.status === "FAILED" ? (
+            <p className="mt-1 text-xs text-rose-700">{tableA11yJob.errorMessage}</p>
           ) : (
             <p className="mt-1 text-xs text-muted-foreground">Not yet generated.</p>
           )}
