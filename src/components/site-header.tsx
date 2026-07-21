@@ -59,16 +59,20 @@ export function SiteHeader() {
       {/* Glassmorphic header */}
       <div className="glass-strong border-b border-[oklch(0.76_0.11_294/0.15)]">
         <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between px-4 py-2 sm:px-6 lg:px-8">
-          {/* Brand */}
-          <button onClick={() => setView("home")} className="flex flex-shrink-0 items-center gap-3 text-left group">
-            <span className="wax-mark group-hover:scale-105 transition-transform duration-500" style={{ transitionTimingFunction: "var(--ease-luxury)" }}>
+          {/* Brand — was `hidden ... sm:flex`, so the name/tagline never
+              rendered below 640px and only the logo mark showed on phones.
+              Now always visible; the wrapper can shrink+truncate (instead
+              of the whole button being flex-shrink-0) so on the tightest
+              screens it degrades to an ellipsis rather than overflowing. */}
+          <button onClick={() => setView("home")} className="flex min-w-0 items-center gap-2.5 text-left group sm:gap-3">
+            <span className="wax-mark flex-shrink-0 group-hover:scale-105 transition-transform duration-500" style={{ transitionTimingFunction: "var(--ease-luxury)" }}>
               <span className="wax-mark-text">EP</span>
             </span>
-            <span className="hidden flex-col leading-tight sm:flex">
-              <span className="font-display text-base font-semibold text-foreground">
+            <span className="flex min-w-0 flex-col leading-tight">
+              <span className="truncate font-display text-sm font-semibold text-foreground sm:text-base">
                 {tHeader("brandName")}
               </span>
-              <span className="text-[0.62rem] font-sans font-medium uppercase tracking-[0.22em] text-muted-foreground">
+              <span className="truncate text-[0.55rem] font-sans font-medium uppercase tracking-[0.14em] text-muted-foreground sm:text-[0.62rem] sm:tracking-[0.22em]">
                 {tHeader("brandTagline")}
               </span>
             </span>
