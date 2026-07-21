@@ -1,8 +1,9 @@
 "use client";
 
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Float, Stars, Sphere, MeshDistortMaterial, Environment, ContactShadows, GradientTexture } from "@react-three/drei";
-import { useRef, useMemo, Suspense } from "react";
+import { Float, Stars, Sphere, MeshDistortMaterial, Environment, ContactShadows, GradientTexture, Html } from "@react-three/drei";
+import { useRef, useMemo, useState, Suspense } from "react";
+import { createPortal } from "react-dom";
 import * as THREE from "three";
 
 /**
@@ -587,53 +588,166 @@ export function CitationNetwork({ citations = 0, className = "" }: { citations?:
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// 3. KEYWORD CLUSTER — floating orbs (kept for browse page)
+// 3. DISCIPLINE TOWERS — real per-discipline publication analytics for the
+//    browse page's 3D panel. Height is published-article count (sqrt
+//    scale, matching MetricsBarChart3D so one prolific discipline can't
+//    flatten the rest); front color blends toward gold with citation
+//    share; the base ring's radius encodes cumulative views; the gold
+//    seal appears only when the discipline has at least one article with
+//    a real, registered DOI — never a fabricated "indexed" badge. Exact
+//    figures are always available via the hover tooltip, not just implied
+//    by the encoding.
 // ═══════════════════════════════════════════════════════════════════════
 
-export function KeywordCluster({ keywords = [], className = "", allowMotion = true }: { keywords?: string[]; className?: string; allowMotion?: boolean }) {
-  const orbs = useMemo(() => {
-    const colors = [ROYAL_PURPLE, ROYAL_LIGHT, ROYAL_DEEP, "#B68FD4", "#9D5BC4"];
-    return keywords.slice(0, 8).map((kw, i) => {
-      const theta = (i / Math.max(keywords.length, 1)) * Math.PI * 2;
-      const phi = (i / Math.max(keywords.length, 1)) * Math.PI;
-      const r = 2 + (i % 3) * 0.3;
-      return {
-        position: [r * Math.sin(phi) * Math.cos(theta), r * Math.cos(phi) * 0.6, r * Math.sin(phi) * Math.sin(theta)] as [number, number, number],
-        label: kw,
-        color: colors[i % colors.length],
-        scale: 0.6 + (kw.length % 4) * 0.1,
-      };
-    });
-  }, [keywords]);
+export interface DisciplineStat {
+  discipline: string;
+  articles: number;
+  citations: number;
+  views: number;
+  indexed: boolean;
+}
 
-  const spheres = (
-    <group>
-      {orbs.map((o, i) => (
-        <mesh key={i} position={o.position} scale={o.scale}>
-          <sphereGeometry args={[0.5, 24, 24]} />
-          <meshStandardMaterial color={o.color} roughness={0.2} metalness={0.7} transparent opacity={0.85} />
-        </mesh>
-      ))}
-    </group>
-  );
+const GOLD_MID = "#B8862F";
+const GOLD_LIGHT = "#E8C878";
+
+function shortDisciplineName(name: string): string {
+  return name
+    .replace("Environmental Science", "Env. Science")
+    .replace("Computer Science", "Comp. Sci.")
+    .replace("Language and Literature", "Lang. & Lit.");
+}
+
+interface TowerPointerEvent {
+  clientX: number;
+  clientY: number;
+  stopPropagation: () => void;
+}
+
+function DisciplineTower({
+  stat, x, height, color, ringRadius, delay, labelRow, allowMotion, onHover, onMove, onLeave,
+}: {
+  stat: DisciplineStat;
+  x: number;
+  height: number;
+  color: THREE.Color;
+  ringRadius: number;
+  delay: number;
+  labelRow: number;
+  allowMotion: boolean;
+  onHover: (stat: DisciplineStat, e: TowerPointerEvent) => void;
+  onMove: (e: TowerPointerEvent) => void;
+  onLeave: () => void;
+}) {
+  const ref = useRef<THREE.Mesh>(null);
+  useFrame((state) => {
+    if (!ref.current || !allowMotion) return;
+    const bob = Math.sin(state.clock.getElapsedTime() * 1.1 + delay) * 0.025;
+    ref.current.position.y = height / 2 + bob;
+  });
 
   return (
-    <div className={`webgl-container ${className}`}>
-      <SceneWrapper cameraPosition={[0, 0, 6]}>
-        {/* Unlike the purely ambient/decorative scenes (HeroGlobe,
-            ImpactSphere), this one is only ever mounted after the user
-            explicitly clicks "3D Cluster" — skipping it entirely under
-            prefers-reduced-motion would remove the content they asked
-            for, not just motion. Only the floating/rotating animation
-            itself is gated; the orbs still render statically. */}
-        {allowMotion ? (
-          <Float speed={1.2} rotationIntensity={0.3} floatIntensity={0.5}>
-            {spheres}
-          </Float>
-        ) : (
-          spheres
-        )}
+    <group position={[x, 0, 0]}>
+      <mesh
+        ref={ref}
+        position={[0, height / 2, 0]}
+        onPointerOver={(e) => { e.stopPropagation(); onHover(stat, e); }}
+        onPointerMove={(e) => onMove(e)}
+        onPointerOut={onLeave}
+      >
+        <boxGeometry args={[0.62, height, 0.62]} />
+        <meshStandardMaterial color={color} roughness={0.25} metalness={0.55} emissive={color} emissiveIntensity={0.12} />
+      </mesh>
+      {/* Views ring — a flat disc at the tower's base, radius = √views */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.012, 0]}>
+        <ringGeometry args={[ringRadius, ringRadius + 0.025, 48]} />
+        <meshBasicMaterial color={ROYAL_LIGHT} transparent opacity={0.5} side={THREE.DoubleSide} />
+      </mesh>
+      {stat.indexed && (
+        <mesh position={[0, height + 0.16, 0]}>
+          <sphereGeometry args={[0.09, 16, 16]} />
+          <meshStandardMaterial color={GOLD_LIGHT} emissive={GOLD_MID} emissiveIntensity={0.7} />
+        </mesh>
+      )}
+      {/* Staggered into two rows (even/odd index) so adjacent labels don't
+          collide horizontally — towers sit closer together than the label
+          text is wide, and unlike a canvas-drawn axis, drei's Html labels
+          don't automatically avoid overlapping each other. */}
+      <Html position={[0, -0.32 - labelRow * 0.34, 0]} center distanceFactor={9} occlude={false} style={{ pointerEvents: "none" }}>
+        <span className="whitespace-nowrap font-mono text-[8px] text-muted-foreground">
+          {shortDisciplineName(stat.discipline)}
+        </span>
+      </Html>
+    </group>
+  );
+}
+
+export function DisciplineTowers({ stats, className = "", allowMotion = true }: { stats: DisciplineStat[]; className?: string; allowMotion?: boolean }) {
+  const top = useMemo(() => stats.slice(0, 7), [stats]);
+  const [hovered, setHovered] = useState<DisciplineStat | null>(null);
+  const [pointer, setPointer] = useState({ x: 0, y: 0 });
+
+  const { towerHeights, ringRadii, colors } = useMemo(() => {
+    const maxArticles = Math.max(...top.map((s) => s.articles), 1);
+    const maxCitations = Math.max(...top.map((s) => s.citations), 1);
+    const maxViews = Math.max(...top.map((s) => s.views), 1);
+    const purple = new THREE.Color(ROYAL_PURPLE);
+    const gold = new THREE.Color(GOLD_MID);
+    return {
+      towerHeights: top.map((s) => 0.35 + Math.sqrt(s.articles / maxArticles) * 2.6),
+      ringRadii: top.map((s) => 0.5 + Math.sqrt(s.views / maxViews) * 0.55),
+      colors: top.map((s) => purple.clone().lerp(gold, Math.min(s.citations / maxCitations, 1) * 0.6)),
+    };
+  }, [top]);
+
+  const gap = 1.35;
+  const startX = -((top.length - 1) * gap) / 2;
+
+  return (
+    <div className={`webgl-container relative ${className}`}>
+      <SceneWrapper cameraPosition={[5.8, 3.7, 10.2]}>
+        <group>
+          {top.map((s, i) => (
+            <DisciplineTower
+              key={s.discipline}
+              stat={s}
+              x={startX + i * gap}
+              height={towerHeights[i]}
+              color={colors[i]}
+              ringRadius={ringRadii[i]}
+              delay={i}
+              labelRow={i % 2}
+              allowMotion={allowMotion}
+              onHover={(stat, e) => { setHovered(stat); setPointer({ x: e.clientX, y: e.clientY }); }}
+              onMove={(e) => setPointer({ x: e.clientX, y: e.clientY })}
+              onLeave={() => setHovered(null)}
+            />
+          ))}
+        </group>
+        <ContactShadows position={[0, -0.005, 0]} opacity={0.32} scale={10} blur={2.4} color={ROYAL_DEEP} />
       </SceneWrapper>
+      {/* Portalled to <body> — position:fixed only positions relative to
+          the viewport when every ancestor is un-transformed. This panel's
+          own entrance animation (.animate-luxury-scale) leaves a
+          `transform: scale(1)` on an ancestor after it finishes, which
+          would otherwise silently turn "fixed" into "positioned relative
+          to that ancestor" and send the tooltip flying off-screen. */}
+      {hovered && typeof document !== "undefined" && createPortal(
+        <div
+          className="pointer-events-none fixed z-50 min-w-[172px] rounded-lg border border-border bg-popover px-3 py-2.5 text-popover-foreground shadow-lg"
+          style={{ left: pointer.x + 16, top: pointer.y + 16 }}
+        >
+          <p className="font-display text-sm font-semibold">{hovered.discipline}</p>
+          <div className="mt-1.5 space-y-0.5 font-mono text-[0.7rem] tabular-nums text-muted-foreground">
+            <div className="flex items-center justify-between gap-4"><span>Published articles</span><b className="text-popover-foreground">{hovered.articles.toLocaleString()}</b></div>
+            <div className="flex items-center justify-between gap-4"><span>Citations</span><b className="text-popover-foreground">{hovered.citations.toLocaleString()}</b></div>
+            <div className="flex items-center justify-between gap-4"><span>Views</span><b className="text-popover-foreground">{hovered.views.toLocaleString()}</b></div>
+          </div>
+          <p className={`mt-1.5 font-mono text-[0.62rem] uppercase tracking-wide ${hovered.indexed ? "text-[var(--gold-600)]" : "text-muted-foreground"}`}>
+            {hovered.indexed ? "● Indexed" : "○ Indexing pending"}
+          </p>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

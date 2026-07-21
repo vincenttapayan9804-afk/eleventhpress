@@ -17,14 +17,16 @@
  *    or WebGL-less device still gets a usable page — and for the two
  *    metrics charts, which carry real numbers rather than decoration, that
  *    fallback is a plain CSS rendering of the same data, not a blank box.
- *  - Purely decorative scenes (HeroGlobe/ImpactSphere/KeywordCluster) also
- *    respect `prefers-reduced-motion`; the two data-bearing metrics charts
- *    don't skip loading for that (one has no animation loop at all, the
- *    other's is a barely-perceptible bob) — hiding real numbers behind a
- *    motion preference would remove information, not just motion.
+ *  - Purely decorative scenes (HeroGlobe/ImpactSphere) also respect
+ *    `prefers-reduced-motion` by not rendering at all; the data-bearing
+ *    scenes — the two metrics charts and DisciplineTowers — don't skip
+ *    loading for that (their animation, if any, is a barely-perceptible
+ *    bob) — hiding real numbers behind a motion preference would remove
+ *    information, not just motion.
  */
 import dynamic from "next/dynamic";
 import { Component, useSyncExternalStore, type ComponentProps, type ReactNode } from "react";
+import type { DisciplineStat } from "./scenes";
 
 /** Cheap, dependency-free stand-in matching each scene's container footprint — used only for the purely decorative scenes, where losing the content isn't losing information. */
 function SceneFallback({ className = "" }: { className?: string }) {
@@ -180,7 +182,7 @@ const ImpactSphereImpl = dynamic(() => import("./scenes").then((m) => m.ImpactSp
   ssr: false,
   loading: () => <SceneFallback />,
 });
-const KeywordClusterImpl = dynamic(() => import("./scenes").then((m) => m.KeywordCluster), {
+const DisciplineTowersImpl = dynamic(() => import("./scenes").then((m) => m.DisciplineTowers), {
   ssr: false,
   loading: () => <SceneFallback />,
 });
@@ -209,16 +211,16 @@ export function ImpactSphere(props: { className?: string }) {
     </SceneErrorBoundary>
   );
 }
-export function KeywordCluster(props: { keywords?: string[]; className?: string }) {
-  // Explicitly user-invoked (the browse page's "3D Cluster" toggle), not
+export function DisciplineTowers(props: { stats: DisciplineStat[]; className?: string }) {
+  // Explicitly user-invoked (the browse page's "3D Analytics" toggle), not
   // ambient decoration like HeroGlobe/ImpactSphere — so this always
   // attempts to render rather than substituting the fallback outright
   // under prefers-reduced-motion. Only the animation inside the scene
-  // itself is gated; see KeywordCluster in ./scenes.tsx.
+  // itself is gated; see DisciplineTowers in ./scenes.tsx.
   const allow = useAllowMotion();
   return (
     <SceneErrorBoundary fallback={<SceneFallback className={props.className} />}>
-      <KeywordClusterImpl {...props} allowMotion={allow} />
+      <DisciplineTowersImpl {...props} allowMotion={allow} />
     </SceneErrorBoundary>
   );
 }

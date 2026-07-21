@@ -11,11 +11,12 @@ import { Input } from "@/components/ui/input";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { KeywordCluster } from "@/components/three-d/lazy";
+import { DisciplineTowers } from "@/components/three-d/lazy";
+import type { DisciplineStat } from "@/components/three-d/scenes";
 import { useReveal } from "@/hooks/use-scroll-reveal";
 import {
   Search, SlidersHorizontal, FileX, ChevronLeft, ChevronRight,
-  Quote, Eye, Download, Sparkles, X,
+  Quote, Eye, Download, Sparkles, X, BarChart3,
 } from "lucide-react";
 
 const DISCIPLINE_COLORS: Record<string, string> = Object.fromEntries(
@@ -49,7 +50,9 @@ export function BrowseView() {
   const [loading, setLoading] = useState(true);
   const [semanticMode, setSemanticMode] = useState(false);
   const [semanticScores, setSemanticScores] = useState<Record<string, { score: number; matchType: string }>>({});
-  const [showKeywordCluster, setShowKeywordCluster] = useState(false);
+  const [show3dAnalytics, setShow3dAnalytics] = useState(false);
+  const [disciplineStats, setDisciplineStats] = useState<DisciplineStat[] | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
 
   const headerReveal = useReveal();
 
@@ -123,10 +126,17 @@ export function BrowseView() {
     setPage((p) => Math.max(1, p - 1));
   }
 
-  // Aggregate keywords from results for the 3D cluster
-  const clusterKeywords = items.slice(0, 6).flatMap(a =>
-    (a.keywords || "").split(",").map((k: string) => k.trim()).filter(Boolean)
-  ).slice(0, 8);
+  // Discipline-wide analytics — a journal-wide aggregate, not scoped to the
+  // current search/filter, so it's fetched once on first open rather than
+  // refetched on every keystroke or filter change.
+  useEffect(() => {
+    if (!show3dAnalytics || disciplineStats !== null) return;
+    setStatsLoading(true);
+    apiFetch<{ disciplines: DisciplineStat[] }>("/api/articles/discipline-stats")
+      .then((res) => setDisciplineStats(res.disciplines))
+      .catch((e) => { console.error(e); setDisciplineStats([]); })
+      .finally(() => setStatsLoading(false));
+  }, [show3dAnalytics, disciplineStats]);
 
   return (
     <div className="page-enter mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
@@ -165,12 +175,12 @@ export function BrowseView() {
               {semanticMode ? t("semantic") : t("lexical")}
             </Button>
             <Button
-              variant={showKeywordCluster ? "default" : "outline"}
+              variant={show3dAnalytics ? "default" : "outline"}
               size="sm"
               className="h-11"
-              onClick={() => setShowKeywordCluster(!showKeywordCluster)}
+              onClick={() => setShow3dAnalytics(!show3dAnalytics)}
             >
-              <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5" />
+              <BarChart3 className="mr-1.5 h-3.5 w-3.5" />
               {t("cluster3d")}
             </Button>
             <Select value={discipline} onValueChange={setDiscipline}>
@@ -203,24 +213,26 @@ export function BrowseView() {
         </div>
       </div>
 
-      {/* 3D Keyword Cluster panel */}
-      {showKeywordCluster && (
+      {/* 3D Discipline Analytics panel */}
+      {show3dAnalytics && (
         <div className="mt-6 glass-royal rounded-2xl p-6 animate-luxury-scale">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <p className="eyebrow">3D Keyword Constellation</p>
-              <p className="mt-1 text-sm text-muted-foreground">Visual mapping of research themes from current results. Each orb represents a keyword cluster.</p>
+              <p className="eyebrow">3D Discipline Analytics</p>
+              <p className="mt-1 text-sm text-muted-foreground">Published articles, citations, and views per discipline — hover a tower for exact figures.</p>
             </div>
-            <Button variant="ghost" size="sm" onClick={() => setShowKeywordCluster(false)}>
+            <Button variant="ghost" size="sm" onClick={() => setShow3dAnalytics(false)}>
               <X className="h-4 w-4" />
             </Button>
           </div>
-          <div className="h-72 w-full">
-            {clusterKeywords.length > 0 ? (
-              <KeywordCluster keywords={clusterKeywords} className="h-full w-full" />
+          <div className="h-96 w-full">
+            {statsLoading || disciplineStats === null ? (
+              <div className="h-full w-full shimmer rounded-xl" />
+            ) : disciplineStats.length > 0 ? (
+              <DisciplineTowers stats={disciplineStats} className="h-full w-full" />
             ) : (
               <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                Search for articles to see the keyword constellation.
+                No published articles yet.
               </div>
             )}
           </div>
