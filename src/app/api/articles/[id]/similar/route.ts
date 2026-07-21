@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSimilarArticles } from "@/lib/manuscript-checks";
+import { getOrGenerateRelationExplanation } from "@/lib/related-explanation";
 
 /**
  * GET /api/articles/[id]/similar?limit=3
@@ -26,7 +27,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     select: { id: true, title: true, discipline: true, citations: true, views: true },
   });
   const byId = new Map(rows.map((r) => [r.id, r]));
-  const items = ranked.map((r) => byId.get(r.articleId)).filter((r): r is NonNullable<typeof r> => !!r);
+  const matched = ranked.map((r) => byId.get(r.articleId)).filter((r): r is NonNullable<typeof r> => !!r);
+
+  // Best-effort, cached per pair (src/lib/related-explanation.ts) — never
+  // lets a slow/unavailable LLM call block the recommendations themselves.
+  const items = await Promise.all(
+    matched.map(async (article) => {
+      const { explanation } = await getOrGenerateRelationExplanation(id, article.id).catch(() => ({ explanation: "" }));
+      return { ...article, whyRelated: explanation };
+    })
+  );
 
   return NextResponse.json({ items });
 }

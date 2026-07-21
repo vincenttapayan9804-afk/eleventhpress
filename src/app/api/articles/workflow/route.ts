@@ -416,6 +416,20 @@ export async function POST(req: NextRequest) {
         import("@/lib/galley-translation").then(({ translateGalleyText, TRANSLATABLE_LOCALES }) =>
           Promise.all(TRANSLATABLE_LOCALES.map((locale) => translateGalleyText(articleId, locale).catch(() => {})))
         ).catch(() => {}),
+        // Precompute + cache "why this is related" explanations for this
+        // article's own top similar matches, so they're ready the first
+        // time a reader sees them rather than generated on first read.
+        import("@/lib/manuscript-checks").then(({ getSimilarArticles }) =>
+          getSimilarArticles(articleId, 3).then((similar) =>
+            Promise.all(
+              similar.map((s) =>
+                import("@/lib/related-explanation").then(({ getOrGenerateRelationExplanation }) =>
+                  getOrGenerateRelationExplanation(articleId, s.articleId).catch(() => {})
+                )
+              )
+            )
+          )
+        ).catch(() => {}),
         import("@/lib/ws-client").then(({ emitWS }) => emitWS("workflow:transition", {
           articleId, from: article.status, to: next, doi: finalDoi, title: article.title,
         }).catch(() => {})),

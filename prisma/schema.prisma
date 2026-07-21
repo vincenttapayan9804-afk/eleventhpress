@@ -480,6 +480,8 @@ model Article {
   embedding       ArticleEmbedding?
   chunks          ArticleChunk[]
   galleyTranslations ArticleGalleyTranslation[]
+  similarityExplanationsFrom ArticleSimilarityExplanation[] @relation("SimilarityExplanationSource")
+  similarityExplanationsTo   ArticleSimilarityExplanation[] @relation("SimilarityExplanationTarget")
   readingHistory  ReadingHistory[]
   collectionEntries CollectionArticle[]
   authorResponses AuthorResponse[]
@@ -1386,6 +1388,34 @@ model ArticleGalleyTranslation {
   article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
 
   @@unique([articleId, locale])
+  @@index([articleId])
+}
+
+// Caches a short AI-generated explanation of why `relatedArticleId` was
+// recommended alongside `articleId` (src/lib/related-explanation.ts) — the
+// pair itself comes from real embedding similarity (getSimilarArticles in
+// manuscript-checks.ts), this just explains it in a sentence a reader can
+// understand. Cached per pair since the (articleId, relatedArticleId)
+// similarity ranking is deterministic for a given corpus snapshot, and
+// reused by both the article page's "Continue reading" and the logged-in
+// reader's "Recommended for you" digest (src/lib/recommendations.ts) — no
+// need to regenerate the same explanation for both surfaces. No heuristic
+// fallback: a plausible-sounding but wrong reason is actively misleading
+// (same reasoning as GlossaryResult) — mode: "unavailable" when no LLM
+// tier answered, never a fabricated explanation.
+model ArticleSimilarityExplanation {
+  id               String   @id @default(cuid())
+  articleId        String
+  relatedArticleId String
+  explanation      String
+  mode             String // "llm" | "unavailable"
+  model            String
+  generatedAt      DateTime @default(now())
+
+  article        Article @relation("SimilarityExplanationSource", fields: [articleId], references: [id], onDelete: Cascade)
+  relatedArticle Article @relation("SimilarityExplanationTarget", fields: [relatedArticleId], references: [id], onDelete: Cascade)
+
+  @@unique([articleId, relatedArticleId])
   @@index([articleId])
 }
 
