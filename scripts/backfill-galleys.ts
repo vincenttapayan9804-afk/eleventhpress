@@ -4,11 +4,13 @@
  * (src/lib/chunk-embeddings.ts), a full-text translation into every
  * supported locale (src/lib/galley-translation.ts), cached "why this is
  * related" explanations for their top similar articles
- * (src/lib/related-explanation.ts), or table-accessibility caption
- * suggestions (src/lib/table-accessibility.ts) — all seven are now
- * generated automatically at publish time
- * (src/app/api/articles/workflow/route.ts), but articles published before
- * each feature shipped predate it and need a one-time catch-up.
+ * (src/lib/related-explanation.ts), table-accessibility caption
+ * suggestions (src/lib/table-accessibility.ts), or a real semantic
+ * (rather than hashed-n-gram) whole-article embedding
+ * (src/lib/embeddings.ts) — all eight are now generated automatically at
+ * publish time (src/app/api/articles/workflow/route.ts), but articles
+ * published before each feature shipped predate it and need a one-time
+ * catch-up.
  *
  * Runs in two contexts:
  *  1. Automatically, idempotently, on every production build — package.json's
@@ -35,11 +37,12 @@
  * src/lib/galley-translation.ts, src/lib/related-explanation.ts,
  * src/lib/table-accessibility.ts) — cost-first as of Phase A/C/D/H, so the
  * free OpenRouter tier is tried before any billed Anthropic call. Galley
- * backfill does real PDF/HTML/EPUB/JATS rendering work. All six are
- * idempotent — once an article has the field (or, for translation/
+ * backfill does real PDF/HTML/EPUB/JATS rendering work. Embedding backfill
+ * makes no LLM call at all — local model inference only, $0 either way.
+ * All are idempotent — once an article has the field (or, for translation/
  * explanations/table-accessibility, has every locale/top-match/table
- * covered), later runs skip it — so steady-state cost after the
- * first backfill is zero.
+ * covered, or for embeddings, is already on the real local model), later
+ * runs skip it — so steady-state cost after the first backfill is zero.
  *
  * Usage:
  *   bun run scripts/backfill-galleys.ts                        # dry run, all published articles
@@ -51,6 +54,7 @@
  *   bun run scripts/backfill-galleys.ts --confirm --skip-translation
  *   bun run scripts/backfill-galleys.ts --confirm --skip-explanations
  *   bun run scripts/backfill-galleys.ts --confirm --skip-table-a11y
+ *   bun run scripts/backfill-galleys.ts --confirm --skip-embeddings
  *   bun run scripts/backfill-galleys.ts --confirm --force       # regenerate even if already present
  *   bun run scripts/backfill-galleys.ts --confirm --limit 10
  *   bun run scripts/backfill-galleys.ts --confirm --article-id <id>
@@ -64,6 +68,7 @@ import { translateGalleyText, TRANSLATABLE_LOCALES, type TranslatableLocale } fr
 import { getSimilarArticles } from "../src/lib/manuscript-checks";
 import { getOrGenerateRelationExplanation } from "../src/lib/related-explanation";
 import { runTableAccessibilityJob } from "../src/lib/table-accessibility";
+import { indexArticle, REAL_EMBEDDING_MODEL_ID } from "../src/lib/embeddings";
 
 const RELATED_ARTICLES_LIMIT = 3;
 
@@ -84,6 +89,7 @@ async function main() {
   const doTranslation = !args.includes("--skip-translation");
   const doExplanations = !args.includes("--skip-explanations");
   const doTableA11y = !args.includes("--skip-table-a11y");
+  const doEmbeddings = !args.includes("--skip-embeddings");
   const articleId = flagValue(args, "--article-id");
   const limitArg = flagValue(args, "--limit");
   const limit = limitArg ? parseInt(limitArg, 10) : undefined;
@@ -135,6 +141,16 @@ async function main() {
     )
   );
 
+  // Bulk pre-check for embedding freshness — an article "needs" a re-embed
+  // if it has no ArticleEmbedding row yet, or its row's `model` isn't the
+  // real local sentence-embedding model (src/lib/embeddings.ts), i.e. it's
+  // still on the old hashed-n-gram scheme from before that model was wired
+  // in. Cheap: no LLM call, just local model inference.
+  const embeddingModelByArticle = new Map<string, string>();
+  for (const row of await db.articleEmbedding.findMany({ select: { articleId: true, model: true } })) {
+    embeddingModelByArticle.set(row.articleId, row.model);
+  }
+
   const needsGalleys = (a: (typeof candidates)[number]) => force || !a.galleyEpubKey;
   const needsGlossary = (a: (typeof candidates)[number]) => force || !a.glossary;
   const needsSummary = (a: (typeof candidates)[number]) => force || !a.laySummary;
@@ -143,6 +159,8 @@ async function main() {
   const needsExplanations = (a: (typeof candidates)[number]) =>
     force || (explanationCountByArticle.get(a.id) ?? 0) < RELATED_ARTICLES_LIMIT;
   const needsTableA11y = (a: (typeof candidates)[number]) => force || !tableA11yCheckedArticleIds.has(a.id);
+  const needsEmbedding = (a: (typeof candidates)[number]) =>
+    force || embeddingModelByArticle.get(a.id) !== REAL_EMBEDDING_MODEL_ID;
 
   const targets = candidates.filter(
     (a) =>
@@ -152,7 +170,8 @@ async function main() {
       (doChunks && needsChunks(a)) ||
       (doTranslation && needsTranslation(a)) ||
       (doExplanations && needsExplanations(a)) ||
-      (doTableA11y && needsTableA11y(a))
+      (doTableA11y && needsTableA11y(a)) ||
+      (doEmbeddings && needsEmbedding(a))
   );
 
   console.log(`Found ${candidates.length} published article(s)${articleId ? " (single-article mode)" : ""}.`);
@@ -166,6 +185,7 @@ async function main() {
     if (doTranslation && needsTranslation(a)) work.push(`translation (${missingLocales(a).join(", ")})`);
     if (doExplanations && needsExplanations(a)) work.push("related-article explanations");
     if (doTableA11y && needsTableA11y(a)) work.push("table accessibility");
+    if (doEmbeddings && needsEmbedding(a)) work.push("semantic embedding");
     console.log(`  - [${a.id}] "${a.title}" (${work.join(", ")})`);
   }
 
@@ -194,6 +214,7 @@ async function main() {
   let translationsDone = 0;
   let explanationsDone = 0;
   let tableA11yDone = 0;
+  let embeddingsDone = 0;
 
   for (const article of targets) {
     try {
@@ -308,6 +329,15 @@ async function main() {
         }
       }
 
+      if (doEmbeddings && needsEmbedding(article)) {
+        await indexArticle(article.id);
+        const row = await db.articleEmbedding.findUnique({ where: { articleId: article.id }, select: { model: true } });
+        if (row?.model === REAL_EMBEDDING_MODEL_ID) embeddingsDone++;
+        console.log(
+          `  [${article.id}] semantic embedding ${row?.model === REAL_EMBEDDING_MODEL_ID ? `re-indexed (${row.model})` : `re-indexed (hash fallback — local model unavailable in this instance)`}`
+        );
+      }
+
       await db.auditLog.create({
         data: {
           action: "GALLEY_GENERATED",
@@ -324,7 +354,7 @@ async function main() {
   }
 
   console.log(
-    `\nDone. Galleys backfilled: ${galleysDone}. Glossaries backfilled: ${glossaryDone}. Lay summaries backfilled: ${summaryDone}. RAG chunks backfilled: ${chunksDone}. Translations backfilled: ${translationsDone}. Related-article explanations backfilled: ${explanationsDone}. Table-accessibility checks backfilled: ${tableA11yDone}. ` +
+    `\nDone. Galleys backfilled: ${galleysDone}. Glossaries backfilled: ${glossaryDone}. Lay summaries backfilled: ${summaryDone}. RAG chunks backfilled: ${chunksDone}. Translations backfilled: ${translationsDone}. Related-article explanations backfilled: ${explanationsDone}. Table-accessibility checks backfilled: ${tableA11yDone}. Semantic embeddings upgraded: ${embeddingsDone}. ` +
       `${targets.length - failures.length}/${targets.length} article(s) completed without error.`
   );
   if (failures.length > 0) {
