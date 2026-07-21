@@ -112,7 +112,7 @@ function RecordRoyaltyDialog({ book }: { book: any }) {
           <DollarSign className="mr-1.5 h-3.5 w-3.5" /> Record royalty statement
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Record a royalty statement — {book.title}</DialogTitle>
         </DialogHeader>

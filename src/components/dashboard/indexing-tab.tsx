@@ -282,7 +282,7 @@ export function IndexingTab() {
       </Card>
 
       <Tabs defaultValue="crossref">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="flex w-full items-center gap-1 overflow-x-auto [&>*]:shrink-0">
           <TabsTrigger value="crossref">
             <FileText className="mr-1.5 h-3.5 w-3.5" /> Crossref DOI log
           </TabsTrigger>
@@ -364,28 +364,30 @@ export function IndexingTab() {
             </CardHeader>
             <CardContent>
               <ScrollArea className="h-72 pr-3 epip-scroll">
-                <table className="w-full text-xs">
-                  <thead className="border-b border-border text-left text-muted-foreground">
-                    <tr>
-                      <th className="pb-2 pr-2 font-medium">DOI</th>
-                      <th className="pb-2 pr-2 font-medium">Discipline</th>
-                      <th className="pb-2 pr-2 font-medium">Title</th>
-                      <th className="pb-2 font-medium">Published</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {published.map((p, i) => (
-                      <tr key={i} className="border-b border-border/50">
-                        <td className="py-2 pr-2 font-mono text-[0.65rem]">{p.doi}</td>
-                        <td className="py-2 pr-2">{p.discipline}</td>
-                        <td className="py-2 pr-2 max-w-xs truncate">{p.title}</td>
-                        <td className="py-2 text-muted-foreground">
-                          {p.publishedAt ? new Date(p.publishedAt).toLocaleDateString() : "—"}
-                        </td>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[520px] text-xs">
+                    <thead className="border-b border-border text-left text-muted-foreground">
+                      <tr>
+                        <th className="pb-2 pr-2 font-medium">DOI</th>
+                        <th className="pb-2 pr-2 font-medium">Discipline</th>
+                        <th className="pb-2 pr-2 font-medium">Title</th>
+                        <th className="pb-2 font-medium">Published</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {published.map((p, i) => (
+                        <tr key={i} className="border-b border-border/50">
+                          <td className="py-2 pr-2 font-mono text-[0.65rem]">{p.doi}</td>
+                          <td className="py-2 pr-2">{p.discipline}</td>
+                          <td className="py-2 pr-2 max-w-xs truncate">{p.title}</td>
+                          <td className="py-2 text-muted-foreground">
+                            {p.publishedAt ? new Date(p.publishedAt).toLocaleDateString() : "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </ScrollArea>
             </CardContent>
           </Card>

@@ -114,7 +114,7 @@ export function CollectionsView() {
       </div>
 
       <Tabs value={tab} onValueChange={setTab} className="mt-8">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="flex w-full items-center gap-1 overflow-x-auto [&>*]:shrink-0">
           <TabsTrigger value="collections">
             <Layers className="mr-1.5 h-3.5 w-3.5" /> Collections
           </TabsTrigger>

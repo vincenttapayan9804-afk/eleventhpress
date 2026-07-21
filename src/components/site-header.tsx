@@ -106,7 +106,7 @@ export function SiteHeader() {
                     variant="ghost"
                     size="icon"
                     onClick={() => openDashboard("overview")}
-                    className="relative"
+                    className="relative size-11 sm:size-9"
                     aria-label={t("notifications")}
                   >
                     <Bell className="h-4 w-4" />
@@ -164,7 +164,7 @@ export function SiteHeader() {
             {/* Mobile nav */}
             <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="xl:hidden" aria-label={t("menu")}>
+                <Button variant="ghost" size="icon" className="size-11 sm:size-9 xl:hidden" aria-label={t("menu")}>
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>

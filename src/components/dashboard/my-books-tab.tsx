@@ -462,7 +462,7 @@ export function MyBooksTab() {
               <Plus className="mr-1.5 h-4 w-4" /> New book
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-h-[85vh] max-w-lg overflow-y-auto">
+          <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
             <DialogHeader>
               <DialogTitle>Submit a book</DialogTitle>
             </DialogHeader>

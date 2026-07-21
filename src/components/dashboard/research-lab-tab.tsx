@@ -202,7 +202,12 @@ function ExternalSourceSearch({
           {selected.map((s) => (
             <Badge key={s.url} variant="secondary" className="gap-1 pr-1 text-[0.65rem]">
               <span className="max-w-[14rem] truncate">{s.title}</span>
-              <button type="button" onClick={() => onChange(selected.filter((x) => x.url !== s.url))} aria-label="Remove">
+              <button
+                type="button"
+                onClick={() => onChange(selected.filter((x) => x.url !== s.url))}
+                aria-label="Remove"
+                className="-mr-0.5 rounded-full p-1 hover:bg-black/10"
+              >
                 <X className="h-2.5 w-2.5" />
               </button>
             </Badge>
@@ -294,7 +299,12 @@ function ArticlePicker({
           {selected.map((a) => (
             <Badge key={a.id} variant="secondary" className="gap-1 pr-1 text-[0.65rem]">
               <span className="max-w-[14rem] truncate">{a.title}</span>
-              <button type="button" onClick={() => onChange(selected.filter((s) => s.id !== a.id))} aria-label="Remove">
+              <button
+                type="button"
+                onClick={() => onChange(selected.filter((s) => s.id !== a.id))}
+                aria-label="Remove"
+                className="-mr-0.5 rounded-full p-1 hover:bg-black/10"
+              >
                 <X className="h-2.5 w-2.5" />
               </button>
             </Badge>

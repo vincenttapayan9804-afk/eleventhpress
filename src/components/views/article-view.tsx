@@ -469,12 +469,10 @@ export function ArticleView() {
         {/* Main column */}
         <div className="min-w-0">
           <Tabs defaultValue="article" className="w-full">
-            <TabsList
-              className="grid w-full"
-              style={{
-                gridTemplateColumns: `repeat(${5 + (openReviewStatus?.openReview ? 1 : 0) + (reviewHistory?.enabled ? 1 : 0)}, minmax(0, 1fr))`,
-              }}
-            >
+            {/* Horizontally-scrollable on narrow viewports instead of a
+                fixed equal-width grid — a dynamic 5-7 column grid clips tab
+                labels ("Ask this paper", "Review History") on phones. */}
+            <TabsList className="flex w-full items-center justify-start gap-1 overflow-x-auto [&>*]:shrink-0">
               <TabsTrigger value="article">Article</TabsTrigger>
               <TabsTrigger value="metrics">Metrics</TabsTrigger>
               <TabsTrigger value="supplemental">Supplemental</TabsTrigger>
@@ -1338,7 +1336,7 @@ function IssueCorrectionDialog({
           <AlertTriangle className="mr-1.5 h-3.5 w-3.5" /> Issue correction/retraction
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Issue a correction or retraction</DialogTitle>
         </DialogHeader>
