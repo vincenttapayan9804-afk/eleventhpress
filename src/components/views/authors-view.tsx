@@ -249,6 +249,8 @@ export function AuthorsView() {
                     src={a.avatarUrl}
                     alt={a.name}
                     onError={() => markAvatarBroken(a.key)}
+                    loading="lazy"
+                    decoding="async"
                     className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-110"
                   />
                 ) : (

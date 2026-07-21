@@ -172,6 +172,14 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html, body {
+    /* Safety net: no single overflow-prone widget (a wide table, a fixed
+       min-w flex item, etc.) should be able to push the whole page into
+       horizontal scroll/jitter on mobile — each such widget is expected to
+       contain its own overflow-x-auto, not rely on the page scrolling. */
+    max-width: 100%;
+    overflow-x: hidden;
+  }
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-sans);

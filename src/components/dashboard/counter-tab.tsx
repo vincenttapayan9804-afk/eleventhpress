@@ -142,7 +142,7 @@ export function CounterTab() {
       {/* Reports tabs */}
       <Tabs value={activeReport} onValueChange={(v) => setActiveReport(v as ReportId)}>
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <TabsList className="grid w-full max-w-md grid-cols-3">
+          <TabsList className="flex w-full max-w-md items-center gap-1 overflow-x-auto [&>*]:shrink-0">
             <TabsTrigger value="PR">
               <Database className="mr-1.5 h-3.5 w-3.5" /> PR · Platform
             </TabsTrigger>
@@ -272,7 +272,8 @@ function CounterReportView({ report, reportId, year }: { report: any; reportId: 
           {reportId === "PR" ? "Platform performance" : reportId === "TR" ? "Titles" : "Items (articles)"}
         </p>
         <ScrollArea className="h-96 pr-3 epip-scroll">
-          <table className="w-full text-xs">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[720px] text-xs">
             <thead className="border-b border-border text-left text-muted-foreground">
               <tr>
                 {reportId === "PR" && <th className="pb-2 pr-2 font-medium">Platform</th>}
@@ -314,6 +315,7 @@ function CounterReportView({ report, reportId, year }: { report: any; reportId: 
               )}
             </tbody>
           </table>
+          </div>
         </ScrollArea>
       </div>
 

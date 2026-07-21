@@ -114,6 +114,8 @@ export function HomeView() {
             alt=""
             className="h-full w-full object-cover"
             style={{ objectPosition: "center right" }}
+            fetchPriority="high"
+            decoding="async"
           />
           {/* Dark vignette on the left for text contrast */}
           <div className="absolute inset-0 bg-gradient-to-r from-[oklch(0.14_0.02_285/0.88)] via-[oklch(0.14_0.02_285/0.45)] to-transparent" />
@@ -267,6 +269,8 @@ export function HomeView() {
                     <img
                       src={`/disciplines/${DISCIPLINE_SLUGS[d] || "physics"}.png`}
                       alt=""
+                      loading="lazy"
+                      decoding="async"
                       className="absolute inset-0 h-full w-full object-cover opacity-60 transition-opacity duration-500 group-hover:opacity-85 group-hover:scale-105"
                       style={{ transitionTimingFunction: "var(--ease-luxury)" }}
                     />

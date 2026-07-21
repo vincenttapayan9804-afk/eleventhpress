@@ -194,7 +194,10 @@ export function DashboardView() {
       <div className="mt-6 grid gap-6 lg:grid-cols-[220px_1fr]">
         {/* Sidebar */}
         <aside className="lg:sticky lg:top-20 lg:self-start">
-          <nav className="flex flex-row gap-1 overflow-x-auto lg:flex-col">
+          {/* Edge fade hints that more tabs exist off-screen when this
+              scrolls horizontally on mobile/tablet (below lg it's not a
+              vertical list yet); no-op on lg+ where it's a static column. */}
+          <nav className="flex flex-row gap-1 overflow-x-auto [mask-image:linear-gradient(to_right,transparent,black_16px,black_calc(100%-16px),transparent)] lg:flex-col lg:[mask-image:none]">
             {visibleTabs.map((t) => {
               const Icon = t.icon;
               const active = dashboardTab === t.key;

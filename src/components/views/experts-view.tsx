@@ -266,6 +266,8 @@ export function ExpertsView() {
                     src={e.avatarUrl}
                     alt={e.name}
                     onError={() => markAvatarBroken(e.key)}
+                    loading="lazy"
+                    decoding="async"
                     className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-110"
                   />
                 ) : (

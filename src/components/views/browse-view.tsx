@@ -174,7 +174,7 @@ export function BrowseView() {
               {t("cluster3d")}
             </Button>
             <Select value={discipline} onValueChange={setDiscipline}>
-              <SelectTrigger className="glass-panel h-11 w-[180px] border-[oklch(0.76_0.11_294/0.2)]">
+              <SelectTrigger className="glass-panel h-11 w-full border-[oklch(0.76_0.11_294/0.2)] sm:w-[180px]">
                 <SlidersHorizontal className="mr-2 h-3.5 w-3.5" />
                 <SelectValue />
               </SelectTrigger>
@@ -184,7 +184,7 @@ export function BrowseView() {
               </SelectContent>
             </Select>
             <Select value={sort} onValueChange={setSort}>
-              <SelectTrigger className="glass-panel h-11 w-[160px] border-[oklch(0.76_0.11_294/0.2)]">
+              <SelectTrigger className="glass-panel h-11 w-full border-[oklch(0.76_0.11_294/0.2)] sm:w-[160px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="glass-strong">

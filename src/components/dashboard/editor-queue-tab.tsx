@@ -333,7 +333,7 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
 
   return (
     <Dialog open={!!article} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="flex max-h-[90vh] max-w-2xl flex-col overflow-hidden">
+      <DialogContent className="flex max-h-[90vh] flex-col overflow-hidden sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="break-words font-display text-lg">
             Editorial control · {article.title}
@@ -341,7 +341,7 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
         </DialogHeader>
 
         <Tabs defaultValue="workflow" className="flex min-h-0 flex-1 flex-col">
-          <TabsList className="grid w-full flex-shrink-0 grid-cols-4">
+          <TabsList className="flex w-full flex-shrink-0 items-center gap-1 overflow-x-auto [&>*]:shrink-0">
             <TabsTrigger value="workflow">
               Workflow{visibleActions.length > 0 ? ` (${visibleActions.length})` : ""}
             </TabsTrigger>
