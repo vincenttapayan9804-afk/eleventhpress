@@ -13,13 +13,21 @@
  *     Llama, ...) with ":free"-suffixed IDs that cost $0 to call, so this
  *     tier works with no paid key at all — see OSS_MODEL below.
  *
- * chatJSON() tries tier 1, then tier 2, in order, and only throws once
- * both are unavailable or have failed. Every existing caller already
- * catches that throw and falls back to its own deterministic heuristic
- * (see triage.ts, manuscript-checks.ts, glossary.ts) — this just inserts
- * a real, free tier in between, so that heuristic fallback fires far less
- * often. ChatJSONResult.provider always says which tier actually
- * answered — never silently presented as the other.
+ * chatJSON() tries tier 1, then tier 2, in order by default (priority:
+ * "quality-first"), and only throws once both are unavailable or have
+ * failed. Every existing caller already catches that throw and falls back
+ * to its own deterministic heuristic (see triage.ts, manuscript-checks.ts,
+ * glossary.ts) — this just inserts a real, free tier in between, so that
+ * heuristic fallback fires far less often. ChatJSONResult.provider always
+ * says which tier actually answered — never silently presented as the
+ * other.
+ *
+ * Callers whose output doesn't affect an editorial decision (a chat reply,
+ * a translation, a keyword suggestion) can pass priority: "cost-first" to
+ * try the free OSS tier before Anthropic, still falling back to Anthropic
+ * on failure. Features whose output affects who gets published or how a
+ * manuscript is screened (triage.ts, checkStatisticalSanity) intentionally
+ * keep the default quality-first order.
  */
 import Anthropic from "@anthropic-ai/sdk";
 
@@ -235,12 +243,36 @@ async function chatJSONLocal<T>(
 export async function chatJSON<T = any>(
   systemPrompt: string,
   userPrompt: string,
-  opts: { maxTokens?: number } = {}
+  opts: { maxTokens?: number; priority?: "quality-first" | "cost-first" } = {}
 ): Promise<ChatJSONResult<T>> {
   const maxTokens = opts.maxTokens ?? 4096;
 
   if (isAirgappedMode()) {
     return chatJSONLocal<T>(systemPrompt, userPrompt, maxTokens);
+  }
+
+  // cost-first tries the free OSS tier before the paid Anthropic tier — for
+  // features where a wrong or lower-quality answer costs little (a chat
+  // reply, a translation, a keyword suggestion) rather than affecting an
+  // editorial decision. Falls through to Anthropic on failure either way,
+  // so this only changes ORDER, never which tiers are available.
+  const tryOssFirst = opts.priority === "cost-first" && ossLLMAvailable();
+
+  if (tryOssFirst) {
+    try {
+      return await chatJSONOss<T>(systemPrompt, userPrompt, maxTokens);
+    } catch (ossError) {
+      if (isLLMAvailable()) {
+        try {
+          return await chatJSONAnthropic<T>(systemPrompt, userPrompt, maxTokens);
+        } catch (anthropicError) {
+          throw new Error(
+            `OSS tier failed (${(ossError as Error).message}) and Anthropic fallback tier also failed: ${(anthropicError as Error).message}`
+          );
+        }
+      }
+      throw ossError;
+    }
   }
 
   let anthropicError: Error | undefined;
