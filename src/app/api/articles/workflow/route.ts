@@ -467,6 +467,18 @@ export async function POST(req: NextRequest) {
         })
         .catch((e) => console.error(`[workflow] auto alt-text job failed for ${articleId}:`, e));
 
+      // Accessibility: same auto-generate-but-never-auto-apply treatment
+      // as figure alt-text above, for <table> elements — see
+      // src/lib/table-accessibility.ts.
+      db.article.findUnique({ where: { id: articleId }, select: { galleyHtmlKey: true } })
+        .then((a) => {
+          if (!a?.galleyHtmlKey) return;
+          return db.tableAccessibilityJob.create({ data: { articleId, status: "QUEUED" } }).then((job) =>
+            import("@/lib/table-accessibility").then(({ runTableAccessibilityJob }) => runTableAccessibilityJob(job.id, null, { status: "QUEUED" }))
+          );
+        })
+        .catch((e) => console.error(`[workflow] auto table-accessibility job failed for ${articleId}:`, e));
+
       // Review report DOI — only meaningful when transparency was already
       // turned on before this publish. An editor who enables it afterward
       // uses the manual retry (POST /api/articles/[id]/review-report-doi).
