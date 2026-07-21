@@ -30,6 +30,9 @@ export const HomeView = dynamic(() => import("./home-view").then((m) => m.HomeVi
 export const BrowseView = dynamic(() => import("./browse-view").then((m) => m.BrowseView), {
   loading: () => <ViewLoadingFallback />,
 });
+export const BooksView = dynamic(() => import("./books-view").then((m) => m.BooksView), {
+  loading: () => <ViewLoadingFallback />,
+});
 export const ArticleView = dynamic(() => import("./article-view").then((m) => m.ArticleView), {
   loading: () => <ViewLoadingFallback />,
 });

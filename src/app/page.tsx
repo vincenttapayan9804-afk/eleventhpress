@@ -8,6 +8,7 @@ import { SiteFooter } from "@/components/site-footer";
 import {
   HomeView,
   BrowseView,
+  BooksView,
   ArticleView,
   AboutView,
   AuthView,
@@ -88,6 +89,7 @@ export default function Page() {
         <main id="main-content" className="flex-1">
           {view === "home" && <HomeView />}
           {view === "browse" && <BrowseView />}
+          {view === "books" && <BooksView />}
           {view === "article" && <ArticleView />}
           {view === "about" && <AboutView />}
           {(view === "login" || view === "register") && <AuthView />}

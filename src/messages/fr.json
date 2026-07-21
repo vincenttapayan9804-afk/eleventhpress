@@ -1,7 +1,9 @@
 {
   "nav": {
     "home": "Accueil",
-    "articles": "Articles",
+    "publications": "Publications",
+    "articles": "Articles de Revue",
+    "books": "Livres",
     "authors": "Auteurs",
     "experts": "Regards d'Experts",
     "resources": "Ressources",
@@ -85,6 +87,16 @@
     "articlesFound": "{count} articles trouvés",
     "noArticlesFound": "Aucun article trouvé",
     "tryAdjusting": "Essayez d'ajuster votre recherche ou le filtre de discipline."
+  },
+  "books": {
+    "eyebrow": "Division d'édition de livres",
+    "title": "Parcourir les livres",
+    "description": "Découvrez les monographies, ouvrages collectifs et anthologies de notre division d'édition de livres — véritables ISBN, téléchargements EPUB et PDF prêts à imprimer.",
+    "searchPlaceholder": "Rechercher par titre, description ou auteur…",
+    "allCategories": "Toutes les catégories",
+    "booksFound": "{count} livres trouvés",
+    "noBooksFound": "Aucun livre trouvé",
+    "tryAdjusting": "Essayez d'ajuster votre recherche ou le filtre de catégorie."
   },
   "auth": {
     "backToHome": "Retour à l'accueil",
