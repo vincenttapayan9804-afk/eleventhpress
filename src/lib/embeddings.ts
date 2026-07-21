@@ -3,27 +3,103 @@
  * performs cosine-similarity search.
  *
  * The Anthropic API has no embeddings endpoint (Claude is a generation
- * model, not an embedding model), so this uses a deterministic hashed
- * n-gram embedding rather than a hosted provider — see hashEmbedding()
- * below. It captures lexical overlap (shared vocabulary clusters
- * together) but not real semantic similarity. Swap in a dedicated
- * embeddings provider (e.g. Voyage AI, Anthropic's recommended partner)
- * behind this same generateEmbedding() signature if true semantic search
- * is needed later — every caller already goes through this one function.
+ * model, not an embedding model), so this runs a real, free, open-source
+ * sentence-embedding model locally: @xenova/transformers running
+ * Xenova/all-MiniLM-L6-v2 (Apache-2.0, no external API, no per-request
+ * cost) — the same model already proven in src/lib/chunk-embeddings.ts for
+ * RAG passage retrieval. If the model can't load for any reason (no
+ * egress to its CDN from this instance, memory-constrained cold start),
+ * this fails open to the same deterministic hashed n-gram scheme used
+ * before, at the same 384 dimensionality so the two modes are never
+ * compared against each other — see generateEmbeddingWithMode() and
+ * hashEmbedding() below. Every embedding records which mode produced it
+ * (ArticleEmbedding.model), same honest-fallback contract as
+ * chunk-embeddings.ts's ArticleChunk.embeddingMode.
  */
 import { db } from "@/lib/db";
 import crypto from "crypto";
 import { cosineSimilarity } from "@/lib/vector-math";
 import { ensurePgvector, upsertVector, vectorLiteral } from "@/lib/pgvector";
 
-const EMBEDDING_DIMS = 256;
+const EMBEDDING_DIMS = 384;
+const LOCAL_MODEL_ID = "Xenova/all-MiniLM-L6-v2";
+
+/** Exported so scripts/backfill-galleys.ts can find articles whose stored
+ * ArticleEmbedding.model isn't this — i.e. still on the hash fallback from
+ * before this model was wired in, or from a cold start that never got the
+ * real model loaded — and re-embed them. */
+export const REAL_EMBEDDING_MODEL_ID = LOCAL_MODEL_ID;
+
+let extractorPromise: Promise<any | null> | null = null;
+
+/** Lazily loads the local embedding model once per warm instance. Resolves
+ * null (never throws) if it can't load — same fail-open contract as
+ * chunk-embeddings.ts's getExtractor(). A second, independent load from
+ * that module's own cache rather than a shared one — see this file's
+ * header for why the two never compare vectors against each other anyway. */
+function getExtractor(): Promise<any | null> {
+  if (!extractorPromise) {
+    extractorPromise = (async () => {
+      try {
+        const { pipeline } = await import("@xenova/transformers");
+        return await pipeline("feature-extraction", LOCAL_MODEL_ID);
+      } catch (e) {
+        console.error("[embeddings] local embedding model failed to load, falling back to hashed n-grams:", e);
+        return null;
+      }
+    })();
+  }
+  return extractorPromise;
+}
+
+/** Test-only: clears the cached model-load promise. */
+export function __resetEmbeddingExtractorCacheForTests(): void {
+  extractorPromise = null;
+}
+
+export type EmbeddingModelMode = "local-model" | "hash-fallback";
+
+export interface GeneratedEmbedding {
+  vector: number[];
+  mode: EmbeddingModelMode;
+  model: string;
+}
+
+/**
+ * Generate an embedding vector for a piece of text (usually an article's
+ * title + abstract + keywords), along with which mode produced it. Always
+ * EMBEDDING_DIMS (384) dimensions either way.
+ */
+export async function generateEmbeddingWithMode(text: string): Promise<GeneratedEmbedding> {
+  const extractor = await getExtractor();
+  if (extractor) {
+    try {
+      const output = await extractor(text, { pooling: "mean", normalize: true });
+      const vector = Array.from(output.data as Float32Array) as number[];
+      if (vector.length === EMBEDDING_DIMS) {
+        return { vector, mode: "local-model", model: LOCAL_MODEL_ID };
+      }
+      console.error(
+        `[embeddings] unexpected embedding dimensionality ${vector.length}, expected ${EMBEDDING_DIMS} — falling back to hash`
+      );
+    } catch (e) {
+      console.error("[embeddings] local model inference failed, falling back to hashed n-grams:", e);
+    }
+  }
+  return { vector: hashEmbedding(text, EMBEDDING_DIMS), mode: "hash-fallback", model: "hashed-ngram-v1" };
+}
 
 /**
  * Generate an embedding vector for an article's title + abstract + keywords.
- * Returns a float array of EMBEDDING_DIMS dimensions.
+ * Returns a float array of EMBEDDING_DIMS dimensions. Thin wrapper around
+ * generateEmbeddingWithMode() for the many callers that only need the
+ * vector (two embeddings freshly generated within the same call are always
+ * the same mode/dimensionality, so this is safe for any pairwise
+ * comparison that doesn't touch a persisted embedding from before this
+ * model existed — see indexArticle() for the one that does).
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
-  return hashEmbedding(text, EMBEDDING_DIMS);
+  return (await generateEmbeddingWithMode(text)).vector;
 }
 
 /**
@@ -74,22 +150,27 @@ export async function indexArticle(articleId: string): Promise<void> {
   if (!article) return;
 
   const text = `${article.title}. ${article.abstract} ${article.keywords} ${article.discipline}`;
-  const embedding = await generateEmbedding(text);
+  const { vector, model } = await generateEmbeddingWithMode(text);
   const textHash = crypto.createHash("sha256").update(text).digest("hex");
 
   // Canonical write — the JSON column stays the source of truth and
-  // automatic fallback regardless of pgvector availability.
+  // automatic fallback regardless of pgvector availability. `model` records
+  // which tier actually produced this vector (see file header) so
+  // scripts/backfill-galleys.ts can find and re-embed any article still on
+  // an older/lower-quality mode once a better one becomes available.
   await db.articleEmbedding.upsert({
     where: { articleId },
     create: {
       articleId,
-      embedding: JSON.stringify(embedding),
+      embedding: JSON.stringify(vector),
       textHash,
+      model,
       dimensions: EMBEDDING_DIMS,
     },
     update: {
-      embedding: JSON.stringify(embedding),
+      embedding: JSON.stringify(vector),
       textHash,
+      model,
       dimensions: EMBEDDING_DIMS,
       updatedAt: new Date(),
     },
@@ -100,7 +181,7 @@ export async function indexArticle(articleId: string): Promise<void> {
   // similarity search stays on the JS fallback until the next reindex.
   if (await ensurePgvector()) {
     try {
-      await upsertVector(articleId, embedding);
+      await upsertVector(articleId, vector);
     } catch (e) {
       console.error(`[embeddings] pgvector upsert failed for article ${articleId}, JSON column already written:`, e);
     }
@@ -132,7 +213,7 @@ export async function semanticSearch(
       const rows = await db.$queryRaw<{ articleId: string; score: number }[]>`
         SELECT ve.article_id AS "articleId",
                1 - (ve.embedding <=> ${literal}::vector) AS score
-        FROM vec.article_embedding ve
+        FROM vec.article_embedding_v384 ve
         JOIN public."Article" a ON a.id = ve.article_id
         WHERE a.status = 'PUBLISHED'
         ORDER BY ve.embedding <=> ${literal}::vector ASC

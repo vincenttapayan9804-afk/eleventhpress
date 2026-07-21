@@ -22,7 +22,18 @@
  */
 import { db } from "@/lib/db";
 
-const EMBEDDING_DIMS = 256;
+// 384 to match Xenova/all-MiniLM-L6-v2 (src/lib/embeddings.ts), the real
+// local sentence-embedding model this table now indexes — same
+// dimensionality src/lib/chunk-embeddings.ts's table already uses. The
+// table/index names are suffixed _v384 so a database that still has the
+// old 256-dim table from before this model existed is simply left behind
+// as a harmless orphan rather than hitting a Postgres vector-dimension
+// mismatch error — this schema is isolated specifically so it's safe to
+// evolve like this (see file header). The canonical
+// public."ArticleEmbedding" JSON column is unaffected either way; any
+// article still on the old dimensionality gets re-embedded by
+// scripts/backfill-galleys.ts, same pattern as every other AI feature.
+const EMBEDDING_DIMS = 384;
 
 let pgvectorReadyPromise: Promise<boolean> | null = null;
 
@@ -48,15 +59,15 @@ async function bootstrap(): Promise<boolean> {
     await db.$executeRawUnsafe(`CREATE SCHEMA IF NOT EXISTS vec`);
     await db.$executeRawUnsafe(`CREATE EXTENSION IF NOT EXISTS vector`);
     await db.$executeRawUnsafe(
-      `CREATE TABLE IF NOT EXISTS vec.article_embedding (
+      `CREATE TABLE IF NOT EXISTS vec.article_embedding_v384 (
          article_id TEXT PRIMARY KEY,
          embedding vector(${EMBEDDING_DIMS}) NOT NULL,
          updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
        )`
     );
     await db.$executeRawUnsafe(
-      `CREATE INDEX IF NOT EXISTS article_embedding_hnsw_idx
-         ON vec.article_embedding USING hnsw (embedding vector_cosine_ops)`
+      `CREATE INDEX IF NOT EXISTS article_embedding_v384_hnsw_idx
+         ON vec.article_embedding_v384 USING hnsw (embedding vector_cosine_ops)`
     );
   }
   await backfillFromJsonColumn();
@@ -72,18 +83,18 @@ async function checkExists(): Promise<boolean> {
       EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vector')
       AND EXISTS (
         SELECT 1 FROM information_schema.tables
-        WHERE table_schema = 'vec' AND table_name = 'article_embedding'
+        WHERE table_schema = 'vec' AND table_name = 'article_embedding_v384'
       )
       AND EXISTS (
         SELECT 1 FROM pg_indexes
-        WHERE schemaname = 'vec' AND indexname = 'article_embedding_hnsw_idx'
+        WHERE schemaname = 'vec' AND indexname = 'article_embedding_v384_hnsw_idx'
       ) AS ready
   `;
   return rows[0]?.ready === true;
 }
 
 /**
- * Backfills vec.article_embedding from the canonical
+ * Backfills vec.article_embedding_v384 from the canonical
  * public."ArticleEmbedding".embedding JSON column, bounded to 500 rows per
  * call so this degrades gracefully (a few extra cold starts to finish)
  * rather than risking a timeout if the corpus has grown by deploy time.
@@ -93,7 +104,7 @@ async function backfillFromJsonColumn(): Promise<void> {
   const missing = await db.$queryRaw<{ articleId: string; embedding: string }[]>`
     SELECT ae."articleId" AS "articleId", ae.embedding
     FROM public."ArticleEmbedding" ae
-    LEFT JOIN vec.article_embedding ve ON ve.article_id = ae."articleId"
+    LEFT JOIN vec.article_embedding_v384 ve ON ve.article_id = ae."articleId"
     WHERE ve.article_id IS NULL
     LIMIT 500
   `;
@@ -113,18 +124,18 @@ export function vectorLiteral(vec: number[]): string {
   return `[${vec.join(",")}]`;
 }
 
-/** Upserts a single article's vector into vec.article_embedding. */
+/** Upserts a single article's vector into vec.article_embedding_v384. */
 export async function upsertVector(articleId: string, vec: number[]): Promise<void> {
   await db.$executeRaw`
-    INSERT INTO vec.article_embedding (article_id, embedding, updated_at)
+    INSERT INTO vec.article_embedding_v384 (article_id, embedding, updated_at)
     VALUES (${articleId}, ${vectorLiteral(vec)}::vector, now())
     ON CONFLICT (article_id) DO UPDATE SET embedding = EXCLUDED.embedding, updated_at = now()
   `;
 }
 
-/** Row count in vec.article_embedding — diagnostic use only (status endpoint). */
+/** Row count in vec.article_embedding_v384 — diagnostic use only (status endpoint). */
 export async function pgvectorRowCount(): Promise<number> {
-  const rows = await db.$queryRaw<{ count: bigint }[]>`SELECT COUNT(*) AS count FROM vec.article_embedding`;
+  const rows = await db.$queryRaw<{ count: bigint }[]>`SELECT COUNT(*) AS count FROM vec.article_embedding_v384`;
   return Number(rows[0]?.count ?? 0);
 }
 

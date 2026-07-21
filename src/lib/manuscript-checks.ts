@@ -54,7 +54,7 @@ export async function checkSimilarity(
         ? await db.$queryRaw<{ articleId: string; title: string; score: number }[]>`
             SELECT ve.article_id AS "articleId", a.title,
                    1 - (ve.embedding <=> ${literal}::vector) AS score
-            FROM vec.article_embedding ve
+            FROM vec.article_embedding_v384 ve
             JOIN public."Article" a ON a.id = ve.article_id
             WHERE ve.article_id != ${excludeArticleId}
             ORDER BY ve.embedding <=> ${literal}::vector ASC
@@ -63,7 +63,7 @@ export async function checkSimilarity(
         : await db.$queryRaw<{ articleId: string; title: string; score: number }[]>`
             SELECT ve.article_id AS "articleId", a.title,
                    1 - (ve.embedding <=> ${literal}::vector) AS score
-            FROM vec.article_embedding ve
+            FROM vec.article_embedding_v384 ve
             JOIN public."Article" a ON a.id = ve.article_id
             ORDER BY ve.embedding <=> ${literal}::vector ASC
             LIMIT 3
@@ -124,7 +124,7 @@ export async function getSimilarArticles(articleId: string, limit = 3): Promise<
       const literal = vectorLiteral(queryEmbedding);
       const rows = await db.$queryRaw<{ articleId: string; score: number }[]>`
         SELECT ve.article_id AS "articleId", 1 - (ve.embedding <=> ${literal}::vector) AS score
-        FROM vec.article_embedding ve
+        FROM vec.article_embedding_v384 ve
         JOIN public."Article" a ON a.id = ve.article_id
         WHERE ve.article_id != ${articleId} AND a.status = 'PUBLISHED'
         ORDER BY ve.embedding <=> ${literal}::vector ASC
