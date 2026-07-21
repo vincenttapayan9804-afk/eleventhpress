@@ -210,10 +210,15 @@ export function ImpactSphere(props: { className?: string }) {
   );
 }
 export function KeywordCluster(props: { keywords?: string[]; className?: string }) {
+  // Explicitly user-invoked (the browse page's "3D Cluster" toggle), not
+  // ambient decoration like HeroGlobe/ImpactSphere — so this always
+  // attempts to render rather than substituting the fallback outright
+  // under prefers-reduced-motion. Only the animation inside the scene
+  // itself is gated; see KeywordCluster in ./scenes.tsx.
   const allow = useAllowMotion();
   return (
     <SceneErrorBoundary fallback={<SceneFallback className={props.className} />}>
-      {allow ? <KeywordClusterImpl {...props} /> : <SceneFallback className={props.className} />}
+      <KeywordClusterImpl {...props} allowMotion={allow} />
     </SceneErrorBoundary>
   );
 }
