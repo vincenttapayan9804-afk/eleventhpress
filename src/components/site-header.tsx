@@ -58,7 +58,7 @@ export function SiteHeader() {
     <header className="sticky top-0 z-40 w-full">
       {/* Glassmorphic header */}
       <div className="glass-strong border-b border-[oklch(0.76_0.11_294/0.15)]">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between px-4 py-2 sm:px-6 lg:px-8">
           {/* Brand */}
           <button onClick={() => setView("home")} className="flex flex-shrink-0 items-center gap-3 text-left group">
             <span className="wax-mark group-hover:scale-105 transition-transform duration-500" style={{ transitionTimingFunction: "var(--ease-luxury)" }}>
@@ -75,13 +75,13 @@ export function SiteHeader() {
           </button>
 
           {/* Desktop nav */}
-          <nav className="hidden min-w-0 flex-1 items-center justify-center gap-4 overflow-x-auto whitespace-nowrap px-2 xl:flex">
+          <nav className="hidden min-w-0 flex-1 flex-wrap items-center justify-center gap-x-3.5 gap-y-1.5 px-2 xl:flex 2xl:gap-x-5">
             {NAV_ITEMS.map((item) => (
               <button
                 key={item.view}
                 onClick={() => setView(item.view)}
                 data-active={view === item.view}
-                className="nav-underline flex-shrink-0 font-sans text-sm font-medium text-foreground/80 hover:text-foreground transition-colors"
+                className="nav-underline flex-shrink-0 whitespace-nowrap font-sans text-[0.83rem] font-medium text-foreground/80 hover:text-foreground transition-colors 2xl:text-sm"
               >
                 {item.label}
               </button>
@@ -90,7 +90,7 @@ export function SiteHeader() {
               <button
                 onClick={() => openDashboard("overview")}
                 data-active={view === "dashboard"}
-                className="nav-underline flex flex-shrink-0 items-center gap-1.5 font-sans text-sm font-medium text-foreground/80 hover:text-foreground transition-colors"
+                className="nav-underline flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap font-sans text-[0.83rem] font-medium text-foreground/80 hover:text-foreground transition-colors 2xl:text-sm"
               >
                 <LayoutDashboard className="h-3.5 w-3.5" /> {t("dashboard")}
               </button>
