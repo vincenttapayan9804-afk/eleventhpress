@@ -17,7 +17,7 @@
  */
 import { db } from "@/lib/db";
 import { chatJSON, anyLLMAvailable } from "@/lib/llm";
-import { fetchExternalSource } from "@/lib/research-gap-finder";
+import { resolveExternalSource, type ExternalSourceInput } from "@/lib/research-gap-finder";
 
 const MAX_EXCERPT_CHARS = 3000;
 
@@ -38,7 +38,7 @@ export interface PrismaDraftResult {
 }
 
 const PRISMA_SYSTEM_PROMPT =
-  "You are a research assistant helping a scholar draft the scaffold of a systematic review from a set of included studies. Ground every claim in the material provided — never invent a finding, statistic, or study detail that isn't in the source material. This is a first-draft scaffold for the researcher to revise, not a finished review.";
+  "You are a research assistant helping a scholar draft the scaffold of a systematic review from a set of included studies. Ground every claim in the material provided — never invent a finding, statistic, or study detail that isn't in the source material. This is a first-draft scaffold for the researcher to revise, not a finished review. Every section must be substantive, not a placeholder: real studies on a shared topic almost always differ in population, context, methodology, scope, timeframe, or emphasis, so 'Synthesis of Findings' and 'Limitations' should surface concrete differences and weaknesses rather than defaulting to generic statements like 'no significant differences were found' or 'no limitations identified' — only say that if the material genuinely gives no basis for anything more specific.";
 
 /** One retry on a transient failure before giving up — same fix as
  * research-gap-finder.ts's chatJSONWithRetry. */
@@ -58,7 +58,7 @@ async function chatJSONWithRetry<T>(system: string, user: string, maxTokens: num
 
 export async function draftSystematicReview(input: {
   articleIds: string[];
-  externalUrls: string[];
+  externalSources: ExternalSourceInput[];
 }): Promise<PrismaDraftResult> {
   const sources: PrismaDraftSource[] = [];
   const skippedUrls: { url: string; reason: string }[] = [];
@@ -73,13 +73,10 @@ export async function draftSystematicReview(input: {
     }
   }
 
-  for (const rawUrl of input.externalUrls) {
-    const fetched = await fetchExternalSource(rawUrl);
-    if (fetched) {
-      sources.push({ kind: "external", id: fetched.url, title: fetched.title, excerpt: fetched.text });
-    } else {
-      skippedUrls.push({ url: rawUrl, reason: "Could not fetch or read this URL as text/HTML" });
-    }
+  for (const ext of input.externalSources) {
+    const resolved = await resolveExternalSource(ext);
+    if ("source" in resolved) sources.push(resolved.source);
+    else skippedUrls.push(resolved.skipped);
   }
 
   if (sources.length === 0) {
@@ -96,11 +93,14 @@ export async function draftSystematicReview(input: {
       `Draft a systematic-review scaffold from these ${sources.length} included studies:\n\n${list}\n\n` +
         `Respond with a single JSON object: {"draft": "<markdown-formatted draft>"}. The draft should have these ` +
         `sections: "## Rationale" (why this review area matters, grounded in the studies), "## Included Studies" ` +
-        `(a markdown table: Title | Key Finding, one row per study), "## Synthesis of Findings" (what the studies ` +
-        `agree or disagree on), "## Limitations" (gaps or weaknesses evident across the set), and ` +
-        `"## Suggested Discussion Points" (a bulleted list). Note in the Rationale section that a search-strategy ` +
-        `and formal eligibility-criteria section still needs to be written by hand — this draft only covers the ` +
-        `studies actually provided.`,
+        `(a markdown table: Title | Key Finding, one row per study — the Key Finding column must cite something ` +
+        `specific from that study's own material, not a generic restatement of the title), "## Synthesis of Findings" ` +
+        `(at least 2-3 concrete points of agreement, disagreement, or differing scope/population/methodology across ` +
+        `the studies), "## Limitations" (at least 2-3 concrete gaps or weaknesses evident across the set — e.g. ` +
+        `population, geography, timeframe, or methodology the studies share or leave unaddressed), and ` +
+        `"## Suggested Discussion Points" (a bulleted list of at least 3 items a researcher could pursue next). ` +
+        `Note in the Rationale section that a search-strategy and formal eligibility-criteria section still needs ` +
+        `to be written by hand — this draft only covers the studies actually provided.`,
       3000
     );
     const draft = data.draft?.trim() ?? "";

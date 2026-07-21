@@ -100,11 +100,50 @@ function extractTitle(html: string, fallback: string): string {
   return title || fallback;
 }
 
+function decodeHtmlEntities(text: string): string {
+  return text
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, " ");
+}
+
+/**
+ * Most scholarly landing pages (DOI resolvers, publisher sites, Crossref/
+ * OpenAlex-indexed pages) embed the real abstract in a <meta> tag rather
+ * than plain body text — the body is often mostly nav/cookie-banner/
+ * related-articles boilerplate that drowns out the actual content once
+ * stripped of tags. Trying citation_abstract (the scholarly-metadata
+ * convention most publishers emit) then a plain description meta tag
+ * gets a much higher-signal excerpt than scraping the full body when
+ * either is present and substantial.
+ */
+function extractMetaExcerpt(html: string): string | null {
+  const metaPatterns = [
+    /<meta[^>]+name=["']citation_abstract["'][^>]+content=["']([\s\S]*?)["'][^>]*>/i,
+    /<meta[^>]+property=["']og:description["'][^>]+content=["']([\s\S]*?)["'][^>]*>/i,
+    /<meta[^>]+name=["']description["'][^>]+content=["']([\s\S]*?)["'][^>]*>/i,
+  ];
+  for (const pattern of metaPatterns) {
+    const match = html.match(pattern);
+    const content = match?.[1] ? decodeHtmlEntities(match[1]).replace(/\s+/g, " ").trim() : "";
+    // Below ~80 chars a "description" meta tag is almost always a generic
+    // site tagline, not real abstract content — not worth preferring over
+    // the full-body fallback.
+    if (content.length >= 80) return content;
+  }
+  return null;
+}
+
 /**
  * Fetches and extracts readable text from a researcher-supplied URL —
  * either hand-pasted or picked from the open-data source search (see
- * src/app/api/discover/route.ts). Exported so prisma-draft.ts can reuse
- * the exact same SSRF-safe fetch instead of duplicating it.
+ * src/app/api/discover/route.ts). Prefers a real abstract meta tag over
+ * scraped body text when the page has one (see extractMetaExcerpt).
+ * Exported so prisma-draft.ts can reuse the exact same SSRF-safe fetch
+ * instead of duplicating it.
  */
 export async function fetchExternalSource(rawUrl: string): Promise<FetchedSource | null> {
   try {
@@ -119,7 +158,7 @@ export async function fetchExternalSource(rawUrl: string): Promise<FetchedSource
     if (!contentType.includes("text/html") && !contentType.includes("text/plain")) return null;
     const body = await res.text();
     const isHtml = contentType.includes("text/html");
-    const text = isHtml ? htmlToPlainText(body) : body.replace(/\s+/g, " ").trim();
+    const text = isHtml ? extractMetaExcerpt(body) || htmlToPlainText(body) : body.replace(/\s+/g, " ").trim();
     if (!text) return null;
     return {
       url: url.toString(),
@@ -130,6 +169,72 @@ export async function fetchExternalSource(rawUrl: string): Promise<FetchedSource
     console.error(`[research-gap-finder] failed to fetch external source ${rawUrl}:`, e);
     return null;
   }
+}
+
+export interface ExternalSourceInput {
+  url: string;
+  /** Bibliographic metadata from the open-data source search (see
+   * src/app/api/discover/route.ts) — used as a fallback excerpt when the
+   * live page can't be fetched/read (paywall, non-HTML response, etc.),
+   * so a search result a researcher picked doesn't just silently vanish
+   * from the analysis. Always real data from the source's own record,
+   * never fabricated. */
+  title?: string;
+  authors?: string;
+  year?: number | null;
+  venue?: string | null;
+}
+
+/**
+ * Validates a request body's raw external-sources array into
+ * ExternalSourceInput[] — accepts either a bare URL string (manual
+ * paste) or a {url, title, authors, year, venue} object (a discovery-
+ * search result, see src/app/api/discover/route.ts). Shared by both API
+ * routes that accept external sources so the parsing rules stay
+ * identical.
+ */
+export function parseExternalSources(raw: unknown, limit: number): ExternalSourceInput[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item): ExternalSourceInput | null => {
+      if (typeof item === "string") return item.trim() ? { url: item.trim() } : null;
+      if (item && typeof item === "object" && typeof (item as any).url === "string" && (item as any).url.trim()) {
+        const o = item as any;
+        return {
+          url: o.url.trim(),
+          title: typeof o.title === "string" ? o.title : undefined,
+          authors: typeof o.authors === "string" ? o.authors : undefined,
+          year: typeof o.year === "number" ? o.year : null,
+          venue: typeof o.venue === "string" ? o.venue : null,
+        };
+      }
+      return null;
+    })
+    .filter((s): s is ExternalSourceInput => s !== null)
+    .slice(0, limit);
+}
+
+/**
+ * Resolves one external source: fetches real page text when possible,
+ * else falls back to the caller-supplied bibliographic metadata (if any
+ * was provided — e.g. from a discovery-search result), else reports it
+ * as skipped. Shared by findResearchGaps and draftSystematicReview so
+ * both tools handle a failed fetch the same honest way.
+ */
+export async function resolveExternalSource(
+  input: ExternalSourceInput
+): Promise<{ source: GapAnalysisSource } | { skipped: { url: string; reason: string } }> {
+  const fetched = await fetchExternalSource(input.url);
+  if (fetched) {
+    return { source: { kind: "external", id: fetched.url, title: fetched.title || input.title || fetched.url, excerpt: fetched.text } };
+  }
+  const metaExcerpt = [input.authors, input.year, input.venue].filter(Boolean).join(" · ");
+  if (input.title && metaExcerpt) {
+    return {
+      source: { kind: "external", id: input.url, title: input.title, excerpt: `${input.title} — ${metaExcerpt}` },
+    };
+  }
+  return { skipped: { url: input.url, reason: "Could not fetch or read this URL as text/HTML" } };
 }
 
 export interface GapAnalysisSource {
@@ -146,6 +251,11 @@ export interface ResearchGap {
 
 export interface GapAnalysisResult {
   sources: GapAnalysisSource[];
+  /** A synthesis of what the sources collectively show and where they
+   * diverge — always populated when mode is "llm", even in the rare case
+   * the model finds no discrete gap worth naming, so a run never comes
+   * back as bare silence. */
+  overview: string;
   gaps: ResearchGap[];
   skippedUrls: { url: string; reason: string }[];
   mode: "llm" | "unavailable";
@@ -157,7 +267,7 @@ export interface GapAnalysisResult {
 }
 
 const GAP_ANALYSIS_SYSTEM_PROMPT =
-  "You are a research assistant helping a scholar identify genuine gaps in a set of sources: questions or angles none of them address, or points where their findings conflict. Ground every gap in specific evidence from the sources provided — never invent a gap that isn't actually supported by what's missing or conflicting in the material. If you can't identify any genuine gap, return an empty array rather than manufacture one.";
+  "You are a research assistant helping a scholar compare a set of sources in depth. Real academic sources on a shared topic almost always differ in population, context, methodology, scope, timeframe, or emphasis — your job is to surface those differences concretely, not to look for a reason to say nothing. Ground every observation in specific evidence from the sources provided; never invent a finding, statistic, or claim that isn't actually in the material. An empty gaps list is only appropriate when the sources are near-duplicates of each other (e.g. the same study indexed twice) — for any genuinely distinct set of sources, identify at least 2-3 concrete gaps: an angle only one source covers, a population/context none of them address, a methodological limitation shared across all of them, or an apparent contradiction between findings.";
 
 /** One retry on a transient failure (rate limit, momentary network error)
  * before giving up — chatJSON() already retries across tiers internally,
@@ -178,7 +288,7 @@ async function chatJSONWithRetry<T>(system: string, user: string, maxTokens: num
 
 export async function findResearchGaps(input: {
   internalArticleIds: string[];
-  externalUrls: string[];
+  externalSources: ExternalSourceInput[];
 }): Promise<GapAnalysisResult> {
   const sources: GapAnalysisSource[] = [];
   const skippedUrls: { url: string; reason: string }[] = [];
@@ -193,32 +303,32 @@ export async function findResearchGaps(input: {
     }
   }
 
-  for (const rawUrl of input.externalUrls) {
-    const fetched = await fetchExternalSource(rawUrl);
-    if (fetched) {
-      sources.push({ kind: "external", id: fetched.url, title: fetched.title, excerpt: fetched.text });
-    } else {
-      skippedUrls.push({ url: rawUrl, reason: "Could not fetch or read this URL as text/HTML" });
-    }
+  for (const ext of input.externalSources) {
+    const resolved = await resolveExternalSource(ext);
+    if ("source" in resolved) sources.push(resolved.source);
+    else skippedUrls.push(resolved.skipped);
   }
 
   if (sources.length < 2) {
-    return { sources, gaps: [], skippedUrls, mode: "unavailable", reason: "insufficient_sources" };
+    return { sources, overview: "", gaps: [], skippedUrls, mode: "unavailable", reason: "insufficient_sources" };
   }
   if (!anyLLMAvailable()) {
-    return { sources, gaps: [], skippedUrls, mode: "unavailable", reason: "no_provider" };
+    return { sources, overview: "", gaps: [], skippedUrls, mode: "unavailable", reason: "no_provider" };
   }
 
   try {
     const sourceList = sources.map((s, i) => `[${i + 1}] ${s.title}\n${s.excerpt}`).join("\n\n---\n\n");
-    const { data, model } = await chatJSONWithRetry<{ gaps: ResearchGap[] }>(
+    const { data, model } = await chatJSONWithRetry<{ overview: string; gaps: ResearchGap[] }>(
       GAP_ANALYSIS_SYSTEM_PROMPT,
-      `Here are ${sources.length} sources on a related research area:\n\n${sourceList}\n\nRespond with a single JSON object: {"gaps": [{"gap": "<short label, one sentence>", "explanation": "<1-2 sentences grounded in the sources above>"}]}. Return at most 6 gaps.`,
-      1400
+      `Here are ${sources.length} sources on a related research area:\n\n${sourceList}\n\n` +
+        `Respond with a single JSON object: {"overview": "<2-4 sentences synthesizing what these sources collectively ` +
+        `show and where they diverge — always fill this in>", "gaps": [{"gap": "<short label, one sentence>", ` +
+        `"explanation": "<1-2 sentences grounded in the sources above>"}]}. Return at most 6 gaps.`,
+      1800
     );
-    return { sources, gaps: data.gaps ?? [], skippedUrls, mode: "llm", model };
+    return { sources, overview: data.overview?.trim() ?? "", gaps: data.gaps ?? [], skippedUrls, mode: "llm", model };
   } catch (e) {
     console.error("[research-gap-finder] LLM call failed:", e);
-    return { sources, gaps: [], skippedUrls, mode: "unavailable", reason: "call_failed" };
+    return { sources, overview: "", gaps: [], skippedUrls, mode: "unavailable", reason: "call_failed" };
   }
 }
