@@ -59,6 +59,7 @@ interface RecommendedArticle {
   citations: number;
   views: number;
   becauseOf: string;
+  whyRelated: string;
 }
 
 export function HomeView() {
@@ -309,6 +310,9 @@ export function HomeView() {
                       {a.discipline}
                     </Badge>
                     <h3 className="mt-3 line-clamp-3 font-display text-sm font-semibold leading-snug">{a.title}</h3>
+                    {a.whyRelated && (
+                      <p className="mt-1.5 line-clamp-2 text-[0.7rem] italic text-muted-foreground/90">{a.whyRelated}</p>
+                    )}
                     <p className="mt-2 text-[0.7rem] text-muted-foreground">
                       Because you read &ldquo;{a.becauseOf}&rdquo;
                     </p>
