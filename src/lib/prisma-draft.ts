@@ -1,10 +1,10 @@
 /**
  * Systematic Review / PRISMA drafting tool (Eleventh Research Lab) —
- * drafts a structured review scaffold (rationale, synthesis, limitations,
- * discussion points) from a researcher-selected set of "included
- * studies" — this platform's own published articles and/or external
- * sources (hand-pasted or picked from the open-data source search, see
- * src/app/api/discover/route.ts).
+ * drafts a structured review scaffold (rationale, literature matrix,
+ * synthesis, limitations, discussion points, references) from a
+ * researcher-selected set of "included studies" — this platform's own
+ * published articles and/or external sources (hand-pasted or picked from
+ * the open-data source search, see src/app/api/discover/route.ts).
  *
  * Same real-or-nothing contract as research-gap-finder.ts: a fabricated
  * draft would waste a researcher's time worse than no draft at all, so
@@ -14,19 +14,29 @@
  * treated as a finished review. Cost-first (free OpenRouter tier before
  * any billed Anthropic call) with a single retry on a transient failure —
  * same reliability fix as research-gap-finder.ts.
+ *
+ * The Literature Matrix (research design, participants, population/
+ * sample, locale/setting, theoretical framework, methodology, key
+ * findings, conclusions, recommendations) and the References list use
+ * the exact same extraction/formatting machinery as research-gap-
+ * finder.ts's matrix — references are never LLM-generated, only ever
+ * built deterministically (formatCitation() for internal articles, a
+ * best-effort real-metadata equivalent for external sources), so a
+ * citation's accuracy never depends on the model getting it right.
  */
-import { db } from "@/lib/db";
-import { chatJSON, anyLLMAvailable } from "@/lib/llm";
-import { resolveExternalSource, type ExternalSourceInput } from "@/lib/research-gap-finder";
+import {
+  chatJSONWithRetry,
+  fetchInternalSources,
+  resolveExternalSource,
+  mergeSourceAnalyses,
+  type ExternalSourceInput,
+  type GapAnalysisSource,
+  type RawSourceAnalysis,
+  SOURCE_ANALYSIS_FIELD_SCHEMA,
+} from "@/lib/research-gap-finder";
+import { anyLLMAvailable } from "@/lib/llm";
 
-const MAX_EXCERPT_CHARS = 3000;
-
-export interface PrismaDraftSource {
-  kind: "internal" | "external";
-  id: string; // articleId for internal, the resolved URL for external
-  title: string;
-  excerpt: string;
-}
+export type PrismaDraftSource = GapAnalysisSource;
 
 export interface PrismaDraftResult {
   sources: PrismaDraftSource[];
@@ -38,40 +48,36 @@ export interface PrismaDraftResult {
 }
 
 const PRISMA_SYSTEM_PROMPT =
-  "You are a research assistant helping a scholar draft the scaffold of a systematic review from a set of included studies. Ground every claim in the material provided — never invent a finding, statistic, or study detail that isn't in the source material. This is a first-draft scaffold for the researcher to revise, not a finished review. Every section must be substantive, not a placeholder: real studies on a shared topic almost always differ in population, context, methodology, scope, timeframe, or emphasis, so 'Synthesis of Findings' and 'Limitations' should surface concrete differences and weaknesses rather than defaulting to generic statements like 'no significant differences were found' or 'no limitations identified' — only say that if the material genuinely gives no basis for anything more specific.";
+  "You are a research assistant helping a scholar draft the scaffold of a systematic review from a set of included studies, in the standard literature-review-matrix format (research design, participants, population/sample, locale/setting, theoretical framework, methodology, key findings, conclusions, recommendations). Extract every matrix field strictly from what's stated in that study's own excerpt — write exactly 'Not stated in the source material provided.' for any field the excerpt doesn't actually address; never infer, guess, or invent a finding, statistic, or study detail that isn't in the source material. This is a first-draft scaffold for the researcher to revise, not a finished review. Every narrative section must be substantive, not a placeholder: real studies on a shared topic almost always differ in population, context, methodology, scope, timeframe, or emphasis, so 'Synthesis of Findings' and 'Limitations' should surface concrete differences and weaknesses rather than defaulting to generic statements like 'no significant differences were found' — only say that if the material genuinely gives no basis for anything more specific.";
 
-/** One retry on a transient failure before giving up — same fix as
- * research-gap-finder.ts's chatJSONWithRetry. */
-async function chatJSONWithRetry<T>(system: string, user: string, maxTokens: number): Promise<{ data: T; model: string }> {
-  try {
-    return await chatJSON<T>(system, user, { maxTokens, priority: "cost-first" });
-  } catch (firstError) {
-    await new Promise((r) => setTimeout(r, 750));
-    try {
-      return await chatJSON<T>(system, user, { maxTokens, priority: "cost-first" });
-    } catch (secondError) {
-      console.error("[prisma-draft] retry also failed:", secondError);
-      throw secondError;
-    }
-  }
+function markdownTableCell(text: string): string {
+  return (text || "—").replace(/\|/g, "\\|").replace(/\n/g, " ").trim();
+}
+
+/** Builds the Literature Matrix table and References list deterministically
+ * from the resolved+analyzed sources — never from LLM output — so the two
+ * most fact-sensitive parts of the draft can't be hallucinated. */
+function buildMatrixAndReferences(sources: PrismaDraftSource[]): { matrixTable: string; referencesList: string } {
+  const header =
+    "| Study | Research Design | Participants | Population/Sample | Locale/Setting | Theoretical Framework | Methodology | Key Findings | Conclusions | Recommendations |\n" +
+    "|---|---|---|---|---|---|---|---|---|---|";
+  const rows = sources.map((s) => {
+    const m = s.matrix;
+    return `| ${markdownTableCell(s.title)} | ${markdownTableCell(m.researchDesign)} | ${markdownTableCell(m.participants)} | ${markdownTableCell(m.population)} | ${markdownTableCell(m.locale)} | ${markdownTableCell(m.theoreticalFramework)} | ${markdownTableCell(m.methodology)} | ${markdownTableCell(m.keyFindings)} | ${markdownTableCell(m.conclusions)} | ${markdownTableCell(m.recommendations)} |`;
+  });
+  const referencesList = sources
+    .map((s) => s.matrix.reference)
+    .sort((a, b) => a.localeCompare(b))
+    .join("\n\n");
+  return { matrixTable: [header, ...rows].join("\n"), referencesList };
 }
 
 export async function draftSystematicReview(input: {
   articleIds: string[];
   externalSources: ExternalSourceInput[];
 }): Promise<PrismaDraftResult> {
-  const sources: PrismaDraftSource[] = [];
+  const sources: PrismaDraftSource[] = await fetchInternalSources(input.articleIds);
   const skippedUrls: { url: string; reason: string }[] = [];
-
-  if (input.articleIds.length > 0) {
-    const articles = await db.article.findMany({
-      where: { id: { in: input.articleIds }, status: "PUBLISHED" },
-      select: { id: true, title: true, abstract: true },
-    });
-    for (const a of articles) {
-      sources.push({ kind: "internal", id: a.id, title: a.title, excerpt: a.abstract.slice(0, MAX_EXCERPT_CHARS) });
-    }
-  }
 
   for (const ext of input.externalSources) {
     const resolved = await resolveExternalSource(ext);
@@ -88,25 +94,38 @@ export async function draftSystematicReview(input: {
 
   try {
     const list = sources.map((s, i) => `[${i + 1}] ${s.title}\n${s.excerpt}`).join("\n\n---\n\n");
-    const { data, model } = await chatJSONWithRetry<{ draft: string }>(
+    const { data, model } = await chatJSONWithRetry<{
+      rationale: string;
+      sourceAnalyses: RawSourceAnalysis[];
+      synthesis: string;
+      limitations: string;
+      discussionPoints: string[];
+    }>(
       PRISMA_SYSTEM_PROMPT,
       `Draft a systematic-review scaffold from these ${sources.length} included studies:\n\n${list}\n\n` +
-        `Respond with a single JSON object: {"draft": "<markdown-formatted draft>"}. The draft should have these ` +
-        `sections: "## Rationale" (why this review area matters, grounded in the studies), "## Included Studies" ` +
-        `(a markdown table: Title | Key Finding, one row per study — the Key Finding column must cite something ` +
-        `specific from that study's own material, not a generic restatement of the title), "## Synthesis of Findings" ` +
-        `(at least 2-3 concrete points of agreement, disagreement, or differing scope/population/methodology across ` +
-        `the studies), "## Limitations" (at least 2-3 concrete gaps or weaknesses evident across the set — e.g. ` +
-        `population, geography, timeframe, or methodology the studies share or leave unaddressed), and ` +
-        `"## Suggested Discussion Points" (a bulleted list of at least 3 items a researcher could pursue next). ` +
-        `Note in the Rationale section that a search-strategy and formal eligibility-criteria section still needs ` +
-        `to be written by hand — this draft only covers the studies actually provided.`,
-      3000
+        `Respond with a single JSON object: {"rationale": "<why this review area matters, grounded in the studies — ` +
+        `and note that a search-strategy and formal eligibility-criteria section still needs to be written by hand, ` +
+        `this draft only covers the studies actually provided>", "sourceAnalyses": [<one entry per study, in order, ` +
+        `each shaped exactly like ${SOURCE_ANALYSIS_FIELD_SCHEMA}>], "synthesis": "<at least 2-3 concrete points of ` +
+        `agreement, disagreement, or differing scope/population/methodology across the studies>", "limitations": ` +
+        `"<at least 2-3 concrete gaps or weaknesses evident across the set>", "discussionPoints": [<at least 3 ` +
+        `strings, each a concrete next step a researcher could pursue>]}`,
+      4000
     );
-    const draft = data.draft?.trim() ?? "";
-    return draft
-      ? { sources, skippedUrls, draft, mode: "llm", model }
-      : { sources, skippedUrls, draft: "", mode: "unavailable", reason: "call_failed" };
+
+    const mergedSources = mergeSourceAnalyses(sources, data.sourceAnalyses);
+    const { matrixTable, referencesList } = buildMatrixAndReferences(mergedSources);
+    const discussionPoints = (data.discussionPoints ?? []).map((p) => `- ${p}`).join("\n");
+
+    const draft =
+      `## Rationale\n${data.rationale?.trim() ?? ""}\n\n` +
+      `## Literature Matrix\n${matrixTable}\n\n` +
+      `## Synthesis of Findings\n${data.synthesis?.trim() ?? ""}\n\n` +
+      `## Limitations\n${data.limitations?.trim() ?? ""}\n\n` +
+      `## Suggested Discussion Points\n${discussionPoints}\n\n` +
+      `## References\n${referencesList}`;
+
+    return { sources: mergedSources, skippedUrls, draft, mode: "llm", model };
   } catch (e) {
     console.error("[prisma-draft] LLM call failed:", e);
     return { sources, skippedUrls, draft: "", mode: "unavailable", reason: "call_failed" };
