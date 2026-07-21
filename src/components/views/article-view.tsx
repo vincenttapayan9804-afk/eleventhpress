@@ -142,7 +142,7 @@ export function ArticleView() {
   const { articleId, setView, openArticle, user, locale } = useApp();
   const [article, setArticle] = useState<ArticleDetail | null>(null);
   const [showOriginalAbstract, setShowOriginalAbstract] = useState(false);
-  const [related, setRelated] = useState<ArticleDetail[]>([]);
+  const [related, setRelated] = useState<(ArticleDetail & { whyRelated?: string })[]>([]);
   const [loading, setLoading] = useState(true);
   const [citationFormat, setCitationFormat] = useState<CitationStyleId | "bibtex" | "ris" | "wikidata">("apa");
   const [publicReviews, setPublicReviews] = useState<any[] | null>(null);
@@ -185,7 +185,7 @@ export function ArticleView() {
         // discipline lookup. Falls back to the discipline lookup only if
         // the article has no embedding yet (e.g. indexing hasn't caught
         // up), so the section still has content rather than staying empty.
-        apiFetch<{ items: ArticleDetail[] }>(`/api/articles/${articleId}/similar?limit=3`)
+        apiFetch<{ items: (ArticleDetail & { whyRelated?: string })[] }>(`/api/articles/${articleId}/similar?limit=3`)
           .then(({ items }) => {
             if (items.length > 0) {
               setRelated(items);
@@ -1077,6 +1077,9 @@ export function ArticleView() {
                   <h3 className="mt-2 line-clamp-3 font-display text-sm font-semibold leading-snug">
                     {r.title}
                   </h3>
+                  {r.whyRelated && (
+                    <p className="mt-1.5 line-clamp-2 text-xs italic text-muted-foreground/90">{r.whyRelated}</p>
+                  )}
                   <p className="mt-2 text-xs text-muted-foreground">
                     {r.citations} citations · {r.views} views
                   </p>
