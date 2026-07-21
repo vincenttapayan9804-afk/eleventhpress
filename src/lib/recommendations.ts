@@ -13,6 +13,7 @@
  */
 import { db } from "@/lib/db";
 import { getSimilarArticles } from "@/lib/manuscript-checks";
+import { getOrGenerateRelationExplanation } from "@/lib/related-explanation";
 
 const RECENT_HISTORY_LOOKBACK = 3;
 
@@ -23,6 +24,7 @@ export interface RecommendedArticle {
   citations: number;
   views: number;
   becauseOf: string; // title of the read article this recommendation was derived from
+  whyRelated: string; // AI-generated one-sentence explanation, "" if unavailable
 }
 
 export async function getRecommendationsForUser(
@@ -38,7 +40,7 @@ export async function getRecommendationsForUser(
   if (recent.length === 0) return [];
 
   const alreadyRead = new Set(recent.map((r) => r.articleId));
-  const candidates = new Map<string, { score: number; becauseOf: string }>();
+  const candidates = new Map<string, { score: number; becauseOf: string; becauseOfId: string }>();
 
   for (const entry of recent) {
     const similar = await getSimilarArticles(entry.articleId, limit);
@@ -46,7 +48,7 @@ export async function getRecommendationsForUser(
       if (alreadyRead.has(s.articleId)) continue;
       const existing = candidates.get(s.articleId);
       if (!existing || s.score > existing.score) {
-        candidates.set(s.articleId, { score: s.score, becauseOf: entry.article.title });
+        candidates.set(s.articleId, { score: s.score, becauseOf: entry.article.title, becauseOfId: entry.articleId });
       }
     }
   }
@@ -60,10 +62,19 @@ export async function getRecommendationsForUser(
   });
   const byId = new Map(rows.map((r) => [r.id, r]));
 
-  return ranked
+  const matched = ranked
     .map(([id, meta]) => {
       const article = byId.get(id);
-      return article ? { ...article, becauseOf: meta.becauseOf } : null;
+      return article ? { ...article, becauseOf: meta.becauseOf, becauseOfId: meta.becauseOfId } : null;
     })
-    .filter((r): r is RecommendedArticle => !!r);
+    .filter((r): r is NonNullable<typeof r> => !!r);
+
+  // Best-effort, cached per pair (src/lib/related-explanation.ts) — never
+  // lets a slow/unavailable LLM call block the digest itself.
+  return Promise.all(
+    matched.map(async ({ becauseOfId, ...rest }) => {
+      const { explanation } = await getOrGenerateRelationExplanation(becauseOfId, rest.id).catch(() => ({ explanation: "" }));
+      return { ...rest, whyRelated: explanation };
+    })
+  );
 }

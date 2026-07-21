@@ -1,11 +1,13 @@
 /**
  * Backfill for PUBLISHED articles missing the EPUB galley (Phase A), AI
  * glossary (Phase D), auto-generated lay summary, RAG chunk embeddings
- * (src/lib/chunk-embeddings.ts), or a full-text translation into every
- * supported locale (src/lib/galley-translation.ts) — all five are now
- * generated automatically at publish time
- * (src/app/api/articles/workflow/route.ts), but articles published before
- * each feature shipped predate it and need a one-time catch-up.
+ * (src/lib/chunk-embeddings.ts), a full-text translation into every
+ * supported locale (src/lib/galley-translation.ts), or cached "why this is
+ * related" explanations for their top similar articles
+ * (src/lib/related-explanation.ts) — all six are now generated
+ * automatically at publish time (src/app/api/articles/workflow/route.ts),
+ * but articles published before each feature shipped predate it and need
+ * a one-time catch-up.
  *
  * Runs in two contexts:
  *  1. Automatically, idempotently, on every production build — package.json's
@@ -26,13 +28,15 @@
  * the live publish path (src/lib/galley-regenerate.ts) rather than
  * duplicating it.
  *
- * COST NOTE: glossary, summary, and translation backfill each make real
- * chatJSON calls (src/lib/glossary.ts, src/lib/manuscript-checks.ts,
- * src/lib/galley-translation.ts) — cost-first as of Phase A/C, so the free
- * OpenRouter tier is tried before any billed Anthropic call. Galley
- * backfill does real PDF/HTML/EPUB/JATS rendering work. All four are
- * idempotent — once an article has the field (or, for translation, has
- * every locale), later runs skip it — so steady-state cost after the
+ * COST NOTE: glossary, summary, translation, and related-article-
+ * explanation backfill each make real chatJSON calls (src/lib/glossary.ts,
+ * src/lib/manuscript-checks.ts, src/lib/galley-translation.ts,
+ * src/lib/related-explanation.ts) — cost-first as of Phase A/C/D, so the
+ * free OpenRouter tier is tried before any billed Anthropic call. Galley
+ * backfill does real PDF/HTML/EPUB/JATS rendering work. All five are
+ * idempotent — once an article has the field (or, for translation/
+ * explanations, has every locale/top-match covered), later runs skip it —
+ * so steady-state cost after the
  * first backfill is zero.
  *
  * Usage:
@@ -43,6 +47,7 @@
  *   bun run scripts/backfill-galleys.ts --confirm --skip-summary
  *   bun run scripts/backfill-galleys.ts --confirm --skip-chunks
  *   bun run scripts/backfill-galleys.ts --confirm --skip-translation
+ *   bun run scripts/backfill-galleys.ts --confirm --skip-explanations
  *   bun run scripts/backfill-galleys.ts --confirm --force       # regenerate even if already present
  *   bun run scripts/backfill-galleys.ts --confirm --limit 10
  *   bun run scripts/backfill-galleys.ts --confirm --article-id <id>
@@ -53,6 +58,10 @@ import { generateGlossary } from "../src/lib/glossary";
 import { suggestKeywordsAndSummary } from "../src/lib/manuscript-checks";
 import { indexArticleChunks } from "../src/lib/chunk-embeddings";
 import { translateGalleyText, TRANSLATABLE_LOCALES, type TranslatableLocale } from "../src/lib/galley-translation";
+import { getSimilarArticles } from "../src/lib/manuscript-checks";
+import { getOrGenerateRelationExplanation } from "../src/lib/related-explanation";
+
+const RELATED_ARTICLES_LIMIT = 3;
 
 function flagValue(args: string[], name: string): string | null {
   const idx = args.indexOf(name);
@@ -69,6 +78,7 @@ async function main() {
   const doSummary = !args.includes("--skip-summary");
   const doChunks = !args.includes("--skip-chunks");
   const doTranslation = !args.includes("--skip-translation");
+  const doExplanations = !args.includes("--skip-explanations");
   const articleId = flagValue(args, "--article-id");
   const limitArg = flagValue(args, "--limit");
   const limit = limitArg ? parseInt(limitArg, 10) : undefined;
@@ -99,11 +109,24 @@ async function main() {
     return TRANSLATABLE_LOCALES.filter((locale) => force || !have?.has(locale));
   };
 
+  // Bulk pre-check for related-article explanation coverage. A count below
+  // the limit is a reasonable proxy for "needs work" without running the
+  // (cheap, non-LLM) embedding lookup for every candidate up front — the
+  // per-article loop below re-runs getSimilarArticles for anything flagged
+  // here and getOrGenerateRelationExplanation no-ops on an actual cache hit,
+  // so this proxy never causes a real LLM call to be skipped or duplicated.
+  const explanationCountByArticle = new Map<string, number>();
+  for (const row of await db.articleSimilarityExplanation.groupBy({ by: ["articleId"], _count: { _all: true } })) {
+    explanationCountByArticle.set(row.articleId, row._count._all);
+  }
+
   const needsGalleys = (a: (typeof candidates)[number]) => force || !a.galleyEpubKey;
   const needsGlossary = (a: (typeof candidates)[number]) => force || !a.glossary;
   const needsSummary = (a: (typeof candidates)[number]) => force || !a.laySummary;
   const needsChunks = (a: (typeof candidates)[number]) => force || !chunkedArticleIds.has(a.id);
   const needsTranslation = (a: (typeof candidates)[number]) => missingLocales(a).length > 0;
+  const needsExplanations = (a: (typeof candidates)[number]) =>
+    force || (explanationCountByArticle.get(a.id) ?? 0) < RELATED_ARTICLES_LIMIT;
 
   const targets = candidates.filter(
     (a) =>
@@ -111,7 +134,8 @@ async function main() {
       (doGlossary && needsGlossary(a)) ||
       (doSummary && needsSummary(a)) ||
       (doChunks && needsChunks(a)) ||
-      (doTranslation && needsTranslation(a))
+      (doTranslation && needsTranslation(a)) ||
+      (doExplanations && needsExplanations(a))
   );
 
   console.log(`Found ${candidates.length} published article(s)${articleId ? " (single-article mode)" : ""}.`);
@@ -123,6 +147,7 @@ async function main() {
     if (doSummary && needsSummary(a)) work.push("lay summary");
     if (doChunks && needsChunks(a)) work.push("RAG chunks");
     if (doTranslation && needsTranslation(a)) work.push(`translation (${missingLocales(a).join(", ")})`);
+    if (doExplanations && needsExplanations(a)) work.push("related-article explanations");
     console.log(`  - [${a.id}] "${a.title}" (${work.join(", ")})`);
   }
 
@@ -132,7 +157,7 @@ async function main() {
   }
 
   if (!confirm) {
-    const llmCalls = [doGlossary && "glossary", doSummary && "lay summary", doTranslation && "translation"].filter(Boolean).join(" + ");
+    const llmCalls = [doGlossary && "glossary", doSummary && "lay summary", doTranslation && "translation", doExplanations && "related-article explanations"].filter(Boolean).join(" + ");
     console.log(
       `\nDry run only — no changes made. This will make ${llmCalls ? `real AI calls (cost-first: free tier tried before any billed Anthropic call) (${llmCalls})` : "no LLM calls"}` +
         `${doGalleys ? " and real PDF/HTML/EPUB/JATS rendering work (galleys)" : ""}.` +
@@ -149,6 +174,7 @@ async function main() {
   let summaryDone = 0;
   let chunksDone = 0;
   let translationsDone = 0;
+  let explanationsDone = 0;
 
   for (const article of targets) {
     try {
@@ -238,6 +264,19 @@ async function main() {
         }
       }
 
+      if (doExplanations && needsExplanations(article)) {
+        const similar = await getSimilarArticles(article.id, RELATED_ARTICLES_LIMIT);
+        let generated = 0;
+        for (const s of similar) {
+          const explanationResult = await getOrGenerateRelationExplanation(article.id, s.articleId);
+          if (explanationResult.mode === "llm") generated++;
+        }
+        explanationsDone += generated;
+        console.log(
+          `  [${article.id}] related-article explanations: ${generated}/${similar.length} generated${similar.length === 0 ? " (no similar articles in corpus yet)" : ""}`
+        );
+      }
+
       await db.auditLog.create({
         data: {
           action: "GALLEY_GENERATED",
@@ -254,7 +293,7 @@ async function main() {
   }
 
   console.log(
-    `\nDone. Galleys backfilled: ${galleysDone}. Glossaries backfilled: ${glossaryDone}. Lay summaries backfilled: ${summaryDone}. RAG chunks backfilled: ${chunksDone}. Translations backfilled: ${translationsDone}. ` +
+    `\nDone. Galleys backfilled: ${galleysDone}. Glossaries backfilled: ${glossaryDone}. Lay summaries backfilled: ${summaryDone}. RAG chunks backfilled: ${chunksDone}. Translations backfilled: ${translationsDone}. Related-article explanations backfilled: ${explanationsDone}. ` +
       `${targets.length - failures.length}/${targets.length} article(s) completed without error.`
   );
   if (failures.length > 0) {
