@@ -6,6 +6,7 @@ import { apiFetch } from "./api-client";
 export type ViewKey =
   | "home"
   | "browse"
+  | "books"
   | "article"
   | "about"
   | "login"

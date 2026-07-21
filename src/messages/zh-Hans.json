@@ -1,7 +1,9 @@
 {
   "nav": {
     "home": "首页",
-    "articles": "文章",
+    "publications": "出版物",
+    "articles": "期刊文章",
+    "books": "图书",
     "authors": "作者",
     "experts": "专家洞见",
     "resources": "资源",
@@ -85,6 +87,16 @@
     "articlesFound": "找到 {count} 篇文章",
     "noArticlesFound": "未找到相关文章",
     "tryAdjusting": "请尝试调整搜索词或学科筛选条件。"
+  },
+  "books": {
+    "eyebrow": "图书出版部门",
+    "title": "浏览图书",
+    "description": "探索我们全流程图书出版部门出品的专著、编著文集与选集——真实 ISBN、EPUB 与可打印 PDF 下载。",
+    "searchPlaceholder": "按标题、描述或作者姓名搜索……",
+    "allCategories": "全部分类",
+    "booksFound": "找到 {count} 本图书",
+    "noBooksFound": "未找到相关图书",
+    "tryAdjusting": "请尝试调整搜索词或分类筛选条件。"
   },
   "auth": {
     "backToHome": "返回首页",

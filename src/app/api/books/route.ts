@@ -7,13 +7,37 @@ const FORMATS = new Set(["MONOGRAPH", "EDITED_VOLUME", "ANTHOLOGY"]);
 
 /**
  * GET /api/books
- * AUTHOR/SUPER_ADMIN see their own submissions; EDITOR/ASSOCIATE_EDITOR/
- * SUPER_ADMIN can additionally pass ?all=1 to see every submission (the
- * acquisitions queue). Optional ?status filter either way.
+ * Unauthenticated callers get the public catalog — PUBLISHED books only,
+ * regardless of any status/all params — for the header's public "Books"
+ * browse page. AUTHOR/SUPER_ADMIN otherwise see their own submissions;
+ * EDITOR/ASSOCIATE_EDITOR/SUPER_ADMIN can additionally pass ?all=1 to see
+ * every submission (the acquisitions queue). Optional ?status filter
+ * either way.
  */
 export async function GET(req: NextRequest) {
   const session = getSessionFromHeaders(req.headers);
-  if (!session) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+
+  if (!session) {
+    const books = await db.book.findMany({
+      where: { status: "PUBLISHED" },
+      orderBy: { publishedAt: "desc" },
+      select: {
+        id: true, title: true, subtitle: true, authors: true, description: true,
+        category: true, format: true, isbn: true, coverImageKey: true,
+        epubKey: true, pdfKey: true, publishedAt: true,
+      },
+    });
+    const withUrls = await Promise.all(
+      books.map(async (b) => ({
+        ...b,
+        coverImageUrl: b.coverImageKey ? await presignGet(b.coverImageKey) : null,
+        epubUrl: b.epubKey ? await presignGet(b.epubKey, `${b.title}.epub`) : null,
+        pdfUrl: b.pdfKey ? await presignGet(b.pdfKey, `${b.title}.pdf`) : null,
+        coverImageKey: undefined, epubKey: undefined, pdfKey: undefined,
+      }))
+    );
+    return NextResponse.json({ books: withUrls });
+  }
 
   const { searchParams } = new URL(req.url);
   const status = searchParams.get("status");

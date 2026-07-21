@@ -1,7 +1,9 @@
 {
   "nav": {
     "home": "Home",
-    "articles": "Mga Artikulo",
+    "publications": "Mga Publikasyon",
+    "articles": "Mga Artikulo sa Journal",
+    "books": "Mga Aklat",
     "authors": "Mga May-akda",
     "experts": "Mga Kaalaman ng Eksperto",
     "resources": "Mga Resources",
@@ -85,6 +87,16 @@
     "articlesFound": "{count} artikulong nahanap",
     "noArticlesFound": "Walang nahanap na artikulo",
     "tryAdjusting": "Subukang baguhin ang iyong paghahanap o discipline filter."
+  },
+  "books": {
+    "eyebrow": "Book publishing division",
+    "title": "Tingnan ang mga aklat",
+    "description": "Tuklasin ang mga monograph, edited volume, at anthology mula sa aming book publishing division — tunay na ISBN, EPUB, at print-ready PDF downloads.",
+    "searchPlaceholder": "Maghanap sa pamagat, deskripsyon, o pangalan ng may-akda…",
+    "allCategories": "Lahat ng kategorya",
+    "booksFound": "{count} aklat ang nahanap",
+    "noBooksFound": "Walang nahanap na aklat",
+    "tryAdjusting": "Subukang baguhin ang iyong paghahanap o category filter."
   },
   "auth": {
     "backToHome": "Bumalik sa home",

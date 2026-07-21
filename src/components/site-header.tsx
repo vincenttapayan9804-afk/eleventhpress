@@ -11,7 +11,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { Menu, Bell, LogOut, LayoutDashboard } from "lucide-react";
+import { Menu, Bell, LogOut, LayoutDashboard, ChevronDown } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,7 +33,6 @@ export function SiteHeader() {
 
   const NAV_ITEMS = [
     { label: t("home"), view: "home" as const },
-    { label: t("articles"), view: "browse" as const },
     { label: t("authors"), view: "authors" as const },
     { label: t("experts"), view: "experts" as const },
     { label: t("resources"), view: "resources" as const },
@@ -42,6 +41,12 @@ export function SiteHeader() {
     { label: t("faqs"), view: "faqs" as const },
     { label: t("policies"), view: "policies" as const },
   ];
+
+  const PUBLICATIONS_ITEMS = [
+    { label: t("articles"), view: "browse" as const },
+    { label: t("books"), view: "books" as const },
+  ];
+  const publicationsActive = view === "browse" || view === "books";
 
   useState(() => {
     if (!user) return;
@@ -80,7 +85,33 @@ export function SiteHeader() {
 
           {/* Desktop nav */}
           <nav className="hidden min-w-0 flex-1 flex-wrap items-center justify-center gap-x-3.5 gap-y-1.5 px-2 xl:flex 2xl:gap-x-5">
-            {NAV_ITEMS.map((item) => (
+            <button
+              onClick={() => setView("home")}
+              data-active={view === "home"}
+              className="nav-underline flex-shrink-0 whitespace-nowrap font-sans text-[0.83rem] font-medium text-foreground/80 hover:text-foreground transition-colors 2xl:text-sm"
+            >
+              {t("home")}
+            </button>
+
+            {/* Publications dropdown — replaces the old flat "Articles"
+                link so Journal Articles and Books can share one nav slot. */}
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                data-active={publicationsActive}
+                className="nav-underline flex flex-shrink-0 items-center gap-1 whitespace-nowrap font-sans text-[0.83rem] font-medium text-foreground/80 outline-none hover:text-foreground transition-colors 2xl:text-sm"
+              >
+                {t("publications")} <ChevronDown className="h-3 w-3" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="glass-strong">
+                {PUBLICATIONS_ITEMS.map((item) => (
+                  <DropdownMenuItem key={item.view} onClick={() => setView(item.view)}>
+                    {item.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {NAV_ITEMS.filter((item) => item.view !== "home").map((item) => (
               <button
                 key={item.view}
                 onClick={() => setView(item.view)}
@@ -179,7 +210,28 @@ export function SiteHeader() {
                   </SheetTitle>
                 </SheetHeader>
                 <nav className="mt-6 flex flex-col gap-1">
-                  {NAV_ITEMS.map((item) => (
+                  <button
+                    onClick={() => { setView("home"); setMobileNavOpen(false); }}
+                    className="rounded-md px-3 py-2 text-left font-sans text-sm font-medium hover:bg-[oklch(0.93_0.04_290)] transition-colors"
+                  >
+                    {t("home")}
+                  </button>
+
+                  {/* Publications group */}
+                  <p className="mt-2 px-3 text-[0.65rem] font-semibold uppercase tracking-wider text-muted-foreground">
+                    {t("publications")}
+                  </p>
+                  {PUBLICATIONS_ITEMS.map((item) => (
+                    <button
+                      key={item.view}
+                      onClick={() => { setView(item.view); setMobileNavOpen(false); }}
+                      className="rounded-md px-3 py-2 pl-5 text-left font-sans text-sm font-medium hover:bg-[oklch(0.93_0.04_290)] transition-colors"
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+
+                  {NAV_ITEMS.filter((item) => item.view !== "home").map((item) => (
                     <button
                       key={item.view}
                       onClick={() => { setView(item.view); setMobileNavOpen(false); }}

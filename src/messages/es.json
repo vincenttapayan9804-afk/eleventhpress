@@ -1,7 +1,9 @@
 {
   "nav": {
     "home": "Inicio",
-    "articles": "Artículos",
+    "publications": "Publicaciones",
+    "articles": "Artículos de Revista",
+    "books": "Libros",
     "authors": "Autores",
     "experts": "Perspectivas de Expertos",
     "resources": "Recursos",
@@ -85,6 +87,16 @@
     "articlesFound": "{count} artículos encontrados",
     "noArticlesFound": "No se encontraron artículos",
     "tryAdjusting": "Prueba ajustando tu búsqueda o el filtro de disciplina."
+  },
+  "books": {
+    "eyebrow": "División de publicación de libros",
+    "title": "Explorar libros",
+    "description": "Explora monografías, volúmenes editados y antologías de nuestra división editorial de libros — ISBN reales, descargas en EPUB y PDF listo para imprimir.",
+    "searchPlaceholder": "Buscar por título, descripción o autor…",
+    "allCategories": "Todas las categorías",
+    "booksFound": "{count} libros encontrados",
+    "noBooksFound": "No se encontraron libros",
+    "tryAdjusting": "Prueba ajustando tu búsqueda o el filtro de categoría."
   },
   "auth": {
     "backToHome": "Volver al inicio",

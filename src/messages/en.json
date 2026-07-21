@@ -1,7 +1,9 @@
 {
   "nav": {
     "home": "Home",
-    "articles": "Articles",
+    "publications": "Publications",
+    "articles": "Journal Articles",
+    "books": "Books",
     "authors": "Authors",
     "experts": "Experts' Insights",
     "resources": "Resources",
@@ -85,6 +87,16 @@
     "articlesFound": "{count} articles found",
     "noArticlesFound": "No articles found",
     "tryAdjusting": "Try adjusting your search or discipline filter."
+  },
+  "books": {
+    "eyebrow": "Book publishing division",
+    "title": "Browse books",
+    "description": "Explore monographs, edited volumes, and anthologies from our full-stack book publishing division — real ISBNs, EPUB and print-ready PDF downloads.",
+    "searchPlaceholder": "Search title, description, or author name…",
+    "allCategories": "All categories",
+    "booksFound": "{count} books found",
+    "noBooksFound": "No books found",
+    "tryAdjusting": "Try adjusting your search or category filter."
   },
   "auth": {
     "backToHome": "Back to home",
