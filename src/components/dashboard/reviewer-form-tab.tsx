@@ -30,6 +30,8 @@ import {
   ShieldAlert,
   FileText,
   CheckCircle2,
+  Sparkles,
+  X,
 } from "lucide-react";
 
 interface Props {
@@ -49,6 +51,8 @@ export function ReviewerFormTab({ reviewId, onRefresh }: Props) {
   const [review, setReview] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState<string | null>(null);
+  const [aiCheck, setAiCheck] = useState<{ suggestions: string[]; mode: string } | null>(null);
+  const [checkingAi, setCheckingAi] = useState(false);
 
   const [form, setForm] = useState({
     overallScore: 4,
@@ -111,6 +115,28 @@ export function ReviewerFormTab({ reviewId, onRefresh }: Props) {
       toast.error(e.message);
     } finally {
       setSubmitting(null);
+    }
+  }
+
+  async function runAiCheck() {
+    setCheckingAi(true);
+    setAiCheck(null);
+    try {
+      const result = await apiFetch<{ suggestions: string[]; mode: string }>(
+        `/api/reviews/${reviewId}/completeness-check`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            commentsToAuthor: form.commentsToAuthor,
+            recommendation: form.recommendation,
+          }),
+        }
+      );
+      setAiCheck(result);
+    } catch (e: any) {
+      toast.error(e.message || "AI check failed");
+    } finally {
+      setCheckingAi(false);
     }
   }
 
@@ -243,6 +269,49 @@ export function ReviewerFormTab({ reviewId, onRefresh }: Props) {
               value={form.commentsToAuthor}
               onChange={(e) => setForm({ ...form, commentsToAuthor: e.target.value })}
             />
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={runAiCheck}
+              disabled={checkingAi || !form.commentsToAuthor.trim()}
+            >
+              {checkingAi ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              AI check — anything missing?
+            </Button>
+            {aiCheck && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <p className="font-semibold">
+                    {aiCheck.suggestions.length > 0
+                      ? "A few things you might consider adding — entirely optional:"
+                      : "Looks reasonably complete."}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setAiCheck(null)}
+                    aria-label="Dismiss suggestions"
+                    className="flex-shrink-0 text-amber-700 hover:text-amber-900"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                {aiCheck.suggestions.length > 0 && (
+                  <ul className="list-disc space-y-1 pl-4">
+                    {aiCheck.suggestions.map((s, i) => (
+                      <li key={i}>{s}</li>
+                    ))}
+                  </ul>
+                )}
+                <p className="mt-2 text-[0.65rem] text-amber-700/80">
+                  AI-generated suggestion — purely advisory and never affects your review or blocks submission.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="space-y-1.5">
