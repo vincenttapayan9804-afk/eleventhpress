@@ -305,30 +305,29 @@ export async function chatJSON<T = any>(
 export interface DescribeImageResult {
   altText: string;
   model: string;
+  provider: "anthropic" | "oss-free";
 }
 
-/**
- * Vision call for figure alt-text generation (src/lib/alt-text.ts). Same
- * throw-on-unavailable/refusal/empty contract as chatJSON — callers are
- * expected to catch and fall back to a heuristic (e.g. an existing figure
- * caption) rather than treat a throw as fatal, exactly like every other
- * LLM-backed feature in this codebase.
- */
-export async function describeImage(
+// A free, vision-capable OpenRouter model for the second alt-text tier —
+// same ":free"-suffix, $0-to-call convention as OSS_MODEL above. Override
+// via OPENROUTER_VISION_MODEL without a code change if a better free
+// vision model becomes available, e.g. "meta-llama/llama-3.2-11b-vision-
+// instruct:free" or another vision-capable ":free" listing.
+const OSS_VISION_MODEL = process.env.OPENROUTER_VISION_MODEL || "qwen/qwen2.5-vl-32b-instruct:free";
+
+const ALT_TEXT_SYSTEM_PROMPT =
+  "You write concise, descriptive, screen-reader-appropriate alt text for figures in academic articles. Describe what the image actually shows — data trends, diagram structure, photographed subject — in one or two plain sentences. Never speculate beyond what's visible. Do not begin with \"Image of\" or \"Figure showing\".";
+
+async function describeImageAnthropic(
   imageBase64: string,
   mediaType: "image/png" | "image/jpeg" | "image/webp" | "image/gif",
   promptContext: string
 ): Promise<DescribeImageResult> {
-  if (!isLLMAvailable()) {
-    throw new Error("ANTHROPIC_API_KEY is not configured");
-  }
-
   const response = await getClient().messages.create({
     model: ANTHROPIC_MODEL,
     max_tokens: 300,
     thinking: { type: "adaptive" },
-    system:
-      "You write concise, descriptive, screen-reader-appropriate alt text for figures in academic articles. Describe what the image actually shows — data trends, diagram structure, photographed subject — in one or two plain sentences. Never speculate beyond what's visible. Do not begin with \"Image of\" or \"Figure showing\".",
+    system: ALT_TEXT_SYSTEM_PROMPT,
     messages: [
       {
         role: "user",
@@ -352,5 +351,90 @@ export async function describeImage(
     throw new Error("LLM response contained no text content");
   }
 
-  return { altText: text, model: ANTHROPIC_MODEL };
+  return { altText: text, model: ANTHROPIC_MODEL, provider: "anthropic" };
+}
+
+async function describeImageOss(
+  imageBase64: string,
+  mediaType: "image/png" | "image/jpeg" | "image/webp" | "image/gif",
+  promptContext: string
+): Promise<DescribeImageResult> {
+  const res = await fetch(OPENROUTER_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://eleventhpress.org",
+      "X-Title": "Eleventh Press",
+    },
+    body: JSON.stringify({
+      model: OSS_VISION_MODEL,
+      max_tokens: 300,
+      messages: [
+        { role: "system", content: ALT_TEXT_SYSTEM_PROMPT },
+        {
+          role: "user",
+          content: [
+            { type: "image_url", image_url: { url: `data:${mediaType};base64,${imageBase64}` } },
+            { type: "text", text: promptContext },
+          ],
+        },
+      ],
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => res.statusText);
+    throw new Error(`OpenRouter vision request failed (${res.status}): ${body}`);
+  }
+
+  const json = await res.json();
+  const text: string = (json?.choices?.[0]?.message?.content ?? "").trim();
+  if (!text) {
+    throw new Error("OSS vision model response contained no text content");
+  }
+
+  return { altText: text, model: OSS_VISION_MODEL, provider: "oss-free" };
+}
+
+/**
+ * Vision call for figure alt-text generation (src/lib/alt-text.ts). Same
+ * two-tier honest-fallback contract as chatJSON: Anthropic first (when
+ * configured), then a free vision-capable OpenRouter model, only throwing
+ * once both are unavailable or have failed. Callers are expected to catch
+ * and fall back to a heuristic (e.g. an existing figure caption) rather
+ * than treat a throw as fatal, exactly like every other LLM-backed feature
+ * in this codebase. DescribeImageResult.provider always says which tier
+ * actually answered — never silently presented as the other.
+ */
+export async function describeImage(
+  imageBase64: string,
+  mediaType: "image/png" | "image/jpeg" | "image/webp" | "image/gif",
+  promptContext: string
+): Promise<DescribeImageResult> {
+  let anthropicError: Error | undefined;
+
+  if (isLLMAvailable()) {
+    try {
+      return await describeImageAnthropic(imageBase64, mediaType, promptContext);
+    } catch (e) {
+      anthropicError = e as Error;
+    }
+  }
+
+  if (ossLLMAvailable()) {
+    try {
+      return await describeImageOss(imageBase64, mediaType, promptContext);
+    } catch (e) {
+      if (anthropicError) {
+        throw new Error(
+          `Anthropic tier failed (${anthropicError.message}) and OSS vision fallback tier also failed: ${(e as Error).message}`
+        );
+      }
+      throw e;
+    }
+  }
+
+  if (anthropicError) throw anthropicError;
+  throw new Error("No vision-capable LLM provider configured (set ANTHROPIC_API_KEY and/or OPENROUTER_API_KEY)");
 }
