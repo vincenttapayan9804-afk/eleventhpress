@@ -261,6 +261,7 @@ export async function generateGalleys(
   // passing an unsanitized name directly.
   const rawExt = manuscriptName.split(".").pop()?.toLowerCase() || "md";
   const ext = /^[a-z0-9]{1,10}$/.test(rawExt) ? rawExt : "md";
+  // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal -- `ext` is validated against a strict [a-z0-9]{1,10} allowlist directly above; semgrep's taint tracking doesn't model that regex-test as sanitization.
   const inputPath = path.join(TEMP_DIR, `${jobId}-input.${ext}`);
   await fs.writeFile(inputPath, manuscriptContent);
   log.push(`Wrote input: ${inputPath} (${manuscriptContent.length} bytes)`);

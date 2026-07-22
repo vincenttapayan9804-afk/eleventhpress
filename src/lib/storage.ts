@@ -91,9 +91,11 @@ function parseKey(key: string): { bucket: string; path: string } {
  * missing/invalid key instead of a distinguishable error.
  */
 export function resolveWithinBucket(bucketDir: string, relPath: string): string | null {
-  // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal -- this join is intentional and is immediately validated below (resolve-then-check-prefix); it's the sanitizer this function exists to provide, not an unguarded use of the traversal-prone pattern the rule flags.
+  // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal -- this join is intentional and is immediately validated below (resolve-then-check-prefix); it's the sanitizer this function exists to provide, not an unguarded use of the traversal-prone pattern the rule flags. Same reasoning applies to the two path.join() calls in the next two lines (bucketDir alone, never relPath).
   const fullPath = path.join(bucketDir, relPath);
+  // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
   const normalizedBucketDir = path.join(bucketDir, path.sep);
+  // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
   if (fullPath !== path.join(bucketDir) && !fullPath.startsWith(normalizedBucketDir)) {
     return null;
   }
