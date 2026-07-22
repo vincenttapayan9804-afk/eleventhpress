@@ -18,7 +18,10 @@
  *    metrics charts, which carry real numbers rather than decoration, that
  *    fallback is a plain CSS rendering of the same data, not a blank box.
  *  - Purely decorative scenes (HeroGlobe/ImpactSphere) also respect
- *    `prefers-reduced-motion` by not rendering at all; the data-bearing
+ *    `prefers-reduced-motion`, and a basic low-power/mobile capability
+ *    check (small touch viewport or <=2 logical cores), by not rendering
+ *    at all — falling back to the cheap static `SceneFallback` below
+ *    instead; the data-bearing
  *    scenes — the two metrics charts and DisciplineTowers — don't skip
  *    loading for that (their animation, if any, is a barely-perceptible
  *    bob) — hiding real numbers behind a motion preference would remove
@@ -142,26 +145,50 @@ class SceneErrorBoundary extends Component<{ fallback: ReactNode; children: Reac
   }
 }
 
+const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+const SMALL_VIEWPORT_QUERY = "(max-width: 640px)";
+const COARSE_POINTER_QUERY = "(pointer: coarse)";
+
 /**
- * True on a client that hasn't asked to reduce motion. Uses
- * useSyncExternalStore (React's purpose-built API for reading external,
- * mutable browser state) rather than a useState+useEffect pair — that
- * pattern would call setState from inside an effect purely to get the
- * client's real value post-mount, which is both an anti-pattern and
- * unnecessary here since useSyncExternalStore already handles the
- * server/client snapshot split safely. Only consulted by the purely
- * decorative scenes below — the two metrics charts always attempt to load
- * regardless, since they carry real data rather than decoration.
+ * True on a client that hasn't asked to reduce motion AND isn't a
+ * low-power/mobile device. Uses useSyncExternalStore (React's
+ * purpose-built API for reading external, mutable browser state) rather
+ * than a useState+useEffect pair — that pattern would call setState from
+ * inside an effect purely to get the client's real value post-mount,
+ * which is both an anti-pattern and unnecessary here since
+ * useSyncExternalStore already handles the server/client snapshot split
+ * safely. Only consulted by the purely decorative scenes below — the two
+ * metrics charts always attempt to load regardless, since they carry real
+ * data rather than decoration.
  */
 function subscribeToMotionPreference(callback: () => void) {
   if (typeof window === "undefined" || !window.matchMedia) return () => {};
-  const mql = window.matchMedia("(prefers-reduced-motion: reduce)");
-  mql.addEventListener("change", callback);
-  return () => mql.removeEventListener("change", callback);
+  const queries = [REDUCED_MOTION_QUERY, SMALL_VIEWPORT_QUERY, COARSE_POINTER_QUERY].map((q) => window.matchMedia(q));
+  queries.forEach((mql) => mql.addEventListener("change", callback));
+  return () => queries.forEach((mql) => mql.removeEventListener("change", callback));
+}
+/**
+ * Basic capability check, beyond prefers-reduced-motion alone: a touch
+ * device with a phone-sized viewport, or a CPU with 2 or fewer logical
+ * cores, skips the WebGL bundle outright rather than paying for a scene
+ * it's unlikely to render smoothly. navigator.hardwareConcurrency doesn't
+ * change at runtime, so it only needs reading once per snapshot, not a
+ * subscription of its own.
+ */
+function isLowPowerDevice(): boolean {
+  if (typeof window === "undefined" || !window.matchMedia) return false;
+  const isPhoneSizedTouch = window.matchMedia(SMALL_VIEWPORT_QUERY).matches && window.matchMedia(COARSE_POINTER_QUERY).matches;
+  const lowCores =
+    typeof navigator !== "undefined" &&
+    typeof navigator.hardwareConcurrency === "number" &&
+    navigator.hardwareConcurrency > 0 &&
+    navigator.hardwareConcurrency <= 2;
+  return isPhoneSizedTouch || lowCores;
 }
 function getAllowMotionSnapshot(): boolean {
   if (typeof window === "undefined" || !window.matchMedia) return true;
-  return !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (window.matchMedia(REDUCED_MOTION_QUERY).matches) return false;
+  return !isLowPowerDevice();
 }
 function getAllowMotionServerSnapshot(): boolean {
   // Server/first-paint default: don't allow motion, so SSR (and the

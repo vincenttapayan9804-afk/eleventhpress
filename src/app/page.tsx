@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import dynamic from "next/dynamic";
 import { useApp } from "@/lib/store";
 import { apiFetch } from "@/lib/api-client";
 import { SiteHeader } from "@/components/site-header";
@@ -28,7 +29,14 @@ import {
 import { AuthSheet } from "@/components/auth-sheet";
 import { Toaster } from "@/components/ui/sonner";
 import { I18nProvider } from "@/components/i18n-provider";
-import { CorpusChatWidget } from "@/components/corpus-chat-widget";
+
+// Floating "Ask the Corpus" launcher — off the critical path everywhere it's
+// mounted (every view except dashboard/adminPortal/login/register); its own
+// heavy chat panel additionally defers behind next/dynamic(ssr:false) until
+// the visitor clicks it (see corpus-chat-widget.tsx).
+const CorpusChatWidget = dynamic(() => import("@/components/corpus-chat-widget").then((m) => m.CorpusChatWidget), {
+  ssr: false,
+});
 
 export default function Page() {
   const view = useApp((s) => s.view);
