@@ -10,7 +10,7 @@ updates:
     # release (a real, recurring supply-chain attack pattern) before it lands
     # in a PR here.
     cooldown:
-      default-days: 3
+      default-days: 7
     groups:
       # Radix UI primitives version in lockstep in this app — batch their
       # patch/minor bumps into one PR instead of ~20 individual ones.
@@ -23,18 +23,18 @@ updates:
     schedule:
       interval: "weekly"
     cooldown:
-      default-days: 3
+      default-days: 7
 
   - package-ecosystem: "npm"
     directory: "/mini-services/ws-service"
     schedule:
       interval: "weekly"
     cooldown:
-      default-days: 3
+      default-days: 7
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
     cooldown:
-      default-days: 3
+      default-days: 7

@@ -381,6 +381,7 @@ const server = Bun.serve({
 
         // Write uploaded file to temp dir
         await fs.mkdir(TEMP_DIR, { recursive: true });
+        // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal -- `ext` is already validated against a strict [a-z0-9]{1,10} allowlist directly above; semgrep's taint tracking doesn't model that regex-test as sanitization.
         const inputPath = path.join(TEMP_DIR, `input-${Date.now()}.${ext}`);
         await fs.writeFile(inputPath, Buffer.from(await file.arrayBuffer()));
 
