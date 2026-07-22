@@ -20,6 +20,7 @@ export type ViewKey =
   | "faqs"
   | "policies"
   | "privacy"
+  | "terms"
   | "accessibility"
   | "adminPortal";
 

@@ -61,6 +61,14 @@ model User {
   twoFactorSecret       String?
   twoFactorEnabled      Boolean   @default(false)
   twoFactorBackupCodes  String?
+  // Account-lockout brute-force hardening, layered on top of the existing
+  // per-IP/per-account rate limit (src/lib/ratelimit.ts) rather than
+  // replacing it — the rate limit is the fast, cheap first line (and fails
+  // open without Upstash configured); this is a slower-to-trip, DB-backed
+  // second line that still holds even when Upstash isn't set up. Reset to
+  // 0/null on every successful login (src/app/api/auth/login/route.ts).
+  failedLoginCount      Int       @default(0)
+  lockedUntil           DateTime?
   // ORCID OAuth tokens (premium integration)
   orcidAccessToken      String?
   orcidRefreshToken     String?

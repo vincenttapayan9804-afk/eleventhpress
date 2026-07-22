@@ -1,12 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { db } from "@/lib/db";
 import { hashPassword, signToken, SESSION_COOKIE_NAME, sessionCookieOptions } from "@/lib/auth";
 import { SELF_SELECTABLE_ROLES, APPLICATION_ROLES } from "@/lib/roles";
 import { isPasswordBreached } from "@/lib/password-breach";
 import { extractRequestIp } from "@/lib/institutions";
 import { checkRateLimit } from "@/lib/ratelimit";
+import { parseBody } from "@/lib/validate";
 
 const MIN_PASSWORD_LENGTH = 8;
+
+// `role` intentionally accepts any non-empty string here, not an enum of
+// SELF_SELECTABLE_ROLES/APPLICATION_ROLES — the handler below already
+// applies that allow-list logic (falling back to READER, or filing a
+// RoleApplication) and duplicating it in the schema would just be a second
+// place for the two lists to drift apart.
+const RegisterSchema = z.object({
+  email: z.email().max(254),
+  password: z.string().min(MIN_PASSWORD_LENGTH).max(200),
+  fullName: z.string().trim().min(1).max(200),
+  role: z.string().max(50).optional(),
+  affiliation: z.string().max(300).optional(),
+  expertise: z.string().max(500).optional(),
+  country: z.string().max(100).optional(),
+});
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,23 +36,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: rl.message }, { status: 429 });
     }
 
-    const body = await req.json();
-    const { email, password, fullName, role, affiliation, expertise, country } = body as {
-      email?: string;
-      password?: string;
-      fullName?: string;
-      role?: string;
-      affiliation?: string;
-      expertise?: string;
-      country?: string;
-    };
-
-    if (!email || !password || !fullName) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
-    }
-    if (password.length < MIN_PASSWORD_LENGTH) {
-      return NextResponse.json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` }, { status: 400 });
-    }
+    const parsed = await parseBody(req, RegisterSchema);
+    if (!parsed.ok) return parsed.response;
+    const { email, password, fullName, role, affiliation, expertise, country } = parsed.data;
 
     const existing = await db.user.findUnique({ where: { email } });
     if (existing) {

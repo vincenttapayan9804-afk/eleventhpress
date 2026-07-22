@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders, verifyPassword } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/ratelimit";
+import { parseBody } from "@/lib/validate";
+
+const DisableSchema = z.object({ password: z.string().min(1).max(200) });
 
 /**
  * Turning off 2FA is a security-downgrade action, so — same posture as
@@ -20,10 +24,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: rl.message }, { status: 429 });
   }
 
-  const { password } = (await req.json().catch(() => ({}))) as { password?: string };
-  if (!password) {
-    return NextResponse.json({ error: "Password confirmation is required" }, { status: 400 });
-  }
+  const parsed = await parseBody(req, DisableSchema);
+  if (!parsed.ok) return parsed.response;
+  const { password } = parsed.data;
 
   const user = await db.user.findUnique({ where: { id: session.userId }, select: { passwordHash: true } });
   if (!user || !verifyPassword(password, user.passwordHash)) {

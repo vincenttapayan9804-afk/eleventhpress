@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { db } from "@/lib/db";
 import { verifyPendingTwoFactorToken, signToken, SESSION_COOKIE_NAME, sessionCookieOptions } from "@/lib/auth";
 import { verifyTwoFactorToken, consumeBackupCode } from "@/lib/twofactor";
 import { checkRateLimit } from "@/lib/ratelimit";
 import { extractRequestIp } from "@/lib/institutions";
+import { parseBody } from "@/lib/validate";
+
+const ChallengeSchema = z.object({
+  pendingToken: z.string().min(1).max(2000),
+  // Long enough for either a 6-digit TOTP code or a "XXXXX-XXXXX"-style
+  // backup code (see src/lib/twofactor.ts) with room to spare.
+  token: z.string().min(1).max(40),
+});
 
 /**
  * Second step of login for accounts with twoFactorEnabled. Redeems the
@@ -12,13 +21,9 @@ import { extractRequestIp } from "@/lib/institutions";
  * code or a one-time backup code, then issues the real session cookie.
  */
 export async function POST(req: NextRequest) {
-  const { pendingToken, token } = (await req.json().catch(() => ({}))) as {
-    pendingToken?: string;
-    token?: string;
-  };
-  if (!pendingToken || !token) {
-    return NextResponse.json({ error: "Missing pending token or verification code" }, { status: 400 });
-  }
+  const parsed = await parseBody(req, ChallengeSchema);
+  if (!parsed.ok) return parsed.response;
+  const { pendingToken, token } = parsed.data;
 
   const pending = verifyPendingTwoFactorToken(pendingToken);
   if (!pending) {

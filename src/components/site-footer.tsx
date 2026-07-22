@@ -68,6 +68,14 @@ export function SiteFooter() {
                 <li>{t("policyPci")}</li>
                 <li>
                   <button
+                    onClick={() => setView("terms")}
+                    className="text-left underline-offset-2 hover:text-[oklch(0.42_0.18_295)] hover:underline transition-colors"
+                  >
+                    {t("termsOfService")}
+                  </button>
+                </li>
+                <li>
+                  <button
                     onClick={() => setView("accessibility")}
                     className="text-left underline-offset-2 hover:text-[oklch(0.42_0.18_295)] hover:underline transition-colors"
                   >

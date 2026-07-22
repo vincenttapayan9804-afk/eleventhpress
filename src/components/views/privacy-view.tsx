@@ -10,6 +10,9 @@ import {
   Database,
   Clock,
   Mail,
+  Cookie,
+  Building2,
+  Scale,
 } from "lucide-react";
 
 /**
@@ -84,6 +87,86 @@ export function PrivacyView() {
 
       <section className="mt-10">
         <div className="flex flex-wrap items-center gap-2">
+          <Cookie className="h-5 w-5 text-primary" />
+          <h2 className="font-display text-2xl font-semibold">Cookies</h2>
+        </div>
+        <Card className="paper-card mt-4">
+          <CardContent className="p-6 space-y-3">
+            <p className="text-sm text-muted-foreground text-justify">
+              We set exactly two cookies, and both are strictly necessary — nothing here requires a
+              consent banner under GDPR/ePrivacy, but we'd rather tell you plainly than say nothing:
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <PrivacyItem
+                title="epip_session"
+                desc="Your signed login session. HttpOnly (invisible to page JavaScript), sent only to our own server, expires after 7 days or on sign-out."
+              />
+              <PrivacyItem
+                title="epip_csrf"
+                desc="A random token your browser echoes back on every action that changes data, so a malicious site can't submit forms on your behalf. Not a tracking identifier — it carries no personal data."
+              />
+            </div>
+            <p className="text-sm text-muted-foreground text-justify">
+              We do not run analytics, advertising, or third-party tracking scripts of any kind on
+              this platform, so there are no other cookies to disclose. If that ever changes, this
+              page — and a real consent banner for anything non-essential — will change first.
+            </p>
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="mt-10">
+        <div className="flex flex-wrap items-center gap-2">
+          <Building2 className="h-5 w-5 text-primary" />
+          <h2 className="font-display text-2xl font-semibold">Who we share data with</h2>
+        </div>
+        <Card className="paper-card mt-4">
+          <CardContent className="p-6">
+            <p className="text-sm text-muted-foreground text-justify">
+              We don't sell data. A limited set of processors handle it on our behalf, only for the
+              purpose named: our hosting and database provider (running the application and storing
+              your account/submission data), our object storage provider (manuscript files, galleys,
+              avatars), your chosen payment gateway (Stripe, PayPal, PayMongo, Lemon Squeezy, or
+              Xendit — whichever you select at checkout; card details go directly to them, never to
+              us), VirusTotal (scans uploaded files for malware — the file only, not your account
+              details), Anthropic (assists editorial triage on submitted manuscript text when this
+              feature is enabled), and Zenodo (mints your article's DOI, which is inherently public
+              once published). ORCID and Blogger only ever receive data if you explicitly connect
+              those accounts yourself.
+            </p>
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="mt-10">
+        <div className="flex flex-wrap items-center gap-2">
+          <Scale className="h-5 w-5 text-primary" />
+          <h2 className="font-display text-2xl font-semibold">Legal basis for processing</h2>
+        </div>
+        <Card className="paper-card mt-4">
+          <CardContent className="grid gap-4 p-6 sm:grid-cols-2">
+            <PrivacyItem
+              title="Contract"
+              desc="Account profile, submission & review data, and payment records — processing necessary to provide the account or service you asked for."
+            />
+            <PrivacyItem
+              title="Legal obligation"
+              desc="Financial/invoice records retained for tax and audit purposes; a permanent citable scholarly record for published, DOI-bearing work."
+            />
+            <PrivacyItem
+              title="Legitimate interest"
+              desc="Usage events (views/downloads/COUNTER 5) for institutional reporting, and security logging (login audit trail, rate limiting) to protect accounts from abuse."
+            />
+            <PrivacyItem
+              title="Consent"
+              desc="Optional integrations you opt into yourself — connecting ORCID or Blogger, or enabling two-factor authentication."
+            />
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="mt-10">
+        <div className="flex flex-wrap items-center gap-2">
           <ShieldCheck className="h-5 w-5 text-primary" />
           <h2 className="font-display text-2xl font-semibold">Your rights</h2>
         </div>
@@ -130,6 +213,9 @@ export function PrivacyView() {
         <div className="mt-5 flex flex-wrap justify-center gap-3">
           <Button variant="outline" onClick={() => setView("policies")}>
             View policies
+          </Button>
+          <Button variant="outline" onClick={() => setView("terms")}>
+            View Terms of Service
           </Button>
         </div>
       </section>

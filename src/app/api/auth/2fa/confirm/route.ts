@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { verifyTwoFactorToken, generateBackupCodes } from "@/lib/twofactor";
 import { checkRateLimit } from "@/lib/ratelimit";
+import { parseBody } from "@/lib/validate";
+
+const ConfirmSchema = z.object({ token: z.string().min(1).max(20) });
 
 /**
  * Completes enrollment: proves the authenticator app was set up correctly
@@ -21,10 +25,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: rl.message }, { status: 429 });
   }
 
-  const { token } = (await req.json().catch(() => ({}))) as { token?: string };
-  if (!token) {
-    return NextResponse.json({ error: "Missing verification code" }, { status: 400 });
-  }
+  const parsed = await parseBody(req, ConfirmSchema);
+  if (!parsed.ok) return parsed.response;
+  const { token } = parsed.data;
 
   const user = await db.user.findUnique({ where: { id: session.userId }, select: { twoFactorSecret: true } });
   if (!user?.twoFactorSecret) {

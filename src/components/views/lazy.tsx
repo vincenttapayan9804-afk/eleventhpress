@@ -72,6 +72,9 @@ export const PrivacyView = dynamic(() => import("./privacy-view").then((m) => m.
 export const AccessibilityView = dynamic(() => import("./accessibility-view").then((m) => m.AccessibilityView), {
   loading: () => <ViewLoadingFallback />,
 });
+export const TermsView = dynamic(() => import("./terms-view").then((m) => m.TermsView), {
+  loading: () => <ViewLoadingFallback />,
+});
 export const AdminPortalView = dynamic(() => import("./admin-portal-view").then((m) => m.AdminPortalView), {
   loading: () => <ViewLoadingFallback />,
 });
