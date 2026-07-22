@@ -5,6 +5,12 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
+    # Waits N days after a new version is published before Dependabot will
+    # propose it — gives the ecosystem time to catch a compromised/malicious
+    # release (a real, recurring supply-chain attack pattern) before it lands
+    # in a PR here.
+    cooldown:
+      default-days: 7
     groups:
       # Radix UI primitives version in lockstep in this app — batch their
       # patch/minor bumps into one PR instead of ~20 individual ones.
@@ -16,13 +22,19 @@ updates:
     directory: "/mini-services/pandoc-worker"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
 
   - package-ecosystem: "npm"
     directory: "/mini-services/ws-service"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7

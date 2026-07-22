@@ -39,6 +39,22 @@ export function usingBlob(): boolean {
   return !!(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
 }
 
+/**
+ * Derives a safe storage-key filename from a client-supplied original
+ * filename (e.g. POST /api/articles/submit's `manuscriptName`) — keeps
+ * only the extension from the original name (matching the pattern
+ * generateGalleys() already uses to pick a converter) and always
+ * generates the base name server-side, so nothing from the client ever
+ * becomes part of a filesystem/object-storage path segment. `fallback` is
+ * a value already unique to this write (e.g. the draft DOI suffix) used
+ * as the base name.
+ */
+export function safeManuscriptFilename(originalName: string, fallback: string | number): string {
+  const rawExt = originalName.split(".").pop() || "";
+  const ext = /^[a-zA-Z0-9]{1,10}$/.test(rawExt) ? rawExt.toLowerCase() : "pdf";
+  return `${fallback}.${ext}`;
+}
+
 /** Ensure all local bucket directories exist (no-op in Blob mode). */
 export async function ensureBuckets(): Promise<void> {
   if (usingBlob()) return;
@@ -59,6 +75,31 @@ function parseKey(key: string): { bucket: string; path: string } {
   const bucket = key.slice(0, slashIdx);
   const rest = key.slice(slashIdx + 1);
   return { bucket, path: rest };
+}
+
+/**
+ * Joins `bucketDir` + `relPath` and verifies the result is still inside
+ * `bucketDir` — the standard resolve-then-check-prefix guard against
+ * `relPath` containing "../" segments. Several callers below build `key`
+ * (and therefore `relPath`) from data that ultimately traces back to a
+ * client-supplied filename (e.g. POST /api/articles/submit's
+ * `manuscriptName` fallback) — in Blob mode a traversal-looking key is
+ * just an unusual opaque object name, but in local-disk mode (dev, or any
+ * deployment without BLOB_READ_WRITE_TOKEN configured) an unguarded
+ * `path.join` would let it escape the intended bucket directory entirely.
+ * Returns null (never throws) so callers can treat it exactly like a
+ * missing/invalid key instead of a distinguishable error.
+ */
+export function resolveWithinBucket(bucketDir: string, relPath: string): string | null {
+  // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal -- this join is intentional and is immediately validated below (resolve-then-check-prefix); it's the sanitizer this function exists to provide, not an unguarded use of the traversal-prone pattern the rule flags. Same reasoning applies to the two path.join() calls in the next two lines (bucketDir alone, never relPath).
+  const fullPath = path.join(bucketDir, relPath);
+  // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+  const normalizedBucketDir = path.join(bucketDir, path.sep);
+  // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+  if (fullPath !== path.join(bucketDir) && !fullPath.startsWith(normalizedBucketDir)) {
+    return null;
+  }
+  return fullPath;
 }
 
 /** Write a buffer to storage under the given key. */
@@ -84,7 +125,10 @@ export async function putObject(
   if (!bucketDir) {
     throw new Error(`Unknown bucket: ${bucket}`);
   }
-  const fullPath = path.join(bucketDir, relPath);
+  const fullPath = resolveWithinBucket(bucketDir, relPath);
+  if (!fullPath) {
+    throw new Error(`Refusing to write outside bucket directory: ${key}`);
+  }
   await fs.mkdir(path.dirname(fullPath), { recursive: true });
   await fs.writeFile(fullPath, data);
   return { key, size: data.length, etag };
@@ -112,7 +156,8 @@ export async function getObject(key: string): Promise<Buffer | null> {
   const { bucket, path: relPath } = parseKey(key);
   const bucketDir = BUCKET_DIRS[bucket];
   if (!bucketDir) return null;
-  const fullPath = path.join(bucketDir, relPath);
+  const fullPath = resolveWithinBucket(bucketDir, relPath);
+  if (!fullPath) return null;
   try {
     return await fs.readFile(fullPath);
   } catch {
@@ -169,7 +214,8 @@ export async function deleteObject(key: string): Promise<void> {
   const { bucket, path: relPath } = parseKey(key);
   const bucketDir = BUCKET_DIRS[bucket];
   if (!bucketDir) return;
-  const fullPath = path.join(bucketDir, relPath);
+  const fullPath = resolveWithinBucket(bucketDir, relPath);
+  if (!fullPath) return;
   try {
     await fs.unlink(fullPath);
   } catch {}

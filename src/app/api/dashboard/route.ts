@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
+import { withRlsContext } from "@/lib/db-rls";
 
 /**
  * GET /api/dashboard
@@ -38,11 +39,13 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "desc" },
       include: { issue: true, reviews: true },
     });
-    const invoices = await db.invoice.findMany({
-      where: { userId },
-      include: { article: { select: { title: true, doi: true } } },
-      orderBy: { createdAt: "desc" },
-    });
+    const invoices = await withRlsContext(session, (tx) =>
+      tx.invoice.findMany({
+        where: { userId },
+        include: { article: { select: { title: true, doi: true } } },
+        orderBy: { createdAt: "desc" },
+      })
+    );
     payload.submissions = submissions;
     payload.invoices = invoices;
   }
@@ -67,11 +70,13 @@ export async function GET(req: NextRequest) {
     const accepted = await db.article.count({ where: { status: "ACCEPTED" } });
     const submitted = await db.article.count({ where: { status: "SUBMITTED" } });
 
-    const recentAudit = await db.auditLog.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 15,
-      include: { user: { select: { fullName: true, role: true } } },
-    });
+    const recentAudit = await withRlsContext(session, (tx) =>
+      tx.auditLog.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 15,
+        include: { user: { select: { fullName: true, role: true } } },
+      })
+    );
 
     payload.queue = queue;
     payload.stats = { published, inReview, accepted, submitted };

@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { checkSimilarity } from "@/lib/manuscript-checks";
 import { INSIGHT_CATEGORIES, INSIGHT_CATEGORY_LABELS, KEY_TAKEAWAYS_COUNT, type InsightCategory } from "@/lib/article";
+import { safeManuscriptFilename } from "@/lib/storage";
 
 /**
  * POST /api/articles/submit
@@ -113,7 +114,7 @@ export async function POST(req: NextRequest) {
         keyTakeaways: isExpert ? JSON.stringify((keyTakeaways ?? []).map((t) => t.trim()).filter(Boolean)) : null,
         authors: JSON.stringify(authors),
         correspondingAuthorId: session.userId,
-        manuscriptKey: manuscriptKey || (manuscriptName ? `raw-submissions/${session.userId}/${manuscriptName}` : `raw-submissions/${effectiveDiscipline.toLowerCase().replace(/\s+/g, "-")}-${doiSuffix}.pdf`),
+        manuscriptKey: manuscriptKey || (manuscriptName ? `raw-submissions/${session.userId}/${safeManuscriptFilename(manuscriptName, doiSuffix)}` : `raw-submissions/${effectiveDiscipline.toLowerCase().replace(/\s+/g, "-")}-${doiSuffix}.pdf`),
         anonymizedKey,
         status: "SUBMITTED",
         reviewModel,

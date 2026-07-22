@@ -16,6 +16,7 @@ import {
 
 describe("encryptField / decryptField", () => {
   test("round-trips a plaintext value", () => {
+    // nosemgrep: generic.secrets.security.detected-google-oauth-access-token.detected-google-oauth-access-token -- fake, OAuth-token-shaped test fixture (exercises round-tripping a realistic value), not a real credential; gitleaks (a real secret scanner) confirms this repo is clean.
     const original = "ya29.a0AfH6SMC_real_looking_access_token";
     const encrypted = encryptField(original);
     expect(decryptField(encrypted)).toBe(original);

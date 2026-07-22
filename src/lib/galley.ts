@@ -251,7 +251,17 @@ export async function generateGalleys(
 
   await fs.mkdir(TEMP_DIR, { recursive: true });
 
-  const ext = manuscriptName.split(".").pop()?.toLowerCase() || "md";
+  // Only the extension is taken from manuscriptName, and only if it looks
+  // like a plausible extension — this is a second layer on top of the
+  // caller-side sanitization in src/lib/storage.ts's safeManuscriptFilename()
+  // and src/app/api/articles/submit/route.ts, not a replacement for it:
+  // manuscriptName here is ultimately derived from a storage key
+  // (article.manuscriptKey?.split("/").pop()), and a future caller of
+  // generateGalleys() should never be able to reintroduce a traversal by
+  // passing an unsanitized name directly.
+  const rawExt = manuscriptName.split(".").pop()?.toLowerCase() || "md";
+  const ext = /^[a-z0-9]{1,10}$/.test(rawExt) ? rawExt : "md";
+  // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal -- `ext` is validated against a strict [a-z0-9]{1,10} allowlist directly above; semgrep's taint tracking doesn't model that regex-test as sanitization.
   const inputPath = path.join(TEMP_DIR, `${jobId}-input.${ext}`);
   await fs.writeFile(inputPath, manuscriptContent);
   log.push(`Wrote input: ${inputPath} (${manuscriptContent.length} bytes)`);
