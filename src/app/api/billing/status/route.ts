@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
+import { withRlsContext } from "@/lib/db-rls";
 
 /**
  * GET /api/billing/status — current user's invoices + active subscription.
@@ -12,11 +13,13 @@ export async function GET(req: NextRequest) {
   }
 
   const [invoices, subscription] = await Promise.all([
-    db.invoice.findMany({
-      where: { userId: session.userId },
-      include: { article: { select: { title: true, doi: true } } },
-      orderBy: { createdAt: "desc" },
-    }),
+    withRlsContext(session, (tx) =>
+      tx.invoice.findMany({
+        where: { userId: session.userId },
+        include: { article: { select: { title: true, doi: true } } },
+        orderBy: { createdAt: "desc" },
+      })
+    ),
     db.subscription.findFirst({
       where: { userId: session.userId, status: "ACTIVE" },
       orderBy: { createdAt: "desc" },
