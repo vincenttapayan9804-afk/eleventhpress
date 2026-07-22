@@ -464,14 +464,14 @@ export function ArticleView() {
       </header>
 
       {/* Body */}
-      <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_280px]">
+      <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[1fr_280px]">
         {/* Main column */}
         <div className="min-w-0">
           <Tabs defaultValue="article" className="w-full">
             {/* Horizontally-scrollable on narrow viewports instead of a
                 fixed equal-width grid — a dynamic 5-7 column grid clips tab
                 labels ("Ask this paper", "Review History") on phones. */}
-            <TabsList className="flex w-full items-center justify-start gap-1 overflow-x-auto [&>*]:shrink-0">
+            <TabsList className="flex w-full items-center justify-start gap-1 overflow-x-auto [mask-image:linear-gradient(to_right,transparent,black_16px,black_calc(100%-16px),transparent)] [&>*]:shrink-0">
               <TabsTrigger value="article">Article</TabsTrigger>
               <TabsTrigger value="metrics">Metrics</TabsTrigger>
               <TabsTrigger value="supplemental">Supplemental</TabsTrigger>
@@ -632,7 +632,7 @@ export function ArticleView() {
                 <Card className="paper-card overflow-hidden">
                   <CardContent className="p-5">
                     <p className="eyebrow">Readership &amp; impact</p>
-                    <div className="mt-3 grid gap-4 sm:grid-cols-[13rem_1fr] sm:items-center">
+                    <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-[13rem_1fr] sm:items-center">
                       <div className="h-40 w-full sm:h-44">
                         <MetricsBarChart3D
                           items={[
@@ -642,7 +642,7 @@ export function ArticleView() {
                           ]}
                         />
                       </div>
-                      <div className="grid gap-3 sm:grid-cols-3">
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                         <div>
                           <div className="flex items-center gap-1.5 text-primary">
                             <Quote className="h-4 w-4" />
@@ -677,7 +677,7 @@ export function ArticleView() {
                 <Card className="paper-card overflow-hidden">
                   <CardContent className="p-5">
                     <p className="eyebrow">Integrity &amp; originality</p>
-                    <div className="mt-3 grid gap-4 sm:grid-cols-[13rem_1fr] sm:items-center">
+                    <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-[13rem_1fr] sm:items-center">
                       <div className="h-40 w-full sm:h-44">
                         <MetricsFillGauge3D
                           items={[
@@ -686,7 +686,7 @@ export function ArticleView() {
                           ]}
                         />
                       </div>
-                      <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div>
                           <div className="flex items-center gap-1.5 text-primary">
                             <ShieldCheck className="h-4 w-4" />
@@ -1051,7 +1051,7 @@ export function ArticleView() {
         <section className="mt-12 border-t border-border pt-8">
           <p className="eyebrow">Similar articles</p>
           <h2 className="mt-1 font-display text-2xl font-semibold">Continue reading</h2>
-          <div className="mt-5 grid gap-4 md:grid-cols-3">
+          <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
             {related.map((r) => (
               <Card
                 key={r.id}
@@ -1156,7 +1156,7 @@ function SupplementalMaterialsTab({ article }: { article: ArticleDetail }) {
       <div>
         <p className="eyebrow mb-2">Inline definitions</p>
         {glossaryTerms.length > 0 ? (
-          <dl className="grid gap-3 sm:grid-cols-2">
+          <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {glossaryTerms.map((t, i) => (
               <div key={i} className="rounded-md border border-border p-3">
                 <dt className="font-display text-sm font-semibold">{t.term}</dt>
@@ -2010,7 +2010,7 @@ function DatasetsSection({ articleId }: { articleId: string }) {
               <Label className="text-xs">Description</Label>
               <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} placeholder="Describe the dataset contents, format, and collection method…" />
             </div>
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="space-y-1">
                 <Label className="text-xs">Keywords (comma-separated)</Label>
                 <Input value={form.keywords} onChange={(e) => setForm({ ...form, keywords: e.target.value })} placeholder="climate, temperature" className="h-9" />
@@ -2050,7 +2050,7 @@ function DatasetsSection({ articleId }: { articleId: string }) {
       )}
 
       {/* Dataset list */}
-      <div className="mt-5 grid gap-3 md:grid-cols-2">
+      <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2">
         {datasets.length === 0 ? (
           <p className="col-span-2 py-6 text-center text-sm text-muted-foreground">
             No datasets linked. {canDeposit ? "Click \"Deposit dataset\" to deposit on Zenodo." : ""}

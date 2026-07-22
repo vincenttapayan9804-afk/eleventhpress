@@ -17,15 +17,19 @@
  *    or WebGL-less device still gets a usable page — and for the two
  *    metrics charts, which carry real numbers rather than decoration, that
  *    fallback is a plain CSS rendering of the same data, not a blank box.
- *  - Purely decorative scenes (HeroGlobe/ImpactSphere) also respect
- *    `prefers-reduced-motion`, and a basic low-power/mobile capability
- *    check (small touch viewport or <=2 logical cores), by not rendering
- *    at all — falling back to the cheap static `SceneFallback` below
- *    instead; the data-bearing
- *    scenes — the two metrics charts and DisciplineTowers — don't skip
- *    loading for that (their animation, if any, is a barely-perceptible
- *    bob) — hiding real numbers behind a motion preference would remove
- *    information, not just motion.
+ *  - Purely decorative scenes (HeroGlobe/ImpactSphere) skip rendering
+ *    entirely — falling back to the cheap static `SceneFallback` below —
+ *    under `prefers-reduced-motion` OR a basic low-power/mobile capability
+ *    check (small touch viewport or <=2 logical cores); DisciplineTowers
+ *    (user-invoked, not ambient) only gates its internal animation on
+ *    reduced-motion, never skips loading for it.
+ *  - The two metrics charts never skip loading for `prefers-reduced-motion`
+ *    alone — hiding real numbers behind a motion preference would remove
+ *    information, not just motion — but DO skip the WebGL context on the
+ *    low-power/mobile capability check specifically, substituting their
+ *    plain-CSS fallback (same numbers, no <Canvas>) since spinning up a
+ *    WebGL context has a real, measurable cost (chunk fetch + GPU init)
+ *    that's wasted on hardware unlikely to render it smoothly anyway.
  */
 import dynamic from "next/dynamic";
 import { Component, useSyncExternalStore, type ComponentProps, type ReactNode } from "react";
@@ -201,6 +205,27 @@ function useAllowMotion() {
   return useSyncExternalStore(subscribeToMotionPreference, getAllowMotionSnapshot, getAllowMotionServerSnapshot);
 }
 
+/**
+ * Capability-only signal (no prefers-reduced-motion), for scenes that
+ * carry real data rather than decoration — e.g. the metrics charts below.
+ * Reduced-motion alone shouldn't hide real numbers (see useAllowMotion's
+ * callers), but a genuinely low-power/mobile device still shouldn't pay
+ * for a WebGL context just to render a bar chart when the CSS fallback
+ * shows the identical numbers.
+ */
+function subscribeToLowPower(callback: () => void) {
+  if (typeof window === "undefined" || !window.matchMedia) return () => {};
+  const queries = [SMALL_VIEWPORT_QUERY, COARSE_POINTER_QUERY].map((q) => window.matchMedia(q));
+  queries.forEach((mql) => mql.addEventListener("change", callback));
+  return () => queries.forEach((mql) => mql.removeEventListener("change", callback));
+}
+function getLowPowerServerSnapshot(): boolean {
+  return false;
+}
+function useLowPowerDevice() {
+  return useSyncExternalStore(subscribeToLowPower, isLowPowerDevice, getLowPowerServerSnapshot);
+}
+
 const HeroGlobeImpl = dynamic(() => import("./scenes").then((m) => m.HeroGlobe), {
   ssr: false,
   loading: () => <SceneFallback />,
@@ -252,6 +277,8 @@ export function DisciplineTowers(props: { stats: DisciplineStat[]; className?: s
   );
 }
 export function MetricsBarChart3D(props: ComponentProps<typeof MetricsBarChart3DImpl>) {
+  const lowPower = useLowPowerDevice();
+  if (lowPower) return <MetricsBarChartFallback items={props.items} className={props.className} />;
   return (
     <SceneErrorBoundary fallback={<MetricsBarChartFallback items={props.items} className={props.className} />}>
       <MetricsBarChart3DImpl {...props} />
@@ -259,6 +286,8 @@ export function MetricsBarChart3D(props: ComponentProps<typeof MetricsBarChart3D
   );
 }
 export function MetricsFillGauge3D(props: ComponentProps<typeof MetricsFillGauge3DImpl>) {
+  const lowPower = useLowPowerDevice();
+  if (lowPower) return <MetricsFillGaugeFallback items={props.items} className={props.className} />;
   return (
     <SceneErrorBoundary fallback={<MetricsFillGaugeFallback items={props.items} className={props.className} />}>
       <MetricsFillGauge3DImpl {...props} />
