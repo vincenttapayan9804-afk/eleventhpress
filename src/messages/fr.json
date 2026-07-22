@@ -43,6 +43,7 @@
     "policyCrossref": "Dépôt de DOI {registrar}",
     "policyGdpr": "Droits sur les données : export et suppression",
     "policyPci": "PCI-DSS sur toutes les passerelles de paiement",
+    "termsOfService": "Conditions d'utilisation",
     "accessibilityStatement": "Déclaration d'accessibilité",
     "copyright": "© {year} Eleventh Press International Publishing. Tous les articles sont publiés sous licence CC BY 4.0 sauf indication contraire.",
     "indexedLine": "Indexé dans : Google Scholar · {registrar} · OAI-PMH · DOAJ"

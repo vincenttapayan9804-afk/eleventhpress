@@ -1,10 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { getPaymentProvider } from "@/lib/payments";
 import { APP_BASE_URL } from "@/lib/site";
 import { SUBSCRIPTION_PLAN_PRICES, DISTRIBUTION_PACKAGE_ARTICLE_USD, DISTRIBUTION_PACKAGE_BOOK_USD, type SubscriptionPlan } from "@/lib/pricing";
 import { PRIVILEGED_ROLES } from "@/lib/roles";
+import { parseBody } from "@/lib/validate";
+
+// `plan` isn't restricted to keyof SUBSCRIPTION_PLAN_PRICES here — the
+// handler below already does that lookup and 400s on a miss, so this only
+// needs to guarantee it's a plausible identifier string, not re-encode the
+// pricing table's key list as a second source of truth.
+const CheckoutSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("APC"), invoiceId: z.string().min(1), provider: z.string().min(1).max(50) }),
+  z.object({ kind: z.literal("SUBSCRIPTION"), plan: z.string().min(1).max(50), provider: z.string().min(1).max(50) }),
+  z.object({
+    kind: z.literal("DISTRIBUTION_PACKAGE"),
+    target: z.enum(["ARTICLE", "BOOK"]),
+    targetId: z.string().min(1),
+    provider: z.string().min(1).max(50),
+  }),
+]);
 
 /**
  * POST /api/billing/checkout
@@ -25,10 +42,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
 
-  const body = (await req.json()) as
-    | { kind: "APC"; invoiceId: string; provider: string }
-    | { kind: "SUBSCRIPTION"; plan: SubscriptionPlan; provider: string }
-    | { kind: "DISTRIBUTION_PACKAGE"; target: "ARTICLE" | "BOOK"; targetId: string; provider: string };
+  const parsed = await parseBody(req, CheckoutSchema);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
 
   const user = await db.user.findUnique({ where: { id: session.userId } });
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -71,7 +87,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (body.kind === "SUBSCRIPTION") {
-    const amount = SUBSCRIPTION_PLAN_PRICES[body.plan];
+    const amount = SUBSCRIPTION_PLAN_PRICES[body.plan as SubscriptionPlan];
     if (!amount) return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
 
     const invoice = await db.invoice.create({

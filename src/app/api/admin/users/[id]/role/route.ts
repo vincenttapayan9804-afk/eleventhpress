@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { ALL_ROLES as VALID_ROLES } from "@/lib/roles";
+import { parseBody } from "@/lib/validate";
+
+const RoleChangeSchema = z.object({ role: z.string().min(1).max(50) });
 
 /**
  * POST /api/admin/users/[id]/role
@@ -21,8 +25,10 @@ export async function POST(
   const { session } = auth;
 
   const { id } = await params;
-  const { role } = (await req.json()) as { role?: string };
-  if (!role || !VALID_ROLES.includes(role)) {
+  const parsed = await parseBody(req, RoleChangeSchema);
+  if (!parsed.ok) return parsed.response;
+  const { role } = parsed.data;
+  if (!VALID_ROLES.includes(role)) {
     return NextResponse.json({ error: `role must be one of: ${VALID_ROLES.join(", ")}` }, { status: 400 });
   }
 

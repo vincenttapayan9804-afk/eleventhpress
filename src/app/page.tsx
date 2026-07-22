@@ -21,6 +21,7 @@ import {
   FaqsView,
   PoliciesView,
   PrivacyView,
+  TermsView,
   AccessibilityView,
   AdminPortalView,
 } from "@/components/views/lazy";
@@ -102,6 +103,7 @@ export default function Page() {
           {view === "faqs" && <FaqsView />}
           {view === "policies" && <PoliciesView />}
           {view === "privacy" && <PrivacyView />}
+          {view === "terms" && <TermsView />}
           {view === "accessibility" && <AccessibilityView />}
           {view === "adminPortal" && <AdminPortalView />}
         </main>
