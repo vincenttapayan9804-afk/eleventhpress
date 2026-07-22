@@ -39,6 +39,7 @@ import {
   AlertCircle,
   Import,
   Download,
+  BookOpen,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -99,16 +100,21 @@ export function IndexingTab() {
   const [selectedIssueId, setSelectedIssueId] = useState<string>("");
   const [ojsPreviewXml, setOjsPreviewXml] = useState<string>("");
 
+  const [publishedBooks, setPublishedBooks] = useState<any[]>([]);
+  const [selectedBookId, setSelectedBookId] = useState<string>("");
+  const [onixPreviewXml, setOnixPreviewXml] = useState<string>("");
+
   async function load() {
     setLoading(true);
     try {
-      const [logRes, oaiRes, liveRes, zenodoRes, repecRes, issuesRes] = await Promise.all([
+      const [logRes, oaiRes, liveRes, zenodoRes, repecRes, issuesRes, booksRes] = await Promise.all([
         apiFetch<{ logs: CrossrefLog[]; published: any[] }>("/api/crossref-log"),
         fetch("/api/oai-pmh?verb=ListRecords&metadataPrefix=oai_dc").then((r) => r.text()),
         apiFetch<{ liveMode: boolean }>("/api/crossref/deposit"),
         apiFetch<{ liveMode: boolean }>("/api/zenodo/status"),
         apiFetch<{ liveMode: boolean }>("/api/redif/status"),
         apiFetch<{ items: any[] }>("/api/issues"),
+        apiFetch<{ books: any[] }>("/api/books?status=PUBLISHED&all=1"),
       ]);
       setLogs(logRes.logs);
       setPublished(logRes.published);
@@ -123,6 +129,11 @@ export function IndexingTab() {
       setIssues(publishedIssues);
       if (publishedIssues.length > 0 && !selectedIssueId) {
         setSelectedIssueId(publishedIssues[0].id);
+      }
+      const books = booksRes.books || [];
+      setPublishedBooks(books);
+      if (books.length > 0 && !selectedBookId) {
+        setSelectedBookId(books[0].id);
       }
     } catch (e) {
       console.error(e);
@@ -154,6 +165,18 @@ export function IndexingTab() {
       .then(setOjsPreviewXml)
       .catch((e) => setOjsPreviewXml(`<!-- failed to load: ${e.message} -->`));
   }, [selectedIssueId]);
+
+  // Fetch ONIX 3.0 XML preview when selected book changes
+  useEffect(() => {
+    if (!selectedBookId) {
+      setOnixPreviewXml("");
+      return;
+    }
+    fetch(`/api/books/${selectedBookId}/onix`)
+      .then((r) => r.text())
+      .then(setOnixPreviewXml)
+      .catch((e) => setOnixPreviewXml(`<!-- failed to load: ${e.message} -->`));
+  }, [selectedBookId]);
 
   async function deposit() {
     if (!selectedArticleId) return;
@@ -294,6 +317,9 @@ export function IndexingTab() {
           </TabsTrigger>
           <TabsTrigger value="ojs">
             <Import className="mr-1.5 h-3.5 w-3.5" /> OJS export
+          </TabsTrigger>
+          <TabsTrigger value="onix">
+            <BookOpen className="mr-1.5 h-3.5 w-3.5" /> ONIX export
           </TabsTrigger>
           <TabsTrigger value="scholar">
             <Search className="mr-1.5 h-3.5 w-3.5" /> Google Scholar
@@ -613,6 +639,89 @@ export function IndexingTab() {
                 </div>
                 <pre className="max-h-96 overflow-auto rounded-md border border-border bg-[oklch(0.18_0.012_60)] p-4 font-mono text-[0.65rem] leading-relaxed text-[oklch(0.85_0.012_80)] epip-scroll">
 {ojsPreviewXml || "Select an issue to preview its OJS Native XML export."}
+                </pre>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ONIX 3.0 export */}
+        <TabsContent value="onix" className="mt-4 space-y-4">
+          <Card className="paper-card">
+            <CardContent className="p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="font-display text-base font-semibold">
+                    Export to ONIX for Books 3.0
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Generates an ONIX 3.0 (reference-tag) <span className="font-medium">&lt;ONIXMessage&gt;</span> —
+                    the metadata feed format IngramSpark, Draft2Digital, and most library wholesalers accept
+                    for bulk title ingestion. One &lt;Product&gt; per published book per format it actually has
+                    (EPUB, print-ready PDF). Pick a book to preview its export, or download the full catalog.
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" asChild>
+                  <a href="/api/export/onix/catalog">
+                    <Download className="mr-1.5 h-3.5 w-3.5" /> Download full catalog export
+                  </a>
+                </Button>
+              </div>
+
+              <div className="mt-3 flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800">
+                <AlertCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+                <div>
+                  <p className="font-medium">Cross-checked against EDItEUR's codelists, not xmllint-verified against the real XSD.</p>
+                  <p className="mt-0.5">
+                    Element structure and codes were verified against EDItEUR's published ONIX 3.0 codelists
+                    and spec introduction, but this environment couldn't reach editeur.org to validate the
+                    output against the actual XSD the way <code className="font-mono">src/lib/ojs-native.ts</code>'s
+                    PKP export was. A book with both an EPUB and a print edition shares one ISBN across both
+                    &lt;Product&gt; records (Book only stores one ISBN) — flag that to your ISBN agency before
+                    a first live submission. See <code className="font-mono">src/lib/onix.ts</code> for full
+                    sourcing notes and data-model limitations.
+                  </p>
+                </div>
+              </div>
+
+              {/* Book picker */}
+              <div className="mt-4 flex flex-wrap items-end gap-3">
+                <div className="flex-1 min-w-[260px] space-y-1.5">
+                  <label className="text-xs font-medium">Book</label>
+                  <Select value={selectedBookId} onValueChange={setSelectedBookId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pick a published book to export…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {publishedBooks.map((b) => (
+                        <SelectItem key={b.id} value={b.id}>
+                          {b.title}{b.isbn ? ` · ISBN ${b.isbn}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* XML preview */}
+              <div className="mt-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="eyebrow flex items-center gap-1.5">
+                    <Code2 className="h-3 w-3" /> ONIX 3.0 preview (this book)
+                  </p>
+                  {selectedBookId && (
+                    <a
+                      href={`/api/books/${selectedBookId}/onix`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                    >
+                      <ExternalLink className="h-3 w-3" /> Open raw
+                    </a>
+                  )}
+                </div>
+                <pre className="max-h-96 overflow-auto rounded-md border border-border bg-[oklch(0.18_0.012_60)] p-4 font-mono text-[0.65rem] leading-relaxed text-[oklch(0.85_0.012_80)] epip-scroll">
+{onixPreviewXml || "Select a published book to preview its ONIX 3.0 export."}
                 </pre>
               </div>
             </CardContent>
