@@ -43,7 +43,7 @@ function getKey(): Buffer {
 /** Encrypts a plaintext string into a self-contained, storable value (marker + base64(iv | authTag | ciphertext)). */
 export function encryptField(plaintext: string): string {
   const iv = crypto.randomBytes(IV_LENGTH);
-  const cipher = crypto.createCipheriv(ALGORITHM, getKey(), iv);
+  const cipher = crypto.createCipheriv(ALGORITHM, getKey(), iv, { authTagLength: AUTH_TAG_LENGTH });
   const ciphertext = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
   const authTag = cipher.getAuthTag();
   return ENCRYPTED_PREFIX + Buffer.concat([iv, authTag, ciphertext]).toString("base64");
@@ -58,7 +58,7 @@ export function decryptField(value: string): string {
   const iv = raw.subarray(0, IV_LENGTH);
   const authTag = raw.subarray(IV_LENGTH, IV_LENGTH + AUTH_TAG_LENGTH);
   const ciphertext = raw.subarray(IV_LENGTH + AUTH_TAG_LENGTH);
-  const decipher = crypto.createDecipheriv(ALGORITHM, getKey(), iv);
+  const decipher = crypto.createDecipheriv(ALGORITHM, getKey(), iv, { authTagLength: AUTH_TAG_LENGTH });
   decipher.setAuthTag(authTag);
   const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
   return plaintext.toString("utf8");

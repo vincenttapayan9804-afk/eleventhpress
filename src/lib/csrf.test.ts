@@ -18,7 +18,7 @@ describe("csrf", () => {
   });
 });
 
-describe("middleware CSRF logic (mirrors middleware.ts's inline check)", () => {
+describe("proxy CSRF logic (mirrors src/proxy.ts's inline check)", () => {
   const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
   const CSRF_EXEMPT_PREFIXES = [
     "/api/webhooks/",

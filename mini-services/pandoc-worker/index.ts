@@ -371,7 +371,13 @@ const server = Bun.serve({
           return Response.json({ success: false, error: "Missing file" }, { status: 400 });
         }
 
-        const ext = file.name.split(".").pop()?.toLowerCase() || "txt";
+        // Only the extension is taken from the client-supplied filename,
+        // and only if it looks like a plausible extension — a crafted
+        // name with no "." (e.g. "../../../etc/passwd") would otherwise
+        // pass its entire self through .split(".").pop() and become part
+        // of the path.join() below, escaping TEMP_DIR.
+        const rawExt = file.name.split(".").pop()?.toLowerCase() || "txt";
+        const ext = /^[a-z0-9]{1,10}$/.test(rawExt) ? rawExt : "txt";
 
         // Write uploaded file to temp dir
         await fs.mkdir(TEMP_DIR, { recursive: true });

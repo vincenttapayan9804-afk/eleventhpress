@@ -21,6 +21,7 @@ const REMAINING: { slug: string; prompt: string }[] = [
 ];
 
 async function genOne(zai: any, slug: string, prompt: string) {
+  // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal -- `slug` is always one of the hardcoded literals in the REMAINING array above, never external/user input; this is a one-off local dev script, not part of the runtime request path.
   const out = path.join(OUTPUT, `${slug}.png`);
   if (fs.existsSync(out)) { console.log(`  skip ${slug} (exists)`); return; }
   try {

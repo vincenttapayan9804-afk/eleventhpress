@@ -5,9 +5,38 @@ on:
   push:
     branches: [main]
 
-# Semgrep still runs continue-on-error: true — a first pass meant to
-# surface findings for visibility, not block merges, since its findings
-# backlog hasn't been triaged yet.
+# Semgrep's findings backlog was triaged (see PR that added this comment):
+# every finding fell into one of three buckets —
+#   1. Real issues, fixed: path-traversal in src/lib/storage.ts,
+#      src/app/api/articles/submit/route.ts, and
+#      mini-services/pandoc-worker/index.ts (client-supplied filenames
+#      reaching path.join unsanitized); AES-GCM calls made to pass an
+#      explicit authTagLength.
+#   2. Systemic false positives for this codebase, excluded by rule ID
+#      below rather than silenced ad hoc per finding:
+#      - unsafe-formatstring: every hit is `console.error(\`[module]
+#        message ${var}\`, error)` — a template-literal-built single
+#        string argument, not the `console.log(userInput, ...args)`
+#        shape the rule actually targets. Node's console methods have no
+#        printf-style format-specifier injection surface to begin with.
+#      - detect-child-process: both hits (src/lib/galley.ts,
+#        mini-services/pandoc-worker/index.ts) call `spawn(cmd, args)`
+#        with `cmd` always a hardcoded binary name ("pandoc",
+#        "weasyprint") and `args` as a real array (no shell involved) —
+#        the actually-dangerous shape (`exec`/`shell: true` with
+#        interpolated input) isn't present anywhere in this codebase.
+#      - github-actions-mutable-action-tag: accepted tradeoff — this repo
+#        already has Dependabot's github-actions ecosystem entry keeping
+#        `@v4`-style tags current weekly; hand-pinning to commit SHAs here
+#        adds real maintenance burden this project's size doesn't
+#        currently justify.
+#   3. Individually suppressed with an inline `nosemgrep` comment at the
+#      exact line, each with its own justification: a test fixture that
+#      looks like a Google OAuth token
+#      (src/lib/field-encryption.test.ts) and a fully-hardcoded (not
+#      user-controlled) filename in a one-off dev image-generation script
+#      (scripts/generate-remaining.ts).
+# Now blocking — no continue-on-error.
 #
 # Gitleaks was verified clean (built from source and run against every
 # commit in this repo's history — the same scope `fetch-depth: 0` gives
@@ -22,8 +51,11 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Semgrep scan (OSS ruleset, auto-detected)
-        continue-on-error: true
-        run: semgrep scan --config=auto --error
+        run: |
+          semgrep scan --config=auto --error \
+            --exclude-rule javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring \
+            --exclude-rule javascript.lang.security.detect-child-process.detect-child-process \
+            --exclude-rule yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
 
   gitleaks:
     runs-on: ubuntu-latest

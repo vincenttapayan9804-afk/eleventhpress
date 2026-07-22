@@ -1,14 +1,16 @@
 import type { NextConfig } from "next";
 
-// Fairly permissive on script/style since this app ships an MDX editor,
-// PDF.js, and a react-three-fiber canvas that haven't been verified against
-// a strict nonce-based CSP yet — tightening that is a follow-up, not
-// attempted here. The frame/base/form vectors are locked down hard instead,
-// which is where this app's actual attack surface (XSS exfiltration via
-// clickjacking/base-tag/form-hijack) actually lives.
+// A nonce-based script-src (no 'unsafe-inline') was attempted and
+// reverted — see src/proxy.ts's comment and docs/csp.md for why: nonces
+// require every page to be dynamically rendered, which this app's
+// statically-generated marketing/content pages aren't, and there's no
+// way to inject a per-request nonce into next.config's static headers()
+// output anyway. 'unsafe-eval' IS removed here, verified (via Playwright
+// against a real production standalone build, not just `next dev`) to be
+// unnecessary — see docs/csp.md.
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",

@@ -2,10 +2,28 @@ import { NextRequest, NextResponse } from "next/server";
 import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME, generateCsrfToken } from "@/lib/csrf";
 
 /**
- * Single middleware entry point for this app (Next.js only supports one).
+ * Single Proxy entry point for this app (Next.js only supports one; this
+ * file was renamed from middleware.ts to proxy.ts — Next.js 16 deprecated
+ * the `middleware` file convention in favor of `proxy`, same runtime API,
+ * see node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/proxy.md).
+ * It must live under src/ in this project (co-located with src/app), not
+ * at the repo root — confirmed empirically: a root-level proxy.ts/
+ * middleware.ts silently never ran (no compile log line, no effect on any
+ * response) even though the exact same file worked immediately once moved
+ * here.
+ *
+ * A nonce-based, no-'unsafe-inline' CSP (script-src 'nonce-…'
+ * 'strict-dynamic') was attempted here and reverted — Next.js's own docs
+ * confirm nonces require every page to be dynamically rendered (a nonce
+ * baked into a statically-generated page at build time can never match
+ * the fresh nonce generated for the actual request), and this app relies
+ * on static generation for its home/marketing pages. Verified this failure
+ * for real against a production standalone build (not just `next dev`,
+ * which misleadingly worked fine) before reverting — see docs/csp.md.
+ *
  * Later security-epic phases (Upstash-backed rate limiting on auth
  * endpoints) add their own focused block here rather than inventing a
- * second middleware file.
+ * second file.
  */
 
 // Routes that authenticate via something other than the session cookie
@@ -30,7 +48,7 @@ const CSRF_EXEMPT_PREFIXES = [
 
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const res = NextResponse.next();
 
   // Ensure every visitor has a CSRF cookie to double-submit against.
