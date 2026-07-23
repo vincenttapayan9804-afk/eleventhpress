@@ -42,6 +42,9 @@ export type DashboardTab =
   | "distribution"
   | "myBooks"
   | "bookAcquisitions"
+  | "magazines"
+  | "podcasts"
+  | "media"
   | "certificates"
   | "researchLab"
   | "admin";

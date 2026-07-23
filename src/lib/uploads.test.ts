@@ -21,6 +21,8 @@ const WEBP_HEADER = Buffer.concat([
 const DOCX_HEADER = Buffer.from([0x50, 0x4b, 0x03, 0x04, 0, 0, 0, 0]);
 const DOC_HEADER = Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1, 0, 0]);
 const EXE_HEADER = Buffer.from("MZ\x90\x00\x03\x00\x00\x00", "latin1"); // Windows PE executable
+const MP3_ID3_HEADER = Buffer.from("ID3\x03\x00\x00\x00\x00\x00\x00", "latin1");
+const MP3_FRAME_SYNC_HEADER = Buffer.from([0xff, 0xfb, 0x90, 0x00]); // tagless MP3, raw frame sync
 
 describe("validateUploadBytes — size caps", () => {
   test("rejects an empty body", () => {
@@ -60,9 +62,16 @@ describe("validateUploadBytes — magic-byte sniffing", () => {
     ["avatars", "image/webp", WEBP_HEADER],
     ["raw-submissions", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", DOCX_HEADER],
     ["raw-submissions", "application/msword", DOC_HEADER],
+    ["podcast-audio", "audio/mpeg", MP3_ID3_HEADER],
+    ["podcast-audio", "audio/mpeg", MP3_FRAME_SYNC_HEADER],
   ])("bucket %s accepts real %s bytes declared as that type", (bucket, contentType, bytes) => {
     const result = validateUploadBytes(bucket, contentType, bytes);
     expect(result.ok).toBe(true);
+  });
+
+  test("rejects a Windows executable renamed/declared as audio/mpeg", () => {
+    const result = validateUploadBytes("podcast-audio", "audio/mpeg", EXE_HEADER);
+    expect(result.ok).toBe(false);
   });
 
   test("rejects a Windows executable renamed/declared as application/pdf", () => {

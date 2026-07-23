@@ -53,6 +53,21 @@ export const BUCKET_UPLOAD_RULES: Record<string, BucketUploadRules> = {
     contentTypes: ["audio/wav", "audio/x-wav", "audio/wave"],
     maxSizeBytes: 25 * 1024 * 1024,
   },
+  "magazine-images": {
+    contentTypes: ["image/jpeg", "image/png", "image/webp"],
+    maxSizeBytes: 5 * 1024 * 1024,
+  },
+  "podcast-covers": {
+    contentTypes: ["image/jpeg", "image/png", "image/webp"],
+    maxSizeBytes: 5 * 1024 * 1024,
+  },
+  // Full episodes, not the short WAV clips research-audio is sized for —
+  // MP3 (the format every podcast directory actually expects) at up to
+  // ~2 hours of audio at a reasonable bitrate.
+  "podcast-audio": {
+    contentTypes: ["audio/mpeg", "audio/mp3"],
+    maxSizeBytes: 200 * 1024 * 1024,
+  },
 };
 
 /**
@@ -90,11 +105,18 @@ const MAGIC_SNIFFERS: Record<string, (bytes: Buffer) => boolean> = {
     b.length >= 12 &&
     b.subarray(0, 4).toString("latin1") === "RIFF" &&
     b.subarray(8, 12).toString("latin1") === "WAVE",
+  // MP3 has no single fixed header: either an "ID3" tag (most files exported
+  // by real editors/hosts) or, for a tagless file, a raw frame sync (an 0xFF
+  // byte followed by a byte with its top 3 bits set).
+  "audio/mpeg": (b) =>
+    b.length >= 3 && (b.subarray(0, 3).toString("latin1") === "ID3" || (b[0] === 0xff && (b[1] & 0xe0) === 0xe0)),
 };
 // audio/x-wav and audio/wave are the same on-disk format as audio/wav —
 // the browser/OS just disagrees on which MIME string to send.
 MAGIC_SNIFFERS["audio/x-wav"] = MAGIC_SNIFFERS["audio/wav"];
 MAGIC_SNIFFERS["audio/wave"] = MAGIC_SNIFFERS["audio/wav"];
+// Same on-disk format as audio/mpeg under a less common MIME string.
+MAGIC_SNIFFERS["audio/mp3"] = MAGIC_SNIFFERS["audio/mpeg"];
 
 function formatBytes(n: number): string {
   return n >= 1024 * 1024 ? `${Math.round(n / (1024 * 1024))} MB` : `${Math.round(n / 1024)} KB`;
