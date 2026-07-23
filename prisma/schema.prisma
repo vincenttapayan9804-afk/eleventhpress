@@ -103,30 +103,36 @@ model User {
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
-  submissions                Article[]           @relation("AuthorArticles")
-  assignedReviews            Review[]            @relation("ReviewerReviews")
-  editorialDecisions         EditorialDecision[]
-  readingHistory              ReadingHistory[]
-  collectionsCreated         Collection[]
-  expertQuestionsReceived    ExpertQuestion[] @relation("ExpertQuestionsReceived")
-  expertQuestionsAsked       ExpertQuestion[] @relation("ExpertQuestionsAsked")
-  subscriptions              Subscription[]
-  invoices                   Invoice[]
-  notifications              Notification[]
-  auditLogs                  AuditLog[]
-  institution                Institution?        @relation(fields: [institutionId], references: [id])
-  correctionsIssued          Correction[]
-  roleApplications           RoleApplication[]   @relation("ApplicantApplications")
-  reviewedApplications       RoleApplication[]   @relation("ReviewerApplications")
-  distributionsSubmitted     Distribution[]
-  books                      Book[]
-  bookDistributionsSubmitted BookDistribution[]
-  royaltyStatementsRecorded  RoyaltyStatement[]
-  certificates               Certificate[]
-  authorResponses            AuthorResponse[]
-  following                  Follow[]            @relation("Following")
-  followedBy                 Follow[]            @relation("Followers")
-  articleDownloads           ArticleDownload[]
+  submissions                    Article[]              @relation("AuthorArticles")
+  assignedReviews                Review[]               @relation("ReviewerReviews")
+  editorialDecisions             EditorialDecision[]
+  readingHistory                 ReadingHistory[]
+  collectionsCreated             Collection[]
+  expertQuestionsReceived        ExpertQuestion[]       @relation("ExpertQuestionsReceived")
+  expertQuestionsAsked           ExpertQuestion[]       @relation("ExpertQuestionsAsked")
+  subscriptions                  Subscription[]
+  invoices                       Invoice[]
+  notifications                  Notification[]
+  auditLogs                      AuditLog[]
+  institution                    Institution?           @relation(fields: [institutionId], references: [id])
+  correctionsIssued              Correction[]
+  roleApplications               RoleApplication[]      @relation("ApplicantApplications")
+  reviewedApplications           RoleApplication[]      @relation("ReviewerApplications")
+  distributionsSubmitted         Distribution[]
+  books                          Book[]
+  bookDistributionsSubmitted     BookDistribution[]
+  royaltyStatementsRecorded      RoyaltyStatement[]
+  certificates                   Certificate[]
+  authorResponses                AuthorResponse[]
+  following                      Follow[]               @relation("Following")
+  followedBy                     Follow[]               @relation("Followers")
+  articleDownloads               ArticleDownload[]
+  magazineIssuesCreated          MagazineIssue[]
+  magazineDistributionsSubmitted MagazineDistribution[]
+  podcastsCreated                Podcast[]
+  podcastEpisodesCreated         PodcastEpisode[]
+  podcastDistributionsSubmitted  PodcastDistribution[]
+  mediaPostsCreated              MediaPost[]
 }
 
 // ---------------------------------------------------------------------------
@@ -290,12 +296,12 @@ model Article {
   // Only meaningful when contentType === "EXPERT_INSIGHT". LEGAL_COMPLIANCE
   // | ACADEMIC_PEDAGOGY | BUSINESS_TECHNOLOGY | SCIENTIFIC_CLINICAL |
   // PSYCHOLOGY — the Insights Categories from the Publication Charter.
-  insightCategory        String?
+  insightCategory       String?
   // JSON array of exactly 5 strings — the mandatory "Key Takeaways /
   // Executive Insights" box every Expert Insight article must open with
   // (Enterprise-Grade Formatting charter requirement). Null for RESEARCH
   // articles, which use `laySummary` instead.
-  keyTakeaways           String?
+  keyTakeaways          String?
   authors               String // JSON array of {name, affiliation, orcid, email}
   correspondingAuthorId String?
 
@@ -308,7 +314,7 @@ model Article {
 
   // Workflow state machine
   // DRAFT | SUBMITTED | UNDER_REVIEW | REVISIONS_REQUIRED | ACCEPTED | IN_PRODUCTION | PUBLISHED | REJECTED | WITHDRAWN
-  status      String  @default("DRAFT")
+  status           String    @default("DRAFT")
   // Preprint server: the corresponding author (or an editor) can opt to
   // make a pre-decision manuscript publicly readable before/during peer
   // review — src/lib/article.ts's PREPRINT_ELIGIBLE_STATUSES,
@@ -317,8 +323,8 @@ model Article {
   // any of the role-based visibility logic keyed on it.
   isPreprint       Boolean   @default(false)
   preprintPostedAt DateTime?
-  reviewModel String  @default("DOUBLE_BLIND") // SINGLE_BLIND | DOUBLE_BLIND | OPEN
-  openReview  Boolean @default(false) // If true, completed reviews are made public (with real reviewer identities) when article is published — signed open review
+  reviewModel      String    @default("DOUBLE_BLIND") // SINGLE_BLIND | DOUBLE_BLIND | OPEN
+  openReview       Boolean   @default(false) // If true, completed reviews are made public (with real reviewer identities) when article is published — signed open review
 
   // Independent of openReview above (an editor could enable either, both,
   // or neither) — Review History tab (src/app/api/articles/[id]/review-
@@ -385,8 +391,8 @@ model Article {
   aiKeywordSuggestions String? // JSON array of suggested keyword strings
   statisticalFlags     String? // JSON array of {flag, severity, explanation}
   statisticalCheckedAt DateTime?
-  styleFlags     String? // JSON array of {flag, severity, explanation} — house-style consistency, see checkHouseStyle()
-  styleCheckedAt DateTime?
+  styleFlags           String? // JSON array of {flag, severity, explanation} — house-style consistency, see checkHouseStyle()
+  styleCheckedAt       DateTime?
 
   // AI-assisted abstract translation, feeding the site's existing 5-locale
   // i18n (src/messages/*.json) rather than being a UI-only translation.
@@ -478,29 +484,29 @@ model Article {
   galleyPdfHash  String? // SHA-256 of the exact PDF bytes hashed into contentHash
   galleyEpubHash String? // SHA-256 of the exact EPUB bytes hashed into contentHash, when an EPUB exists
 
-  journal       Journal                @relation(fields: [journalId], references: [id])
-  issue         Issue?                 @relation(fields: [issueId], references: [id])
-  author        User?                  @relation("AuthorArticles", fields: [correspondingAuthorId], references: [id])
-  reviews       Review[]
-  decisions     EditorialDecision[]
-  invoices      Invoice[]
-  notifications Notification[]
-  auditLogs     AuditLog[]
-  datasets      DatasetLink[]
-  embedding       ArticleEmbedding?
-  chunks          ArticleChunk[]
-  galleyTranslations ArticleGalleyTranslation[]
+  journal                    Journal                        @relation(fields: [journalId], references: [id])
+  issue                      Issue?                         @relation(fields: [issueId], references: [id])
+  author                     User?                          @relation("AuthorArticles", fields: [correspondingAuthorId], references: [id])
+  reviews                    Review[]
+  decisions                  EditorialDecision[]
+  invoices                   Invoice[]
+  notifications              Notification[]
+  auditLogs                  AuditLog[]
+  datasets                   DatasetLink[]
+  embedding                  ArticleEmbedding?
+  chunks                     ArticleChunk[]
+  galleyTranslations         ArticleGalleyTranslation[]
   similarityExplanationsFrom ArticleSimilarityExplanation[] @relation("SimilarityExplanationSource")
   similarityExplanationsTo   ArticleSimilarityExplanation[] @relation("SimilarityExplanationTarget")
-  readingHistory  ReadingHistory[]
-  collectionEntries CollectionArticle[]
-  authorResponses AuthorResponse[]
-  triageReport    EditorialTriageReport?
-  corrections     Correction[]
-  references      Reference[]
-  distributions   Distribution[]
-  bookChapters    BookArticle[]
-  downloadStamps  ArticleDownload[]
+  readingHistory             ReadingHistory[]
+  collectionEntries          CollectionArticle[]
+  authorResponses            AuthorResponse[]
+  triageReport               EditorialTriageReport?
+  corrections                Correction[]
+  references                 Reference[]
+  distributions              Distribution[]
+  bookChapters               BookArticle[]
+  downloadStamps             ArticleDownload[]
 
   // Composite indexes mirror the actual query shapes used across the app:
   // public/browse listing and the dashboard queue both filter by status
@@ -734,24 +740,24 @@ model AuditLog {
 // Storage Service — tracks every file in the three S3 buckets
 // ---------------------------------------------------------------------------
 model StorageObject {
-  id               String    @id @default(cuid())
-  bucket           String // raw-submissions | anonymized-manuscripts | published-galleys
-  key              String    @unique
-  fileName         String
-  contentType      String
-  sizeBytes        Int
-  uploadStatus     String    @default("PENDING") // PENDING | UPLOADED | FAILED
-  uploadedBy       String? // user id
-  articleId        String?
+  id                String    @id @default(cuid())
+  bucket            String // raw-submissions | anonymized-manuscripts | published-galleys
+  key               String    @unique
+  fileName          String
+  contentType       String
+  sizeBytes         Int
+  uploadStatus      String    @default("PENDING") // PENDING | UPLOADED | FAILED
+  uploadedBy        String? // user id
+  articleId         String?
   // Denormalized from the latest MalwareScanJob for this object — cheap to
   // read without a join wherever a download/publish path needs to check
   // scan status.
-  malwareScanStatus String   @default("PENDING") // PENDING | SKIPPED | CLEAN | SUSPICIOUS | MALICIOUS | FAILED
+  malwareScanStatus String    @default("PENDING") // PENDING | SKIPPED | CLEAN | SUSPICIOUS | MALICIOUS | FAILED
   // Pre-signed URL metadata
-  presignToken     String?   @unique
-  presignExpiresAt DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  presignToken      String?   @unique
+  presignExpiresAt  DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   @@index([articleId])
 }
@@ -819,22 +825,22 @@ model IntegrityCheckJob {
 // SUBMITTED job is always safe, never a duplicate paid submission.
 // ---------------------------------------------------------------------------
 model MalwareScanJob {
-  id              String    @id @default(cuid())
-  storageObjectId String
-  bucket          String
-  inputKey        String // storage key of the file being scanned
-  status          String    @default("QUEUED") // QUEUED | PROCESSING | SUBMITTED | COMPLETED | FAILED
-  mode            String    @default("simulation") // "live" | "simulation" — which path produced this job's result
+  id                 String    @id @default(cuid())
+  storageObjectId    String
+  bucket             String
+  inputKey           String // storage key of the file being scanned
+  status             String    @default("QUEUED") // QUEUED | PROCESSING | SUBMITTED | COMPLETED | FAILED
+  mode               String    @default("simulation") // "live" | "simulation" — which path produced this job's result
   externalAnalysisId String?
-  verdict         String? // CLEAN | SUSPICIOUS | MALICIOUS — null until COMPLETED
-  maliciousCount  Int?
-  suspiciousCount Int?
-  reportUrl       String?
-  workerLog       String?
-  errorMessage    String?
-  startedAt       DateTime?
-  completedAt     DateTime?
-  createdAt       DateTime  @default(now())
+  verdict            String? // CLEAN | SUSPICIOUS | MALICIOUS — null until COMPLETED
+  maliciousCount     Int?
+  suspiciousCount    Int?
+  reportUrl          String?
+  workerLog          String?
+  errorMessage       String?
+  startedAt          DateTime?
+  completedAt        DateTime?
+  createdAt          DateTime  @default(now())
 
   @@index([status, createdAt])
   @@index([storageObjectId])
@@ -996,16 +1002,16 @@ model PreservationDeposit {
 // this is a self-reported, admin-maintained record, not a live
 // integration. See src/lib/directory-listings.ts.
 model DirectoryListing {
-  id           String    @id @default(cuid())
-  journalId    String
-  directory    String // ROAD | ISI | RESEARCHBIB | CITEFACTOR | SAJI
-  status       String    @default("NOT_APPLIED") // NOT_APPLIED | APPLIED | UNDER_REVIEW | INDEXED | REJECTED
-  appliedAt    DateTime?
-  listingUrl   String? // the directory's own page for this journal, once indexed
-  notes        String?
-  updatedBy    String?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id         String    @id @default(cuid())
+  journalId  String
+  directory  String // ROAD | ISI | RESEARCHBIB | CITEFACTOR | SAJI
+  status     String    @default("NOT_APPLIED") // NOT_APPLIED | APPLIED | UNDER_REVIEW | INDEXED | REJECTED
+  appliedAt  DateTime?
+  listingUrl String? // the directory's own page for this journal, once indexed
+  notes      String?
+  updatedBy  String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   @@unique([journalId, directory])
   @@index([journalId])
@@ -1029,7 +1035,7 @@ model DirectoryListing {
 // that breaks reading back a saved proof, even via its own official CLI.
 // ---------------------------------------------------------------------------
 model Certificate {
-  id            String @id @default(cuid())
+  id            String  @id @default(cuid())
   userId        String
   type          String // RECOGNITION | MEMBERSHIP | AFFILIATION
   category      String // AUTHOR | REVIEWER | EDITOR — the capacity the certificate is issued for
@@ -1037,8 +1043,8 @@ model Certificate {
   journalName   String // snapshot at issuance — the hash must be reproducible from this
   issn          String? // snapshot at issuance
   workTitle     String? // exact title of the article/book cited (AUTHOR category), snapshot at issuance
-  serialNumber  String @unique
-  contentHash   String @unique // sha256 of the canonical certificate payload
+  serialNumber  String  @unique
+  contentHash   String  @unique // sha256 of the canonical certificate payload
   pdfKey        String // storage key of the rendered PDF
 
   // Which src/lib/certificate-pdf.ts template rendered this row's PDF —
@@ -1264,7 +1270,7 @@ model Collection {
   // collections are ever returned by the public GET /api/collections.
   publishedAt   DateTime?
 
-  createdBy User                 @relation(fields: [createdById], references: [id])
+  createdBy User                @relation(fields: [createdById], references: [id])
   articles  CollectionArticle[]
 }
 
@@ -1571,4 +1577,248 @@ model EditorialTriageReport {
   createdAt              DateTime @default(now())
 
   article Article @relation(fields: [articleId], references: [id])
+}
+
+// ---------------------------------------------------------------------------
+// Publications: Magazines, Podcasts, Media (News/Blogs)
+//
+// Deliberately NOT built on top of Article. Article's shape (DOI, double-
+// blind peer review state machine, plagiarism/ithenticate checks, Crossref/
+// Zenodo deposit) is scholarly-manuscript-specific; magazines, podcasts, and
+// news/blog posts are editorially originated (staff-written/produced, no
+// external peer review), so reusing Article would mean either dragging that
+// machinery along unused or littering it with nullable-only-for-some-rows
+// fields. Each gets its own minimal model instead — same principle already
+// applied by Book vs Article vs Collection in this schema.
+// ---------------------------------------------------------------------------
+
+// A magazine title (e.g. "Eleventh Press Review"). Issues are the
+// publishing unit underneath it, same shape as Journal -> Issue above.
+model Magazine {
+  id            String   @id @default(cuid())
+  name          String
+  slug          String   @unique
+  description   String
+  coverImageKey String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  issues MagazineIssue[]
+}
+
+// One issue of a magazine — the compiled, distributable unit (mirrors Book:
+// pieces are assembled, then compiled to EPUB/PDF via a production job,
+// then distributed). Editorial-only workflow (no external submission/
+// acceptance step) since every piece is staff-assigned: DRAFT (assembling
+// pieces) -> IN_PRODUCTION (compiling) -> PUBLISHED.
+model MagazineIssue {
+  id            String  @id @default(cuid())
+  magazineId    String
+  volume        Int
+  issueNumber   Int
+  year          Int
+  title         String?
+  theme         String?
+  coverImageKey String?
+  epubKey       String? // compiled EPUB, produced by MagazineIssueProductionJob
+  pdfKey        String? // compiled print-ready PDF
+
+  status      String    @default("DRAFT") // DRAFT | IN_PRODUCTION | PUBLISHED
+  publishedAt DateTime?
+  createdById String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  magazine       Magazine                     @relation(fields: [magazineId], references: [id])
+  createdBy      User                         @relation(fields: [createdById], references: [id])
+  pieces         MagazinePiece[]
+  productionJobs MagazineIssueProductionJob[]
+  distributions  MagazineDistribution[]
+
+  @@unique([magazineId, volume, issueNumber])
+  @@index([magazineId, year, volume, issueNumber])
+  @@index([status, publishedAt])
+}
+
+// One piece (article/feature/interview) within an issue, in reader order.
+model MagazinePiece {
+  id           String   @id @default(cuid())
+  issueId      String
+  title        String
+  dek          String? // standfirst/subheadline
+  authors      String // JSON array of {name, affiliation?}
+  category     String // Feature | News | Opinion | Interview | Culture — free text
+  bodyHtml     String
+  heroImageKey String?
+  isCoverStory Boolean  @default(false)
+  order        Int      @default(0)
+  views        Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  issue MagazineIssue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+
+  @@index([issueId, order])
+}
+
+// Durable production queue for compiling an issue's pieces into EPUB/PDF —
+// same atomic-claim pattern as BookProductionJob/GalleyJob.
+model MagazineIssueProductionJob {
+  id           String    @id @default(cuid())
+  issueId      String
+  status       String    @default("QUEUED") // QUEUED | PROCESSING | COMPLETED | FAILED
+  epubKey      String?
+  pdfKey       String?
+  workerLog    String?
+  errorMessage String?
+  startedAt    DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+
+  issue MagazineIssue @relation(fields: [issueId], references: [id])
+
+  @@index([status, createdAt])
+  @@index([issueId])
+}
+
+// Self-reported distribution tracking for a published issue — same shape
+// and same honesty pattern as BookDistribution (no live submission API
+// exists for any of these platforms; a human still finishes the submission
+// on the platform's own site, this just tracks it).
+model MagazineDistribution {
+  id       String @id @default(cuid())
+  issueId  String
+  platform String // APPLE_NEWS | FLIPBOARD | ISSUU | PRESSREADER
+  tier     String // B | C
+
+  status         String  @default("NOT_STARTED") // NOT_STARTED | PACKAGE_READY | SUBMITTED | LIVE | FAILED
+  packageContent String? // generated metadata package JSON
+  externalUrl    String?
+  externalId     String?
+
+  authorConsent Boolean   @default(false)
+  consentedAt   DateTime?
+  submittedBy   String?
+  submittedAt   DateTime?
+  notes         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  issue     MagazineIssue @relation(fields: [issueId], references: [id])
+  submitter User?         @relation(fields: [submittedBy], references: [id])
+
+  @@unique([issueId, platform])
+  @@index([issueId])
+  @@index([status])
+}
+
+// A podcast show. Unlike Magazine/Book, an episode is a single uploaded
+// audio file rather than a multi-piece compiled document, so there's no
+// equivalent of a production-job queue here — the "compile" step doesn't
+// exist. The real deliverable is the RSS 2.0 + iTunes-namespace feed
+// (src/lib/podcast-rss.ts), which plays the role ONIX plays for Book.
+model Podcast {
+  id            String   @id @default(cuid())
+  title         String
+  slug          String   @unique
+  description   String
+  coverImageKey String?
+  hosts         String // JSON array of {name, bio?}
+  category      String // e.g. Research Culture, Science Communication — free text
+  language      String   @default("eng") // ISO 639-2/B, mirrors src/lib/onix.ts's ONIX_LANGUAGE_CODE convention
+  explicit      Boolean  @default(false)
+  createdById   String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  createdBy     User                  @relation(fields: [createdById], references: [id])
+  episodes      PodcastEpisode[]
+  distributions PodcastDistribution[]
+}
+
+model PodcastEpisode {
+  id            String  @id @default(cuid())
+  podcastId     String
+  seasonNumber  Int?
+  episodeNumber Int
+  title         String
+  description   String
+  guests        String? // JSON array of {name, affiliation?}
+  audioKey      String? // uploaded audio file — no episode without one
+  durationSec   Int? // staff-entered; no server-side audio parsing available to auto-detect it
+  transcript    String?
+
+  status      String    @default("DRAFT") // DRAFT | PUBLISHED
+  publishedAt DateTime?
+  createdById String
+  views       Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  podcast   Podcast @relation(fields: [podcastId], references: [id], onDelete: Cascade)
+  createdBy User    @relation(fields: [createdById], references: [id])
+
+  @@unique([podcastId, seasonNumber, episodeNumber])
+  @@index([podcastId, status, publishedAt])
+}
+
+// Self-reported distribution tracking, same shape/pattern as
+// BookDistribution/MagazineDistribution. Every major podcast directory
+// (Apple Podcasts Connect, Spotify for Podcasters, Amazon Music, YouTube
+// Music) is fed by submitting the show's RSS feed URL through that
+// platform's own onboarding form — there is no bulk publish API — so the
+// "package" here is really just the validated feed URL plus prefilled show
+// metadata for that form.
+model PodcastDistribution {
+  id        String @id @default(cuid())
+  podcastId String
+  platform  String // APPLE_PODCASTS | SPOTIFY | AMAZON_MUSIC | YOUTUBE_MUSIC
+  tier      String // B
+
+  status         String  @default("NOT_STARTED")
+  packageContent String?
+  externalUrl    String?
+  externalId     String?
+
+  authorConsent Boolean   @default(false)
+  consentedAt   DateTime?
+  submittedBy   String?
+  submittedAt   DateTime?
+  notes         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  podcast   Podcast @relation(fields: [podcastId], references: [id])
+  submitter User?   @relation(fields: [submittedBy], references: [id])
+
+  @@unique([podcastId, platform])
+  @@index([podcastId])
+  @@index([status])
+}
+
+// News/blog posts — the lightest of the three: no production job, no
+// distribution tiers, no issue/episode grouping. A single editorial post.
+model MediaPost {
+  id           String  @id @default(cuid())
+  type         String // NEWS | BLOG
+  title        String
+  dek          String?
+  authorName   String
+  bodyHtml     String
+  heroImageKey String?
+  category     String // e.g. Announcements, Community, Research Culture — free text
+  tags         String? // comma-separated, mirrors Article.keywords
+
+  status      String    @default("DRAFT") // DRAFT | PUBLISHED
+  publishedAt DateTime?
+  createdById String
+  views       Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  createdBy User @relation(fields: [createdById], references: [id])
+
+  @@index([type, status, publishedAt])
 }
