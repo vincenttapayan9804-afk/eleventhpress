@@ -7,6 +7,7 @@ import { useApp } from "@/lib/store";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Newspaper, Loader2, Download, FileText } from "lucide-react";
+import { MagazinePieceListenCard } from "@/components/narration/magazine-piece-listen-card";
 
 interface Piece {
   id: string;
@@ -62,6 +63,10 @@ function PieceReader({ piece, onBack }: { piece: Piece; onBack: () => void }) {
         <img src={piece.heroImageUrl} alt={piece.title} className="mt-8 w-full rounded-xl object-cover" />
       )}
       <div className="prose prose-stone mt-8 max-w-none font-serif text-lg leading-relaxed" dangerouslySetInnerHTML={{ __html: piece.bodyHtml }} />
+
+      <div className="mt-8">
+        <MagazinePieceListenCard pieceId={piece.id} title={piece.title} dek={piece.dek} bodyHtml={piece.bodyHtml} />
+      </div>
     </div>
   );
 }

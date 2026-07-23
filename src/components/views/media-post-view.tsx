@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { apiFetch } from "@/lib/api-client";
 import { useApp } from "@/lib/store";
 import { ArrowLeft, Loader2 } from "lucide-react";
+import { MediaPostListenCard } from "@/components/narration/media-post-listen-card";
 
 interface PostDetail {
   id: string;
@@ -60,6 +61,10 @@ export function MediaPostView() {
         <img src={post.heroImageUrl} alt={post.title} className="mt-8 w-full rounded-xl object-cover" />
       )}
       <div className="prose prose-stone mt-8 max-w-none font-serif text-lg leading-relaxed" dangerouslySetInnerHTML={{ __html: post.bodyHtml }} />
+
+      <div className="mt-8">
+        <MediaPostListenCard postId={post.id} title={post.title} dek={post.dek} bodyHtml={post.bodyHtml} />
+      </div>
     </div>
   );
 }

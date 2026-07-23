@@ -982,6 +982,7 @@ export function ArticleView() {
 
           {/* Listen */}
           <ArticleNarrationCard
+            articleId={article.id}
             title={article.title}
             abstract={displayAbstract}
             bodyHtml={bodyHtml}

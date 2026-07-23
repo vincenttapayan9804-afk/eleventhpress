@@ -133,6 +133,7 @@ model User {
   podcastEpisodesCreated         PodcastEpisode[]
   podcastDistributionsSubmitted  PodcastDistribution[]
   mediaPostsCreated              MediaPost[]
+  narrationJobsCreated           NarrationJob[]
 }
 
 // ---------------------------------------------------------------------------
@@ -963,6 +964,39 @@ model TranscriptionJob {
   createdAt    DateTime  @default(now())
 
   @@index([userId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// NarrationJob — "auto-narrate" a published Article/MagazinePiece/MediaPost
+// into a real downloadable audio file using Kokoro-82M (src/lib/kokoro-tts.ts),
+// a real, free, open-weight TTS model run locally via @huggingface/transformers
+// (through the kokoro-js wrapper) — no external API, no per-request cost, same
+// "run the real open model in-process, fail open if it can't load" pattern as
+// TranscriptionJob/ArticleEmbedding above. Polymorphic target reference
+// (contentType/contentId, no FK) mirrors AuditLog's entityType/entityId —
+// deliberately not a relation, since the target spans three unrelated models.
+model NarrationJob {
+  id           String    @id @default(cuid())
+  contentType  String // ARTICLE | MAGAZINE_PIECE | MEDIA_POST
+  contentId    String
+  status       String    @default("QUEUED") // QUEUED | PROCESSING | COMPLETED | FAILED
+  voice        String    @default("af_heart") // Kokoro voice id, see src/lib/kokoro-tts.ts
+  audioKey     String?
+  durationSec  Int?
+  wordCount    Int?
+  model        String?
+  workerLog    String?
+  errorMessage String?
+  startedAt    DateTime?
+  completedAt  DateTime?
+  createdById  String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  createdBy User @relation(fields: [createdById], references: [id])
+
+  @@unique([contentType, contentId])
+  @@index([status, createdAt])
 }
 
 // ---------------------------------------------------------------------------
