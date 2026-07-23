@@ -102,6 +102,48 @@
     "noBooksFound": "No books found",
     "tryAdjusting": "Try adjusting your search or category filter."
   },
+  "magazines": {
+    "eyebrow": "Magazines",
+    "title": "The Review",
+    "description": "Long-form features, interviews, and reporting from the Eleventh Press editorial desk — compiled into issues, not just posts.",
+    "allMagazines": "All magazines",
+    "noIssuesTitle": "No issues published yet",
+    "noIssuesHint": "Check back soon for the first issue.",
+    "readTheIssue": "Read the issue",
+    "moreIssues": "More issues",
+    "allIssuesBack": "All issues",
+    "inThisIssue": "In this issue",
+    "coverStory": "Cover story",
+    "backToIssue": "Back to issue",
+    "byAuthor": "By {name}",
+    "pdf": "PDF",
+    "epub": "EPUB"
+  },
+  "podcasts": {
+    "eyebrow": "Podcasts",
+    "title": "Listen",
+    "description": "Conversations with researchers, editors, and contributors — real recorded audio, real RSS feeds.",
+    "allShows": "All shows",
+    "noShowsTitle": "No shows published yet",
+    "noEpisodesYet": "No episodes published yet.",
+    "subscribeRss": "Subscribe (RSS)",
+    "hostedBy": "Hosted by {names}",
+    "episodeCount": "{count} episodes",
+    "episodeLabel": "Episode {number}",
+    "seasonLabel": "Season {number}"
+  },
+  "media": {
+    "eyebrow": "Media",
+    "title": "News & Notes",
+    "description": "Announcements, community updates, and commentary from the editorial desk.",
+    "filterAll": "All",
+    "filterNews": "News",
+    "filterBlog": "Blog",
+    "nothingPublished": "Nothing published yet",
+    "readMore": "Read more",
+    "backToNewsNotes": "Back to News & Notes",
+    "byAuthorDate": "By {author} · {date}"
+  },
   "auth": {
     "backToHome": "Back to home",
     "signInEyebrow": "Sign in",

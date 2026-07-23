@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { apiFetch } from "@/lib/api-client";
 import { useApp } from "@/lib/store";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +38,7 @@ function issueDate(publishedAt: string | null) {
 }
 
 export function MagazinesView() {
+  const t = useTranslations("magazines");
   const { openMagazineIssue } = useApp();
   const [issues, setIssues] = useState<IssueItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,15 +76,15 @@ export function MagazinesView() {
       {/* Masthead */}
       <div ref={headerReveal.observe} className={`reveal ${headerReveal.inView ? "in-view" : ""} flex flex-wrap items-end justify-between gap-4 border-b-2 border-foreground/90 pb-6`}>
         <div>
-          <p className="eyebrow">Magazines</p>
-          <h1 className="mt-2 font-display text-5xl font-bold tracking-tight sm:text-6xl">The Review</h1>
-          <p className="mt-3 max-w-xl text-sm text-muted-foreground">Long-form features, interviews, and reporting from the Eleventh Press editorial desk — compiled into issues, not just posts.</p>
+          <p className="eyebrow">{t("eyebrow")}</p>
+          <h1 className="mt-2 font-display text-5xl font-bold tracking-tight sm:text-6xl">{t("title")}</h1>
+          <p className="mt-3 max-w-xl text-sm text-muted-foreground">{t("description")}</p>
         </div>
         {magazines.length > 1 && (
           <Select value={magazine} onValueChange={setMagazine}>
             <SelectTrigger className="h-10 w-[220px]"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="ALL">All magazines</SelectItem>
+              <SelectItem value="ALL">{t("allMagazines")}</SelectItem>
               {magazines.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
             </SelectContent>
           </Select>
@@ -92,8 +94,8 @@ export function MagazinesView() {
       {filtered.length === 0 ? (
         <div className="mt-16 flex flex-col items-center justify-center py-24 text-center">
           <FileX className="h-12 w-12 text-muted-foreground" />
-          <p className="mt-4 font-display text-lg font-medium">No issues published yet</p>
-          <p className="text-sm text-muted-foreground">Check back soon for the first issue.</p>
+          <p className="mt-4 font-display text-lg font-medium">{t("noIssuesTitle")}</p>
+          <p className="text-sm text-muted-foreground">{t("noIssuesHint")}</p>
         </div>
       ) : (
         <>
@@ -124,7 +126,7 @@ export function MagazinesView() {
                   <p className="mt-4 max-w-md font-serif text-lg italic leading-relaxed text-white/70">{hero.coverStoryDek}</p>
                 )}
                 <div className="mt-8 flex items-center gap-2 text-sm font-semibold text-white">
-                  Read the issue <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  {t("readTheIssue")} <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                 </div>
               </div>
             </button>
@@ -133,7 +135,7 @@ export function MagazinesView() {
           {/* Grid — remaining issues */}
           {rest.length > 0 && (
             <div ref={gridReveal.observe} className={`reveal ${gridReveal.inView ? "in-view" : ""} mt-14`}>
-              <p className="eyebrow border-b border-foreground/10 pb-3">More issues</p>
+              <p className="eyebrow border-b border-foreground/10 pb-3">{t("moreIssues")}</p>
               <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {rest.map((issue, i) => (
                   <button

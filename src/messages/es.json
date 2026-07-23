@@ -102,6 +102,48 @@
     "noBooksFound": "No se encontraron libros",
     "tryAdjusting": "Prueba ajustando tu búsqueda o el filtro de categoría."
   },
+  "magazines": {
+    "eyebrow": "Revistas",
+    "title": "La Revista",
+    "description": "Reportajes extensos, entrevistas y crónicas de la redacción de Eleventh Press — recopilados en números, no solo publicaciones sueltas.",
+    "allMagazines": "Todas las revistas",
+    "noIssuesTitle": "Aún no se ha publicado ningún número",
+    "noIssuesHint": "Vuelve pronto para ver el primer número.",
+    "readTheIssue": "Leer el número",
+    "moreIssues": "Más números",
+    "allIssuesBack": "Todos los números",
+    "inThisIssue": "En este número",
+    "coverStory": "Artículo de portada",
+    "backToIssue": "Volver al número",
+    "byAuthor": "Por {name}",
+    "pdf": "PDF",
+    "epub": "EPUB"
+  },
+  "podcasts": {
+    "eyebrow": "Podcasts",
+    "title": "Escuchar",
+    "description": "Conversaciones con investigadores, editores y colaboradores — audio real, feeds RSS reales.",
+    "allShows": "Todos los programas",
+    "noShowsTitle": "Aún no se ha publicado ningún programa",
+    "noEpisodesYet": "Aún no se ha publicado ningún episodio.",
+    "subscribeRss": "Suscribirse (RSS)",
+    "hostedBy": "Presentado por {names}",
+    "episodeCount": "{count} episodios",
+    "episodeLabel": "Episodio {number}",
+    "seasonLabel": "Temporada {number}"
+  },
+  "media": {
+    "eyebrow": "Medios",
+    "title": "Noticias y Notas",
+    "description": "Anuncios, novedades de la comunidad y comentarios de la redacción.",
+    "filterAll": "Todo",
+    "filterNews": "Noticias",
+    "filterBlog": "Blog",
+    "nothingPublished": "Aún no hay nada publicado",
+    "readMore": "Leer más",
+    "backToNewsNotes": "Volver a Noticias y Notas",
+    "byAuthorDate": "Por {author} · {date}"
+  },
   "auth": {
     "backToHome": "Volver al inicio",
     "signInEyebrow": "Iniciar sesión",

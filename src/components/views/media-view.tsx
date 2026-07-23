@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { apiFetch } from "@/lib/api-client";
 import { useApp } from "@/lib/store";
 import { Badge } from "@/components/ui/badge";
@@ -24,13 +25,15 @@ function postDate(publishedAt: string | null) {
     : "";
 }
 
-const FILTERS = [
-  { value: "ALL", label: "All" },
-  { value: "NEWS", label: "News" },
-  { value: "BLOG", label: "Blog" },
-];
+const FILTER_VALUES = ["ALL", "NEWS", "BLOG"] as const;
+const FILTER_KEYS: Record<(typeof FILTER_VALUES)[number], string> = {
+  ALL: "filterAll",
+  NEWS: "filterNews",
+  BLOG: "filterBlog",
+};
 
 export function MediaView() {
+  const t = useTranslations("media");
   const { openMediaPost } = useApp();
   const [posts, setPosts] = useState<PostItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,18 +65,18 @@ export function MediaView() {
     <div className="page-enter mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
       <div ref={headerReveal.observe} className={`reveal ${headerReveal.inView ? "in-view" : ""} flex flex-wrap items-end justify-between gap-4 border-b-2 border-foreground/90 pb-6`}>
         <div>
-          <p className="eyebrow">Media</p>
-          <h1 className="mt-2 font-display text-5xl font-bold tracking-tight sm:text-6xl">News &amp; Notes</h1>
-          <p className="mt-3 max-w-xl text-sm text-muted-foreground">Announcements, community updates, and commentary from the editorial desk.</p>
+          <p className="eyebrow">{t("eyebrow")}</p>
+          <h1 className="mt-2 font-display text-5xl font-bold tracking-tight sm:text-6xl">{t("title")}</h1>
+          <p className="mt-3 max-w-xl text-sm text-muted-foreground">{t("description")}</p>
         </div>
         <div className="flex gap-1 rounded-full border border-foreground/10 p-1">
-          {FILTERS.map((f) => (
+          {FILTER_VALUES.map((value) => (
             <button
-              key={f.value}
-              onClick={() => setFilter(f.value)}
-              className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-colors ${filter === f.value ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+              key={value}
+              onClick={() => setFilter(value)}
+              className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-colors ${filter === value ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
             >
-              {f.label}
+              {t(FILTER_KEYS[value])}
             </button>
           ))}
         </div>
@@ -82,7 +85,7 @@ export function MediaView() {
       {filtered.length === 0 ? (
         <div className="mt-16 flex flex-col items-center justify-center py-24 text-center">
           <FileX className="h-12 w-12 text-muted-foreground" />
-          <p className="mt-4 font-display text-lg font-medium">Nothing published yet</p>
+          <p className="mt-4 font-display text-lg font-medium">{t("nothingPublished")}</p>
         </div>
       ) : (
         <>
@@ -104,9 +107,9 @@ export function MediaView() {
                 <p className="font-mono text-[0.7rem] uppercase tracking-[0.22em] text-[oklch(0.76_0.11_294)]">{hero.type} · {hero.category}</p>
                 <h2 className="mt-4 font-display text-3xl font-bold leading-[1.05] text-white sm:text-4xl lg:text-5xl">{hero.title}</h2>
                 {hero.dek && <p className="mt-4 max-w-md font-serif text-lg italic leading-relaxed text-white/70">{hero.dek}</p>}
-                <p className="mt-6 text-sm font-medium text-white/60">By {hero.authorName} · {postDate(hero.publishedAt)}</p>
+                <p className="mt-6 text-sm font-medium text-white/60">{t("byAuthorDate", { author: hero.authorName, date: postDate(hero.publishedAt) })}</p>
                 <div className="mt-6 flex items-center gap-2 text-sm font-semibold text-white">
-                  Read more <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  {t("readMore")} <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                 </div>
               </div>
             </button>
@@ -131,7 +134,7 @@ export function MediaView() {
                   <Badge variant="outline" className="w-fit border-[oklch(0.76_0.11_294/0.3)] bg-[oklch(0.93_0.04_290/0.5)] text-[0.65rem] text-[oklch(0.42_0.18_295)]">{post.type} · {post.category}</Badge>
                   <h3 className="mt-2 font-display text-xl font-semibold leading-snug transition-colors group-hover:text-[oklch(0.42_0.18_295)]">{post.title}</h3>
                   {post.dek && <p className="mt-1.5 line-clamp-2 text-sm text-muted-foreground">{post.dek}</p>}
-                  <p className="mt-3 text-xs font-medium text-muted-foreground">By {post.authorName} · {postDate(post.publishedAt)}</p>
+                  <p className="mt-3 text-xs font-medium text-muted-foreground">{t("byAuthorDate", { author: post.authorName, date: postDate(post.publishedAt) })}</p>
                 </button>
               ))}
             </div>

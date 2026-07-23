@@ -102,6 +102,48 @@
     "noBooksFound": "Walang nahanap na aklat",
     "tryAdjusting": "Subukang baguhin ang iyong paghahanap o category filter."
   },
+  "magazines": {
+    "eyebrow": "Mga Magasin",
+    "title": "Ang Review",
+    "description": "Mga malalalim na feature, interbiyu, at reportahe mula sa editorial desk ng Eleventh Press — pinagsama-sama sa mga isyu, hindi lang mga post.",
+    "allMagazines": "Lahat ng magasin",
+    "noIssuesTitle": "Wala pang na-publish na isyu",
+    "noIssuesHint": "Bumalik na lang sa lalong madaling panahon para sa unang isyu.",
+    "readTheIssue": "Basahin ang isyu",
+    "moreIssues": "Iba pang isyu",
+    "allIssuesBack": "Lahat ng isyu",
+    "inThisIssue": "Sa isyung ito",
+    "coverStory": "Cover story",
+    "backToIssue": "Bumalik sa isyu",
+    "byAuthor": "Ni {name}",
+    "pdf": "PDF",
+    "epub": "EPUB"
+  },
+  "podcasts": {
+    "eyebrow": "Mga Podcast",
+    "title": "Makinig",
+    "description": "Mga usapan sa mga mananaliksik, editor, at kontribyutor — tunay na audio, tunay na RSS feed.",
+    "allShows": "Lahat ng palabas",
+    "noShowsTitle": "Wala pang na-publish na palabas",
+    "noEpisodesYet": "Wala pang na-publish na episode.",
+    "subscribeRss": "Mag-subscribe (RSS)",
+    "hostedBy": "Hosted ni {names}",
+    "episodeCount": "{count} episode",
+    "episodeLabel": "Episode {number}",
+    "seasonLabel": "Season {number}"
+  },
+  "media": {
+    "eyebrow": "Media",
+    "title": "Balita at Tala",
+    "description": "Mga anunsyo, update ng komunidad, at komentaryo mula sa editorial desk.",
+    "filterAll": "Lahat",
+    "filterNews": "Balita",
+    "filterBlog": "Blog",
+    "nothingPublished": "Wala pang na-publish",
+    "readMore": "Magbasa pa",
+    "backToNewsNotes": "Bumalik sa Balita at Tala",
+    "byAuthorDate": "Ni {author} · {date}"
+  },
   "auth": {
     "backToHome": "Bumalik sa home",
     "signInEyebrow": "Mag-sign in",
