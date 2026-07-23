@@ -33,6 +33,9 @@ const BUCKET_DIRS: Record<string, string> = {
   "book-manuscripts": path.join(STORAGE_ROOT, "book-manuscripts"),
   certificates: path.join(STORAGE_ROOT, "certificates"),
   "research-audio": path.join(STORAGE_ROOT, "research-audio"),
+  "magazine-images": path.join(STORAGE_ROOT, "magazine-images"),
+  "podcast-covers": path.join(STORAGE_ROOT, "podcast-covers"),
+  "podcast-audio": path.join(STORAGE_ROOT, "podcast-audio"),
 };
 
 export function usingBlob(): boolean {

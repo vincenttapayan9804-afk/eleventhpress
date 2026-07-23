@@ -25,6 +25,11 @@ import {
   TermsView,
   AccessibilityView,
   AdminPortalView,
+  MagazinesView,
+  MagazineIssueView,
+  PodcastsView,
+  MediaView,
+  MediaPostView,
 } from "@/components/views/lazy";
 import { AuthSheet } from "@/components/auth-sheet";
 import { Toaster } from "@/components/ui/sonner";
@@ -114,6 +119,11 @@ export default function Page() {
           {view === "terms" && <TermsView />}
           {view === "accessibility" && <AccessibilityView />}
           {view === "adminPortal" && <AdminPortalView />}
+          {view === "magazines" && <MagazinesView />}
+          {view === "magazineIssue" && <MagazineIssueView />}
+          {view === "podcasts" && <PodcastsView />}
+          {view === "media" && <MediaView />}
+          {view === "mediaPost" && <MediaPostView />}
         </main>
         <SiteFooter />
         <AuthSheet />

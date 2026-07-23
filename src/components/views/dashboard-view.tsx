@@ -33,6 +33,9 @@ import {
   Library as LibraryIcon,
   Award,
   FlaskConical,
+  Newspaper,
+  Mic,
+  FileText,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -57,6 +60,9 @@ import {
   BookAcquisitionsTab,
   CertificatesTab,
   ResearchLabTab,
+  MagazinesTab,
+  PodcastsTab,
+  MediaTab,
 } from "@/components/dashboard/lazy";
 import { useLiveDashboard } from "@/hooks/use-live-dashboard";
 
@@ -130,6 +136,9 @@ export function DashboardView() {
     { key: "distribution", label: "Article distribution", icon: Share2, roles: ["AUTHOR", "SUPER_ADMIN"] },
     { key: "myBooks", label: "My books", icon: BookOpen, roles: ["AUTHOR", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"] },
     { key: "bookAcquisitions", label: "Book acquisitions", icon: LibraryIcon, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"] },
+    { key: "magazines", label: "Magazines", icon: Newspaper, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"] },
+    { key: "podcasts", label: "Podcasts", icon: Mic, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"] },
+    { key: "media", label: "Media (News/Blog)", icon: FileText, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"] },
     { key: "reader", label: "Subscription", icon: Library, roles: ["READER", "AUTHOR", "REVIEWER", "SUPER_ADMIN"] },
     { key: "certificates", label: "Certificates", icon: Award, roles: ["AUTHOR", "REVIEWER", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"] },
     {
@@ -300,6 +309,9 @@ export function DashboardView() {
           {dashboardTab === "distribution" && <DistributionTab submissions={data.submissions || []} />}
           {dashboardTab === "myBooks" && <MyBooksTab />}
           {dashboardTab === "bookAcquisitions" && <BookAcquisitionsTab />}
+          {dashboardTab === "magazines" && <MagazinesTab />}
+          {dashboardTab === "podcasts" && <PodcastsTab />}
+          {dashboardTab === "media" && <MediaTab />}
           {dashboardTab === "reader" && <ReaderTab subscription={data.subscription} onRefresh={loadDashboard} />}
           {dashboardTab === "certificates" && <CertificatesTab />}
           {dashboardTab === "researchLab" && <ResearchLabTab />}

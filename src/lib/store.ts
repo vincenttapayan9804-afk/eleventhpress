@@ -22,7 +22,12 @@ export type ViewKey =
   | "privacy"
   | "terms"
   | "accessibility"
-  | "adminPortal";
+  | "adminPortal"
+  | "magazines"
+  | "magazineIssue"
+  | "podcasts"
+  | "media"
+  | "mediaPost";
 
 export type DashboardTab =
   | "overview"
@@ -42,6 +47,9 @@ export type DashboardTab =
   | "distribution"
   | "myBooks"
   | "bookAcquisitions"
+  | "magazines"
+  | "podcasts"
+  | "media"
   | "certificates"
   | "researchLab"
   | "admin";
@@ -68,10 +76,14 @@ interface AppState {
   // View routing (single-page)
   view: ViewKey;
   articleId: string | null;
+  magazineIssueId: string | null;
+  mediaPostId: string | null;
   dashboardTab: DashboardTab;
   reviewId: string | null;
   setView: (v: ViewKey) => void;
   openArticle: (id: string) => void;
+  openMagazineIssue: (id: string) => void;
+  openMediaPost: (id: string) => void;
   openDashboard: (tab?: DashboardTab) => void;
   openReviewerForm: (reviewId: string) => void;
 
@@ -103,10 +115,14 @@ export const useApp = create<AppState>()(
     (set) => ({
       view: "home",
       articleId: null,
+      magazineIssueId: null,
+      mediaPostId: null,
       dashboardTab: "overview",
       reviewId: null,
       setView: (v) => set({ view: v }),
       openArticle: (id) => set({ view: "article", articleId: id }),
+      openMagazineIssue: (id) => set({ view: "magazineIssue", magazineIssueId: id }),
+      openMediaPost: (id) => set({ view: "mediaPost", mediaPostId: id }),
       openDashboard: (tab = "overview") =>
         set({ view: "dashboard", dashboardTab: tab }),
       openReviewerForm: (reviewId) =>

@@ -78,3 +78,18 @@ export const TermsView = dynamic(() => import("./terms-view").then((m) => m.Term
 export const AdminPortalView = dynamic(() => import("./admin-portal-view").then((m) => m.AdminPortalView), {
   loading: () => <ViewLoadingFallback />,
 });
+export const MagazinesView = dynamic(() => import("./magazines-view").then((m) => m.MagazinesView), {
+  loading: () => <ViewLoadingFallback />,
+});
+export const MagazineIssueView = dynamic(() => import("./magazine-issue-view").then((m) => m.MagazineIssueView), {
+  loading: () => <ViewLoadingFallback />,
+});
+export const PodcastsView = dynamic(() => import("./podcasts-view").then((m) => m.PodcastsView), {
+  loading: () => <ViewLoadingFallback />,
+});
+export const MediaView = dynamic(() => import("./media-view").then((m) => m.MediaView), {
+  loading: () => <ViewLoadingFallback />,
+});
+export const MediaPostView = dynamic(() => import("./media-post-view").then((m) => m.MediaPostView), {
+  loading: () => <ViewLoadingFallback />,
+});

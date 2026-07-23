@@ -83,3 +83,12 @@ export const AdminTab = dynamic(() => import("./admin-tab").then((m) => m.AdminT
 export const ResearchLabTab = dynamic(() => import("./research-lab-tab").then((m) => m.ResearchLabTab), {
   loading: () => <TabLoadingFallback />,
 });
+export const MagazinesTab = dynamic(() => import("./magazines-tab").then((m) => m.MagazinesTab), {
+  loading: () => <TabLoadingFallback />,
+});
+export const PodcastsTab = dynamic(() => import("./podcasts-tab").then((m) => m.PodcastsTab), {
+  loading: () => <TabLoadingFallback />,
+});
+export const MediaTab = dynamic(() => import("./media-tab").then((m) => m.MediaTab), {
+  loading: () => <TabLoadingFallback />,
+});

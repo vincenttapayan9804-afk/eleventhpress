@@ -45,8 +45,13 @@ export function SiteHeader() {
   const PUBLICATIONS_ITEMS = [
     { label: t("articles"), view: "browse" as const },
     { label: t("books"), view: "books" as const },
+    { label: t("magazines"), view: "magazines" as const },
+    { label: t("podcasts"), view: "podcasts" as const },
+    { label: t("media"), view: "media" as const },
   ];
-  const publicationsActive = view === "browse" || view === "books";
+  const publicationsActive =
+    view === "browse" || view === "books" || view === "magazines" || view === "magazineIssue" ||
+    view === "podcasts" || view === "media" || view === "mediaPost";
 
   useState(() => {
     if (!user) return;
