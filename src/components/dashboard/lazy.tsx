@@ -95,3 +95,6 @@ export const MediaTab = dynamic(() => import("./media-tab").then((m) => m.MediaT
 export const NarrationTab = dynamic(() => import("./narration-tab").then((m) => m.NarrationTab), {
   loading: () => <TabLoadingFallback />,
 });
+export const ResearchIntegrityTab = dynamic(() => import("./research-integrity-tab").then((m) => m.ResearchIntegrityTab), {
+  loading: () => <TabLoadingFallback />,
+});

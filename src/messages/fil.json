@@ -117,7 +117,8 @@
     "backToIssue": "Bumalik sa isyu",
     "byAuthor": "Ni {name}",
     "pdf": "PDF",
-    "epub": "EPUB"
+    "epub": "EPUB",
+    "printPreview": "Preview sa pag-print"
   },
   "podcasts": {
     "eyebrow": "Mga Podcast",

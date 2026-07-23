@@ -15,7 +15,7 @@ import { ReaderPresenceBadge } from "@/components/article/reader-presence-badge"
 import { ArticleNarrationCard } from "@/components/article/article-narration-card";
 import { GalleyTranslationPanel } from "@/components/article/galley-translation-panel";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { DataTableChart } from "@/components/data-tables/data-table-chart";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -73,6 +73,7 @@ import {
   Layers,
   Send,
   Sparkles,
+  Printer,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -888,6 +889,13 @@ export function ArticleView() {
                 >
                   <BookOpen className="mr-2 h-4 w-4" /> View HTML
                 </Button>
+                <Button
+                  className="w-full justify-start"
+                  variant="outline"
+                  onClick={() => window.open(`/print/article/${article.id}`, "_blank")}
+                >
+                  <Printer className="mr-2 h-4 w-4" /> Print-ready preview
+                </Button>
                 {article.galleyPdfKey && (
                   <Button
                     className="w-full justify-start"
@@ -1098,7 +1106,29 @@ interface ExtractedTableData {
   chartable: boolean;
 }
 
-const CHART_COLORS = ["#7A1F2B", "#c9a55c", "#4a7c8c", "#5c7a4a", "#6a4c93"];
+interface StatcheckResultData {
+  raw: string;
+  test: "t" | "F" | "r" | "chi2";
+  reportedP: number;
+  reportedComparator: string;
+  computedP: number;
+  consistent: boolean;
+  decisionError: boolean;
+}
+
+interface ReferenceIntegrityData {
+  everSynced: boolean;
+  syncedAt: string | null;
+  flagged: {
+    referenceId: string;
+    rawText: string;
+    doi: string;
+    originalTitle: string | null;
+    journal: string | null;
+    retractionDate: string | null;
+    reason: string | null;
+  }[];
+}
 
 /**
  * Supplemental Materials tab — enhanced digital-scholarship reading aids
@@ -1111,6 +1141,8 @@ const CHART_COLORS = ["#7A1F2B", "#c9a55c", "#4a7c8c", "#5c7a4a", "#6a4c93"];
  */
 function SupplementalMaterialsTab({ article }: { article: ArticleDetail }) {
   const [tables, setTables] = useState<ExtractedTableData[] | null>(null);
+  const [statcheckResults, setStatcheckResults] = useState<StatcheckResultData[] | null>(null);
+  const [refIntegrity, setRefIntegrity] = useState<ReferenceIntegrityData | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -1120,6 +1152,20 @@ function SupplementalMaterialsTab({ article }: { article: ArticleDetail }) {
       })
       .catch(() => {
         if (!cancelled) setTables([]);
+      });
+    apiFetch<{ results: StatcheckResultData[] }>(`/api/articles/${article.id}/statcheck`)
+      .then((res) => {
+        if (!cancelled) setStatcheckResults(res.results);
+      })
+      .catch(() => {
+        if (!cancelled) setStatcheckResults([]);
+      });
+    apiFetch<ReferenceIntegrityData>(`/api/articles/${article.id}/reference-integrity`)
+      .then((res) => {
+        if (!cancelled) setRefIntegrity(res);
+      })
+      .catch(() => {
+        if (!cancelled) setRefIntegrity({ everSynced: false, syncedAt: null, flagged: [] });
       });
     return () => {
       cancelled = true;
@@ -1181,7 +1227,7 @@ function SupplementalMaterialsTab({ article }: { article: ArticleDetail }) {
         ) : tables.length > 0 ? (
           <div className="space-y-6">
             {tables.map((t, i) => (
-              <DataTableChart key={i} table={t} />
+              <DataTableChart key={i} table={t} filenameBase={`${article.title.slice(0, 60)}-table-${i + 1}`} />
             ))}
           </div>
         ) : (
@@ -1190,68 +1236,80 @@ function SupplementalMaterialsTab({ article }: { article: ArticleDetail }) {
           </p>
         )}
       </div>
-    </div>
-  );
-}
 
-/** Always shows the article's own real table; layers a recharts bar chart
- * on top only when the table has a genuine numeric column with enough
- * rows to be meaningful (src/lib/data-tables.ts's isChartable()). */
-function DataTableChart({ table }: { table: ExtractedTableData }) {
-  const labelCol = table.headers.findIndex((_, i) => !table.numericColumns.includes(i));
-  const seriesKeys = table.numericColumns.map((col) => table.headers[col] || `Column ${col + 1}`);
-  const chartData = table.rows.map((row, i) => {
-    const entry: Record<string, string | number> = { name: labelCol >= 0 ? row[labelCol] || `Row ${i + 1}` : `Row ${i + 1}` };
-    for (const col of table.numericColumns) {
-      const key = table.headers[col] || `Column ${col + 1}`;
-      const raw = (row[col] || "").replace(/[$,%\s]/g, "");
-      entry[key] = raw && !isNaN(Number(raw)) ? Number(raw) : 0;
-    }
-    return entry;
-  });
-
-  return (
-    <div className="rounded-md border border-border p-4">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-max border-collapse text-xs">
-          <thead>
-            <tr>
-              {table.headers.map((h, i) => (
-                <th key={i} className="border border-border bg-muted/50 p-1.5 text-left">
-                  {h}
-                </th>
+      <div>
+        <p className="eyebrow mb-2">Statistical consistency check</p>
+        {statcheckResults === null ? (
+          <p className="text-xs text-muted-foreground">Loading…</p>
+        ) : statcheckResults.length === 0 ? (
+          <p className="rounded-md border border-dashed border-border p-4 text-xs text-muted-foreground">
+            No reported inferential statistics (t/F/r/chi-square tests) were detected to check.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              {statcheckResults.filter((r) => r.consistent).length} of {statcheckResults.length} reported statistics
+              recomputed consistently.
+            </p>
+            {statcheckResults
+              .filter((r) => !r.consistent)
+              .map((r, i) => (
+                <div
+                  key={i}
+                  className={`rounded-md border p-3 text-xs ${r.decisionError ? "border-red-300 bg-red-50 text-red-900" : "border-amber-300 bg-amber-50 text-amber-900"}`}
+                >
+                  <p className="font-mono">{r.raw}</p>
+                  <p className="mt-1">
+                    Recomputed p {r.computedP < 0.001 ? "< .001" : `≈ ${r.computedP.toFixed(3)}`} —{" "}
+                    {r.decisionError ? "significance conclusion would flip." : "reported p doesn't match recomputation."}
+                  </p>
+                </div>
               ))}
-            </tr>
-          </thead>
-          <tbody>
-            {table.rows.map((row, i) => (
-              <tr key={i}>
-                {row.map((c, j) => (
-                  <td key={j} className="border border-border p-1.5">
-                    {c}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+          </div>
+        )}
       </div>
-      {table.chartable && (
-        <div className="mt-4 h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-              <YAxis tick={{ fontSize: 10 }} />
-              <Tooltip />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              {seriesKeys.map((key, i) => (
-                <Bar key={key} dataKey={key} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-              ))}
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      )}
+
+      <div>
+        <p className="eyebrow mb-2">Cited-reference retraction check</p>
+        {refIntegrity === null ? (
+          <p className="text-xs text-muted-foreground">Loading…</p>
+        ) : !refIntegrity.everSynced ? (
+          <p className="rounded-md border border-dashed border-border p-4 text-xs text-muted-foreground">
+            Retraction Watch Database cross-reference hasn&apos;t been run yet.
+          </p>
+        ) : refIntegrity.flagged.length === 0 ? (
+          <p className="rounded-md border border-dashed border-border p-4 text-xs text-muted-foreground">
+            Every resolved citation checked clean against the Retraction Watch Database
+            {refIntegrity.syncedAt && ` (last synced ${new Date(refIntegrity.syncedAt).toLocaleDateString()})`}.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {refIntegrity.flagged.map((f) => (
+              <div key={f.referenceId} className="rounded-md border border-red-300 bg-red-50 p-3 text-xs text-red-900">
+                <p className="font-medium">Cites a retracted paper: {f.originalTitle || f.doi}</p>
+                <p className="mt-1 text-red-800/80">{f.rawText}</p>
+                {f.reason && <p className="mt-1">Reason: {f.reason.replace(/;/g, ", ").replace(/,\s*$/, "")}</p>}
+                {f.retractionDate && <p>Retracted {new Date(f.retractionDate).toLocaleDateString()}</p>}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div>
+        <p className="eyebrow mb-2">Post-publication discussion</p>
+        {article.doi ? (
+          <Button asChild variant="outline" size="sm">
+            <a href={`https://pubpeer.com/search?q=${encodeURIComponent(article.doi)}`} target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="mr-1.5 h-3.5 w-3.5" /> Check this paper on PubPeer
+            </a>
+          </Button>
+        ) : (
+          <p className="rounded-md border border-dashed border-border p-4 text-xs text-muted-foreground">
+            No DOI is registered for this article yet.
+          </p>
+        )}
+      </div>
     </div>
   );
 }

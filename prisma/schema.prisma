@@ -1000,6 +1000,39 @@ model NarrationJob {
 }
 
 // ---------------------------------------------------------------------------
+// Retraction Watch Database — a local mirror of Crossref's real, free,
+// publicly-hosted CSV of the Retraction Watch database
+// (https://gitlab.com/crossref/retraction-watch-data, no API key required)
+// so a cited reference's DOI (Reference.doi, already resolved via OpenAlex)
+// can be checked against actual retractions with a fast indexed local
+// lookup instead of an external call per reference. See
+// src/lib/retraction-watch.ts for the sync job and honesty contract: an
+// unsynced table returns "not yet checked", never a false "nothing found".
+// ---------------------------------------------------------------------------
+model RetractionWatchRecord {
+  id               String    @id @default(cuid())
+  originalPaperDoi String    @unique
+  originalTitle    String?
+  journal          String?
+  retractionDoi    String?
+  retractionDate   DateTime?
+  reason           String? // semicolon-separated, verbatim from the source dataset
+  syncedAt         DateTime  @default(now())
+
+  @@index([originalPaperDoi])
+}
+
+/// Singleton (always id "singleton") tracking the last sync attempt, so
+/// "0 retracted references found" can be told apart from "never synced" —
+/// see src/lib/retraction-watch.ts.
+model RetractionWatchSyncMeta {
+  id           String    @id @default("singleton")
+  lastSyncedAt DateTime?
+  recordCount  Int       @default(0)
+  lastError    String?
+}
+
+// ---------------------------------------------------------------------------
 // Preservation Deposit — dark-archive preservation status with CLOCKSS /
 // Portico (src/lib/preservation.ts). Neither service exposes a public
 // per-article API — they harvest bulk content (via OAI-PMH, among other

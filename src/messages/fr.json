@@ -117,7 +117,8 @@
     "backToIssue": "Retour au numéro",
     "byAuthor": "Par {name}",
     "pdf": "PDF",
-    "epub": "EPUB"
+    "epub": "EPUB",
+    "printPreview": "Aperçu d'impression"
   },
   "podcasts": {
     "eyebrow": "Podcasts",

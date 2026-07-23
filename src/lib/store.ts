@@ -53,6 +53,7 @@ export type DashboardTab =
   | "certificates"
   | "researchLab"
   | "narration"
+  | "researchIntegrity"
   | "admin";
 
 interface SessionUser {
