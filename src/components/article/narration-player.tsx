@@ -20,14 +20,18 @@ import { Button } from "@/components/ui/button";
 
 const NARRATION_CHUNK_CHARS = 1800;
 
+const KIND_LABEL: Record<string, string> = { paper: "paper", piece: "piece", post: "post" };
+
 export function NarrationPlayer({
   title,
   abstract,
   bodyHtml,
+  kind = "paper",
 }: {
   title: string;
   abstract: string;
   bodyHtml: string | null;
+  kind?: "paper" | "piece" | "post";
 }) {
   const [state, setState] = useState<"idle" | "playing" | "paused" | "unsupported">("idle");
 
@@ -84,7 +88,7 @@ export function NarrationPlayer({
       <CardContent className="p-5">
         <p className="eyebrow">Listen</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Have this article read aloud using your browser&apos;s built-in narration.
+          Have this {KIND_LABEL[kind]} read aloud using your browser&apos;s built-in narration.
         </p>
         <div className="mt-3 flex gap-2">
           {state === "playing" ? (
@@ -93,7 +97,7 @@ export function NarrationPlayer({
             </Button>
           ) : (
             <Button variant="outline" className="flex-1" onClick={play}>
-              <Play className="mr-2 h-4 w-4" /> {state === "paused" ? "Resume" : "Listen to this paper"}
+              <Play className="mr-2 h-4 w-4" /> {state === "paused" ? "Resume" : `Listen to this ${KIND_LABEL[kind]}`}
             </Button>
           )}
           {state !== "idle" && (

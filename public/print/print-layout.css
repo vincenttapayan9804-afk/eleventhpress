@@ -1,0 +1,100 @@
+/* Paged.js print layout — shared by /print/article/[id] and
+   /print/magazine-issue/[id]. Running header shows the document title
+   (via CSS string-set/content()), footer shows the page number — real
+   paged-media output Paged.js polyfills for browsers that print it. */
+
+@page {
+  size: A4;
+  margin: 2.2cm 2cm 2.5cm 2cm;
+
+  @top-center {
+    content: string(doc-title);
+    font-size: 8.5pt;
+    color: #666666;
+    font-family: Georgia, "Times New Roman", serif;
+  }
+  @bottom-center {
+    content: counter(page);
+    font-size: 9pt;
+    color: #666666;
+  }
+}
+
+@page :first {
+  @top-center {
+    content: "";
+  }
+}
+
+body {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 11pt;
+  line-height: 1.55;
+  color: #1a1a1a;
+}
+
+.print-doc-title {
+  string-set: doc-title content();
+}
+
+h1.print-title {
+  font-size: 21pt;
+  line-height: 1.2;
+  margin: 0 0 0.35em 0;
+}
+
+h2.print-heading {
+  font-size: 14pt;
+  margin: 1.6em 0 0.5em 0;
+}
+
+.print-meta {
+  font-size: 9pt;
+  color: #555555;
+  margin-bottom: 1.4em;
+}
+
+.print-abstract {
+  font-style: italic;
+  font-size: 10.5pt;
+  border-left: 2px solid #999999;
+  padding-left: 0.9em;
+  margin: 1em 0 1.6em 0;
+}
+
+.print-piece {
+  break-before: page;
+}
+
+.print-piece:first-child {
+  break-before: avoid;
+}
+
+.print-body table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 9pt;
+  margin: 1em 0;
+}
+
+.print-body table th,
+.print-body table td {
+  border: 1px solid #999999;
+  padding: 4px 6px;
+  text-align: left;
+}
+
+.print-body img {
+  max-width: 100%;
+}
+
+.print-body p {
+  margin: 0 0 0.8em 0;
+  text-align: justify;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}

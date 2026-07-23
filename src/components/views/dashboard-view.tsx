@@ -36,6 +36,7 @@ import {
   Newspaper,
   Mic,
   FileText,
+  Volume2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -63,6 +64,8 @@ import {
   MagazinesTab,
   PodcastsTab,
   MediaTab,
+  NarrationTab,
+  ResearchIntegrityTab,
 } from "@/components/dashboard/lazy";
 import { useLiveDashboard } from "@/hooks/use-live-dashboard";
 
@@ -139,6 +142,8 @@ export function DashboardView() {
     { key: "magazines", label: "Magazines", icon: Newspaper, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"] },
     { key: "podcasts", label: "Podcasts", icon: Mic, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"] },
     { key: "media", label: "Media (News/Blog)", icon: FileText, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"] },
+    { key: "narration", label: "Narration", icon: Volume2, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"] },
+    { key: "researchIntegrity", label: "Research integrity", icon: ShieldCheck, roles: ["SUPER_ADMIN"] },
     { key: "reader", label: "Subscription", icon: Library, roles: ["READER", "AUTHOR", "REVIEWER", "SUPER_ADMIN"] },
     { key: "certificates", label: "Certificates", icon: Award, roles: ["AUTHOR", "REVIEWER", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"] },
     {
@@ -312,6 +317,8 @@ export function DashboardView() {
           {dashboardTab === "magazines" && <MagazinesTab />}
           {dashboardTab === "podcasts" && <PodcastsTab />}
           {dashboardTab === "media" && <MediaTab />}
+          {dashboardTab === "narration" && <NarrationTab />}
+          {dashboardTab === "researchIntegrity" && <ResearchIntegrityTab />}
           {dashboardTab === "reader" && <ReaderTab subscription={data.subscription} onRefresh={loadDashboard} />}
           {dashboardTab === "certificates" && <CertificatesTab />}
           {dashboardTab === "researchLab" && <ResearchLabTab />}

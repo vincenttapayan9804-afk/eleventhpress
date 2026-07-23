@@ -52,6 +52,8 @@ export type DashboardTab =
   | "media"
   | "certificates"
   | "researchLab"
+  | "narration"
+  | "researchIntegrity"
   | "admin";
 
 interface SessionUser {

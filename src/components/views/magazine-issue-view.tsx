@@ -6,7 +6,9 @@ import { apiFetch } from "@/lib/api-client";
 import { useApp } from "@/lib/store";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Newspaper, Loader2, Download, FileText } from "lucide-react";
+import { ArrowLeft, Newspaper, Loader2, Download, FileText, Printer } from "lucide-react";
+import { MagazinePieceListenCard } from "@/components/narration/magazine-piece-listen-card";
+import { ContentDataTables } from "@/components/data-tables/content-data-tables";
 
 interface Piece {
   id: string;
@@ -62,6 +64,14 @@ function PieceReader({ piece, onBack }: { piece: Piece; onBack: () => void }) {
         <img src={piece.heroImageUrl} alt={piece.title} className="mt-8 w-full rounded-xl object-cover" />
       )}
       <div className="prose prose-stone mt-8 max-w-none font-serif text-lg leading-relaxed" dangerouslySetInnerHTML={{ __html: piece.bodyHtml }} />
+
+      <div className="mt-8">
+        <ContentDataTables apiPath={`/api/magazine-pieces/${piece.id}/data-tables`} filenamePrefix={piece.title.slice(0, 60)} />
+      </div>
+
+      <div className="mt-8">
+        <MagazinePieceListenCard pieceId={piece.id} title={piece.title} dek={piece.dek} bodyHtml={piece.bodyHtml} />
+      </div>
     </div>
   );
 }
@@ -125,6 +135,11 @@ export function MagazineIssueView() {
               <a href={issue.epubUrl} target="_blank" rel="noopener noreferrer"><Download className="mr-1.5 h-3.5 w-3.5" /> {t("epub")}</a>
             </Button>
           )}
+          <Button asChild variant="outline" size="sm">
+            <a href={`/print/magazine-issue/${issue.id}`} target="_blank" rel="noopener noreferrer">
+              <Printer className="mr-1.5 h-3.5 w-3.5" /> {t("printPreview")}
+            </a>
+          </Button>
         </div>
       </div>
 
