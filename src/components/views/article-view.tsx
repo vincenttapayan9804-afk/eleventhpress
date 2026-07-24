@@ -111,6 +111,7 @@ interface CommunityReview {
   id: string;
   channel: string;
   channelLabel: string;
+  channelDescription?: string;
   sourceType: string;
   externalUrl: string;
   reviewerName: string | null;
@@ -1808,10 +1809,10 @@ function ReviewHistoryPanel({ data }: { data: ReviewHistoryData }) {
       </div>
 
       {/* Sub-section 2: Community and Independent Review — real, fetched
-          reviews from free external channels (Hypothes.is annotations
-          today; PREreview, OpenReview, PCI, Sciety, and SciPost in later
-          phases). Every entry links back to its source and is never
-          authored or paraphrased by this platform. */}
+          reviews from Open Reputable Reviewer Platforms (Hypothes.is and
+          PREreview, synced automatically; PCI, Sciety, SciPost, and
+          OpenReview, editor-verified). Every entry links back to its
+          source and is never authored or paraphrased by this platform. */}
       <div className="space-y-4">
         <p className="eyebrow flex items-center gap-1.5">
           <Users className="h-3.5 w-3.5" />
@@ -1832,11 +1833,14 @@ function CommunityReviewSection({ reviews }: { reviews: CommunityReview[] }) {
           <div className="flex items-start gap-3">
             <Globe2 className="mt-1 h-5 w-5 flex-shrink-0 text-sky-700" />
             <div>
-              <p className="font-display text-base font-semibold">Independent of this journal&apos;s editorial process</p>
+              <p className="font-display text-base font-semibold">Verified by Open Reputable Reviewer Platforms</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Real reviews and annotations pulled directly from free, external, community-run
-                review platforms — never authored or edited by this journal. Each entry links back
-                to its original source.
+                Real reviews and annotations sourced directly from Open Reputable Reviewer
+                Platforms — established review communities recognized for their reviewer
+                reputation, editorial integrity, and transparent, publicly auditable review
+                databases. Independent of this journal&apos;s own editorial process and never
+                authored or edited by this journal — each entry links back to its original
+                source record for full traceability.
               </p>
             </div>
           </div>
@@ -1846,9 +1850,11 @@ function CommunityReviewSection({ reviews }: { reviews: CommunityReview[] }) {
       {reviews.length === 0 ? (
         <Card className="paper-card">
           <CardContent className="p-6 text-center text-sm text-muted-foreground">
-            No independent reviews found yet. This is checked automatically against free,
-            open community review platforms, plus any links the editorial team has curated
-            from platforms without an automated feed (e.g. PCI, Sciety, SciPost, OpenReview).
+            No independent reviews recorded yet. This section is checked automatically
+            against Open Reputable Reviewer Platforms (Hypothes.is and PREreview), and is
+            further strengthened by links our editorial team individually verifies and
+            curates from other reputable reviewer communities (e.g. PCI, Sciety, SciPost,
+            OpenReview) — so every entry meets the same standard of reviewer integrity.
           </CardContent>
         </Card>
       ) : (
@@ -1875,6 +1881,9 @@ function CommunityReviewSection({ reviews }: { reviews: CommunityReview[] }) {
                   </a>
                 </div>
               </div>
+              {r.channelDescription && (
+                <p className="mt-1.5 text-[0.7rem] text-muted-foreground">{r.channelDescription}</p>
+              )}
               {r.excerpt && (
                 <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground/85">{r.excerpt}</p>
               )}
