@@ -20,7 +20,7 @@
  *  - Purely decorative scenes (HeroGlobe/ImpactSphere) skip rendering
  *    entirely — falling back to the cheap static `SceneFallback` below —
  *    under `prefers-reduced-motion` OR a basic low-power/mobile capability
- *    check (small touch viewport or <=2 logical cores); DisciplineTowers
+ *    check (any touch-primary device, or <=2 logical cores); DisciplineTowers
  *    (user-invoked, not ambient) only gates its internal animation on
  *    reduced-motion, never skips loading for it.
  *  - The two metrics charts never skip loading for `prefers-reduced-motion`
@@ -150,7 +150,6 @@ class SceneErrorBoundary extends Component<{ fallback: ReactNode; children: Reac
 }
 
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
-const SMALL_VIEWPORT_QUERY = "(max-width: 640px)";
 const COARSE_POINTER_QUERY = "(pointer: coarse)";
 
 /**
@@ -167,27 +166,34 @@ const COARSE_POINTER_QUERY = "(pointer: coarse)";
  */
 function subscribeToMotionPreference(callback: () => void) {
   if (typeof window === "undefined" || !window.matchMedia) return () => {};
-  const queries = [REDUCED_MOTION_QUERY, SMALL_VIEWPORT_QUERY, COARSE_POINTER_QUERY].map((q) => window.matchMedia(q));
+  const queries = [REDUCED_MOTION_QUERY, COARSE_POINTER_QUERY].map((q) => window.matchMedia(q));
   queries.forEach((mql) => mql.addEventListener("change", callback));
   return () => queries.forEach((mql) => mql.removeEventListener("change", callback));
 }
 /**
- * Basic capability check, beyond prefers-reduced-motion alone: a touch
- * device with a phone-sized viewport, or a CPU with 2 or fewer logical
- * cores, skips the WebGL bundle outright rather than paying for a scene
- * it's unlikely to render smoothly. navigator.hardwareConcurrency doesn't
+ * Basic capability check, beyond prefers-reduced-motion alone: any
+ * touch-primary device, or a CPU with 2 or fewer logical cores, skips the
+ * WebGL bundle outright rather than paying for a scene it's unlikely to
+ * render smoothly. Touch alone (not touch AND a narrow viewport) is the
+ * gate — logical CPU core count is a poor proxy for GPU quality (plenty
+ * of real phones/tablets report 6-8 cores on a weak GPU), and a stalled
+ * or silently-blank WebGL context on a real device doesn't throw, so
+ * SceneErrorBoundary never catches it; the only reliable way to avoid
+ * that failure mode for the metrics charts (which carry real numbers,
+ * not decoration) is to never attempt WebGL on touch input at all,
+ * regardless of screen size. navigator.hardwareConcurrency doesn't
  * change at runtime, so it only needs reading once per snapshot, not a
  * subscription of its own.
  */
 function isLowPowerDevice(): boolean {
   if (typeof window === "undefined" || !window.matchMedia) return false;
-  const isPhoneSizedTouch = window.matchMedia(SMALL_VIEWPORT_QUERY).matches && window.matchMedia(COARSE_POINTER_QUERY).matches;
+  const isTouchPrimary = window.matchMedia(COARSE_POINTER_QUERY).matches;
   const lowCores =
     typeof navigator !== "undefined" &&
     typeof navigator.hardwareConcurrency === "number" &&
     navigator.hardwareConcurrency > 0 &&
     navigator.hardwareConcurrency <= 2;
-  return isPhoneSizedTouch || lowCores;
+  return isTouchPrimary || lowCores;
 }
 function getAllowMotionSnapshot(): boolean {
   if (typeof window === "undefined" || !window.matchMedia) return true;
@@ -215,7 +221,7 @@ function useAllowMotion() {
  */
 function subscribeToLowPower(callback: () => void) {
   if (typeof window === "undefined" || !window.matchMedia) return () => {};
-  const queries = [SMALL_VIEWPORT_QUERY, COARSE_POINTER_QUERY].map((q) => window.matchMedia(q));
+  const queries = [COARSE_POINTER_QUERY].map((q) => window.matchMedia(q));
   queries.forEach((mql) => mql.addEventListener("change", callback));
   return () => queries.forEach((mql) => mql.removeEventListener("change", callback));
 }
