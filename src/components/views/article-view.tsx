@@ -1847,7 +1847,8 @@ function CommunityReviewSection({ reviews }: { reviews: CommunityReview[] }) {
         <Card className="paper-card">
           <CardContent className="p-6 text-center text-sm text-muted-foreground">
             No independent reviews found yet. This is checked automatically against free,
-            open community review platforms (currently Hypothes.is).
+            open community review platforms, plus any links the editorial team has curated
+            from platforms without an automated feed (e.g. PCI, Sciety, SciPost, OpenReview).
           </CardContent>
         </Card>
       ) : (

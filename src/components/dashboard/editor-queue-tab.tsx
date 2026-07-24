@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
@@ -48,6 +50,8 @@ import {
   Globe2,
   Database,
   Trash2,
+  ExternalLink,
+  Plus,
 } from "lucide-react";
 
 interface Props {
@@ -219,8 +223,79 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
   const [savingLetter, setSavingLetter] = useState(false);
   const [draftingLetter, setDraftingLetter] = useState(false);
   const [mintingReportDoi, setMintingReportDoi] = useState(false);
+  const [curatedReviews, setCuratedReviews] = useState<any[]>([]);
+  const [curatedChannelOptions, setCuratedChannelOptions] = useState<{ value: string; label: string }[]>([]);
+  const [loadingCurated, setLoadingCurated] = useState(false);
+  const [curatedLoaded, setCuratedLoaded] = useState(false);
+  const [newCuratedChannel, setNewCuratedChannel] = useState("");
+  const [newCuratedUrl, setNewCuratedUrl] = useState("");
+  const [newCuratedReviewer, setNewCuratedReviewer] = useState("");
+  const [newCuratedExcerpt, setNewCuratedExcerpt] = useState("");
+  const [newCuratedRecommendation, setNewCuratedRecommendation] = useState("");
+  const [savingCurated, setSavingCurated] = useState(false);
+  const [deletingCuratedId, setDeletingCuratedId] = useState<string | null>(null);
 
   if (!article) return null;
+
+  async function loadCurated() {
+    setLoadingCurated(true);
+    try {
+      const res = await apiFetch<{ reviews: any[]; curatedChannels: { value: string; label: string }[] }>(
+        `/api/articles/${article.id}/independent-reviews`
+      );
+      setCuratedReviews(res.reviews);
+      setCuratedChannelOptions(res.curatedChannels);
+      setCuratedLoaded(true);
+    } catch (e: any) {
+      toast.error("Failed to load community reviews", { description: e.message });
+    } finally {
+      setLoadingCurated(false);
+    }
+  }
+
+  async function addCuratedReview() {
+    if (!newCuratedChannel || !newCuratedUrl.trim()) return;
+    setSavingCurated(true);
+    try {
+      await apiFetch(`/api/articles/${article.id}/independent-reviews`, {
+        method: "POST",
+        body: JSON.stringify({
+          channel: newCuratedChannel,
+          externalUrl: newCuratedUrl.trim(),
+          reviewerName: newCuratedReviewer.trim() || undefined,
+          excerpt: newCuratedExcerpt.trim() || undefined,
+          recommendation: newCuratedRecommendation.trim() || undefined,
+        }),
+      });
+      toast.success("Curated review link added");
+      setNewCuratedChannel("");
+      setNewCuratedUrl("");
+      setNewCuratedReviewer("");
+      setNewCuratedExcerpt("");
+      setNewCuratedRecommendation("");
+      await loadCurated();
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setSavingCurated(false);
+    }
+  }
+
+  async function deleteCuratedReview(reviewId: string) {
+    setDeletingCuratedId(reviewId);
+    try {
+      await apiFetch(`/api/articles/${article.id}/independent-reviews`, {
+        method: "DELETE",
+        body: JSON.stringify({ reviewId }),
+      });
+      toast.success("Curated review link removed");
+      await loadCurated();
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setDeletingCuratedId(null);
+    }
+  }
 
   async function loadReviewers() {
     try {
@@ -348,6 +423,9 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="reviewers">
               Reviewers{article.reviews.length > 0 ? ` (${article.reviews.length})` : ""}
+            </TabsTrigger>
+            <TabsTrigger value="community" onClick={() => !curatedLoaded && loadCurated()}>
+              Community
             </TabsTrigger>
             <TabsTrigger value="checks">AI &amp; checks</TabsTrigger>
           </TabsList>
@@ -803,6 +881,143 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
                       ))}
                     </div>
                   </div>
+                )}
+              </div>
+            </ScrollArea>
+          </TabsContent>
+
+          {/* Community and Independent Review — editor-curated links for
+              channels with no automated feed (PCI, Sciety, SciPost,
+              OpenReview). Automated rows (Hypothes.is, PREreview) show here
+              too, read-only, so editors can see the full picture the public
+              Review History tab will show. */}
+          <TabsContent value="community" className="mt-3 min-h-0 flex-1">
+            <ScrollArea className="h-[48vh] pr-3 epip-scroll">
+              <div className="space-y-4">
+                <div>
+                  <p className="eyebrow mb-1">Community and Independent Review</p>
+                  <p className="text-xs text-muted-foreground">
+                    Hypothes.is and PREreview are checked automatically. PCI, Sciety, SciPost, and
+                    OpenReview have no automated feed yet — paste a link only after you&apos;ve
+                    actually read the review at that URL yourself.
+                  </p>
+                </div>
+
+                {loadingCurated ? (
+                  <div className="flex items-center justify-center py-6 text-sm text-muted-foreground">
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading…
+                  </div>
+                ) : (
+                  <>
+                    {curatedReviews.length === 0 ? (
+                      <p className="rounded-md border border-dashed border-border p-3 text-xs text-muted-foreground">
+                        No independent reviews recorded yet for this article.
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {curatedReviews.map((r) => (
+                          <div key={r.id} className="rounded-md border border-border p-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <Badge variant="outline" className="text-[0.6rem]">{r.channelLabel}</Badge>
+                                  <Badge variant="outline" className="text-[0.6rem]">
+                                    {r.sourceType === "EDITOR_ENTERED" ? "Curated" : "Automated"}
+                                  </Badge>
+                                  {r.recommendation && (
+                                    <Badge variant="outline" className="text-[0.6rem]">{r.recommendation}</Badge>
+                                  )}
+                                </div>
+                                <a
+                                  href={r.externalUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="mt-1 flex items-center gap-1 truncate text-xs text-primary hover:underline"
+                                >
+                                  {r.externalUrl} <ExternalLink className="h-3 w-3 flex-shrink-0" />
+                                </a>
+                                {r.excerpt && (
+                                  <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{r.excerpt}</p>
+                                )}
+                              </div>
+                              {r.sourceType === "EDITOR_ENTERED" && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 w-7 flex-shrink-0 p-0 text-destructive hover:text-destructive"
+                                  disabled={deletingCuratedId === r.id}
+                                  onClick={() => deleteCuratedReview(r.id)}
+                                >
+                                  {deletingCuratedId === r.id ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  )}
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <Separator />
+
+                    <div className="space-y-2 rounded-md border border-border p-3">
+                      <p className="font-display text-sm font-semibold">Add a curated link</p>
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        <Select value={newCuratedChannel} onValueChange={setNewCuratedChannel}>
+                          <SelectTrigger className="h-9 text-xs">
+                            <SelectValue placeholder="Platform" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {curatedChannelOptions.map((c) => (
+                              <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Input
+                          value={newCuratedUrl}
+                          onChange={(e) => setNewCuratedUrl(e.target.value)}
+                          placeholder="https://…"
+                          className="h-9 text-xs"
+                        />
+                        <Input
+                          value={newCuratedReviewer}
+                          onChange={(e) => setNewCuratedReviewer(e.target.value)}
+                          placeholder="Reviewer name (optional)"
+                          className="h-9 text-xs"
+                        />
+                        <Input
+                          value={newCuratedRecommendation}
+                          onChange={(e) => setNewCuratedRecommendation(e.target.value)}
+                          placeholder="Recommendation (optional)"
+                          className="h-9 text-xs"
+                        />
+                      </div>
+                      <Textarea
+                        value={newCuratedExcerpt}
+                        onChange={(e) => setNewCuratedExcerpt(e.target.value)}
+                        placeholder="Short excerpt or summary (optional)"
+                        rows={2}
+                        className="text-xs"
+                      />
+                      <div className="flex justify-end">
+                        <Button
+                          size="sm"
+                          disabled={savingCurated || !newCuratedChannel || !newCuratedUrl.trim()}
+                          onClick={addCuratedReview}
+                        >
+                          {savingCurated ? (
+                            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                          ) : (
+                            <Plus className="mr-1 h-3 w-3" />
+                          )}
+                          Add link
+                        </Button>
+                      </div>
+                    </div>
+                  </>
                 )}
               </div>
             </ScrollArea>

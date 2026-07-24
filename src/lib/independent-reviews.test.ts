@@ -17,6 +17,8 @@ function stateKey(articleId: string, channel: string) {
   return `${articleId}::${channel}`;
 }
 
+let curatedIdCounter = 0;
+
 const fakeDb = {
   independentReview: {
     upsert: mock(async ({ where, create, update }: any) => {
@@ -30,6 +32,17 @@ const fakeDb = {
       return reviewStore.find((r) => r.__key === key);
     }),
     findMany: mock(async ({ where }: any) => reviewStore.filter((r) => r.articleId === where.articleId)),
+    create: mock(async ({ data }: any) => {
+      const id = `curated-${++curatedIdCounter}`;
+      const row = { id, ...data };
+      reviewStore.push(row);
+      return row;
+    }),
+    findUnique: mock(async ({ where }: any) => reviewStore.find((r) => r.id === where.id) || null),
+    delete: mock(async ({ where }: any) => {
+      const index = reviewStore.findIndex((r) => r.id === where.id);
+      if (index >= 0) reviewStore.splice(index, 1);
+    }),
   },
   independentReviewSyncState: {
     findUnique: mock(async ({ where }: any) => {
@@ -51,6 +64,10 @@ const {
   fetchPrereviewRapidReviews,
   syncIndependentReviewsForArticle,
   getIndependentReviewsForArticle,
+  addEditorCuratedReview,
+  deleteEditorCuratedReview,
+  listIndependentReviewsForAdmin,
+  EDITOR_CURATED_CHANNELS,
 } = await import("@/lib/independent-reviews");
 
 const ARTICLE_URL = "https://eleventhpress.vercel.app/article/article-1";
@@ -108,9 +125,13 @@ function mockFetchByHost(handlers: { hypothesis?: any; prereview?: any; throwOn?
 function resetAll() {
   reviewStore = [];
   syncStateStore = {};
+  curatedIdCounter = 0;
   mockFetchByHost({});
   fakeDb.independentReview.upsert.mockClear();
   fakeDb.independentReview.findMany.mockClear();
+  fakeDb.independentReview.create.mockClear();
+  fakeDb.independentReview.findUnique.mockClear();
+  fakeDb.independentReview.delete.mockClear();
   fakeDb.independentReviewSyncState.findUnique.mockClear();
   fakeDb.independentReviewSyncState.upsert.mockClear();
 }
@@ -252,5 +273,71 @@ describe("getIndependentReviewsForArticle", () => {
     mockFetchByHost({ throwOn: "hypothes.is" });
     const results = await getIndependentReviewsForArticle("article-2", { canonicalUrl: "https://eleventhpress.vercel.app/article/article-2", doi: null });
     expect(results).toEqual([]);
+  });
+
+  test("never auto-syncs editor-curated channels (PCI/Sciety/SciPost/OpenReview)", async () => {
+    await getIndependentReviewsForArticle("article-1", { canonicalUrl: ARTICLE_URL, doi: ARTICLE_DOI });
+    for (const channel of EDITOR_CURATED_CHANNELS) {
+      expect(syncStateStore[`article-1::${channel}`]).toBeUndefined();
+    }
+  });
+});
+
+describe("addEditorCuratedReview / deleteEditorCuratedReview / listIndependentReviewsForAdmin", () => {
+  test("adds a curated link for an editor-curated channel with sourceType EDITOR_ENTERED", async () => {
+    const review = await addEditorCuratedReview("article-1", {
+      channel: "SCIPOST",
+      externalUrl: "https://scipost.org/submissions/example/",
+      reviewerName: "Dr. Reviewer",
+      excerpt: "A thorough refereeing report.",
+      recommendation: "accept",
+    });
+    expect(review.channel).toBe("SCIPOST");
+    expect(review.sourceType).toBe("EDITOR_ENTERED");
+    expect(review.channelLabel).toBe("SciPost");
+    expect(reviewStore.length).toBe(1);
+  });
+
+  test("rejects a channel that isn't editor-curated (e.g. HYPOTHESIS)", async () => {
+    await expect(
+      addEditorCuratedReview("article-1", { channel: "HYPOTHESIS", externalUrl: "https://hypothes.is/a/x" })
+    ).rejects.toThrow("not an editor-curated channel");
+  });
+
+  test("rejects a malformed or non-http(s) URL", async () => {
+    await expect(
+      addEditorCuratedReview("article-1", { channel: "PCI", externalUrl: "not-a-url" })
+    ).rejects.toThrow();
+    await expect(
+      addEditorCuratedReview("article-1", { channel: "PCI", externalUrl: "ftp://example.com/x" })
+    ).rejects.toThrow("http or https");
+  });
+
+  test("listIndependentReviewsForAdmin returns stored rows without triggering any fetch", async () => {
+    await addEditorCuratedReview("article-1", { channel: "OPENREVIEW", externalUrl: "https://openreview.net/forum?id=abc" });
+    const fetchCallsBefore = (globalThis.fetch as any).mock.calls.length;
+    const rows = await listIndependentReviewsForAdmin("article-1");
+    expect(rows.length).toBe(1);
+    expect((globalThis.fetch as any).mock.calls.length).toBe(fetchCallsBefore);
+  });
+
+  test("deleteEditorCuratedReview removes an editor-entered row", async () => {
+    const review = await addEditorCuratedReview("article-1", { channel: "SCIETY", externalUrl: "https://sciety.org/articles/x" });
+    await deleteEditorCuratedReview("article-1", review.id);
+    expect(reviewStore.length).toBe(0);
+  });
+
+  test("deleteEditorCuratedReview refuses to remove an AUTOMATED row", async () => {
+    await syncIndependentReviewsForArticle("article-1", { canonicalUrl: ARTICLE_URL, doi: null }, "HYPOTHESIS");
+    const automatedId = reviewStore[0].id;
+    await expect(deleteEditorCuratedReview("article-1", automatedId)).rejects.toThrow(
+      "Only editor-entered reviews can be removed"
+    );
+    expect(reviewStore.length).toBe(2);
+  });
+
+  test("deleteEditorCuratedReview refuses a review belonging to a different article", async () => {
+    const review = await addEditorCuratedReview("article-1", { channel: "PCI", externalUrl: "https://peercommunityin.org/x" });
+    await expect(deleteEditorCuratedReview("article-2", review.id)).rejects.toThrow("not found");
   });
 });

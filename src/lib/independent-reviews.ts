@@ -24,15 +24,24 @@
  * codebase. This should be re-verified against a real response the first
  * time this runs somewhere prereview.org is reachable.
  *
- * Editor-curated links for channels with no stable public read API yet
- * (PCI, Sciety, SciPost, OpenReview) remain planned for a later phase.
- * ScienceOpen was considered but dropped from this phase: no source could
- * confirm its actual DOI-based document URL scheme, and guessing one to
- * ship a link would risk a broken or wrong outbound link — not done.
+ * Phase 3c adds PCI, Sciety, SciPost, and OpenReview — none of which expose
+ * a stable, documented, public read API suitable for unattended polling (PCI
+ * or Sciety's "recommended"/"co-signed" status pages require per-community
+ * scraping, and SciPost/OpenReview review threads have no public per-DOI
+ * search endpoint at time of writing). Rather than guess at an API contract
+ * that can't be verified, these are editor-curated: an editor who has
+ * actually read the real review on the real platform pastes its URL here.
+ * These rows are `sourceType: "EDITOR_ENTERED"`, never auto-synced, and are
+ * validated only for a well-formed http(s) URL — the content itself is
+ * vouched for by the editor entering it, not fetched or scraped by this
+ * codebase. ScienceOpen was considered but dropped entirely (this phase and
+ * 3b): no source could confirm its actual DOI-based document URL scheme,
+ * and guessing one — even for an editor-curated link — would risk shipping
+ * a broken or wrong outbound link.
  *
- * Every row this writes is a REAL, fetched record from the named external
- * platform — never authored, paraphrased, or fabricated here. On any fetch
- * failure, this fails open: the error is recorded honestly in
+ * Every AUTOMATED row this writes is a REAL, fetched record from the named
+ * external platform — never authored, paraphrased, or fabricated here. On
+ * any fetch failure, this fails open: the error is recorded honestly in
  * IndependentReviewSyncState.lastError, and callers get back whatever was
  * already stored (possibly nothing) rather than a thrown exception.
  */
@@ -43,15 +52,49 @@ export const INDEPENDENT_REVIEW_CHANNELS = {
     label: "Hypothes.is",
     homepage: "https://hypothes.is",
     description: "Open web annotations anchored to this article's page.",
+    editorCurated: false,
   },
   PREREVIEW: {
     label: "PREreview",
     homepage: "https://prereview.org",
     description: "Structured rapid reviews of preprints, keyed by DOI.",
+    editorCurated: false,
+  },
+  PCI: {
+    label: "Peer Community In (PCI)",
+    homepage: "https://peercommunityin.org",
+    description: "Community-recommended preprints across PCI's discipline-specific communities.",
+    editorCurated: true,
+  },
+  SCIETY: {
+    label: "Sciety",
+    homepage: "https://sciety.org",
+    description: "Aggregated preprint evaluations from curating review groups.",
+    editorCurated: true,
+  },
+  SCIPOST: {
+    label: "SciPost",
+    homepage: "https://scipost.org",
+    description: "Open, published refereeing reports for physical-sciences preprints.",
+    editorCurated: true,
+  },
+  OPENREVIEW: {
+    label: "OpenReview",
+    homepage: "https://openreview.net",
+    description: "Open review threads, common in computer-science venues.",
+    editorCurated: true,
   },
 } as const;
 
 export type IndependentReviewChannel = keyof typeof INDEPENDENT_REVIEW_CHANNELS;
+
+const AUTO_SYNC_CHANNELS = (Object.keys(INDEPENDENT_REVIEW_CHANNELS) as IndependentReviewChannel[]).filter(
+  (c) => !INDEPENDENT_REVIEW_CHANNELS[c].editorCurated
+);
+
+export const EDITOR_CURATED_CHANNELS = (Object.keys(INDEPENDENT_REVIEW_CHANNELS) as IndependentReviewChannel[]).filter(
+  (c) => INDEPENDENT_REVIEW_CHANNELS[c].editorCurated
+);
 
 const HYPOTHESIS_SEARCH_API = "https://hypothes.is/api/search";
 const PREREVIEW_API_BASE = "https://prereview.org/api/v2";
@@ -310,22 +353,23 @@ export interface IndependentReviewOut {
   postedAt: Date | null;
 }
 
-const ALL_CHANNELS = Object.keys(INDEPENDENT_REVIEW_CHANNELS) as IndependentReviewChannel[];
-
 /**
  * Reader-facing read path for the Review History tab's "Community and
- * Independent Review" section. Re-syncs each channel in the background of
- * this call only when the last check for (article, channel) is missing or
- * older than the staleness window, so a popular article isn't re-fetched
- * from an external API on every single page view. PREreview is skipped
- * entirely when the article has no DOI yet. Always returns whatever is
- * currently stored, synced or not — this never throws.
+ * Independent Review" section. Re-syncs each auto-sync channel in the
+ * background of this call only when the last check for (article, channel)
+ * is missing or older than the staleness window, so a popular article isn't
+ * re-fetched from an external API on every single page view. PREreview is
+ * skipped entirely when the article has no DOI yet. Editor-curated channels
+ * (PCI, Sciety, SciPost, OpenReview) are never auto-synced — their rows are
+ * written directly by addEditorCuratedReview and simply read back here
+ * alongside the automated ones. Always returns whatever is currently
+ * stored, synced or not — this never throws.
  */
 export async function getIndependentReviewsForArticle(
   articleId: string,
   keys: { canonicalUrl: string; doi: string | null }
 ): Promise<IndependentReviewOut[]> {
-  const channelsToCheck = keys.doi ? ALL_CHANNELS : (["HYPOTHESIS"] as IndependentReviewChannel[]);
+  const channelsToCheck = keys.doi ? AUTO_SYNC_CHANNELS : (["HYPOTHESIS"] as IndependentReviewChannel[]);
 
   await Promise.all(
     channelsToCheck.map(async (channel) => {
@@ -344,16 +388,109 @@ export async function getIndependentReviewsForArticle(
     orderBy: { postedAt: "desc" },
   });
 
-  return rows.map((r) => ({
+  return rows.map(toIndependentReviewOut);
+}
+
+function toIndependentReviewOut(r: {
+  id: string;
+  channel: string;
+  sourceType: string;
+  externalUrl: string;
+  reviewerName: string | null;
+  excerpt: string | null;
+  recommendation: string | null;
+  postedAt: Date | null;
+}): IndependentReviewOut {
+  return {
     id: r.id,
     channel: r.channel,
-    channelLabel:
-      INDEPENDENT_REVIEW_CHANNELS[r.channel as IndependentReviewChannel]?.label || r.channel,
+    channelLabel: INDEPENDENT_REVIEW_CHANNELS[r.channel as IndependentReviewChannel]?.label || r.channel,
     sourceType: r.sourceType,
     externalUrl: r.externalUrl,
     reviewerName: r.reviewerName,
     excerpt: r.excerpt,
     recommendation: r.recommendation,
     postedAt: r.postedAt,
-  }));
+  };
+}
+
+/**
+ * Admin-facing read path for the editorial dashboard's curated-links
+ * manager. Unlike getIndependentReviewsForArticle, this never triggers an
+ * external sync — it just reads whatever is already stored, so opening the
+ * manager doesn't hit external APIs, and works regardless of the article's
+ * publish/Review-History-enabled status.
+ */
+export async function listIndependentReviewsForAdmin(articleId: string): Promise<IndependentReviewOut[]> {
+  const rows = await db.independentReview.findMany({
+    where: { articleId },
+    orderBy: [{ sourceType: "asc" }, { postedAt: "desc" }],
+  });
+  return rows.map(toIndependentReviewOut);
+}
+
+export interface EditorCuratedReviewInput {
+  channel: IndependentReviewChannel;
+  externalUrl: string;
+  reviewerName?: string | null;
+  excerpt?: string | null;
+  recommendation?: string | null;
+}
+
+/**
+ * Adds an editor-curated independent review link for a channel with no
+ * automated feed (PCI, Sciety, SciPost, OpenReview). The editor has
+ * actually read the real review at `externalUrl`; this only validates the
+ * channel and that the URL is well-formed http(s) — it never fetches or
+ * fabricates the review content itself.
+ */
+export async function addEditorCuratedReview(
+  articleId: string,
+  input: EditorCuratedReviewInput
+): Promise<IndependentReviewOut> {
+  if (!EDITOR_CURATED_CHANNELS.includes(input.channel)) {
+    throw new Error(`${input.channel} is not an editor-curated channel`);
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(input.externalUrl);
+  } catch {
+    throw new Error("externalUrl must be a valid URL");
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new Error("externalUrl must be an http or https URL");
+  }
+
+  const row = await db.independentReview.create({
+    data: {
+      articleId,
+      channel: input.channel,
+      sourceType: "EDITOR_ENTERED",
+      externalId: null,
+      externalUrl: input.externalUrl,
+      reviewerName: input.reviewerName || null,
+      excerpt: input.excerpt || null,
+      recommendation: input.recommendation || null,
+      postedAt: new Date(),
+    },
+  });
+
+  return toIndependentReviewOut(row);
+}
+
+/**
+ * Removes an editor-curated review link. Refuses to touch AUTOMATED rows
+ * through this path (those are only ever replaced by re-syncing) and
+ * refuses rows that don't belong to the given article.
+ */
+export async function deleteEditorCuratedReview(articleId: string, reviewId: string): Promise<void> {
+  const row = await db.independentReview.findUnique({ where: { id: reviewId } });
+  if (!row || row.articleId !== articleId) {
+    throw new Error("Review not found for this article");
+  }
+  if (row.sourceType !== "EDITOR_ENTERED") {
+    throw new Error("Only editor-entered reviews can be removed this way");
+  }
+  await db.independentReview.delete({ where: { id: reviewId } });
 }
