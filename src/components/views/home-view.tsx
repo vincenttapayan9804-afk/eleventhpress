@@ -17,7 +17,7 @@ import {
   Search, ArrowRight, Sparkles, FileText, Quote, TrendingUp, Globe2,
   Atom, Microscope, Cpu, Users, BarChart3, Brain, Leaf, Calculator,
   GraduationCap, Building2, Cog, BookOpen, Share2, ShieldCheck,
-  Database, ClipboardCheck,
+  Database, ClipboardCheck, Link2,
 } from "lucide-react";
 
 const DISCIPLINE_ICONS: Record<string, any> = {
@@ -191,6 +191,7 @@ export function HomeView() {
                     <MiniStat icon={Share2} value="16" label="Syndication & publication networks" />
                     <MiniStat icon={ClipboardCheck} value="18" label="Multi-phase peer-review criteria" />
                     <MiniStat icon={Cog} value="9" label="Microservices platform architecture" />
+                    <MiniStat className="col-span-2" icon={Link2} value="6" label="Integrated independent review platforms" />
                   </div>
                   <div className="mt-4 rounded-xl bg-[oklch(0.93_0.04_290/0.5)] px-4 py-3 text-xs text-muted-foreground">
                     {t("indexedIn")} <strong className="text-foreground">Google Scholar</strong> · <strong className="text-foreground">{DOI_REGISTRAR}</strong> · <strong className="text-foreground">OAI-PMH 2.0</strong> · <strong className="text-foreground">BASE</strong> · <strong className="text-foreground">CORE</strong> · <strong className="text-foreground">OpenAIRE</strong>
@@ -523,9 +524,9 @@ function StatTile({ label, value, icon: Icon }: { label: string; value: number; 
   );
 }
 
-function MiniStat({ label, value, icon: Icon }: { label: string; value: string; icon: any }) {
+function MiniStat({ label, value, icon: Icon, className }: { label: string; value: string; icon: any; className?: string }) {
   return (
-    <div className="flex items-start gap-2 rounded-lg bg-[oklch(0.99_0.004_285/0.8)] p-3">
+    <div className={`flex items-start gap-2 rounded-lg bg-[oklch(0.99_0.004_285/0.8)] p-3 ${className ?? ""}`}>
       <Icon className="mt-0.5 h-4 w-4 shrink-0 text-[oklch(0.42_0.18_295)]" />
       <div>
         <p className="font-display text-sm font-semibold leading-none">{value}</p>
