@@ -312,6 +312,7 @@ model Article {
   galleyHtmlKey String? // published HTML
   galleyJatsKey String? // published JATS XML
   galleyEpubKey String? // published EPUB3 (single-chapter, src/lib/epub-builder.ts)
+  galleyTemplateVersion Int @default(0) // src/lib/galley.ts GALLEY_TEMPLATE_VERSION at last render; scripts/backfill-galleys.ts re-renders when stale
 
   // Workflow state machine
   // DRAFT | SUBMITTED | UNDER_REVIEW | REVISIONS_REQUIRED | ACCEPTED | IN_PRODUCTION | PUBLISHED | REJECTED | WITHDRAWN

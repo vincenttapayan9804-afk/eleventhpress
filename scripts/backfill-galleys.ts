@@ -1,31 +1,27 @@
 /**
- * Backfill for PUBLISHED articles missing the EPUB galley (Phase A), AI
- * glossary (Phase D), auto-generated lay summary, RAG chunk embeddings
- * (src/lib/chunk-embeddings.ts), a full-text translation into every
- * supported locale (src/lib/galley-translation.ts), cached "why this is
- * related" explanations for their top similar articles
- * (src/lib/related-explanation.ts), table-accessibility caption
- * suggestions (src/lib/table-accessibility.ts), or a real semantic
- * (rather than hashed-n-gram) whole-article embedding
+ * Backfill for PUBLISHED articles missing the EPUB galley or rendered under
+ * a stale visual template (Phase A), AI glossary (Phase D), auto-generated
+ * lay summary, RAG chunk embeddings (src/lib/chunk-embeddings.ts), a
+ * full-text translation into every supported locale
+ * (src/lib/galley-translation.ts), cached "why this is related" explanations
+ * for their top similar articles (src/lib/related-explanation.ts),
+ * table-accessibility caption suggestions (src/lib/table-accessibility.ts),
+ * or a real semantic (rather than hashed-n-gram) whole-article embedding
  * (src/lib/embeddings.ts) — all eight are now generated automatically at
  * publish time (src/app/api/articles/workflow/route.ts), but articles
- * published before each feature shipped predate it and need a one-time
- * catch-up.
+ * published before each feature shipped (or before a later galley
+ * re-brand — see GALLEY_TEMPLATE_VERSION in src/lib/galley.ts) predate it
+ * and need a one-time catch-up.
  *
- * Runs in two contexts:
- *  1. Automatically, idempotently, on every production build — package.json's
- *     "build" script calls this with --skip-galleys right after
- *     scripts/seed.ts (the same precedent: a script that runs on every
- *     Vercel deploy with real DB/API credentials and no-ops once nothing
- *     is missing). This is what makes glossary + lay summary generation
- *     genuinely automatic for every article, not just ones published after
- *     this code shipped, without requiring a human to run anything.
- *  2. Manually, by an operator with production credentials, for the
- *     heavier galley/EPUB regeneration this script also supports (real
- *     PDF/HTML/EPUB/JATS rendering — deliberately left out of the
- *     automatic build-time run so a slow or failing production service
- *     doesn't add build-time risk for something that isn't in the hot
- *     path of what readers see first).
+ * Runs automatically, idempotently, on every production build —
+ * package.json's "build" script calls this with --confirm right after
+ * scripts/seed.ts (the same precedent: a script that runs on every Vercel
+ * deploy with real DB/API credentials and no-ops once nothing is missing
+ * or stale). Galley regeneration is real PDF/HTML/EPUB/JATS rendering work,
+ * but each article is wrapped in its own try/catch and failures are
+ * logged rather than thrown, so one slow or failing render can't fail the
+ * whole production build — it just leaves that article's
+ * galleyTemplateVersion stale for the next deploy to retry.
  *
  * Reuses the exact same manuscript-resolution + galley-generation logic as
  * the live publish path (src/lib/galley-regenerate.ts) rather than
@@ -61,6 +57,7 @@
  */
 import { db } from "../src/lib/db";
 import { generateGalleysForArticle } from "../src/lib/galley-regenerate";
+import { GALLEY_TEMPLATE_VERSION } from "../src/lib/galley";
 import { generateGlossary } from "../src/lib/glossary";
 import { suggestKeywordsAndSummary } from "../src/lib/manuscript-checks";
 import { indexArticleChunks } from "../src/lib/chunk-embeddings";
@@ -151,7 +148,13 @@ async function main() {
     embeddingModelByArticle.set(row.articleId, row.model);
   }
 
-  const needsGalleys = (a: (typeof candidates)[number]) => force || !a.galleyEpubKey;
+  // Fires for articles missing the EPUB galley entirely, or whose galleys
+  // were rendered under an older visual template (src/lib/galley.ts
+  // GALLEY_TEMPLATE_VERSION) — e.g. this is what makes a rebrand of the
+  // PDF/HTML galleys reach already-published articles automatically on
+  // the next production build, without a manual --force run.
+  const needsGalleys = (a: (typeof candidates)[number]) =>
+    force || !a.galleyEpubKey || a.galleyTemplateVersion < GALLEY_TEMPLATE_VERSION;
   const needsGlossary = (a: (typeof candidates)[number]) => force || !a.glossary;
   const needsSummary = (a: (typeof candidates)[number]) => force || !a.laySummary;
   const needsChunks = (a: (typeof candidates)[number]) => force || !chunkedArticleIds.has(a.id);
@@ -228,6 +231,7 @@ async function main() {
               galleyPdfKey: result.pdfKey,
               galleyJatsKey: result.jatsKey,
               galleyEpubKey: result.epubKey,
+              galleyTemplateVersion: GALLEY_TEMPLATE_VERSION,
             },
           });
           galleysDone++;
