@@ -458,6 +458,16 @@
 .stagger.in-view > *:nth-child(5) { transition-delay: 320ms; }
 .stagger.in-view > *:nth-child(6) { transition-delay: 400ms; }
 
+/* Edge-fade mask on the article page's horizontally-scrollable tab strip
+   (Article/Metrics/Supplemental/Cite/Ask this paper/Review History) — a
+   cosmetic cue that content continues off-screen. Touch-device override
+   lives in the GLASSMORPHISM SYSTEM block further down, alongside the
+   other mask-image/backdrop-filter overrides. */
+.tabslist-fade-mask {
+  mask-image: linear-gradient(to right, transparent, black 16px, black calc(100% - 16px), transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 16px, black calc(100% - 16px), transparent);
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    AMBIENT BACKGROUND — purple-tinted pearlescent environment
    ═══════════════════════════════════════════════════════════════════ */
@@ -817,6 +827,17 @@
   .ambient-mesh {
     display: none;
   }
+  /* .tabslist-fade-mask sits on the article page's tab strip itself —
+     the one element rendered identically above every tab's content, so
+     a mask-image corruption there would read as "every tab has this
+     glitch" more literally than any single card ever could. Same
+     mask-image risk class as .ambient-mesh above; dropped for the same
+     reason, with no visible loss since the tab strip still scrolls
+     fine without the cosmetic edge fade. */
+  .tabslist-fade-mask {
+    mask-image: none;
+    -webkit-mask-image: none;
+  }
   .glass {
     background: oklch(0.985 0.006 285 / 0.97);
     backdrop-filter: none;
@@ -848,5 +869,30 @@
   .aurora-card {
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
+  }
+
+  /* .wax-mark-text (the "EP" logo mark in the sticky site header AND
+     footer — present on every page, and because the header is
+     `sticky top-0`, on-screen continuously while scrolling through
+     every tab/section of every article) stacks two separate GPU-risky
+     techniques: background-clip:text (rasterize text as a mask) and a
+     two-layer filter: drop-shadow() (a second, separate compositing
+     pass over that mask). That combination has long-documented
+     Android/Chrome rendering bugs distinct from backdrop-filter or
+     mask-image — text that renders as solid-black or visibly
+     corrupted glyphs. Since it's a *sticky* element, it's the one
+     thing guaranteed to be on-screen for the entire time a visitor is
+     on any article tab, which fits a glitch reported across every
+     section better than any single card. Solid gold text with a
+     plain (non-filter) text-shadow keeps the same look without either
+     risky technique. */
+  .wax-mark-text {
+    background: none;
+    -webkit-background-clip: initial;
+    background-clip: initial;
+    -webkit-text-fill-color: initial;
+    color: var(--gold-500);
+    filter: none;
+    text-shadow: 0 1px 1px oklch(0.18 0.06 70 / 0.4);
   }
 }
