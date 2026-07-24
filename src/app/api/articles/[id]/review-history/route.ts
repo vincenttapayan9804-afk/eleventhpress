@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
+import { getIndependentReviewsForArticle } from "@/lib/independent-reviews";
+import { APP_BASE_URL } from "@/lib/site";
 
 /**
  * POST /api/articles/[id]/review-history
@@ -96,7 +98,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     });
   }
 
-  const [allReviews, authorResponses, decisions] = await Promise.all([
+  const [allReviews, authorResponses, decisions, communityReviews] = await Promise.all([
     db.review.findMany({
       where: { articleId },
       orderBy: { createdAt: "asc" },
@@ -111,6 +113,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       orderBy: { createdAt: "asc" },
       include: { editor: { select: { fullName: true } } },
     }),
+    getIndependentReviewsForArticle(articleId, `${APP_BASE_URL}/article/${articleId}`),
   ]);
 
   const reviews = allReviews
@@ -145,5 +148,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     })),
     reviewReportDoi: article.reviewReportDoi,
     reviewReportDepositedAt: article.reviewReportDepositedAt,
+    // Community and Independent Review sub-section: real, fetched reviews
+    // from free external channels (Hypothes.is now; more in later phases).
+    // Never gated behind anonymizedReviewHistory alone failing — if the
+    // in-house side has nothing yet, this can still surface independent
+    // signal on its own.
+    communityReviews,
   });
 }
