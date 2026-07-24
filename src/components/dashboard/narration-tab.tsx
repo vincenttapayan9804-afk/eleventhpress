@@ -12,8 +12,15 @@ import {
 import { toast } from "sonner";
 import { Volume2, Loader2, RotateCw } from "lucide-react";
 
+const KOKORO_VOICES = [
+  { id: "af_heart", label: "Female (Heart)" },
+  { id: "am_adam", label: "Male (Adam)" },
+];
+
 interface NarrationInfo {
   id: string;
+  voice: string;
+  label: string;
   status: string;
   durationSec: number | null;
   errorMessage: string | null;
@@ -24,7 +31,7 @@ interface Candidate {
   id: string;
   title: string;
   subtitle: string;
-  narration: NarrationInfo | null;
+  narrations: NarrationInfo[];
 }
 
 const CONTENT_TYPES = [
@@ -49,6 +56,7 @@ function formatDuration(sec: number | null) {
 
 export function NarrationTab() {
   const [contentType, setContentType] = useState("ARTICLE");
+  const [voice, setVoice] = useState(KOKORO_VOICES[0].id);
   const [query, setQuery] = useState("");
   const [items, setItems] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,7 +84,7 @@ export function NarrationTab() {
     try {
       await apiFetch("/api/narration", {
         method: "POST",
-        body: JSON.stringify({ contentType, contentId }),
+        body: JSON.stringify({ contentType, contentId, voice }),
       });
       toast.success("Narration generated");
       load();
@@ -94,6 +102,7 @@ export function NarrationTab() {
         <p className="text-sm text-muted-foreground">
           Generate a real, downloadable &ldquo;Listen&rdquo; audio track for a published article, magazine piece, or
           media post — runs a free, open-weight text-to-speech model locally, no external API and no per-request cost.
+          Generate both a Female and a Male persona for the same item to let readers pick between them.
         </p>
       </div>
 
@@ -103,6 +112,14 @@ export function NarrationTab() {
           <SelectContent>
             {CONTENT_TYPES.map((c) => (
               <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={voice} onValueChange={setVoice}>
+          <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {KOKORO_VOICES.map((v) => (
+              <SelectItem key={v.id} value={v.id}>{v.label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -122,49 +139,60 @@ export function NarrationTab() {
         <p className="text-sm text-muted-foreground">No published items found.</p>
       ) : (
         <div className="space-y-2">
-          {items.map((item) => (
-            <Card key={item.id}>
-              <CardContent className="flex flex-col gap-3 p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{item.title}</p>
-                    <p className="text-xs text-muted-foreground">{item.subtitle}</p>
+          {items.map((item) => {
+            const existingForVoice = item.narrations.find((n) => n.voice === voice);
+            return (
+              <Card key={item.id}>
+                <CardContent className="flex flex-col gap-3 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{item.title}</p>
+                      <p className="text-xs text-muted-foreground">{item.subtitle}</p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      {item.narrations.map((n) => (
+                        <Badge key={n.voice} className={STATUS_BADGE[n.status]}>
+                          {n.label}: {n.status}
+                          {n.durationSec ? ` · ${formatDuration(n.durationSec)}` : ""}
+                        </Badge>
+                      ))}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={busyId === item.id}
+                        onClick={() => narrate(item.id)}
+                      >
+                        {busyId === item.id ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : existingForVoice ? (
+                          <RotateCw className="mr-1.5 h-3 w-3" />
+                        ) : (
+                          <Volume2 className="mr-1.5 h-3 w-3" />
+                        )}
+                        {existingForVoice ? "Re-generate" : "Narrate"}
+                        {" "}({KOKORO_VOICES.find((v) => v.id === voice)?.label})
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    {item.narration && (
-                      <Badge className={STATUS_BADGE[item.narration.status]}>
-                        {item.narration.status}
-                        {item.narration.durationSec ? ` · ${formatDuration(item.narration.durationSec)}` : ""}
-                      </Badge>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={busyId === item.id}
-                      onClick={() => narrate(item.id)}
-                    >
-                      {busyId === item.id ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : item.narration ? (
-                        <RotateCw className="mr-1.5 h-3 w-3" />
-                      ) : (
-                        <Volume2 className="mr-1.5 h-3 w-3" />
-                      )}
-                      {item.narration ? "Re-generate" : "Narrate"}
-                    </Button>
-                  </div>
-                </div>
-                {item.narration?.status === "FAILED" && item.narration.errorMessage && (
-                  <p className="text-xs text-red-600">{item.narration.errorMessage}</p>
-                )}
-                {item.narration?.status === "COMPLETED" && item.narration.audioUrl && (
-                  <audio controls preload="none" className="w-full" src={item.narration.audioUrl}>
-                    Your browser does not support the audio element.
-                  </audio>
-                )}
-              </CardContent>
-            </Card>
-          ))}
+                  {item.narrations
+                    .filter((n) => n.status === "FAILED" && n.errorMessage)
+                    .map((n) => (
+                      <p key={n.voice} className="text-xs text-red-600">{n.label}: {n.errorMessage}</p>
+                    ))}
+                  {item.narrations
+                    .filter((n) => n.status === "COMPLETED" && n.audioUrl)
+                    .map((n) => (
+                      <div key={n.voice} className="space-y-1">
+                        <p className="text-xs font-medium text-muted-foreground">{n.label}</p>
+                        <audio controls preload="none" className="w-full" src={n.audioUrl!}>
+                          Your browser does not support the audio element.
+                        </audio>
+                      </div>
+                    ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>
