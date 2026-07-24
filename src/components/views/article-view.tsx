@@ -494,7 +494,7 @@ export function ArticleView() {
             {/* Horizontally-scrollable on narrow viewports instead of a
                 fixed equal-width grid — a dynamic 5-7 column grid clips tab
                 labels ("Ask this paper", "Review History") on phones. */}
-            <TabsList className="flex w-full items-center justify-start gap-1 overflow-x-auto [mask-image:linear-gradient(to_right,transparent,black_16px,black_calc(100%-16px),transparent)] [&>*]:shrink-0">
+            <TabsList className="tabslist-fade-mask flex w-full items-center justify-start gap-1 overflow-x-auto [&>*]:shrink-0">
               <TabsTrigger value="article">Article</TabsTrigger>
               <TabsTrigger value="metrics">Metrics</TabsTrigger>
               <TabsTrigger value="supplemental">Supplemental</TabsTrigger>
