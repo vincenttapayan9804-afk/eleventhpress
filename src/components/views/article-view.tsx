@@ -74,6 +74,7 @@ import {
   Send,
   Sparkles,
   Printer,
+  Users,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -103,6 +104,19 @@ interface ReviewHistoryData {
   decisionLetters?: { id: string; decision: string; letterBody: string | null; publishedAt: string | null; editorName: string }[];
   reviewReportDoi?: string | null;
   reviewReportDepositedAt?: string | null;
+  communityReviews?: CommunityReview[];
+}
+
+interface CommunityReview {
+  id: string;
+  channel: string;
+  channelLabel: string;
+  sourceType: string;
+  externalUrl: string;
+  reviewerName: string | null;
+  excerpt: string | null;
+  recommendation: string | null;
+  postedAt: string | null;
 }
 
 /** Concise, honest reads on each Metrics-tab number — never a claim the
@@ -1691,95 +1705,182 @@ function ReviewHistoryPanel({ data }: { data: ReviewHistoryData }) {
   const reviews = data.reviews || [];
   const authorResponses = data.authorResponses || [];
   const decisionLetters = data.decisionLetters || [];
+  const communityReviews = data.communityReviews || [];
 
   return (
+    <div className="space-y-8">
+      {/* Sub-section 1: In-house Review — the journal's own editorial peer
+          review process (anonymized reviewer rounds, author responses,
+          published decision letters). */}
+      <div className="space-y-4">
+        <p className="eyebrow flex items-center gap-1.5">
+          <ShieldCheck className="h-3.5 w-3.5" />
+          In-house Review
+        </p>
+
+        <Card className="paper-card bg-emerald-50/40">
+          <CardContent className="p-5">
+            <div className="flex items-start gap-3">
+              <ShieldCheck className="mt-1 h-5 w-5 flex-shrink-0 text-emerald-700" />
+              <div>
+                <p className="font-display text-base font-semibold">Transparent Review History</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Reviewer identities are withheld by design — reviews below are numbered, not named.
+                  Author responses and published editorial decision letters are shown in full.
+                </p>
+                {data.reviewReportDoi && (
+                  <p className="mt-2 text-xs">
+                    Citable report:{" "}
+                    <a
+                      href={`https://doi.org/${data.reviewReportDoi}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-mono text-primary hover:underline"
+                    >
+                      https://doi.org/{data.reviewReportDoi}
+                    </a>
+                  </p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {reviews.length === 0 && authorResponses.length === 0 && decisionLetters.length === 0 ? (
+          <Card className="paper-card">
+            <CardContent className="p-6 text-center text-sm text-muted-foreground">
+              Nothing has been published to the Review History yet.
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            {reviews.map((r) => (
+              <Card key={r.reviewerNumber} className="paper-card">
+                <CardContent className="p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-display text-sm font-semibold">Reviewer {r.reviewerNumber}</p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      {r.recommendation && (
+                        <Badge variant="outline" className="text-[0.65rem]">{r.recommendation.replace(/_/g, " ")}</Badge>
+                      )}
+                      {r.overallScore != null && <span>Score: {r.overallScore}/5</span>}
+                      {r.completedAt && <span>{new Date(r.completedAt).toLocaleDateString()}</span>}
+                    </div>
+                  </div>
+                  {r.commentsToAuthor && (
+                    <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground/85">{r.commentsToAuthor}</p>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+
+            {authorResponses.map((a) => (
+              <Card key={a.id} className="paper-card border-primary/20">
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-display text-sm font-semibold">Author response — {a.authorName}</p>
+                    <span className="text-xs text-muted-foreground">{new Date(a.createdAt).toLocaleDateString()}</span>
+                  </div>
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground/85">{a.content}</p>
+                </CardContent>
+              </Card>
+            ))}
+
+            {decisionLetters.map((d) => (
+              <Card key={d.id} className="paper-card border-amber-200 bg-amber-50/30">
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-display text-sm font-semibold">
+                      Editorial decision — {d.decision.replace(/_/g, " ")}
+                    </p>
+                    <span className="text-xs text-muted-foreground">
+                      {d.editorName}{d.publishedAt ? ` · ${new Date(d.publishedAt).toLocaleDateString()}` : ""}
+                    </span>
+                  </div>
+                  {d.letterBody && (
+                    <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground/85">{d.letterBody}</p>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </>
+        )}
+      </div>
+
+      {/* Sub-section 2: Community and Independent Review — real, fetched
+          reviews from free external channels (Hypothes.is annotations
+          today; PREreview, OpenReview, PCI, Sciety, and SciPost in later
+          phases). Every entry links back to its source and is never
+          authored or paraphrased by this platform. */}
+      <div className="space-y-4">
+        <p className="eyebrow flex items-center gap-1.5">
+          <Users className="h-3.5 w-3.5" />
+          Community and Independent Review
+        </p>
+
+        <CommunityReviewSection reviews={communityReviews} />
+      </div>
+    </div>
+  );
+}
+
+function CommunityReviewSection({ reviews }: { reviews: CommunityReview[] }) {
+  return (
     <div className="space-y-4">
-      <Card className="paper-card bg-emerald-50/40">
+      <Card className="paper-card bg-sky-50/40">
         <CardContent className="p-5">
           <div className="flex items-start gap-3">
-            <ShieldCheck className="mt-1 h-5 w-5 flex-shrink-0 text-emerald-700" />
+            <Globe2 className="mt-1 h-5 w-5 flex-shrink-0 text-sky-700" />
             <div>
-              <p className="font-display text-base font-semibold">Transparent Review History</p>
+              <p className="font-display text-base font-semibold">Independent of this journal&apos;s editorial process</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Reviewer identities are withheld by design — reviews below are numbered, not named.
-                Author responses and published editorial decision letters are shown in full.
+                Real reviews and annotations pulled directly from free, external, community-run
+                review platforms — never authored or edited by this journal. Each entry links back
+                to its original source.
               </p>
-              {data.reviewReportDoi && (
-                <p className="mt-2 text-xs">
-                  Citable report:{" "}
-                  <a
-                    href={`https://doi.org/${data.reviewReportDoi}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="font-mono text-primary hover:underline"
-                  >
-                    https://doi.org/{data.reviewReportDoi}
-                  </a>
-                </p>
-              )}
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {reviews.length === 0 && authorResponses.length === 0 && decisionLetters.length === 0 ? (
+      {reviews.length === 0 ? (
         <Card className="paper-card">
           <CardContent className="p-6 text-center text-sm text-muted-foreground">
-            Nothing has been published to the Review History yet.
+            No independent reviews found yet. This is checked automatically against free,
+            open community review platforms, plus any links the editorial team has curated
+            from platforms without an automated feed (e.g. PCI, Sciety, SciPost, OpenReview).
           </CardContent>
         </Card>
       ) : (
-        <>
-          {reviews.map((r) => (
-            <Card key={r.reviewerNumber} className="paper-card">
-              <CardContent className="p-5">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="font-display text-sm font-semibold">Reviewer {r.reviewerNumber}</p>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    {r.recommendation && (
-                      <Badge variant="outline" className="text-[0.65rem]">{r.recommendation.replace(/_/g, " ")}</Badge>
-                    )}
-                    {r.overallScore != null && <span>Score: {r.overallScore}/5</span>}
-                    {r.completedAt && <span>{new Date(r.completedAt).toLocaleDateString()}</span>}
-                  </div>
+        reviews.map((r) => (
+          <Card key={r.id} className="paper-card">
+            <CardContent className="p-5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-[0.65rem]">{r.channelLabel}</Badge>
+                  {r.recommendation && (
+                    <Badge variant="outline" className="text-[0.65rem]">{r.recommendation.replace(/_/g, " ")}</Badge>
+                  )}
+                  <p className="font-display text-sm font-semibold">{r.reviewerName || "Anonymous"}</p>
                 </div>
-                {r.commentsToAuthor && (
-                  <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground/85">{r.commentsToAuthor}</p>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-
-          {authorResponses.map((a) => (
-            <Card key={a.id} className="paper-card border-primary/20">
-              <CardContent className="p-5">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="font-display text-sm font-semibold">Author response — {a.authorName}</p>
-                  <span className="text-xs text-muted-foreground">{new Date(a.createdAt).toLocaleDateString()}</span>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  {r.postedAt && <span>{new Date(r.postedAt).toLocaleDateString()}</span>}
+                  <a
+                    href={r.externalUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1 text-primary hover:underline"
+                  >
+                    View source <ExternalLink className="h-3 w-3" />
+                  </a>
                 </div>
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground/85">{a.content}</p>
-              </CardContent>
-            </Card>
-          ))}
-
-          {decisionLetters.map((d) => (
-            <Card key={d.id} className="paper-card border-amber-200 bg-amber-50/30">
-              <CardContent className="p-5">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="font-display text-sm font-semibold">
-                    Editorial decision — {d.decision.replace(/_/g, " ")}
-                  </p>
-                  <span className="text-xs text-muted-foreground">
-                    {d.editorName}{d.publishedAt ? ` · ${new Date(d.publishedAt).toLocaleDateString()}` : ""}
-                  </span>
-                </div>
-                {d.letterBody && (
-                  <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground/85">{d.letterBody}</p>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </>
+              </div>
+              {r.excerpt && (
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground/85">{r.excerpt}</p>
+              )}
+            </CardContent>
+          </Card>
+        ))
       )}
     </div>
   );

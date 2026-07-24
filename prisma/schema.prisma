@@ -508,6 +508,7 @@ model Article {
   distributions              Distribution[]
   bookChapters               BookArticle[]
   downloadStamps             ArticleDownload[]
+  independentReviews         IndependentReview[]
 
   // Composite indexes mirror the actual query shapes used across the app:
   // public/browse listing and the dashboard queue both filter by status
@@ -605,6 +606,64 @@ model Review {
 
   @@index([articleId])
   @@index([reviewerId, status])
+}
+
+// ---------------------------------------------------------------------------
+// PREMIUM: Independent Review Network — free, external community/expert
+// review channels (Hypothes.is annotations to start; PREreview, OpenReview,
+// PCI, Sciety, and SciPost in later phases), surfaced on the public Review
+// History tab as a "Community and Independent Review" section alongside the
+// journal's own ("In-house") peer review above. Every row here is a REAL,
+// fetched, verbatim-excerpted record pulled from the named external
+// platform's own public API — nothing here is ever authored, paraphrased,
+// or fabricated by this platform. sourceType distinguishes rows an
+// automated sync wrote from ones an editor pasted in by hand for channels
+// with no stable public read API yet (PCI, Sciety, SciPost).
+// ---------------------------------------------------------------------------
+model IndependentReview {
+  id             String   @id @default(cuid())
+  articleId      String
+  channel        String // HYPOTHESIS | PREREVIEW | OPENREVIEW | PCI | SCIETY | SCIPOST
+  sourceType     String   @default("AUTOMATED") // AUTOMATED | EDITOR_ENTERED
+  // Channel-specific identifier (e.g. a Hypothes.is annotation id), used to
+  // upsert idempotently on re-sync. Null for editor-entered links that have
+  // no distinct id of their own — Postgres allows multiple NULLs under a
+  // unique constraint, so this never blocks more than one manual entry.
+  externalId     String?
+  externalUrl    String
+  // Null when the source channel doesn't disclose (or the annotation is
+  // posted under) a real identity — never guessed at.
+  reviewerName   String?
+  // Verbatim excerpt from the source, truncated for storage — never
+  // authored or summarized by this platform.
+  excerpt        String?
+  // Structured verdict, only populated when the channel itself provides one
+  // (e.g. a PREreview rapid-review recommendation).
+  recommendation String?
+  postedAt       DateTime? // when the review was created on the source platform, if known
+  fetchedAt      DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  article Article @relation(fields: [articleId], references: [id])
+
+  @@unique([articleId, channel, externalId])
+  @@index([articleId, channel])
+}
+
+// Per (article, channel) bookkeeping for the on-demand sync in
+// src/lib/independent-reviews.ts: when a reader opens the Review History
+// tab, a sync only actually re-hits the external API if the last check for
+// that article+channel is missing or older than the staleness window — this
+// is what makes that cheap for popular articles instead of hitting the
+// external API on every single page view.
+model IndependentReviewSyncState {
+  id            String   @id @default(cuid())
+  articleId     String
+  channel       String
+  lastCheckedAt DateTime @default(now())
+  lastError     String?
+
+  @@unique([articleId, channel])
 }
 
 // ---------------------------------------------------------------------------
