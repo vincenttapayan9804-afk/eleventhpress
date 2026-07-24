@@ -224,7 +224,7 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
   const [draftingLetter, setDraftingLetter] = useState(false);
   const [mintingReportDoi, setMintingReportDoi] = useState(false);
   const [curatedReviews, setCuratedReviews] = useState<any[]>([]);
-  const [curatedChannelOptions, setCuratedChannelOptions] = useState<{ value: string; label: string }[]>([]);
+  const [curatedChannelOptions, setCuratedChannelOptions] = useState<{ value: string; label: string; description: string }[]>([]);
   const [loadingCurated, setLoadingCurated] = useState(false);
   const [curatedLoaded, setCuratedLoaded] = useState(false);
   const [newCuratedChannel, setNewCuratedChannel] = useState("");
@@ -240,7 +240,7 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
   async function loadCurated() {
     setLoadingCurated(true);
     try {
-      const res = await apiFetch<{ reviews: any[]; curatedChannels: { value: string; label: string }[] }>(
+      const res = await apiFetch<{ reviews: any[]; curatedChannels: { value: string; label: string; description: string }[] }>(
         `/api/articles/${article.id}/independent-reviews`
       );
       setCuratedReviews(res.reviews);
@@ -267,7 +267,7 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
           recommendation: newCuratedRecommendation.trim() || undefined,
         }),
       });
-      toast.success("Curated review link added");
+      toast.success("Reviewer platform link added");
       setNewCuratedChannel("");
       setNewCuratedUrl("");
       setNewCuratedReviewer("");
@@ -288,7 +288,7 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
         method: "DELETE",
         body: JSON.stringify({ reviewId }),
       });
-      toast.success("Curated review link removed");
+      toast.success("Reviewer platform link removed");
       await loadCurated();
     } catch (e: any) {
       toast.error(e.message);
@@ -886,10 +886,11 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
             </ScrollArea>
           </TabsContent>
 
-          {/* Community and Independent Review — editor-curated links for
-              channels with no automated feed (PCI, Sciety, SciPost,
-              OpenReview). Automated rows (Hypothes.is, PREreview) show here
-              too, read-only, so editors can see the full picture the public
+          {/* Community and Independent Review — editor-verified links from
+              Open Reputable Reviewer Platforms whose review records are
+              best confirmed by hand (PCI, Sciety, SciPost, OpenReview).
+              Automated rows (Hypothes.is, PREreview) show here too,
+              read-only, so editors can see the full picture the public
               Review History tab will show. */}
           <TabsContent value="community" className="mt-3 min-h-0 flex-1">
             <ScrollArea className="h-[48vh] pr-3 epip-scroll">
@@ -897,9 +898,11 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
                 <div>
                   <p className="eyebrow mb-1">Community and Independent Review</p>
                   <p className="text-xs text-muted-foreground">
-                    Hypothes.is and PREreview are checked automatically. PCI, Sciety, SciPost, and
-                    OpenReview have no automated feed yet — paste a link only after you&apos;ve
-                    actually read the review at that URL yourself.
+                    Hypothes.is and PREreview sync automatically from Open Reputable Reviewer
+                    Platforms. PCI, Sciety, SciPost, and OpenReview publish their reviews with
+                    strong reviewer reputation and integrity standards — add a link only after
+                    you&apos;ve personally read the review at that URL, so every curated entry
+                    stays independently verified.
                   </p>
                 </div>
 
@@ -936,6 +939,9 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
                                 >
                                   {r.externalUrl} <ExternalLink className="h-3 w-3 flex-shrink-0" />
                                 </a>
+                                {r.channelDescription && (
+                                  <p className="mt-0.5 text-[0.65rem] text-muted-foreground">{r.channelDescription}</p>
+                                )}
                                 {r.excerpt && (
                                   <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{r.excerpt}</p>
                                 )}
@@ -964,11 +970,11 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
                     <Separator />
 
                     <div className="space-y-2 rounded-md border border-border p-3">
-                      <p className="font-display text-sm font-semibold">Add a curated link</p>
+                      <p className="font-display text-sm font-semibold">Add an Open Reputable Reviewer Platform link</p>
                       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                         <Select value={newCuratedChannel} onValueChange={setNewCuratedChannel}>
                           <SelectTrigger className="h-9 text-xs">
-                            <SelectValue placeholder="Platform" />
+                            <SelectValue placeholder="Reviewer platform" />
                           </SelectTrigger>
                           <SelectContent>
                             {curatedChannelOptions.map((c) => (
@@ -982,6 +988,11 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
                           placeholder="https://…"
                           className="h-9 text-xs"
                         />
+                        {newCuratedChannel && (
+                          <p className="col-span-full text-[0.65rem] text-muted-foreground">
+                            {curatedChannelOptions.find((c) => c.value === newCuratedChannel)?.description}
+                          </p>
+                        )}
                         <Input
                           value={newCuratedReviewer}
                           onChange={(e) => setNewCuratedReviewer(e.target.value)}

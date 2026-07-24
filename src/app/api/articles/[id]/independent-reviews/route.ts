@@ -43,7 +43,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const reviews = await listIndependentReviewsForAdmin(articleId);
   return NextResponse.json({
     reviews,
-    curatedChannels: EDITOR_CURATED_CHANNELS.map((c) => ({ value: c, label: INDEPENDENT_REVIEW_CHANNELS[c].label })),
+    curatedChannels: EDITOR_CURATED_CHANNELS.map((c) => ({
+      value: c,
+      label: INDEPENDENT_REVIEW_CHANNELS[c].label,
+      description: INDEPENDENT_REVIEW_CHANNELS[c].description,
+    })),
   });
 }
 
@@ -51,10 +55,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
  * POST /api/articles/[id]/independent-reviews
  * Body: { channel, externalUrl, reviewerName?, excerpt?, recommendation? }
  *
- * Adds an editor-curated link (PCI, Sciety, SciPost, OpenReview — channels
- * with no automated feed). The editor vouches for having actually read the
- * review at externalUrl; addEditorCuratedReview only validates the channel
- * and URL shape.
+ * Adds an editor-verified link from an Open Reputable Reviewer Platform
+ * (PCI, Sciety, SciPost, OpenReview). The editor vouches for having
+ * actually read the review at externalUrl; addEditorCuratedReview only
+ * validates the channel and URL shape.
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = requireEditor(req);
