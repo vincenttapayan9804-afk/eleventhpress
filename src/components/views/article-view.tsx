@@ -14,6 +14,7 @@ import { MetricsBarChart3D, MetricsFillGauge3D } from "@/components/three-d/lazy
 import { ReaderPresenceBadge } from "@/components/article/reader-presence-badge";
 import { ArticleNarrationCard } from "@/components/article/article-narration-card";
 import { GalleyTranslationPanel } from "@/components/article/galley-translation-panel";
+import { IconChip } from "@/components/icon-chip";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { DataTableChart } from "@/components/data-tables/data-table-chart";
 import { Card, CardContent } from "@/components/ui/card";
@@ -894,7 +895,7 @@ export function ArticleView() {
                     }
                   }}
                 >
-                  <FileText className="mr-2 h-4 w-4" /> Download PDF
+                  <IconChip icon={FileText} tone="inverted" /> Download PDF
                 </Button>
                 <Button
                   className="w-full justify-start"
@@ -908,14 +909,14 @@ export function ArticleView() {
                     }
                   }}
                 >
-                  <BookOpen className="mr-2 h-4 w-4" /> View HTML
+                  <IconChip icon={BookOpen} /> View HTML
                 </Button>
                 <Button
                   className="w-full justify-start"
                   variant="outline"
                   onClick={() => window.open(`/print/article/${article.id}`, "_blank")}
                 >
-                  <Printer className="mr-2 h-4 w-4" /> Print-ready preview
+                  <IconChip icon={Printer} /> Print-ready preview
                 </Button>
                 {article.galleyPdfKey && (
                   <Button
@@ -931,7 +932,7 @@ export function ArticleView() {
                       }
                     }}
                   >
-                    <Layers className="mr-2 h-4 w-4" /> Download flipbook (PDF)
+                    <IconChip icon={Layers} /> Download flipbook (PDF)
                   </Button>
                 )}
                 {article.galleyEpubKey && (
@@ -947,7 +948,7 @@ export function ArticleView() {
                       }
                     }}
                   >
-                    <Download className="mr-2 h-4 w-4" /> Download EPUB
+                    <IconChip icon={Download} /> Download EPUB
                   </Button>
                 )}
                 {article.galleyJatsKey && (
@@ -963,7 +964,7 @@ export function ArticleView() {
                       }
                     }}
                   >
-                    <FileCode className="mr-2 h-4 w-4" /> Download JATS XML
+                    <IconChip icon={FileCode} /> Download JATS XML
                   </Button>
                 )}
                 {article.doi && (
@@ -973,7 +974,7 @@ export function ArticleView() {
                     asChild
                   >
                     <a href={`https://doi.org/${article.doi}`} target="_blank" rel="noreferrer">
-                      <ExternalLink className="mr-2 h-4 w-4" /> View DOI record
+                      <IconChip icon={ExternalLink} /> View DOI record
                     </a>
                   </Button>
                 )}
@@ -984,7 +985,7 @@ export function ArticleView() {
                     asChild
                   >
                     <a href={`/verify/article/${article.id}`} target="_blank" rel="noreferrer">
-                      <ShieldCheck className="mr-2 h-4 w-4" /> Verify digital provenance
+                      <IconChip icon={ShieldCheck} /> Verify digital provenance
                     </a>
                   </Button>
                 )}
@@ -1031,7 +1032,7 @@ export function ArticleView() {
                     toast.success("DOI link copied");
                   }}
                 >
-                  <Share2 className="mr-2 h-3.5 w-3.5" /> Copy DOI link
+                  <IconChip icon={Share2} size="sm" /> Copy DOI link
                 </Button>
               </div>
               <Separator className="my-4" />
@@ -1039,17 +1040,17 @@ export function ArticleView() {
               <div className="mt-2 space-y-2">
                 <Button variant="outline" size="sm" className="w-full justify-start" asChild>
                   <a href={`/api/articles/${article.id}/export?format=ris`} download>
-                    <Download className="mr-2 h-3.5 w-3.5" /> RIS (Zotero, EndNote)
+                    <IconChip icon={Download} size="sm" /> RIS (Zotero, EndNote)
                   </a>
                 </Button>
                 <Button variant="outline" size="sm" className="w-full justify-start" asChild>
                   <a href={`/api/articles/${article.id}/export?format=bibtex`} download>
-                    <Download className="mr-2 h-3.5 w-3.5" /> BibTeX (Mendeley, LaTeX)
+                    <IconChip icon={Download} size="sm" /> BibTeX (Mendeley, LaTeX)
                   </a>
                 </Button>
                 <Button variant="outline" size="sm" className="w-full justify-start" asChild>
                   <a href={`/api/articles/${article.id}/export?format=wikidata`} download>
-                    <Download className="mr-2 h-3.5 w-3.5" /> Wikidata (QuickStatements)
+                    <IconChip icon={Download} size="sm" /> Wikidata (QuickStatements)
                   </a>
                 </Button>
               </div>

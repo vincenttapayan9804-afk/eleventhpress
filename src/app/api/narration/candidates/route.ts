@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { presignGet } from "@/lib/storage";
-import type { NarrationContentType } from "@/lib/kokoro-tts";
+import { KOKORO_VOICES, type NarrationContentType } from "@/lib/kokoro-tts";
 
 const EDITORIAL_ROLES = ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"];
 
@@ -57,24 +57,27 @@ export async function GET(req: NextRequest) {
 
   const jobs = await db.narrationJob.findMany({
     where: { contentType, contentId: { in: items.map((i) => i.id) } },
-    select: { id: true, contentId: true, status: true, durationSec: true, audioKey: true, errorMessage: true },
+    select: { id: true, contentId: true, voice: true, status: true, durationSec: true, audioKey: true, errorMessage: true },
+    orderBy: { voice: "asc" },
   });
-  const jobByContentId = new Map(
-    await Promise.all(
-      jobs.map(async (j) => [
-        j.contentId,
-        {
-          id: j.id,
-          status: j.status,
-          durationSec: j.durationSec,
-          errorMessage: j.errorMessage,
-          audioUrl: j.status === "COMPLETED" && j.audioKey ? await presignGet(j.audioKey) : null,
-        },
-      ] as const)
-    )
-  );
+  const narrationsByContentId = new Map<string, any[]>();
+  for (const j of jobs) {
+    const meta = KOKORO_VOICES.find((v) => v.id === j.voice);
+    const entry = {
+      id: j.id,
+      voice: j.voice,
+      label: meta?.label || j.voice,
+      status: j.status,
+      durationSec: j.durationSec,
+      errorMessage: j.errorMessage,
+      audioUrl: j.status === "COMPLETED" && j.audioKey ? await presignGet(j.audioKey) : null,
+    };
+    const list = narrationsByContentId.get(j.contentId) || [];
+    list.push(entry);
+    narrationsByContentId.set(j.contentId, list);
+  }
 
   return NextResponse.json({
-    items: items.map((i) => ({ ...i, narration: jobByContentId.get(i.id) || null })),
+    items: items.map((i) => ({ ...i, narrations: narrationsByContentId.get(i.id) || [] })),
   });
 }

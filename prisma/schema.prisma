@@ -1054,7 +1054,11 @@ model NarrationJob {
 
   createdBy User @relation(fields: [createdById], references: [id])
 
-  @@unique([contentType, contentId])
+  // One row per (content item, persona) — lets a reader-facing "Listen"
+  // section offer more than one real generated narration (e.g. a male and a
+  // female Kokoro voice) for the same article instead of only ever one.
+  @@unique([contentType, contentId, voice])
+  @@index([contentType, contentId])
   @@index([status, createdAt])
 }
 

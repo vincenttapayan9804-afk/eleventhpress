@@ -59,18 +59,20 @@ const EPIP_CSS = `
     content: "Eleventh Press International Publishing — ISSN 2945-1138";
     font-family: Georgia, serif;
     font-size: 8pt;
-    color: #7A1F2B;
+    color: #4c1d95;
   }
   @bottom-right { content: counter(page); font-family: sans-serif; font-size: 8pt; }
 }
-body { font-family: Georgia, serif; font-size: 11pt; line-height: 1.6; color: #2a1f1a; }
-h1 { font-size: 20pt; color: #7A1F2B; border-bottom: 1px solid #c9a55c; padding-bottom: 0.3em; }
-h2 { font-size: 14pt; color: #7A1F2B; margin-top: 1.5em; }
-h3 { font-size: 12pt; color: #4a1519; }
-.abstract { background: #faf6ef; border-left: 3px solid #c9a55c; padding: 1em 1.5em; margin: 1em 0; font-size: 10pt; }
+body { font-family: Georgia, serif; font-size: 11pt; line-height: 1.6; color: #241b3a; }
+h1 { font-size: 20pt; color: #4c1d95; border-bottom: 1px solid #c9a55c; padding-bottom: 0.3em; }
+h2 { font-size: 14pt; color: #4c1d95; margin-top: 1.5em; }
+h3 { font-size: 12pt; color: #3a1668; }
+p { text-align: justify; text-indent: 1.5em; margin: 0 0 0.6em; }
+.abstract { background: #f7f3fc; border-left: 3px solid #c9a55c; padding: 1em 1.5em; margin: 1em 0; font-size: 10pt; }
+.abstract p { text-indent: 0; }
 table { border-collapse: collapse; width: 100%; }
 th, td { border: 1px solid #ccc; padding: 0.4em; font-size: 10pt; }
-th { background: #faf6ef; color: #7A1F2B; }
+th { background: #f7f3fc; color: #4c1d95; }
 code { font-family: monospace; font-size: 9pt; background: #f4f0e8; padding: 0.1em 0.3em; }
 `;
 
@@ -444,9 +446,9 @@ year: ${meta.year}
 
 function injectBrand(html: string, meta: any): string {
   const header = `
-<header style="border-bottom: 2px solid #7A1F2B; padding: 1em 0; margin-bottom: 2em;">
+<header style="border-bottom: 2px solid #4c1d95; padding: 1em 0; margin-bottom: 2em;">
   <div style="font-family: sans-serif; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.18em; color: #c9a55c; font-weight: 600;">Eleventh Press International Publishing</div>
-  <div style="font-family: Georgia, serif; font-size: 1.1rem; color: #7A1F2B; font-weight: 600; margin-top: 0.2em;">${escapeXml(meta.journalName)}</div>
+  <div style="font-family: Georgia, serif; font-size: 1.1rem; color: #4c1d95; font-weight: 600; margin-top: 0.2em;">${escapeXml(meta.journalName)}</div>
   <div style="font-size: 0.75rem; color: #666; margin-top: 0.2em;">ISSN ${escapeXml(meta.issn)} · Vol. ${meta.volume}, Iss. ${meta.issue} (${meta.year}) · DOI: <a href="https://doi.org/${escapeXml(meta.doi)}">${escapeXml(meta.doi)}</a></div>
 </header>`;
   return html.replace(/<body>/, `<body>${header}`);
@@ -547,9 +549,12 @@ ${(meta.keywords || "").split(",").map((k: string) => `        <kwd>${escapeXml(
 </article>`;
 }
 
-const BRAND_MAROON = "#7A1F2B";
+// Same premium purple/gold palette as src/lib/certificate-pdf.ts, so every
+// PDFKit-rendered document on the platform (certificates and galleys alike)
+// reads as one consistent brand identity.
+const BRAND_PURPLE = "#4c1d95";
 const BRAND_GOLD = "#c9a55c";
-const BRAND_INK = "#2a1f1a";
+const BRAND_INK = "#241b3a";
 
 /** Strips tags/entities down to readable body text for the PDF body flow. */
 export function htmlToPlainText(html: string, stripLeadingParagraphs: (string | undefined)[] = []): string {
@@ -620,19 +625,19 @@ function renderPdfKitGalley(meta: any, htmlContent: string): Promise<Buffer> {
       doc.fillColor(BRAND_GOLD).font("Helvetica-Bold").fontSize(8)
         .text("ELEVENTH PRESS INTERNATIONAL PUBLISHING");
       doc.moveDown(0.2);
-      doc.fillColor(BRAND_MAROON).font("Helvetica-Bold").fontSize(12).text(meta.journalName || "");
+      doc.fillColor(BRAND_PURPLE).font("Helvetica-Bold").fontSize(12).text(meta.journalName || "");
       doc.fillColor("#666666").font("Helvetica").fontSize(8).text(
         `ISSN ${meta.issn || "—"} · Vol. ${meta.volume}, Iss. ${meta.issue} (${meta.year}) · DOI: ${meta.doi || "—"}`
       );
       doc.moveDown(0.3);
-      doc.strokeColor(BRAND_MAROON).lineWidth(1.2)
+      doc.strokeColor(BRAND_PURPLE).lineWidth(1.2)
         .moveTo(doc.page.margins.left, doc.y)
         .lineTo(doc.page.width - doc.page.margins.right, doc.y)
         .stroke();
       doc.moveDown(1);
 
       // Title
-      doc.fillColor(BRAND_MAROON).font("Helvetica-Bold").fontSize(18).text(meta.title || "Untitled");
+      doc.fillColor(BRAND_PURPLE).font("Helvetica-Bold").fontSize(18).text(meta.title || "Untitled");
       doc.moveDown(0.5);
 
       // Authors + affiliations
@@ -649,7 +654,7 @@ function renderPdfKitGalley(meta: any, htmlContent: string): Promise<Buffer> {
 
       // Abstract
       if (meta.abstract) {
-        doc.font("Helvetica-Bold").fontSize(9).fillColor(BRAND_MAROON).text("ABSTRACT");
+        doc.font("Helvetica-Bold").fontSize(9).fillColor(BRAND_PURPLE).text("ABSTRACT");
         doc.moveDown(0.15);
         doc.font("Helvetica").fontSize(9.5).fillColor(BRAND_INK).text(meta.abstract, { align: "justify" });
         doc.moveDown(0.6);
@@ -660,17 +665,24 @@ function renderPdfKitGalley(meta: any, htmlContent: string): Promise<Buffer> {
         doc.moveDown(1);
       }
 
-      // Body
+      // Body — one .text() call per paragraph (not the whole body as a
+      // single blob) so each paragraph gets its own justified, first-line-
+      // indented block, matching formal print-journal typesetting.
       const bodyText = htmlToPlainText(htmlContent, [meta.title, meta.abstract]);
       if (bodyText) {
-        doc.font("Helvetica").fontSize(10).fillColor(BRAND_INK).text(bodyText, { align: "left" });
+        const paragraphs = bodyText.split(/\n{2,}/).map((p) => p.replace(/\s+/g, " ").trim()).filter(Boolean);
+        doc.font("Helvetica").fontSize(10).fillColor(BRAND_INK);
+        for (const paragraph of paragraphs) {
+          doc.text(paragraph, { align: "justify", indent: 18 });
+          doc.moveDown(0.5);
+        }
       }
 
       // Footer on every page
       const range = doc.bufferedPageRange();
       for (let i = range.start; i < range.start + range.count; i++) {
         doc.switchToPage(i);
-        doc.font("Helvetica").fontSize(7.5).fillColor(BRAND_MAROON).text(
+        doc.font("Helvetica").fontSize(7.5).fillColor(BRAND_PURPLE).text(
           `Eleventh Press International Publishing — ISSN ${meta.issn || "—"} · Page ${i - range.start + 1}`,
           doc.page.margins.left,
           doc.page.height - doc.page.margins.bottom + 18,

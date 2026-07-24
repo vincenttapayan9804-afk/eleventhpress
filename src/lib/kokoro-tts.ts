@@ -30,6 +30,23 @@ const NARRATION_TEXT_CHAR_CAP = 12000;
 
 export type NarrationContentType = "ARTICLE" | "MAGAZINE_PIECE" | "MEDIA_POST";
 
+/**
+ * Real Kokoro-82M voice pack ids (from the model's own American English
+ * voice set) offered as narration personas — a small, deliberately fixed
+ * set rather than exposing Kokoro's full voice list, so the reader-facing
+ * "Listen" dropdown stays a simple, honest Male/Female choice instead of an
+ * open-ended picker most readers have no way to evaluate.
+ */
+export const KOKORO_VOICES = [
+  { id: "af_heart", label: "Female (Heart)", gender: "FEMALE" as const },
+  { id: "am_adam", label: "Male (Adam)", gender: "MALE" as const },
+];
+export const DEFAULT_KOKORO_VOICE = KOKORO_VOICES[0].id;
+
+export function isKnownKokoroVoice(voice: string): boolean {
+  return KOKORO_VOICES.some((v) => v.id === voice);
+}
+
 let ttsPromise: Promise<any | null> | null = null;
 
 /** Lazily loads the local Kokoro pipeline once per warm instance. Resolves
