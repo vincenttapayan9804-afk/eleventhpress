@@ -779,3 +779,58 @@
   .aurora-enter { animation-duration: 1ms !important; }
   .aurora-card { transition: none !important; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   GLASSMORPHISM SYSTEM — touch-device override
+   ═══════════════════════════════════════════════════════════════════
+   backdrop-filter: blur()+saturate() on every glass/card surface above
+   is real GPU compositing work, repeated on every frame a blurred
+   surface scrolls (the sticky site header is .glass-strong, and
+   .paper-card alone covers "every card on the site" per its own
+   comment above) — expensive on any device, but on a meaningful slice
+   of real Android GPU/driver combinations it's a known source of
+   visibly corrupted output (blocky, staticky pixel garbage) in the
+   blurred region, not just a performance cost. That failure mode is
+   invisible to software-rendered testing (this file's own dev/CI
+   screenshots included) because a software rasterizer applies the
+   filter deterministically — it only shows up on real GPU hardware.
+   Touch-primary devices (phones/tablets) get a solid, near-opaque
+   version of each surface's own background color instead: no blur, no
+   compositing risk, and — since backdrop-filter's whole purpose is
+   letting background content show through — a solid fill is the
+   correct fallback rather than a half-transparent wash over whatever
+   sharp, un-blurred content sits behind it. */
+@media (pointer: coarse) {
+  .glass {
+    background: oklch(0.985 0.006 285 / 0.97);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .glass-strong {
+    background: oklch(0.985 0.006 285 / 0.98);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .glass-royal {
+    background: linear-gradient(135deg, oklch(0.985 0.008 295 / 0.97), oklch(0.96 0.02 290 / 0.94));
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .glass-panel {
+    background: oklch(0.99 0.004 285 / 0.96);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .paper-card {
+    background: linear-gradient(165deg, oklch(0.99 0.006 285 / 0.98), oklch(0.965 0.014 290 / 0.94));
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .dark .paper-card {
+    background: linear-gradient(165deg, oklch(0.23 0.03 285 / 0.98), oklch(0.17 0.025 285 / 0.95));
+  }
+  .aurora-card {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
