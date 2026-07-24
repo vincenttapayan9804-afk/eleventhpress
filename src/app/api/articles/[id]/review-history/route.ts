@@ -77,6 +77,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       anonymizedReviewHistory: true,
       reviewReportDoi: true,
       reviewReportDepositedAt: true,
+      doi: true,
     },
   });
   if (!article) {
@@ -113,7 +114,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       orderBy: { createdAt: "asc" },
       include: { editor: { select: { fullName: true } } },
     }),
-    getIndependentReviewsForArticle(articleId, `${APP_BASE_URL}/article/${articleId}`),
+    getIndependentReviewsForArticle(articleId, {
+      canonicalUrl: `${APP_BASE_URL}/article/${articleId}`,
+      doi: article.doi,
+    }),
   ]);
 
   const reviews = allReviews
