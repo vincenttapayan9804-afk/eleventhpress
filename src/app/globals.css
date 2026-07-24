@@ -179,6 +179,19 @@
        contain its own overflow-x-auto, not rely on the page scrolling. */
     max-width: 100%;
     overflow-x: hidden;
+    /* Disable Android Chrome/Samsung Internet's automatic text-size
+       "boosting" heuristic — a mobile-only (never desktop, never
+       Playwright/DevTools viewport emulation, which doesn't replicate it)
+       behavior that inflates font sizes inconsistently across sibling
+       text nodes it judges "too small to read" based on container width.
+       Dense small-text UI — the article meta-bar's stat tiles, the
+       Galleys/Share sidebar's compact button labels — is exactly the
+       shape of content this heuristic misjudges, boosting some labels
+       more than others and breaking the spacing/alignment those blocks
+       were built with. Standard, safe practice for any site that already
+       sets its own responsive type scale (this one does throughout). */
+    text-size-adjust: 100%;
+    -webkit-text-size-adjust: 100%;
   }
   body {
     @apply bg-background text-foreground;
