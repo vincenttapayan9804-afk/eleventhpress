@@ -556,6 +556,16 @@ const BRAND_PURPLE = "#4c1d95";
 const BRAND_GOLD = "#c9a55c";
 const BRAND_INK = "#241b3a";
 
+/**
+ * Bump this whenever the visual template (branding, typography, layout)
+ * of the rendered galleys changes — scripts/backfill-galleys.ts compares
+ * it against each article's stored `galleyTemplateVersion` and
+ * automatically re-renders (once, idempotently) any article whose
+ * galleys predate the bump, so a template change doesn't require a
+ * manual --force run to actually reach already-published articles.
+ */
+export const GALLEY_TEMPLATE_VERSION = 1;
+
 /** Strips tags/entities down to readable body text for the PDF body flow. */
 export function htmlToPlainText(html: string, stripLeadingParagraphs: (string | undefined)[] = []): string {
   let text = html
