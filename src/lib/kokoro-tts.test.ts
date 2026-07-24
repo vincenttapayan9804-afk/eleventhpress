@@ -230,9 +230,9 @@ describe("runNarrationJob — per content type", () => {
     makeJob();
     await runNarrationJob("job-1", { status: "QUEUED" });
     expect(jobStore["job-1"].status).toBe("COMPLETED");
-    expect(jobStore["job-1"].audioKey).toBe("narration-audio/article/article-1.wav");
+    expect(jobStore["job-1"].audioKey).toBe("narration-audio/article/article-1-af_heart.wav");
     expect(putObjectCalls.length).toBe(1);
-    expect(putObjectCalls[0].key).toBe("narration-audio/article/article-1.wav");
+    expect(putObjectCalls[0].key).toBe("narration-audio/article/article-1-af_heart.wav");
     expect(auditLogCalls[0].data.action).toBe("NARRATION_GENERATED");
   });
 
@@ -240,14 +240,24 @@ describe("runNarrationJob — per content type", () => {
     makeJob({ id: "job-2", contentType: "MAGAZINE_PIECE", contentId: "piece-1" });
     await runNarrationJob("job-2", { status: "QUEUED" });
     expect(jobStore["job-2"].status).toBe("COMPLETED");
-    expect(jobStore["job-2"].audioKey).toBe("narration-audio/magazine_piece/piece-1.wav");
+    expect(jobStore["job-2"].audioKey).toBe("narration-audio/magazine_piece/piece-1-af_heart.wav");
   });
 
   test("MEDIA_POST: narrates dek + bodyHtml", async () => {
     makeJob({ id: "job-3", contentType: "MEDIA_POST", contentId: "post-1" });
     await runNarrationJob("job-3", { status: "QUEUED" });
     expect(jobStore["job-3"].status).toBe("COMPLETED");
-    expect(jobStore["job-3"].audioKey).toBe("narration-audio/media_post/post-1.wav");
+    expect(jobStore["job-3"].audioKey).toBe("narration-audio/media_post/post-1-af_heart.wav");
+  });
+
+  test("two personas for the same content item get distinct audioKeys (no overwrite)", async () => {
+    makeJob({ id: "job-female", voice: "af_heart" });
+    makeJob({ id: "job-male", voice: "am_adam" });
+    await runNarrationJob("job-female", { status: "QUEUED" });
+    await runNarrationJob("job-male", { status: "QUEUED" });
+    expect(jobStore["job-female"].audioKey).toBe("narration-audio/article/article-1-af_heart.wav");
+    expect(jobStore["job-male"].audioKey).toBe("narration-audio/article/article-1-am_adam.wav");
+    expect(jobStore["job-female"].audioKey).not.toBe(jobStore["job-male"].audioKey);
   });
 });
 
