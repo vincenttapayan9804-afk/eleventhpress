@@ -799,8 +799,24 @@
    compositing risk, and — since backdrop-filter's whole purpose is
    letting background content show through — a solid fill is the
    correct fallback rather than a half-transparent wash over whatever
-   sharp, un-blurred content sits behind it. */
+   sharp, un-blurred content sits behind it.
+
+   .ambient-mesh (rendered once in the root layout, so it sits behind
+   *every* page and every section of every article, not just cards) is an
+   even sharper version of the same risk: a fixed, full-viewport layer
+   that rasterizes a fine 40px repeating radial-gradient dot pattern
+   *and* composites it through a soft-edged mask-image every frame. Fine
+   repeating gradients plus a mask is a separate, well-documented Android
+   GPU/driver corruption trigger from backdrop-filter blur, and because
+   this layer is universal rather than scoped to one card type, it's the
+   more likely explanation for the display glitch being reported across
+   every article tab and section rather than one specific spot. Dropped
+   entirely on touch devices — it's pure decoration, so the safe fallback
+   is just the plain .ambient-bg gradient underneath with no mesh at all. */
 @media (pointer: coarse) {
+  .ambient-mesh {
+    display: none;
+  }
   .glass {
     background: oklch(0.985 0.006 285 / 0.97);
     backdrop-filter: none;
