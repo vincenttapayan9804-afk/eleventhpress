@@ -221,7 +221,7 @@ export async function runNarrationJob(jobId: string, claimFilter: Record<string,
     const result = await synthesizeNarration(source.title, source.text, job.voice);
     if (!result) throw new Error(`Local Kokoro TTS model (${MODEL_ID}) is not available in this deployment`);
 
-    const key = `narration-audio/${job.contentType.toLowerCase()}/${job.contentId}.wav`;
+    const key = `narration-audio/${job.contentType.toLowerCase()}/${job.contentId}-${job.voice}.wav`;
     await putObject(key, result.wavBuffer, "audio/wav");
 
     await db.narrationJob.update({
