@@ -29,7 +29,7 @@ export function SiteFooter() {
                 </div>
               </div>
               <p className="mt-5 max-w-md text-sm leading-relaxed text-muted-foreground">
-                {t("description")}
+                {t("description", { registrar: DOI_REGISTRAR })}
               </p>
               <p className="mt-4 text-xs text-muted-foreground">
                 {t("issnLine")}
