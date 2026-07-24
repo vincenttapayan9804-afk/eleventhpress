@@ -56,6 +56,10 @@ export interface ArticleDetail extends ArticleListItem {
   issueTitle: string | null;
   journalIssn: string | null;
   publisher: string | null;
+  // True only when at least one Review row for this article has
+  // status COMPLETED — never a blanket claim, computed fresh per request.
+  // See the "Peer Reviewed" badge in article-view.tsx.
+  hasCompletedReview: boolean;
 }
 
 export interface SessionUser {

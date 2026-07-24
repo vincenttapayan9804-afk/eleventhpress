@@ -62,6 +62,7 @@ import {
   Library,
   Landmark,
   ShieldCheck,
+  BadgeCheck,
   Tag,
   MessageSquare,
   ThumbsUp,
@@ -404,6 +405,11 @@ export function ArticleView() {
           {openReviewStatus?.openReview && (
             <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-700 gap-1">
               <Globe2 className="h-3 w-3" /> Open peer review
+            </Badge>
+          )}
+          {article.hasCompletedReview && (
+            <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700 gap-1">
+              <BadgeCheck className="h-3 w-3" /> Peer Reviewed
             </Badge>
           )}
           <span className="font-mono text-[0.65rem] text-muted-foreground">

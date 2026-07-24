@@ -86,6 +86,12 @@ export async function GET(
   // co-author's ORCID/email matches a User, initials fallback otherwise.
   const authorAvatars = await resolveAuthorAvatars(parseAuthors(article.authors));
 
+  // Backs the "Peer Reviewed" badge — true only when a real completed
+  // review exists for this article, never asserted as a blanket claim.
+  const completedReviewCount = await db.review.count({
+    where: { articleId: id, status: "COMPLETED" },
+  });
+
   return NextResponse.json({
     id: article.id,
     doi: article.doi,
@@ -132,6 +138,7 @@ export async function GET(
     journalName: article.journal?.name,
     journalIssn: article.journal?.issn,
     publisher: article.journal?.publisher,
+    hasCompletedReview: completedReviewCount > 0,
   }, { headers });
 }
 
