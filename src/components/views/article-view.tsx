@@ -1464,10 +1464,10 @@ function IssueCorrectionDialog({
 
 function MetaTile({ icon: Icon, label, value }: { icon: any; label: string; value: string }) {
   return (
-    <div className="rounded-md border border-border bg-card p-3">
-      <Icon className="h-3.5 w-3.5 text-primary" />
-      <p className="mt-1 font-sans text-sm font-semibold">{value}</p>
-      <p className="text-[0.65rem] text-muted-foreground">{label}</p>
+    <div className="min-w-0 rounded-md border border-border bg-card p-3">
+      <Icon className="h-3.5 w-3.5 shrink-0 text-primary" />
+      <p className="mt-1 break-words font-sans text-sm leading-snug font-semibold">{value}</p>
+      <p className="break-words text-[0.65rem] leading-snug text-muted-foreground">{label}</p>
     </div>
   );
 }
