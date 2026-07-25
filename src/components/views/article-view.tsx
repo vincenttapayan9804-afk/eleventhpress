@@ -14,6 +14,7 @@ import { MetricsBarChart3D, MetricsFillGauge3D } from "@/components/three-d/lazy
 import { ReaderPresenceBadge } from "@/components/article/reader-presence-badge";
 import { ArticleNarrationCard } from "@/components/article/article-narration-card";
 import { GalleyTranslationPanel } from "@/components/article/galley-translation-panel";
+import { PdfPreview } from "@/components/pdf-preview";
 import { IconChip } from "@/components/icon-chip";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { DataTableChart } from "@/components/data-tables/data-table-chart";
@@ -55,6 +56,7 @@ import {
   Share2,
   FileText,
   BookOpen,
+  BookText,
   ExternalLink,
   Database,
   Loader2,
@@ -169,6 +171,7 @@ export function ArticleView() {
   const [references, setReferences] = useState<any[]>([]);
   const [bodyHtml, setBodyHtml] = useState<string | null>(null);
   const [citationMetrics, setCitationMetrics] = useState<CitationMetrics | null>(null);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const canIssueCorrection = !!user && ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"].includes(user.role);
 
   useEffect(() => {
@@ -897,6 +900,27 @@ export function ArticleView() {
                 >
                   <IconChip icon={FileText} tone="inverted" /> Download PDF
                 </Button>
+                <Button
+                  className="w-full justify-start"
+                  variant="outline"
+                  onClick={async () => {
+                    if (pdfPreviewUrl) {
+                      setPdfPreviewUrl(null);
+                      return;
+                    }
+                    try {
+                      const r = await apiFetch<{ url: string }>(`/api/articles/${article.id}/galley?format=pdf`);
+                      setPdfPreviewUrl(r.url);
+                    } catch (e: any) {
+                      toast.error("Galley not available", { description: e.message });
+                    }
+                  }}
+                >
+                  <IconChip icon={BookText} /> {pdfPreviewUrl ? "Hide preview" : "Read online"}
+                </Button>
+                {pdfPreviewUrl && (
+                  <PdfPreview src={pdfPreviewUrl} className="h-[70dvh] max-h-[640px]" />
+                )}
                 <Button
                   className="w-full justify-start"
                   variant="outline"

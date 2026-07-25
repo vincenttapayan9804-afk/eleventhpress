@@ -10,11 +10,29 @@ import type { NextConfig } from "next";
 // unnecessary — see docs/csp.md.
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'",
+  // 'wasm-unsafe-eval' (distinct from, and much narrower than,
+  // 'unsafe-eval') is what @embedpdf's PDFium engine actually needs:
+  // its Emscripten-compiled WebAssembly.instantiate() call was being
+  // silently rejected without it — CSP treats non-streaming WASM
+  // instantiation the same as eval() unless this specific keyword is
+  // present. It permits compiling/running WebAssembly modules only;
+  // it does not enable arbitrary string-to-JS eval() the way
+  // 'unsafe-eval' does, so it doesn't reopen the risk that keyword was
+  // deliberately removed for.
+  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
   "connect-src 'self' https:",
+  // The inline PDF preview's PDFium/WASM engine (@embedpdf/react-pdf-viewer)
+  // runs in a Worker constructed from a same-origin blob: URL — the
+  // standard way any WASM-backed library ships its engine off the main
+  // thread. Without an explicit worker-src, that falls back to script-src,
+  // which doesn't permit blob: workers. This only allows workers built
+  // from the page's own already-loaded, already-CSP-vetted script content
+  // (a blob: URL can't be handed a remote origin's code) — it doesn't
+  // loosen script-src/style-src/connect-src against remote injection.
+  "worker-src 'self' blob:",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
