@@ -111,7 +111,7 @@
     "tailwindcss-animate": "^1.0.7",
     "thinking-orbs": "^0.1.1",
     "three": "^0.185.1",
-    "uuid": "^11.1.0",
+    "uuid": "^14.0.1",
     "vaul": "^1.1.2",
     "wavefile": "^11.0.0",
     "wavesurfer.js": "^7.12.11",
