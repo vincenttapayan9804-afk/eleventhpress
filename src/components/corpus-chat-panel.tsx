@@ -10,6 +10,7 @@
 
 import { useState } from "react";
 import { Sparkles, Send, Loader2, AlertTriangle } from "lucide-react";
+import { ThinkingOrb } from "thinking-orbs";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -142,7 +143,8 @@ export function CorpusChatPanel({ open, onOpenChange }: { open: boolean; onOpenC
           {sending && (
             <div className="flex justify-start">
               <div className="flex items-center gap-2 rounded-lg rounded-bl-sm border border-border bg-muted/30 px-3.5 py-2.5 text-sm text-muted-foreground">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching the journal…
+                <ThinkingOrb state="searching" size={20} aria-label="Searching the journal" />
+                Searching the journal…
               </div>
             </div>
           )}
