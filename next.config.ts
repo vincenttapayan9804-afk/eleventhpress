@@ -33,6 +33,15 @@ const CSP = [
   // (a blob: URL can't be handed a remote origin's code) — it doesn't
   // loosen script-src/style-src/connect-src against remote injection.
   "worker-src 'self' blob:",
+  // wavesurfer.js (the narration "Listen" waveform player) always fetches
+  // the audio itself and hands its internal <audio> element a blob: object
+  // URL for playback — not a config choice, that's how its Player class
+  // works regardless of backend. Without an explicit media-src, that falls
+  // back to default-src 'self', which rejects blob:. Same reasoning as
+  // worker-src above: this only permits blob: URLs the page created from
+  // its own already-fetched, same-origin audio response, not arbitrary
+  // remote media.
+  "media-src 'self' blob:",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",

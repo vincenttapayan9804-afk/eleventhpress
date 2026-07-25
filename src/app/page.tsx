@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import dynamic from "next/dynamic";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useApp } from "@/lib/store";
 import { apiFetch } from "@/lib/api-client";
 import { SiteHeader } from "@/components/site-header";
@@ -48,6 +49,7 @@ export default function Page() {
   const setAuth = useApp((s) => s.setAuth);
   const logout = useApp((s) => s.logout);
   const openDashboard = useApp((s) => s.openDashboard);
+  const prefersReducedMotion = useReducedMotion();
 
   // Rehydrate session on first mount. The session lives in an httpOnly
   // cookie the browser attaches automatically — this always just asks the
@@ -101,29 +103,39 @@ export default function Page() {
         </a>
         <SiteHeader />
         <main id="main-content" className="flex-1">
-          {view === "home" && <HomeView />}
-          {view === "browse" && <BrowseView />}
-          {view === "books" && <BooksView />}
-          {view === "article" && <ArticleView />}
-          {view === "about" && <AboutView />}
-          {(view === "login" || view === "register") && <AuthView />}
-          {view === "dashboard" && <DashboardView />}
-          {view === "resources" && <ResourcesView />}
-          {view === "collections" && <CollectionsView />}
-          {view === "authors" && <AuthorsView />}
-          {view === "experts" && <ExpertsView />}
-          {view === "charter" && <CharterView />}
-          {view === "faqs" && <FaqsView />}
-          {view === "policies" && <PoliciesView />}
-          {view === "privacy" && <PrivacyView />}
-          {view === "terms" && <TermsView />}
-          {view === "accessibility" && <AccessibilityView />}
-          {view === "adminPortal" && <AdminPortalView />}
-          {view === "magazines" && <MagazinesView />}
-          {view === "magazineIssue" && <MagazineIssueView />}
-          {view === "podcasts" && <PodcastsView />}
-          {view === "media" && <MediaView />}
-          {view === "mediaPost" && <MediaPostView />}
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={view}
+              initial={prefersReducedMotion ? undefined : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={prefersReducedMotion ? undefined : { opacity: 0, y: -8 }}
+              transition={{ duration: prefersReducedMotion ? 0 : 0.15, ease: "easeOut" }}
+            >
+              {view === "home" && <HomeView />}
+              {view === "browse" && <BrowseView />}
+              {view === "books" && <BooksView />}
+              {view === "article" && <ArticleView />}
+              {view === "about" && <AboutView />}
+              {(view === "login" || view === "register") && <AuthView />}
+              {view === "dashboard" && <DashboardView />}
+              {view === "resources" && <ResourcesView />}
+              {view === "collections" && <CollectionsView />}
+              {view === "authors" && <AuthorsView />}
+              {view === "experts" && <ExpertsView />}
+              {view === "charter" && <CharterView />}
+              {view === "faqs" && <FaqsView />}
+              {view === "policies" && <PoliciesView />}
+              {view === "privacy" && <PrivacyView />}
+              {view === "terms" && <TermsView />}
+              {view === "accessibility" && <AccessibilityView />}
+              {view === "adminPortal" && <AdminPortalView />}
+              {view === "magazines" && <MagazinesView />}
+              {view === "magazineIssue" && <MagazineIssueView />}
+              {view === "podcasts" && <PodcastsView />}
+              {view === "media" && <MediaView />}
+              {view === "mediaPost" && <MediaPostView />}
+            </motion.div>
+          </AnimatePresence>
         </main>
         <SiteFooter />
         <AuthSheet />

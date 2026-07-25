@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { celebrate } from "@/lib/confetti";
 import {
   ArrowLeft,
   Loader2,
@@ -98,6 +99,7 @@ export function ReviewerFormTab({ reviewId, onRefresh }: Props) {
           ...(status === "COMPLETED" ? form : {}),
         }),
       });
+      if (status === "COMPLETED") celebrate();
       toast.success(
         status === "COMPLETED" ? "Review submitted" : status === "DECLINED" ? "Invitation declined" : "Review saved as in-progress",
         {

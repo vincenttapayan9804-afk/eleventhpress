@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Volume2, Loader2, RotateCw } from "lucide-react";
+import { WaveformPlayer } from "@/components/narration/waveform-player";
 
 const KOKORO_VOICES = [
   { id: "af_heart", label: "Female (Heart)" },
@@ -184,9 +185,7 @@ export function NarrationTab() {
                     .map((n) => (
                       <div key={n.voice} className="space-y-1">
                         <p className="text-xs font-medium text-muted-foreground">{n.label}</p>
-                        <audio controls preload="none" className="w-full" src={n.audioUrl!}>
-                          Your browser does not support the audio element.
-                        </audio>
+                        <WaveformPlayer src={n.audioUrl!} />
                       </div>
                     ))}
                 </CardContent>

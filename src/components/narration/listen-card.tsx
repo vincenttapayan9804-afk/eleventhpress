@@ -18,6 +18,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { NarrationPlayer } from "@/components/article/narration-player";
+import { WaveformPlayer } from "@/components/narration/waveform-player";
 
 type ContentType = "ARTICLE" | "MAGAZINE_PIECE" | "MEDIA_POST";
 type Kind = "paper" | "piece" | "post";
@@ -102,9 +103,7 @@ export function ListenCard({
               </SelectContent>
             </Select>
           )}
-          <audio controls preload="none" className="mt-3 w-full" src={active.audioUrl!} key={active.voice}>
-            Your browser does not support the audio element.
-          </audio>
+          <WaveformPlayer src={active.audioUrl!} className="mt-3" key={active.voice} />
         </CardContent>
       </Card>
     );
