@@ -167,7 +167,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ id: st
 
   return (
     <I18nProvider>
-      <div className="min-h-screen flex flex-col bg-background">
+      <div className="min-h-dvh flex flex-col bg-background">
         <SiteHeader />
         <script
           type="application/ld+json"

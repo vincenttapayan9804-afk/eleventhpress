@@ -395,7 +395,7 @@ export function ArticleView() {
       )}
 
       {/* Premium Header */}
-      <header className="border-b border-[oklch(0.76_0.11_294/0.15)] pb-8">
+      <header className="@container border-b border-[oklch(0.76_0.11_294/0.15)] pb-8">
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <Badge variant="outline" className="border-[oklch(0.76_0.11_294/0.3)] bg-[oklch(0.93_0.04_290)] text-[oklch(0.42_0.18_295)]">
             {article.discipline}
@@ -472,7 +472,7 @@ export function ArticleView() {
         </div>
 
         {/* Meta bar */}
-        <div className="mt-6 grid grid-cols-2 gap-3 text-xs sm:grid-cols-4">
+        <div className="mt-6 grid grid-cols-2 gap-3 text-xs @sm:grid-cols-4">
           <MetaTile icon={Calendar} label="Published" value={article.publishedAt ? new Date(article.publishedAt).toLocaleDateString("en-GB", { year: "numeric", month: "short", day: "numeric" }) : "—"} />
           <MetaTile icon={Library} label="Volume / Issue" value={article.volume ? `Vol. ${article.volume}, Iss. ${article.issueNumber}` : "—"} />
           <MetaTile
@@ -873,7 +873,7 @@ export function ArticleView() {
         </div>
 
         {/* Sidebar */}
-        <aside className="space-y-4">
+        <aside className="@container space-y-4">
           {/* PDF galley */}
           <Card className="paper-card">
             <CardContent className="p-5">

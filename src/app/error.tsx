@@ -17,7 +17,7 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
   }, [error]);
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-4 text-center">
+    <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-background px-4 text-center">
       <p className="eyebrow">Something went wrong</p>
       <h1 className="font-display text-2xl font-semibold text-primary">This page hit a snag</h1>
       <p className="max-w-md text-sm text-muted-foreground">
