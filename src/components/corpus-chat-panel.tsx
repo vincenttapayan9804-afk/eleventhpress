@@ -9,6 +9,7 @@
 // ---------------------------------------------------------------------------
 
 import { useState } from "react";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { Sparkles, Send, Loader2, AlertTriangle } from "lucide-react";
 import { ThinkingOrb } from "thinking-orbs";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,7 @@ export function CorpusChatPanel({ open, onOpenChange }: { open: boolean; onOpenC
   const [question, setQuestion] = useState("");
   const [sending, setSending] = useState(false);
   const [unavailable, setUnavailable] = useState<string | null>(null);
+  const [messageListRef] = useAutoAnimate();
   const openArticle = useApp((s) => s.openArticle);
 
   async function send() {
@@ -99,7 +101,7 @@ export function CorpusChatPanel({ open, onOpenChange }: { open: boolean; onOpenC
           </div>
         )}
 
-        <div className="mt-3 flex-1 space-y-3 overflow-y-auto epip-scroll pr-1">
+        <div ref={messageListRef} className="mt-3 flex-1 space-y-3 overflow-y-auto epip-scroll pr-1">
           {messages.map((m, i) => (
             <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
               <div

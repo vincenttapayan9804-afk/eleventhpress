@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { useApp } from "@/lib/store";
 import { apiFetch } from "@/lib/api-client";
 import { ArticleDetail } from "@/lib/types";
@@ -1578,6 +1579,7 @@ function ArticleChatPanel({ articleId, articleTitle }: { articleId: string; arti
   const [question, setQuestion] = useState("");
   const [sending, setSending] = useState(false);
   const [unavailable, setUnavailable] = useState<string | null>(null);
+  const [messageListRef] = useAutoAnimate();
 
   async function send() {
     const trimmed = question.trim();
@@ -1641,7 +1643,7 @@ function ArticleChatPanel({ articleId, articleTitle }: { articleId: string; arti
         )}
 
         {messages.length > 0 && (
-          <div className="mt-4 max-h-96 space-y-3 overflow-y-auto epip-scroll pr-1">
+          <div ref={messageListRef} className="mt-4 max-h-96 space-y-3 overflow-y-auto epip-scroll pr-1">
             {messages.map((m, i) => (
               <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
                 <div

@@ -22,6 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { celebrate } from "@/lib/confetti";
 import {
   STATUS_LABELS,
   STATUS_COLORS,
@@ -358,6 +359,7 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
           note: note || undefined,
         }),
       });
+      if (action === "ACCEPT" || action === "PUBLISH") celebrate();
       toast.success("Workflow transition applied", {
         description: `Article moved to ${ACTIONS.find(a => a.key === action)?.target.replace(/_/g, " ")}`,
       });

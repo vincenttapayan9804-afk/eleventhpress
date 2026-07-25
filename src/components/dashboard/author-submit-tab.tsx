@@ -20,6 +20,7 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
+import { celebrate } from "@/lib/confetti";
 import {
   FileText,
   ArrowRight,
@@ -293,6 +294,7 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
         }
       );
       setResult(res.article);
+      celebrate();
       toast.success("Submission received", {
         description: `Draft DOI: ${res.article.doi} · Plagiarism: ${res.article.plagiarismScore}%`,
       });

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { useApp } from "@/lib/store";
 import { apiFetch } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
@@ -86,6 +87,8 @@ export function DashboardView() {
   const { user, dashboardTab, setView, openDashboard, openAdminPortal, logout, reviewId } = useApp();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [notifListRef] = useAutoAnimate();
+  const [mobileNotifListRef] = useAutoAnimate();
 
   const loadDashboard = useCallback(async () => {
     if (!user) return;
@@ -264,7 +267,7 @@ export function DashboardView() {
                     No notifications
                   </p>
                 ) : (
-                  <div className="space-y-2">
+                  <div ref={notifListRef} className="space-y-2">
                     {data.notifications.map((n) => (
                       <div
                         key={n.id}
@@ -340,12 +343,14 @@ export function DashboardView() {
         </CardHeader>
         <CardContent className="pt-0">
           <ScrollArea className="h-48 pr-3 epip-scroll">
-            {data.notifications.slice(0, 6).map((n) => (
-              <div key={n.id} className="mb-2 rounded-md border border-border p-2.5 text-xs">
-                <p className="font-medium">{n.title}</p>
-                <p className="mt-0.5 line-clamp-2 text-muted-foreground">{n.message}</p>
-              </div>
-            ))}
+            <div ref={mobileNotifListRef}>
+              {data.notifications.slice(0, 6).map((n) => (
+                <div key={n.id} className="mb-2 rounded-md border border-border p-2.5 text-xs">
+                  <p className="font-medium">{n.title}</p>
+                  <p className="mt-0.5 line-clamp-2 text-muted-foreground">{n.message}</p>
+                </div>
+              ))}
+            </div>
           </ScrollArea>
         </CardContent>
       </Card>
