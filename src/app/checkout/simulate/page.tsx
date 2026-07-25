@@ -40,7 +40,7 @@ function SimulateCheckoutInner() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
+    <div className="flex min-h-dvh items-center justify-center px-4">
       <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-xl">
         <div className="flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
           <ShieldAlert className="h-4 w-4 shrink-0" />

@@ -92,7 +92,7 @@ export default function Page() {
 
   return (
     <I18nProvider>
-      <div className="min-h-screen flex flex-col bg-background">
+      <div className="min-h-dvh flex flex-col bg-background">
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground"
