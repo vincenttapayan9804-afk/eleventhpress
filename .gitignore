@@ -2,6 +2,11 @@
 node_modules/
 mini-services/*/node_modules/
 
+# copied from node_modules/@embedpdf/pdfium by the postinstall script —
+# self-hosted so the PDF preview never depends on jsDelivr at runtime,
+# but the binary itself is a build artifact, not source.
+/public/pdfium.wasm
+
 # next.js
 .next/
 out/
