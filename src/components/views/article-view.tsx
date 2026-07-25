@@ -15,6 +15,7 @@ import { ReaderPresenceBadge } from "@/components/article/reader-presence-badge"
 import { ArticleNarrationCard } from "@/components/article/article-narration-card";
 import { GalleyTranslationPanel } from "@/components/article/galley-translation-panel";
 import { PdfPreview } from "@/components/pdf-preview";
+import { ThinkingOrb } from "thinking-orbs";
 import { IconChip } from "@/components/icon-chip";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { DataTableChart } from "@/components/data-tables/data-table-chart";
@@ -1676,7 +1677,8 @@ function ArticleChatPanel({ articleId, articleTitle }: { articleId: string; arti
             {sending && (
               <div className="flex justify-start">
                 <div className="flex items-center gap-2 rounded-lg rounded-bl-sm border border-border bg-muted/30 px-3.5 py-2.5 text-sm text-muted-foreground">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Reading the paper…
+                  <ThinkingOrb state="searching" size={20} aria-label="Reading the paper" />
+                  Reading the paper…
                 </div>
               </div>
             )}
