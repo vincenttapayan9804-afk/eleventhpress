@@ -153,7 +153,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       model: result.model,
     });
   } catch (e: any) {
+    // The underlying failure (a provider outage, an exhausted API credit
+    // balance, a malformed response) is an operational detail for whoever
+    // runs this deployment, not something a reader asking a question
+    // should see verbatim — this used to return e.message directly (a
+    // raw upstream API error, e.g. Anthropic's own "credit balance is too
+    // low" JSON) in a 502, which apiFetch then surfaced as-is in a toast.
+    // Logged in full here; the reader gets the same honest-but-friendly
+    // "unavailable" shape every other non-answer path in this route
+    // already uses, which the client already renders as a banner instead
+    // of a toast.
     console.error(`[article-chat] chat failed for article ${articleId}:`, e);
-    return NextResponse.json({ error: e?.message || "Chat request failed" }, { status: 502 });
+    return NextResponse.json({
+      mode: "unavailable",
+      message: "AI chat is temporarily unavailable for this article — please try again in a few minutes.",
+    });
   }
 }
