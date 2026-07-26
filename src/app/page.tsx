@@ -106,10 +106,10 @@ export default function Page() {
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={view}
-              initial={prefersReducedMotion ? undefined : { opacity: 0, y: 8 }}
+              initial={prefersReducedMotion ? undefined : { opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={prefersReducedMotion ? undefined : { opacity: 0, y: -8 }}
-              transition={{ duration: prefersReducedMotion ? 0 : 0.15, ease: "easeOut" }}
+              exit={prefersReducedMotion ? undefined : { opacity: 0, y: -14 }}
+              transition={{ duration: prefersReducedMotion ? 0 : 0.22, ease: "easeOut" }}
             >
               {view === "home" && <HomeView />}
               {view === "browse" && <BrowseView />}
