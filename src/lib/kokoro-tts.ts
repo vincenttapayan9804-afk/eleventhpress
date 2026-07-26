@@ -21,8 +21,18 @@
  * within the triggering API request (same as MagazineIssueProductionJob).
  * The cap is disclosed in the stored job, never silently applied.
  */
+import { env } from "@huggingface/transformers";
 import { db } from "@/lib/db";
 import { getObject, putObject } from "@/lib/storage";
+
+// Vercel's serverless functions have a read-only filesystem outside /tmp
+// (see storage.ts). @huggingface/transformers defaults its model-download
+// cache to a path inside the deployed bundle itself
+// (node_modules/@huggingface/transformers/dist/.cache/), which isn't
+// writable there — the first attempt to cache a downloaded model file would
+// throw before narration could ever succeed. Redirect it to /tmp, same fix
+// as every other write path in this codebase.
+env.cacheDir = "/tmp/kokoro-cache/";
 
 const MODEL_ID = process.env.KOKORO_MODEL || "onnx-community/Kokoro-82M-v1.0-ONNX";
 const SAMPLE_GAP_SEC = 0.35;
