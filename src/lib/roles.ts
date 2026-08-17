@@ -6,16 +6,28 @@
  * copy ever fell out of sync with the others.
  */
 
-export type Role = "READER" | "AUTHOR" | "REVIEWER" | "ASSOCIATE_EDITOR" | "EDITOR" | "SUPER_ADMIN" | "EXPERT";
+export type Role = "READER" | "AUTHOR" | "REVIEWER" | "ASSOCIATE_EDITOR" | "EDITOR" | "SUPER_ADMIN" | "EXPERT" | "TENANT_ADMIN";
 
 // Typed as readonly string[] (not `as const` literal tuples) so callers can
 // keep doing `.includes(session.role)` against a plain `string` — matching
 // how every one of the ~14 call sites this replaces was already typed.
-export const ALL_ROLES: readonly string[] = ["READER", "AUTHOR", "REVIEWER", "ASSOCIATE_EDITOR", "EDITOR", "SUPER_ADMIN", "EXPERT"];
+export const ALL_ROLES: readonly string[] = ["READER", "AUTHOR", "REVIEWER", "ASSOCIATE_EDITOR", "EDITOR", "SUPER_ADMIN", "EXPERT", "TENANT_ADMIN"];
 
 /** Editorial staff: manuscript decisions, board membership, admin actions. */
 export const PRIVILEGED_ROLES_LIST: readonly string[] = ["SUPER_ADMIN", "EDITOR", "ASSOCIATE_EDITOR"];
 export const PRIVILEGED_ROLES = new Set<string>(PRIVILEGED_ROLES_LIST);
+
+/**
+ * Whitelabel Phase 4 — a tenant's own admin, scoped to exactly that tenant
+ * (branding/domains/content/users), never platform-wide. Deliberately kept
+ * OUT of PRIVILEGED_ROLES_LIST: that set gates platform-wide surfaces
+ * (Invoice/AuditLog RLS policies, the global editorial queues) that a
+ * single tenant's admin must never see across other tenants. Routes that
+ * are legitimately tenant-scoped (content creation, tenant branding/
+ * domains, this tenant's own user list) opt TENANT_ADMIN in explicitly via
+ * requireTenantScope() (src/lib/tenant-auth.ts) instead.
+ */
+export const TENANT_SCOPED_ADMIN_ROLES: readonly string[] = ["SUPER_ADMIN", "TENANT_ADMIN"];
 
 /** Roles a user may self-select at registration without an application/review. */
 export const SELF_SELECTABLE_ROLES: readonly string[] = ["READER", "AUTHOR"];

@@ -83,6 +83,23 @@ async function main() {
   });
   console.log(`  Backfilled ${count} user(s) onto the platform tenant.`);
 
+  // Whitelabel Phase 4 — same story as User above: content models that
+  // gained a tenantId column after rows already existed must be backfilled
+  // onto the platform tenant, or they'd vanish from every tenant-scoped
+  // catalog query (which now always filters by tenantId) the moment this
+  // deploys.
+  const contentBackfills: { label: string; run: () => Promise<{ count: number }> }[] = [
+    { label: "book(s)", run: () => db.book.updateMany({ where: { tenantId: null }, data: { tenantId: platform.id } }) },
+    { label: "magazine(s)", run: () => db.magazine.updateMany({ where: { tenantId: null }, data: { tenantId: platform.id } }) },
+    { label: "podcast(s)", run: () => db.podcast.updateMany({ where: { tenantId: null }, data: { tenantId: platform.id } }) },
+    { label: "media post(s)", run: () => db.mediaPost.updateMany({ where: { tenantId: null }, data: { tenantId: platform.id } }) },
+    { label: "collection(s)", run: () => db.collection.updateMany({ where: { tenantId: null }, data: { tenantId: platform.id } }) },
+  ];
+  for (const { label, run } of contentBackfills) {
+    const { count } = await run();
+    if (count > 0) console.log(`  Backfilled ${count} ${label} onto the platform tenant.`);
+  }
+
   console.log("\nDone.");
 }
 

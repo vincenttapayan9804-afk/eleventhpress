@@ -2,17 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { presignGet } from "@/lib/storage";
 import { requireRole } from "@/lib/auth";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
 import { PRIVILEGED_ROLES_LIST as PRIVILEGED_ROLES } from "@/lib/roles";
 
 /**
  * GET /api/magazines
- * Public — every magazine title is visible (there's no draft/hidden state
- * at the magazine level, only at the issue level, same as Journal). Each
- * entry includes its published-issue count so the browse page can show
- * "3 issues" without a second round trip.
+ * Public — every magazine title belonging to the current tenant is visible
+ * (there's no draft/hidden state at the magazine level, only at the issue
+ * level, same as Journal). Each entry includes its published-issue count
+ * so the browse page can show "3 issues" without a second round trip.
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const tenant = await resolveTenantFromHeaders(req.headers);
   const magazines = await db.magazine.findMany({
+    where: { tenantId: tenant?.id ?? null },
     orderBy: { name: "asc" },
     include: { issues: { where: { status: "PUBLISHED" }, select: { id: true } } },
   });
@@ -38,7 +41,7 @@ export async function GET() {
  * "Publications" section comment for why this doesn't reuse Article/Book).
  */
 export async function POST(req: NextRequest) {
-  const auth = requireRole(req.headers, PRIVILEGED_ROLES);
+  const auth = requireRole(req.headers, [...PRIVILEGED_ROLES, "TENANT_ADMIN"]);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   const body = (await req.json()) as { name?: string; slug?: string; description?: string; coverImageKey?: string };
@@ -52,8 +55,9 @@ export async function POST(req: NextRequest) {
   const existing = await db.magazine.findUnique({ where: { slug: body.slug } });
   if (existing) return NextResponse.json({ error: "That slug is already in use" }, { status: 409 });
 
+  const tenant = await resolveTenantFromHeaders(req.headers);
   const magazine = await db.magazine.create({
-    data: { name: body.name, slug: body.slug, description: body.description, coverImageKey: body.coverImageKey },
+    data: { name: body.name, slug: body.slug, description: body.description, coverImageKey: body.coverImageKey, tenantId: tenant?.id ?? null },
   });
 
   return NextResponse.json({ magazine });
