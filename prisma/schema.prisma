@@ -1591,6 +1591,16 @@ model Tenant {
   accentColor  String? // applied to --accent
   fontFamily   String? // "inter" | "fraunces" | "system" — see FONT_FAMILY_OPTIONS
 
+  // --- Whitelabel Phase 6: plan/quota enforcement. Null means "unlimited" —
+  // the platform tenant and any tenant created before this field existed
+  // must never be retroactively capped by a default, so there is no
+  // @default here (unlike status/isPlatform above). Enforced at the one
+  // place new Users are ever created, /api/auth/register (see
+  // src/lib/tenant-quota.ts) — TENANT_ADMIN role grants happen via role
+  // change on an already-registered user (admin/users/[id]/role), not
+  // creation, so that path doesn't need a second check.
+  maxUsers Int?
+
   institution Institution?   @relation(fields: [institutionId], references: [id])
   domains     TenantDomain[]
   users       User[]
