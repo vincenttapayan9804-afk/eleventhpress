@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
+import { isSameEditorialTenant } from "@/lib/tenant-auth";
 import { generateEmbedding } from "@/lib/embeddings";
 import { cosineSimilarity } from "@/lib/vector-math";
 
@@ -25,13 +26,25 @@ export async function GET(req: NextRequest) {
   if (!articleId) {
     return NextResponse.json({ error: "articleId required" }, { status: 400 });
   }
-  const article = await db.article.findUnique({ where: { id: articleId } });
+  const article = await db.article.findUnique({ where: { id: articleId }, include: { journal: true } });
   if (!article) {
     return NextResponse.json({ error: "Article not found" }, { status: 404 });
   }
+  const session = getSessionFromHeaders(req.headers);
+  if (session && !isSameEditorialTenant(session, article.journal?.tenantId)) {
+    return NextResponse.json({ error: "Forbidden — not an editor of this article's tenant" }, { status: 403 });
+  }
 
+  // Whitelabel Phase 7 — never suggest a reviewer from a different tenant
+  // than the article's own. article.journal.tenantId is null for
+  // pre-Phase-1 journals, in which case every reviewer is eligible
+  // (nothing to scope against), matching isSameEditorialTenant's fail-open
+  // posture above.
   const reviewers = await db.user.findMany({
-    where: { role: { in: ["REVIEWER", "ASSOCIATE_EDITOR", "EDITOR"] } },
+    where: {
+      role: { in: ["REVIEWER", "ASSOCIATE_EDITOR", "EDITOR"] },
+      ...(article.journal?.tenantId ? { tenantId: article.journal.tenantId } : {}),
+    },
     select: {
       id: true,
       fullName: true,
@@ -90,6 +103,14 @@ export async function POST(req: NextRequest) {
     dueDate?: string;
   };
 
+  const targetArticle = await db.article.findUnique({ where: { id: articleId }, include: { journal: true } });
+  if (!targetArticle) {
+    return NextResponse.json({ error: "Article not found" }, { status: 404 });
+  }
+  if (!isSameEditorialTenant(session, targetArticle.journal?.tenantId)) {
+    return NextResponse.json({ error: "Forbidden — not an editor of this article's tenant" }, { status: 403 });
+  }
+
   const existing = await db.review.findFirst({
     where: { articleId, reviewerId },
   });
@@ -107,13 +128,12 @@ export async function POST(req: NextRequest) {
   });
 
   // Notify reviewer
-  const article = await db.article.findUnique({ where: { id: articleId } });
   await db.notification.create({
     data: {
       userId: reviewerId,
       type: "INFO",
       title: "Review Invitation",
-      message: `You have been invited to review "${article?.title ?? ""}". The review model is ${article?.reviewModel ?? "DOUBLE_BLIND"} and the due date is ${review.dueDate?.toDateString()}.`,
+      message: `You have been invited to review "${targetArticle.title}". The review model is ${targetArticle.reviewModel ?? "DOUBLE_BLIND"} and the due date is ${review.dueDate?.toDateString()}.`,
       articleId,
     },
   });
@@ -131,7 +151,7 @@ export async function POST(req: NextRequest) {
   });
 
   // Move article to UNDER_REVIEW if currently SUBMITTED
-  if (article && article.status === "SUBMITTED") {
+  if (targetArticle.status === "SUBMITTED") {
     await db.article.update({
       where: { id: articleId },
       data: { status: "UNDER_REVIEW" },

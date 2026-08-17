@@ -20,6 +20,8 @@ import {
   ChevronRight,
   ShieldCheck,
   Copy,
+  Activity,
+  AlertTriangle,
 } from "lucide-react";
 
 interface TenantDomain {
@@ -38,9 +40,23 @@ interface Tenant {
   name: string;
   status: string;
   isPlatform: boolean;
+  maxUsers: number | null;
   domainCount: number;
   userCount: number;
   domains: TenantDomain[];
+}
+
+interface TenantHealth {
+  tenant: { id: string; slug: string; name: string; status: string; isPlatform: boolean };
+  quota: { maxUsers: number | null; userCount: number; usagePercent: number | null };
+  content: { books: number; magazines: number; podcasts: number; mediaPosts: number; collections: number; articles: number; issues: number };
+  domains: { hostname: string; isPrimary: boolean; verified: boolean; vercelAdded: boolean }[];
+}
+
+interface PurgeBlockers {
+  books: { id: string; title: string; reason: string }[];
+  magazines: { id: string; name: string; reason: string }[];
+  journals: { id: string; name: string; reason: string }[];
 }
 
 /**
@@ -61,6 +77,14 @@ export function TenantsTab() {
   const [addingDomainFor, setAddingDomainFor] = useState<string | null>(null);
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [maxUsersInput, setMaxUsersInput] = useState<Record<string, string>>({});
+  const [savingQuotaFor, setSavingQuotaFor] = useState<string | null>(null);
+  const [health, setHealth] = useState<Record<string, TenantHealth>>({});
+  const [loadingHealthFor, setLoadingHealthFor] = useState<string | null>(null);
+  const [purgeConfirm, setPurgeConfirm] = useState<Record<string, string>>({});
+  const [purgingId, setPurgingId] = useState<string | null>(null);
+  const [purgeBlockers, setPurgeBlockers] = useState<Record<string, PurgeBlockers>>({});
+  const [forceCascade, setForceCascade] = useState<Record<string, boolean>>({});
 
   async function load() {
     setLoading(true);
@@ -158,6 +182,77 @@ export function TenantsTab() {
   function copyToken(token: string) {
     navigator.clipboard.writeText(token);
     toast.success("Token copied");
+  }
+
+  async function saveQuota(tenantId: string) {
+    const raw = (maxUsersInput[tenantId] ?? "").trim();
+    if (raw !== "" && (!/^\d+$/.test(raw) || Number(raw) < 0)) {
+      toast.error("Seat limit must be a non-negative whole number, or blank for unlimited");
+      return;
+    }
+    setSavingQuotaFor(tenantId);
+    try {
+      await apiFetch(`/api/admin/tenants/${tenantId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ maxUsers: raw === "" ? null : Number(raw) }),
+      });
+      toast.success(raw === "" ? "Seat limit cleared — unlimited" : `Seat limit set to ${raw}`);
+      await load();
+    } catch (e: any) {
+      toast.error(e.message || "Failed to update seat limit");
+    } finally {
+      setSavingQuotaFor(null);
+    }
+  }
+
+  async function loadHealth(tenantId: string) {
+    setLoadingHealthFor(tenantId);
+    try {
+      const res = await apiFetch<TenantHealth>(`/api/admin/tenants/${tenantId}/health`);
+      setHealth((prev) => ({ ...prev, [tenantId]: res }));
+    } catch (e: any) {
+      toast.error(e.message || "Failed to load tenant health");
+    } finally {
+      setLoadingHealthFor(null);
+    }
+  }
+
+  async function purgeTenant(tenant: Tenant) {
+    const confirmSlug = (purgeConfirm[tenant.id] ?? "").trim();
+    if (confirmSlug !== tenant.slug) {
+      toast.error(`Type "${tenant.slug}" to confirm`);
+      return;
+    }
+    setPurgingId(tenant.id);
+    setPurgeBlockers((prev) => {
+      const next = { ...prev };
+      delete next[tenant.id];
+      return next;
+    });
+    try {
+      const res = await apiFetch<{ purged: Record<string, number> }>(`/api/admin/tenants/${tenant.id}/purge`, {
+        method: "DELETE",
+        body: JSON.stringify({ confirmSlug, confirmDestructiveCascade: !!forceCascade[tenant.id] }),
+      });
+      const parts = Object.entries(res.purged).filter(([, n]) => n > 0).map(([k, n]) => `${n} ${k}`);
+      toast.success(`Tenant "${tenant.name}" purged${parts.length ? ` (${parts.join(", ")})` : ""}`);
+      setExpanded(null);
+      await load();
+    } catch (e: any) {
+      // The purge endpoint reports content it deliberately won't destroy
+      // automatically (Books with distribution/royalty history, Journals
+      // with articles/issues) as structured blockers on a 409 rather than
+      // just an error string — surface those so the caller knows exactly
+      // what to remove or migrate first, not just that purge failed.
+      if (e.body?.blockers) {
+        setPurgeBlockers((prev) => ({ ...prev, [tenant.id]: e.body.blockers }));
+        toast.error("This tenant has content that needs to be removed or migrated first");
+      } else {
+        toast.error(e.message || "Purge failed");
+      }
+    } finally {
+      setPurgingId(null);
+    }
   }
 
   if (loading) {
@@ -354,6 +449,147 @@ export function TenantsTab() {
                         Add
                       </Button>
                     </div>
+
+                    <Separator className="my-3" />
+
+                    <div className="space-y-1.5">
+                      <p className="eyebrow">Seat limit</p>
+                      <div className="flex flex-wrap items-end gap-2">
+                        <div className="min-w-[140px] space-y-1.5">
+                          <Label htmlFor={`maxusers-${t.id}`} className="text-xs">
+                            Max users (blank = unlimited)
+                          </Label>
+                          <Input
+                            id={`maxusers-${t.id}`}
+                            type="number"
+                            min={0}
+                            placeholder={t.maxUsers == null ? "Unlimited" : String(t.maxUsers)}
+                            value={maxUsersInput[t.id] ?? (t.maxUsers == null ? "" : String(t.maxUsers))}
+                            onChange={(e) => setMaxUsersInput((prev) => ({ ...prev, [t.id]: e.target.value }))}
+                          />
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={savingQuotaFor === t.id}
+                          onClick={() => saveQuota(t.id)}
+                        >
+                          {savingQuotaFor === t.id && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                          Save
+                        </Button>
+                        <p className="text-xs text-muted-foreground">
+                          Currently {t.userCount} user{t.userCount === 1 ? "" : "s"}
+                          {t.maxUsers != null ? ` of ${t.maxUsers}` : " (no cap)"}.
+                        </p>
+                      </div>
+                    </div>
+
+                    <Separator className="my-3" />
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="eyebrow">Health</p>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-[0.7rem]"
+                          disabled={loadingHealthFor === t.id}
+                          onClick={() => loadHealth(t.id)}
+                        >
+                          {loadingHealthFor === t.id ? (
+                            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                          ) : (
+                            <Activity className="mr-1 h-3 w-3" />
+                          )}
+                          {health[t.id] ? "Refresh" : "Check"}
+                        </Button>
+                      </div>
+                      {health[t.id] && (
+                        <div className="grid gap-1.5 rounded-md border border-border/70 p-3 text-xs sm:grid-cols-2">
+                          <p>
+                            Seats: {health[t.id].quota.userCount}
+                            {health[t.id].quota.maxUsers != null
+                              ? ` / ${health[t.id].quota.maxUsers} (${health[t.id].quota.usagePercent}%)`
+                              : " (unlimited)"}
+                          </p>
+                          <p>Domains: {health[t.id].domains.filter((d) => d.verified).length} verified of {health[t.id].domains.length}</p>
+                          <p>
+                            Content: {health[t.id].content.books} books · {health[t.id].content.magazines} magazines ·{" "}
+                            {health[t.id].content.podcasts} podcasts · {health[t.id].content.mediaPosts} posts ·{" "}
+                            {health[t.id].content.collections} collections
+                          </p>
+                          <p>
+                            Editorial: {health[t.id].content.articles} articles · {health[t.id].content.issues} issues
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {!t.isPlatform && (
+                      <>
+                        <Separator className="my-3" />
+                        <div className="space-y-2 rounded-md border border-destructive/30 bg-destructive/5 p-3">
+                          <div className="flex items-center gap-2">
+                            <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
+                            <p className="eyebrow text-destructive">Purge tenant</p>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Permanently deletes this tenant along with its safe-to-remove content (media posts,
+                            collections, empty magazines/podcasts/journal). Books with distribution or royalty
+                            history and journals with articles are never deleted automatically — remove those
+                            first. Requires zero users on the tenant.
+                          </p>
+                          {purgeBlockers[t.id] && (
+                            <div className="space-y-2 rounded bg-background/60 p-2 text-xs">
+                              {purgeBlockers[t.id].books.map((b) => (
+                                <p key={b.id}>Book "{b.title}" — {b.reason}</p>
+                              ))}
+                              {purgeBlockers[t.id].magazines.map((m) => (
+                                <p key={m.id}>Magazine "{m.name}" — {m.reason}</p>
+                              ))}
+                              {purgeBlockers[t.id].journals.map((j) => (
+                                <p key={j.id}>Journal "{j.name}" — {j.reason}</p>
+                              ))}
+                              {purgeBlockers[t.id].magazines.length === 0 && (
+                                <label className="flex items-start gap-1.5 border-t border-border/50 pt-2 text-destructive">
+                                  <input
+                                    type="checkbox"
+                                    className="mt-0.5"
+                                    checked={!!forceCascade[t.id]}
+                                    onChange={(e) => setForceCascade((prev) => ({ ...prev, [t.id]: e.target.checked }))}
+                                  />
+                                  <span>
+                                    Also permanently delete the books/journal content listed above, including all
+                                    articles, reviews, and royalty/distribution history. This cannot be undone.
+                                  </span>
+                                </label>
+                              )}
+                            </div>
+                          )}
+                          <div className="flex flex-wrap items-end gap-2">
+                            <div className="min-w-[160px] space-y-1.5">
+                              <Label htmlFor={`purge-${t.id}`} className="text-xs">
+                                Type "{t.slug}" to confirm
+                              </Label>
+                              <Input
+                                id={`purge-${t.id}`}
+                                value={purgeConfirm[t.id] || ""}
+                                onChange={(e) => setPurgeConfirm((prev) => ({ ...prev, [t.id]: e.target.value }))}
+                              />
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              disabled={purgingId === t.id || purgeConfirm[t.id] !== t.slug}
+                              onClick={() => purgeTenant(t)}
+                            >
+                              {purgingId === t.id ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-1.5 h-3.5 w-3.5" />}
+                              Purge
+                            </Button>
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </div>

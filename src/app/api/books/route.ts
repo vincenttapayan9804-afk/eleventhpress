@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { presignGet } from "@/lib/storage";
 import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { withTenantRlsContext } from "@/lib/db-rls";
 import { PRIVILEGED_ROLES_LIST as PRIVILEGED_ROLES } from "@/lib/roles";
 const FORMATS = new Set(["MONOGRAPH", "EDITED_VOLUME", "ANTHOLOGY"]);
 
@@ -25,15 +26,17 @@ export async function GET(req: NextRequest) {
   const tenantId = tenant?.id ?? null;
 
   if (!session) {
-    const books = await db.book.findMany({
-      where: { status: "PUBLISHED", tenantId },
-      orderBy: { publishedAt: "desc" },
-      select: {
-        id: true, title: true, subtitle: true, authors: true, description: true,
-        category: true, format: true, isbn: true, coverImageKey: true,
-        epubKey: true, pdfKey: true, publishedAt: true,
-      },
-    });
+    const books = await withTenantRlsContext(tenantId, (tx) =>
+      tx.book.findMany({
+        where: { status: "PUBLISHED", tenantId },
+        orderBy: { publishedAt: "desc" },
+        select: {
+          id: true, title: true, subtitle: true, authors: true, description: true,
+          category: true, format: true, isbn: true, coverImageKey: true,
+          epubKey: true, pdfKey: true, publishedAt: true,
+        },
+      })
+    );
     const withUrls = await Promise.all(
       books.map(async (b) => ({
         ...b,
@@ -56,11 +59,13 @@ export async function GET(req: NextRequest) {
     where.correspondingAuthorId = session.userId;
   }
 
-  const books = await db.book.findMany({
-    where,
-    orderBy: { submittedAt: "desc" },
-    include: { chapters: { include: { article: { select: { id: true, title: true } } }, orderBy: { chapterOrder: "asc" } } },
-  });
+  const books = await withTenantRlsContext(tenantId, (tx) =>
+    tx.book.findMany({
+      where,
+      orderBy: { submittedAt: "desc" },
+      include: { chapters: { include: { article: { select: { id: true, title: true } } }, orderBy: { chapterOrder: "asc" } } },
+    })
+  );
 
   // Resolve real, directly-fetchable download URLs here (Blob's own public
   // URL when connected, this app's own download endpoint otherwise) —

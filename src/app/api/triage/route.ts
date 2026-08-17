@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
+import { isSameEditorialTenant } from "@/lib/tenant-auth";
 import { runEditorialTriage } from "@/lib/triage";
 
 /**
@@ -25,10 +26,13 @@ export async function POST(req: NextRequest) {
   const { articleId } = (await req.json()) as { articleId: string };
   const article = await db.article.findUnique({
     where: { id: articleId },
-    select: { id: true, title: true },
+    select: { id: true, title: true, journal: { select: { tenantId: true } } },
   });
   if (!article) {
     return NextResponse.json({ error: "Article not found" }, { status: 404 });
+  }
+  if (!isSameEditorialTenant(session, article.journal?.tenantId)) {
+    return NextResponse.json({ error: "Forbidden — not an editor of this article's tenant" }, { status: 403 });
   }
 
   try {

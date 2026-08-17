@@ -85,4 +85,43 @@ export const db = rawClient.$extends({
       },
     },
   },
+}).$extends({
+  name: 'audit-log-tenant-tagging',
+  query: {
+    auditLog: {
+      /**
+       * Whitelabel Phase 7 — every one of the ~46 `db.auditLog.create(...)`
+       * call sites across the app writes a plain `{ userId, action,
+       * entityType, entityId, articleId?, metadata? }` shape with no
+       * tenant awareness at all. Rather than touch every one of those
+       * sites (each a different route/job file, high risk of drift or a
+       * missed case), this extension derives `tenantId` transparently at
+       * the query layer — same technique field-encryption uses above for
+       * User. A call site that ever does pass `tenantId` explicitly wins;
+       * this only fills in what's missing.
+       */
+      async create({ args, query }) {
+        const data = args.data as { tenantId?: string | null; articleId?: string | null; userId?: string | null };
+        if (data.tenantId === undefined) {
+          data.tenantId = await resolveAuditTenantId(data.articleId, data.userId)
+        }
+        return query(args)
+      },
+    },
+  },
 })
+
+async function resolveAuditTenantId(articleId?: string | null, userId?: string | null): Promise<string | null> {
+  if (articleId) {
+    const article = await rawClient.article.findUnique({
+      where: { id: articleId },
+      select: { journal: { select: { tenantId: true } } },
+    })
+    if (article?.journal.tenantId) return article.journal.tenantId
+  }
+  if (userId) {
+    const user = await rawClient.user.findUnique({ where: { id: userId }, select: { tenantId: true } })
+    if (user?.tenantId) return user.tenantId
+  }
+  return null
+}

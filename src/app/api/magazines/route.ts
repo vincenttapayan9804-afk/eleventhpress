@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { presignGet } from "@/lib/storage";
 import { requireRole } from "@/lib/auth";
 import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { withTenantRlsContext } from "@/lib/db-rls";
 import { PRIVILEGED_ROLES_LIST as PRIVILEGED_ROLES } from "@/lib/roles";
 
 /**
@@ -14,11 +15,14 @@ import { PRIVILEGED_ROLES_LIST as PRIVILEGED_ROLES } from "@/lib/roles";
  */
 export async function GET(req: NextRequest) {
   const tenant = await resolveTenantFromHeaders(req.headers);
-  const magazines = await db.magazine.findMany({
-    where: { tenantId: tenant?.id ?? null },
-    orderBy: { name: "asc" },
-    include: { issues: { where: { status: "PUBLISHED" }, select: { id: true } } },
-  });
+  const tenantId = tenant?.id ?? null;
+  const magazines = await withTenantRlsContext(tenantId, (tx) =>
+    tx.magazine.findMany({
+      where: { tenantId },
+      orderBy: { name: "asc" },
+      include: { issues: { where: { status: "PUBLISHED" }, select: { id: true } } },
+    })
+  );
 
   const withUrls = await Promise.all(
     magazines.map(async (m) => ({

@@ -10,7 +10,43 @@ const PurgeSchema = z.object({
   // elsewhere in the app — cheap insurance against a mis-clicked SUPER_ADMIN
   // request against the wrong tenant id.
   confirmSlug: z.string(),
+  // Whitelabel Phase 7 — a second, independent gate specifically for the
+  // content this endpoint otherwise refuses to touch (see blockers below).
+  // Defaults to false so every existing caller of this endpoint keeps its
+  // current, safer behavior (report blockers, delete nothing) unless it
+  // explicitly opts into the destructive path.
+  confirmDestructiveCascade: z.boolean().optional().default(false),
 });
+
+/**
+ * Whitelabel Phase 7 — deletes one Article and everything that
+ * transitively belongs to only that article, in the order its foreign
+ * keys require. Derived from a live `information_schema` query against
+ * every table with a FK into Article: 5 tables CASCADE or SET NULL
+ * automatically at the database level (ArticleChunk,
+ * ArticleGalleyTranslation, ArticleSimilarityExplanation x2,
+ * ReadingHistory cascade; AuditLog/Invoice/Notification set null) and
+ * need no code here. The other 13 are ON DELETE RESTRICT and have no
+ * dependents of their own (verified the same way), so deleting each of
+ * their rows for this article, then the Article row itself, is sufficient
+ * — no further fan-out beneath them.
+ */
+async function deleteArticleCascade(tx: any, articleId: string) {
+  await tx.articleDownload.deleteMany({ where: { articleId } });
+  await tx.articleEmbedding.deleteMany({ where: { articleId } });
+  await tx.authorResponse.deleteMany({ where: { articleId } });
+  await tx.bookArticle.deleteMany({ where: { articleId } });
+  await tx.collectionArticle.deleteMany({ where: { articleId } });
+  await tx.correction.deleteMany({ where: { articleId } });
+  await tx.datasetLink.deleteMany({ where: { articleId } });
+  await tx.distribution.deleteMany({ where: { articleId } });
+  await tx.editorialDecision.deleteMany({ where: { articleId } });
+  await tx.editorialTriageReport.deleteMany({ where: { articleId } });
+  await tx.independentReview.deleteMany({ where: { articleId } });
+  await tx.reference.deleteMany({ where: { articleId } });
+  await tx.review.deleteMany({ where: { articleId } });
+  await tx.article.delete({ where: { id: articleId } });
+}
 
 /**
  * DELETE /api/admin/tenants/[id]/purge
@@ -19,19 +55,23 @@ const PurgeSchema = z.object({
  * content: MediaPost and Collection (no non-cascading dependents), Magazine
  * (if it has no issues yet), and Podcast (episodes cascade automatically;
  * this pass also clears self-reported PodcastDistribution tracking rows,
- * which carry no financial/legal weight of their own).
+ * which carry no financial/legal weight of their own). Without
+ * `confirmDestructiveCascade`, Book rows with any BookDistribution/
+ * RoyaltyStatement/BookArticle history and Journal rows with any
+ * Issue/Article are reported as blockers rather than touched — those
+ * represent real editorial/financial records, and a caller might just want
+ * to know what's in the way, not necessarily destroy it.
  *
- * Deliberately does NOT touch Book rows that have any BookDistribution/
- * RoyaltyStatement/BookArticle history, or Journal rows that have any
- * Issue/Article — those represent real editorial/financial records, and
- * Article in particular fans out to ~20 dependent tables (reviews,
- * decisions, corrections, DOIs, invoices, embeddings, ...). Getting that
- * cascade right is real, separate work — same call Phase 5's export
- * endpoint doc comment already made ("a tenant data deletion/purge
- * endpoint needs its own careful cascade design"), not a decision that
- * became any safer to rush just because this pass touches the neighborhood.
- * A tenant with that kind of content reports it as a blocker instead of
- * silently destroying it.
+ * Whitelabel Phase 7 — with `confirmDestructiveCascade: true` (a second,
+ * independent confirmation beyond `confirmSlug` — see PurgeSchema above),
+ * this endpoint *will* permanently delete those Books and Journals,
+ * including every Article under a blocked Journal via deleteArticleCascade
+ * above (mapped from a live `information_schema` query of Article's full
+ * ~20-table dependency fan-out — see that function's doc comment). Magazine
+ * rows with issues remain blocked even under this flag: MagazineIssue's own
+ * RESTRICT dependents (MagazineDistribution, MagazineIssueProductionJob)
+ * aren't mapped to a safe deletion order here, so a magazine blocker still
+ * stops the whole purge rather than being silently skipped.
  *
  * Requires zero users first (same precondition the plain tenant DELETE
  * route already enforces) — reassigning or removing user accounts is a
@@ -63,21 +103,40 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const [books, magazines, podcasts, journals] = await Promise.all([
     db.book.findMany({
       where: { tenantId: id },
-      select: { id: true, title: true, _count: { select: { chapters: true, distributions: true, royaltyStatements: true } } },
+      select: {
+        id: true,
+        title: true,
+        _count: { select: { chapters: true, distributions: true, royaltyStatements: true } },
+      },
     }),
     db.magazine.findMany({ where: { tenantId: id }, select: { id: true, name: true, _count: { select: { issues: true } } } }),
     db.podcast.findMany({ where: { tenantId: id }, select: { id: true, title: true } }),
-    db.journal.findMany({ where: { tenantId: id }, select: { id: true, name: true, _count: { select: { articles: true, issues: true } } } }),
+    db.journal.findMany({
+      where: { tenantId: id },
+      select: { id: true, name: true, articles: { select: { id: true } }, issues: { select: { id: true } } },
+    }),
   ]);
 
   const blockedBooks = books.filter((b) => b._count.chapters + b._count.distributions + b._count.royaltyStatements > 0);
+  const blockedJournals = journals.filter((j) => j.articles.length + j.issues.length > 0);
   const blockedMagazines = magazines.filter((m) => m._count.issues > 0);
-  const blockedJournals = journals.filter((j) => j._count.articles + j._count.issues > 0);
 
-  if (blockedBooks.length || blockedMagazines.length || blockedJournals.length) {
+  const hasBlockers = blockedBooks.length > 0 || blockedMagazines.length > 0 || blockedJournals.length > 0;
+
+  // Whitelabel Phase 7 — magazines with issues are still reported as a
+  // blocker even under confirmDestructiveCascade: MagazineIssue's own
+  // dependents include MagazineDistribution and
+  // MagazineIssueProductionJob, both ON DELETE RESTRICT, which this pass
+  // hasn't mapped a safe deletion order for the way it has for
+  // Book/Journal/Article below. Reported the same as before rather than
+  // silently skipped, so a caller who opts into the destructive path still
+  // sees exactly what wasn't touched and why.
+  if (hasBlockers && (!parsed.data.confirmDestructiveCascade || blockedMagazines.length > 0)) {
     return NextResponse.json(
       {
-        error: "This tenant has content this endpoint won't destroy automatically. Remove or migrate it first.",
+        error: parsed.data.confirmDestructiveCascade
+          ? "This tenant has magazine issues this endpoint still won't destroy automatically. Remove or migrate them first."
+          : "This tenant has content this endpoint won't destroy automatically without confirmDestructiveCascade. Remove or migrate it, or resend with that flag to permanently delete it (including editorial/financial history).",
         blockers: {
           books: blockedBooks.map((b) => ({ id: b.id, title: b.title, reason: "has chapters/distributions/royalty history" })),
           magazines: blockedMagazines.map((m) => ({ id: m.id, name: m.name, reason: "has issues" })),
@@ -88,9 +147,29 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     );
   }
 
-  const purgedCounts = { books: books.length, magazines: magazines.length, podcasts: podcasts.length, journals: journals.length };
+  const purgedCounts: Record<string, number> = {
+    books: books.length,
+    magazines: magazines.length,
+    podcasts: podcasts.length,
+    journals: journals.length,
+    articlesDeleted: blockedJournals.reduce((n, j) => n + j.articles.length, 0),
+  };
 
   await db.$transaction(async (tx) => {
+    // Destructive cascade path — only reached when confirmDestructiveCascade
+    // was set and there were no remaining (magazine) blockers above.
+    for (const book of blockedBooks) {
+      await tx.bookArticle.deleteMany({ where: { bookId: book.id } });
+      await tx.bookDistribution.deleteMany({ where: { bookId: book.id } });
+      await tx.royaltyStatement.deleteMany({ where: { bookId: book.id } });
+    }
+    for (const journal of blockedJournals) {
+      for (const article of journal.articles) {
+        await deleteArticleCascade(tx, article.id);
+      }
+      if (journal.issues.length) await tx.issue.deleteMany({ where: { id: { in: journal.issues.map((i) => i.id) } } });
+    }
+
     if (books.length) await tx.book.deleteMany({ where: { id: { in: books.map((b) => b.id) } } });
     if (magazines.length) await tx.magazine.deleteMany({ where: { id: { in: magazines.map((m) => m.id) } } });
     if (podcasts.length) {

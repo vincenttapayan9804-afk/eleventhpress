@@ -53,25 +53,35 @@ codebase's LiveMode pattern exists to avoid.
   (tenantId, fn)` — a session-free counterpart to `withRlsContext`, for the
   public/unauthenticated browsing reads on these tables (a visitor has a
   resolved tenant from the Host header but no session).
-  **Unlike Invoice/AuditLog, these policies are *not yet wired into any
-  read path*** — see the warning under Activation below before treating
-  this the same as the rest of this document.
+  **Whitelabel Phase 7 — partially wired, not yet complete.** The primary
+  public list/browse endpoints are wrapped in `withTenantRlsContext`:
+  `GET /api/books`, `/api/magazines`, `/api/podcasts`, `/api/media`,
+  `/api/collections`, and `/api/articles` (the last of these was also a
+  real, active tenant-isolation bug fixed in the same pass — it had never
+  been scoped by tenant at all, so any visitor could browse every tenant's
+  published articles from any tenant's site; see that route's Phase 7
+  comment). **Still not wired:** the `[id]` single-record routes for each
+  of those content types, the editorial/admin screens that read these
+  tables (dashboards, workflow, export), and Journal's own read paths.
+  Do not treat this list as complete — see the warning under Activation
+  below before switching the runtime connection.
 
 ## Activation (the one manual, production-only step)
 
 > **Before doing this for the tenant-scoped tables (Book/Magazine/Podcast/
 > MediaPost/Collection/Journal/Article):** every read path on those tables
 > must first be wrapped in `withRlsContext`/`withTenantRlsContext`, so
-> `app.tenant_id` is actually set on every request that touches them. None
-> of them are today (Phase 5 shipped the schema/helper/policies only, the
-> same staged-rollout the rest of this doc describes for Invoice/AuditLog —
-> see the task list). If you switch the runtime connection to `app_runtime`
-> before that wiring is done, every plain `db.book.findMany()`-style call
-> (i.e. essentially all of them right now) will see `app.tenant_id` as
-> unset and **every tenant-scoped table will return zero rows to everyone
-> except SUPER_ADMIN** — including public visitors browsing a tenant's own
-> site. This fails closed rather than leaking data, but it is a full outage
-> of tenant-scoped content, not "extra defense-in-depth" — treat wiring the
+> `app.tenant_id` is actually set on every request that touches them.
+> Phase 7 wired the primary public list endpoints (see above) but **not**
+> the full set — plenty of `db.book.findMany()`-style calls elsewhere in
+> the app (admin screens, `[id]` detail routes, editorial workflow, export)
+> still aren't wrapped. If you switch the runtime connection to
+> `app_runtime` before *all* of them are done, every one of those unwrapped
+> calls will see `app.tenant_id` as unset and **every tenant-scoped table
+> will return zero rows to everyone except SUPER_ADMIN** — including public
+> visitors browsing a tenant's own site. This fails closed rather than
+> leaking data, but it is a full outage of tenant-scoped content, not
+> "extra defense-in-depth" — treat wiring the
 > read paths as a hard prerequisite for this step, not an optional
 > follow-up. Invoice/AuditLog are unaffected by this warning; their read
 > paths are already wired in.

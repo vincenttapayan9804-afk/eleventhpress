@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { withTenantRlsContext } from "@/lib/db-rls";
 
 /**
  * Sort columns supported by /api/articles, each paired with the field used
@@ -72,7 +74,16 @@ export async function GET(req: NextRequest) {
   const cursorParam = decodeCursor(searchParams.get("cursor"));
   const dir = searchParams.get("dir") === "prev" ? "prev" : "next";
 
-  const where: any = { status: "PUBLISHED" };
+  // Whitelabel Phase 7 — this endpoint had never been scoped by tenant
+  // (Phase 5 only wired Article isolation into the submission path, not
+  // this public browse/search one), so a visitor on any tenant's site
+  // could search and see every other tenant's published articles too.
+  // Article has no tenantId column of its own (see Journal.tenantId's doc
+  // comment), so the filter goes through the journal relation.
+  const tenant = await resolveTenantFromHeaders(req.headers);
+  const tenantId = tenant?.id ?? null;
+
+  const where: any = { status: "PUBLISHED", journal: { tenantId } };
   if (discipline) where.discipline = discipline;
   if (q) {
     where.OR = [
@@ -98,19 +109,21 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const [rawItems, total] = await Promise.all([
-    db.article.findMany({
-      where: queryWhere,
-      orderBy: queryOrderBy,
-      // Only the offset path needs `skip`; the cursor path already scopes
-      // rows via the keyset WHERE above, so skip stays 0 there regardless
-      // of page depth.
-      skip: cursorParam ? 0 : (page - 1) * pageSize,
-      take: pageSize,
-      include: { issue: true, journal: true },
-    }),
-    db.article.count({ where }),
-  ]);
+  const [rawItems, total] = await withTenantRlsContext(tenantId, (tx) =>
+    Promise.all([
+      tx.article.findMany({
+        where: queryWhere,
+        orderBy: queryOrderBy,
+        // Only the offset path needs `skip`; the cursor path already scopes
+        // rows via the keyset WHERE above, so skip stays 0 there regardless
+        // of page depth.
+        skip: cursorParam ? 0 : (page - 1) * pageSize,
+        take: pageSize,
+        include: { issue: true, journal: true },
+      }),
+      tx.article.count({ where }),
+    ])
+  );
   const items = dir === "prev" && cursorParam ? rawItems.slice().reverse() : rawItems;
 
   const first = items[0];
