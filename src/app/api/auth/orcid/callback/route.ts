@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { signToken, hashPassword, SESSION_COOKIE_NAME, sessionCookieOptions } from "@/lib/auth";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
 import crypto from "crypto";
 
 /**
@@ -105,6 +106,7 @@ export async function GET(req: NextRequest) {
 
     if (!user) {
       // Create new user with ORCID
+      const tenant = await resolveTenantFromHeaders(req.headers);
       user = await db.user.create({
         data: {
           email: `${orcidId}@orcid.org`,
@@ -117,6 +119,7 @@ export async function GET(req: NextRequest) {
           orcidRefreshToken: refreshToken,
           orcidTokenExpiry: new Date(Date.now() + expiresIn * 1000),
           orcidLastSync: new Date(),
+          tenantId: tenant?.id ?? null,
         },
       });
     } else {
@@ -140,6 +143,7 @@ export async function GET(req: NextRequest) {
       email: user.email,
       role: user.role,
       fullName: user.fullName,
+      ...(user.tenantId ? { tenantId: user.tenantId } : {}),
     });
 
     // Redirect to front-end — the session lives in an httpOnly cookie set
@@ -170,6 +174,7 @@ async function simulatedMode(req: NextRequest) {
 
   let user = await db.user.findFirst({ where: { orcid: fakeOrcid } });
   if (!user) {
+    const tenant = await resolveTenantFromHeaders(req.headers);
     user = await db.user.create({
       data: {
         email: `${fakeOrcid}@orcid.org`,
@@ -185,6 +190,7 @@ async function simulatedMode(req: NextRequest) {
         bio: "Auto-populated from ORCID public record. Employment: University of Edinburgh (2021–present). Education: PhD, University of Cambridge (2018).",
         expertise: "machine learning, computational biology",
         country: "United Kingdom",
+        tenantId: tenant?.id ?? null,
       },
     });
   }

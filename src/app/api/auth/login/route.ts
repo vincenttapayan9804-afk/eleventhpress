@@ -111,6 +111,7 @@ export async function POST(req: NextRequest) {
       email: user.email,
       role: user.role,
       fullName: user.fullName,
+      ...(user.tenantId ? { tenantId: user.tenantId } : {}),
     });
 
     await db.auditLog.create({
