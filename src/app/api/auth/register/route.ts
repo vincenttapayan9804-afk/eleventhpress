@@ -8,6 +8,7 @@ import { extractRequestIp } from "@/lib/institutions";
 import { checkRateLimit } from "@/lib/ratelimit";
 import { parseBody } from "@/lib/validate";
 import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { tenantHasUserCapacity } from "@/lib/tenant-quota";
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -60,6 +61,17 @@ export async function POST(req: NextRequest) {
     // registration request came in on (resolved from the Host header, or
     // the platform tenant if the host isn't mapped to anything yet).
     const tenant = await resolveTenantFromHeaders(req.headers);
+
+    // Whitelabel Phase 6 — a tenant on a capped plan can't grow past its
+    // seat quota via self-registration. Checked here rather than at the
+    // Tenant level in general because this is the only place a new User
+    // row is ever created (see tenant-quota.ts's doc comment).
+    if (tenant && !(await tenantHasUserCapacity(tenant.id))) {
+      return NextResponse.json(
+        { error: "This organization has reached its user limit. Contact your administrator." },
+        { status: 403 }
+      );
+    }
 
     const user = await db.user.create({
       data: {

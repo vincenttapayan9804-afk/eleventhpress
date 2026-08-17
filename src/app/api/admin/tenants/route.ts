@@ -37,6 +37,7 @@ export async function GET(req: NextRequest) {
       name: t.name,
       status: t.status,
       isPlatform: t.isPlatform,
+      maxUsers: t.maxUsers,
       createdAt: t.createdAt,
       domainCount: t._count.domains,
       userCount: t._count.users,
