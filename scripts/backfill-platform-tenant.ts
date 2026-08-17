@@ -16,6 +16,7 @@
  */
 import { db } from "../src/lib/db";
 import { APP_HOST } from "../src/lib/site";
+import { getOrCreateTenantJournal } from "../src/lib/tenant";
 
 const PLATFORM_SLUG = "eleventhpress";
 const PLATFORM_NAME = "Eleventh Press";
@@ -98,6 +99,26 @@ async function main() {
   for (const { label, run } of contentBackfills) {
     const { count } = await run();
     if (count > 0) console.log(`  Backfilled ${count} ${label} onto the platform tenant.`);
+  }
+
+  // Whitelabel Phase 5 — pre-Phase-5 Journal rows (there's normally exactly
+  // one) predate Journal.tenantId and belong to the platform tenant by
+  // construction. Then every tenant, platform included, must end up with
+  // at least one Journal — getOrCreateTenantJournal is idempotent, so this
+  // is also what provisions Journals for any tenant created before Phase 5
+  // shipped (new tenants get one automatically at creation time now).
+  const { count: journalCount } = await db.journal.updateMany({
+    where: { tenantId: null },
+    data: { tenantId: platform.id },
+  });
+  if (journalCount > 0) console.log(`  Backfilled ${journalCount} journal(s) onto the platform tenant.`);
+
+  const allTenants = await db.tenant.findMany({ select: { id: true, name: true } });
+  for (const t of allTenants) {
+    const journal = await getOrCreateTenantJournal(t);
+    if (journal.createdAt.getTime() > Date.now() - 5000) {
+      console.log(`  Provisioned a default journal for tenant "${t.name}" [${t.id}].`);
+    }
   }
 
   console.log("\nDone.");
