@@ -49,3 +49,15 @@ export const APPLICATION_ROLES: readonly string[] = ["REVIEWER", "EDITOR"];
  * Application Form). Contributor = one-off pieces; Council Member = a
  * vetted expert committed to recurring monthly insights. */
 export const EXPERT_APPLICATION_TIERS: readonly string[] = ["EXPERT_CONTRIBUTOR", "EXPERT_COUNCIL_MEMBER"];
+
+/**
+ * EP University OS Phase 1 — User.academicStatus values. Deliberately NOT
+ * folded into Role/ALL_ROLES: `role` gates permissions (requireRole,
+ * PRIVILEGED_ROLES_LIST, TENANT_SCOPED_ADMIN_ROLES) and every one of those
+ * call sites assumes `role` is a mutually exclusive editorial-permission
+ * tier. academicStatus answers an orthogonal question ("is this EDITOR
+ * also faculty?") and must never gate a requireRole() check — a STUDENT
+ * can be an AUTHOR, a FACULTY member can be an EDITOR. Self-selectable by
+ * the user via /api/auth/me, same posture as SELF_SELECTABLE_ROLES.
+ */
+export const ACADEMIC_STATUS_OPTIONS: readonly string[] = ["FACULTY", "STUDENT", "STAFF"];

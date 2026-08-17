@@ -129,7 +129,10 @@ DO $$
 DECLARE
   t TEXT;
 BEGIN
-  FOREACH t IN ARRAY ARRAY['Book', 'Magazine', 'Podcast', 'MediaPost', 'Collection', 'Journal']
+  -- EP University OS Phase 1 — Department joins this convention from day
+  -- one (it has a direct tenantId column, so it fits the loop verbatim)
+  -- instead of being retrofitted later, the way Book/Magazine/etc. were.
+  FOREACH t IN ARRAY ARRAY['Book', 'Magazine', 'Podcast', 'MediaPost', 'Collection', 'Journal', 'Department']
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
     EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', t);

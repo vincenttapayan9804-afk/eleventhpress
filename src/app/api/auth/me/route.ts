@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
+import { ACADEMIC_STATUS_OPTIONS } from "@/lib/roles";
 
 const PROFILE_SELECT = {
   id: true,
@@ -24,6 +25,8 @@ const PROFILE_SELECT = {
   bloggerBlogUrl: true,
   bloggerConnectedAt: true,
   twoFactorEnabled: true,
+  departmentId: true,
+  academicStatus: true,
 } as const;
 
 export async function GET(req: NextRequest) {
@@ -112,6 +115,40 @@ export async function PATCH(req: NextRequest) {
     }
     data.fullName = trimmed;
   }
+
+  // EP University OS Phase 1 — self-service, same posture as
+  // SELF_SELECTABLE_ROLES: choosing your own academic status/department is
+  // identity disclosure, not a privilege grant. departmentId is validated
+  // against the caller's own tenant (rejected, not silently dropped, since
+  // a silent drop would look like a UI bug); a session with no tenantId
+  // (pre-Phase-1 token) can't set one.
+  const universityData: Record<string, string | null> = {};
+  if ("academicStatus" in body) {
+    if (body.academicStatus === null) {
+      universityData.academicStatus = null;
+    } else if (typeof body.academicStatus === "string" && ACADEMIC_STATUS_OPTIONS.includes(body.academicStatus)) {
+      universityData.academicStatus = body.academicStatus;
+    } else {
+      return NextResponse.json({ error: `academicStatus must be one of: ${ACADEMIC_STATUS_OPTIONS.join(", ")}, or null` }, { status: 400 });
+    }
+  }
+  if ("departmentId" in body) {
+    if (body.departmentId === null) {
+      universityData.departmentId = null;
+    } else if (typeof body.departmentId === "string") {
+      if (!session.tenantId) {
+        return NextResponse.json({ error: "Your session has no tenant context" }, { status: 400 });
+      }
+      const department = await db.department.findUnique({ where: { id: body.departmentId } });
+      if (!department || department.tenantId !== session.tenantId) {
+        return NextResponse.json({ error: "departmentId must belong to your own tenant" }, { status: 400 });
+      }
+      universityData.departmentId = body.departmentId;
+    } else {
+      return NextResponse.json({ error: "departmentId must be a string or null" }, { status: 400 });
+    }
+  }
+  Object.assign(data, universityData);
 
   if (Object.keys(data).length === 0) {
     return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
