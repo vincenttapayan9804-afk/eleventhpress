@@ -39,6 +39,7 @@ import {
   FileText,
   Volume2,
   Palette,
+  Globe,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -69,6 +70,7 @@ import {
   NarrationTab,
   ResearchIntegrityTab,
   BrandingTab,
+  TenantsTab,
 } from "@/components/dashboard/lazy";
 import { useLiveDashboard } from "@/hooks/use-live-dashboard";
 
@@ -150,6 +152,7 @@ export function DashboardView() {
     { key: "narration", label: "Narration", icon: Volume2, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"] },
     { key: "researchIntegrity", label: "Research integrity", icon: ShieldCheck, roles: ["SUPER_ADMIN"] },
     { key: "branding", label: "Branding", icon: Palette, roles: ["SUPER_ADMIN"] },
+    { key: "tenants", label: "Tenants", icon: Globe, roles: ["SUPER_ADMIN"] },
     { key: "reader", label: "Subscription", icon: Library, roles: ["READER", "AUTHOR", "REVIEWER", "SUPER_ADMIN"] },
     { key: "certificates", label: "Certificates", icon: Award, roles: ["AUTHOR", "REVIEWER", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"] },
     {
@@ -326,6 +329,7 @@ export function DashboardView() {
           {dashboardTab === "narration" && <NarrationTab />}
           {dashboardTab === "researchIntegrity" && <ResearchIntegrityTab />}
           {dashboardTab === "branding" && <BrandingTab />}
+          {dashboardTab === "tenants" && <TenantsTab />}
           {dashboardTab === "reader" && <ReaderTab subscription={data.subscription} onRefresh={loadDashboard} />}
           {dashboardTab === "certificates" && <CertificatesTab />}
           {dashboardTab === "researchLab" && <ResearchLabTab />}

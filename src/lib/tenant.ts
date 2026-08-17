@@ -62,8 +62,12 @@ export async function resolveTenantFromHost(hostHeader: string | null | undefine
   const host = hostHeader ? normalizeHost(hostHeader) : null;
 
   if (host) {
-    const domain = await db.tenantDomain.findUnique({
-      where: { hostname: host },
+    // Only a *verified* domain may resolve traffic to its tenant — an
+    // unverified row (added by an admin who hasn't proven DNS control yet,
+    // or whose control has never actually been checked) must never route
+    // real requests, or anyone could claim a hostname they don't own.
+    const domain = await db.tenantDomain.findFirst({
+      where: { hostname: host, verified: true },
       include: { tenant: true },
     });
     if (domain) return toTenantContext(domain.tenant);

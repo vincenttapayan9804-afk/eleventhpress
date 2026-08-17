@@ -55,15 +55,26 @@ async function main() {
   const existingDomain = await db.tenantDomain.findUnique({ where: { hostname: APP_HOST } });
   if (!existingDomain) {
     await db.tenantDomain.create({
-      data: { tenantId: platform.id, hostname: APP_HOST, isPrimary: true },
+      data: { tenantId: platform.id, hostname: APP_HOST, isPrimary: true, verified: true, verifiedAt: new Date() },
     });
-    console.log(`  Registered domain "${APP_HOST}" -> platform tenant.`);
+    console.log(`  Registered domain "${APP_HOST}" -> platform tenant (auto-verified — it's our own domain).`);
   } else if (existingDomain.tenantId !== platform.id) {
     console.warn(
       `  WARNING: "${APP_HOST}" is already mapped to a different tenant (${existingDomain.tenantId}). Leaving as-is — resolve manually.`
     );
   } else {
     console.log(`  Domain "${APP_HOST}" already registered.`);
+    // Phase 3 added a `verified` gate to tenant resolution — a pre-Phase-3
+    // platform domain row predates that column and would default to
+    // false, silently breaking the live site's own tenant resolution.
+    // It's our own domain by construction, so backfill it verified.
+    if (!existingDomain.verified) {
+      await db.tenantDomain.update({
+        where: { id: existingDomain.id },
+        data: { verified: true, verifiedAt: new Date() },
+      });
+      console.log(`  Marked "${APP_HOST}" verified (Phase 3 backfill).`);
+    }
   }
 
   const { count } = await db.user.updateMany({

@@ -1585,6 +1585,25 @@ model TenantDomain {
   isPrimary Boolean  @default(false)
   createdAt DateTime @default(now())
 
+  // --- Phase 3: custom domains ---
+  // A domain only resolves requests to its tenant once verified — see
+  // resolveTenantFromHost in src/lib/tenant.ts. Without this gate, anyone
+  // could register a hostname they don't control and hijack that traffic
+  // the moment DNS is (or ever becomes) pointed at this deployment.
+  verified          Boolean   @default(false)
+  // Random value the owner must publish as a TXT record at
+  // _ep-verify.<hostname> to prove control of the domain. Null for
+  // platform-managed subdomains (<slug>.<TENANT_ROOT_DOMAIN>), which are
+  // auto-verified since we control that whole zone already.
+  verificationToken String?   @unique
+  verifiedAt        DateTime?
+  // True once this hostname has been added to the Vercel project via the
+  // Domains API (src/lib/vercel-domains.ts), which is what actually
+  // provisions SSL for it. Independent of `verified` — a domain can be
+  // DNS-verified but still pending/failed on the Vercel side if
+  // VERCEL_API_TOKEN isn't configured or the call errors.
+  vercelAdded       Boolean   @default(false)
+
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
