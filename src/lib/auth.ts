@@ -47,6 +47,11 @@ export interface SessionPayload {
   email: string;
   role: string;
   fullName: string;
+  // Whitelabel tenant the account belongs to (Phase 1: plumbed, not yet
+  // enforced anywhere). Optional so tokens signed before this field existed
+  // keep verifying — a decoded session missing it is treated as the
+  // platform tenant by any code that starts relying on it in later phases.
+  tenantId?: string;
 }
 
 export function signToken(payload: SessionPayload): string {
@@ -57,16 +62,17 @@ export function verifyToken(token: string): SessionPayload | null {
   try {
     const decoded = jwt.verify(token, SESSION_SECRET!);
     if (typeof decoded !== "object" || decoded === null) return null;
-    const { userId, email, role, fullName } = decoded as Record<string, unknown>;
+    const { userId, email, role, fullName, tenantId } = decoded as Record<string, unknown>;
     if (
       typeof userId !== "string" ||
       typeof email !== "string" ||
       typeof role !== "string" ||
-      typeof fullName !== "string"
+      typeof fullName !== "string" ||
+      (tenantId !== undefined && typeof tenantId !== "string")
     ) {
       return null;
     }
-    return { userId, email, role, fullName };
+    return { userId, email, role, fullName, ...(typeof tenantId === "string" ? { tenantId } : {}) };
   } catch {
     return null;
   }

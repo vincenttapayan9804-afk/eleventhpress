@@ -76,7 +76,13 @@ export async function POST(req: NextRequest) {
     },
   }).catch(() => {});
 
-  const sessionToken = signToken({ userId: user.id, email: user.email, role: user.role, fullName: user.fullName });
+  const sessionToken = signToken({
+    userId: user.id,
+    email: user.email,
+    role: user.role,
+    fullName: user.fullName,
+    ...(user.tenantId ? { tenantId: user.tenantId } : {}),
+  });
   const res = NextResponse.json({
     user: {
       id: user.id,

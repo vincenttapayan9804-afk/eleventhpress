@@ -83,6 +83,11 @@ model User {
   bloggerConnectedAt    DateTime?
   // Institutional affiliation (premium IP-auth feature)
   institutionId         String?
+  // Whitelabel tenant this account belongs to (Phase 1: plumbed but not yet
+  // enforced — see Tenant model doc comment). Nullable so existing rows and
+  // any code path that hasn't been updated keep working; the backfill
+  // script sets this to the platform tenant for every pre-existing user.
+  tenantId              String?
   // Real scholarly-output metrics from OpenAlex (src/lib/citation-metrics.ts),
   // by ORCID — only meaningful for editorial-board accounts (SUPER_ADMIN/
   // EDITOR/ASSOCIATE_EDITOR) and only populated when `orcid` is set.
@@ -115,6 +120,7 @@ model User {
   notifications                  Notification[]
   auditLogs                      AuditLog[]
   institution                    Institution?           @relation(fields: [institutionId], references: [id])
+  tenant                         Tenant?                @relation(fields: [tenantId], references: [id])
   correctionsIssued              Correction[]
   roleApplications               RoleApplication[]      @relation("ApplicantApplications")
   reviewedApplications           RoleApplication[]      @relation("ReviewerApplications")
@@ -134,6 +140,8 @@ model User {
   podcastDistributionsSubmitted  PodcastDistribution[]
   mediaPostsCreated              MediaPost[]
   narrationJobsCreated           NarrationJob[]
+
+  @@index([tenantId])
 }
 
 // ---------------------------------------------------------------------------
@@ -306,13 +314,13 @@ model Article {
   authors               String // JSON array of {name, affiliation, orcid, email}
   correspondingAuthorId String?
 
-  manuscriptKey String? // S3-style key for raw upload
-  anonymizedKey String? // S3-style key for double-blind version
-  galleyPdfKey  String? // published PDF
-  galleyHtmlKey String? // published HTML
-  galleyJatsKey String? // published JATS XML
-  galleyEpubKey String? // published EPUB3 (single-chapter, src/lib/epub-builder.ts)
-  galleyTemplateVersion Int @default(0) // src/lib/galley.ts GALLEY_TEMPLATE_VERSION at last render; scripts/backfill-galleys.ts re-renders when stale
+  manuscriptKey         String? // S3-style key for raw upload
+  anonymizedKey         String? // S3-style key for double-blind version
+  galleyPdfKey          String? // published PDF
+  galleyHtmlKey         String? // published HTML
+  galleyJatsKey         String? // published JATS XML
+  galleyEpubKey         String? // published EPUB3 (single-chapter, src/lib/epub-builder.ts)
+  galleyTemplateVersion Int     @default(0) // src/lib/galley.ts GALLEY_TEMPLATE_VERSION at last render; scripts/backfill-galleys.ts re-renders when stale
 
   // Workflow state machine
   // DRAFT | SUBMITTED | UNDER_REVIEW | REVISIONS_REQUIRED | ACCEPTED | IN_PRODUCTION | PUBLISHED | REJECTED | WITHDRAWN
@@ -622,10 +630,10 @@ model Review {
 // with no stable public read API yet (PCI, Sciety, SciPost).
 // ---------------------------------------------------------------------------
 model IndependentReview {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   articleId      String
   channel        String // HYPOTHESIS | PREREVIEW | OPENREVIEW | PCI | SCIETY | SCIPOST
-  sourceType     String   @default("AUTOMATED") // AUTOMATED | EDITOR_ENTERED
+  sourceType     String    @default("AUTOMATED") // AUTOMATED | EDITOR_ENTERED
   // Channel-specific identifier (e.g. a Hypothes.is annotation id), used to
   // upsert idempotently on re-sync. Null for editor-entered links that have
   // no distinct id of their own — Postgres allows multiple NULLs under a
@@ -642,8 +650,8 @@ model IndependentReview {
   // (e.g. a PREreview rapid-review recommendation).
   recommendation String?
   postedAt       DateTime? // when the review was created on the source platform, if known
-  fetchedAt      DateTime @default(now())
-  createdAt      DateTime @default(now())
+  fetchedAt      DateTime  @default(now())
+  createdAt      DateTime  @default(now())
 
   article Article @relation(fields: [articleId], references: [id])
 
@@ -1514,6 +1522,61 @@ model Institution {
 
   users    User[]
   datasets DatasetLink[]
+  tenant   Tenant?
+}
+
+// ---------------------------------------------------------------------------
+// Whitelabel: Tenants
+//
+// A Tenant is a branded instance of the platform (e.g. a university's own
+// portal). Deliberately separate from Institution above: Institution is a
+// subscriber-org concept (IP-range access, COUNTER reporting, APC quota)
+// that predates whitelabeling and still matters on its own (a library can
+// subscribe without ever getting a branded portal). A Tenant MAY optionally
+// point at an Institution when that university also has a subscriber
+// record, but the two lifecycles are independent.
+//
+// Phase 1 (tenant foundation) only introduces resolution + plumbing; no
+// content model is scoped by tenant yet and no branding/customization
+// exists yet — see docs/whitelabel.md for the phase roadmap.
+// ---------------------------------------------------------------------------
+model Tenant {
+  id            String   @id @default(cuid())
+  // Subdomain segment: <slug>.eleventhpress.com. Immutable in practice once
+  // any TenantDomain/session references it, but not enforced at the schema
+  // level in Phase 1.
+  slug          String   @unique
+  name          String
+  status        String   @default("ACTIVE") // ACTIVE | SUSPENDED | PROVISIONING
+  // Exactly one row has this set to true: the original eleventhpress.org
+  // site, which every pre-existing User/session is backfilled onto so nothing
+  // becomes tenant-less when this model is introduced.
+  isPlatform    Boolean  @default(false)
+  institutionId String?  @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  institution Institution?   @relation(fields: [institutionId], references: [id])
+  domains     TenantDomain[]
+  users       User[]
+
+  @@index([status])
+}
+
+// A hostname routed to a Tenant. One tenant can own several (its
+// <slug>.eleventhpress.com subdomain plus, from Phase 3 onward, one or more
+// verified custom domains) — hence a separate table rather than a single
+// column on Tenant.
+model TenantDomain {
+  id        String   @id @default(cuid())
+  tenantId  String
+  hostname  String   @unique
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
 }
 
 // ---------------------------------------------------------------------------

@@ -7,6 +7,7 @@ import { isPasswordBreached } from "@/lib/password-breach";
 import { extractRequestIp } from "@/lib/institutions";
 import { checkRateLimit } from "@/lib/ratelimit";
 import { parseBody } from "@/lib/validate";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -55,6 +56,11 @@ export async function POST(req: NextRequest) {
     const needsApplication = APPLICATION_ROLES.includes(role || "");
     const finalRole = SELF_SELECTABLE_ROLES.includes(role || "") ? role! : "READER";
 
+    // Whitelabel Phase 1: a new account belongs to whichever tenant the
+    // registration request came in on (resolved from the Host header, or
+    // the platform tenant if the host isn't mapped to anything yet).
+    const tenant = await resolveTenantFromHeaders(req.headers);
+
     const user = await db.user.create({
       data: {
         email,
@@ -64,6 +70,7 @@ export async function POST(req: NextRequest) {
         affiliation: affiliation || null,
         expertise: expertise || null,
         country: country || null,
+        tenantId: tenant?.id ?? null,
       },
     });
 
@@ -84,6 +91,7 @@ export async function POST(req: NextRequest) {
       email: user.email,
       role: user.role,
       fullName: user.fullName,
+      ...(user.tenantId ? { tenantId: user.tenantId } : {}),
     });
 
     const res = NextResponse.json({
