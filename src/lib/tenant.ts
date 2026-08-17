@@ -21,13 +21,27 @@ import { cache } from "react";
 import { db } from "./db";
 import { APP_HOST } from "./site";
 
-export interface TenantContext {
+export interface TenantBranding {
+  siteName: string | null;
+  tagline: string | null;
+  logoUrl: string | null;
+  faviconUrl: string | null;
+  primaryColor: string | null;
+  accentColor: string | null;
+  fontFamily: string | null;
+}
+
+export interface TenantContext extends TenantBranding {
   id: string;
   slug: string;
   name: string;
   status: string;
   isPlatform: boolean;
 }
+
+/** Valid values for Tenant.fontFamily — matches the CSS variables already defined in src/app/layout.tsx. */
+export const FONT_FAMILY_OPTIONS = ["inter", "fraunces", "system"] as const;
+export type FontFamilyOption = (typeof FONT_FAMILY_OPTIONS)[number];
 
 function normalizeHost(host: string): string {
   // Strip a port suffix ("localhost:3000" -> "localhost") — TenantDomain
@@ -59,8 +73,36 @@ export async function resolveTenantFromHost(hostHeader: string | null | undefine
   return platform ? toTenantContext(platform) : null;
 }
 
-function toTenantContext(tenant: { id: string; slug: string; name: string; status: string; isPlatform: boolean }): TenantContext {
-  return { id: tenant.id, slug: tenant.slug, name: tenant.name, status: tenant.status, isPlatform: tenant.isPlatform };
+interface TenantRow {
+  id: string;
+  slug: string;
+  name: string;
+  status: string;
+  isPlatform: boolean;
+  siteName: string | null;
+  tagline: string | null;
+  logoUrl: string | null;
+  faviconUrl: string | null;
+  primaryColor: string | null;
+  accentColor: string | null;
+  fontFamily: string | null;
+}
+
+function toTenantContext(tenant: TenantRow): TenantContext {
+  return {
+    id: tenant.id,
+    slug: tenant.slug,
+    name: tenant.name,
+    status: tenant.status,
+    isPlatform: tenant.isPlatform,
+    siteName: tenant.siteName,
+    tagline: tenant.tagline,
+    logoUrl: tenant.logoUrl,
+    faviconUrl: tenant.faviconUrl,
+    primaryColor: tenant.primaryColor,
+    accentColor: tenant.accentColor,
+    fontFamily: tenant.fontFamily,
+  };
 }
 
 /** Headers-object entry point for API route handlers — mirrors getSessionFromHeaders(headers). */

@@ -80,6 +80,9 @@ export const CertificatesTab = dynamic(() => import("./certificates-tab").then((
 export const AdminTab = dynamic(() => import("./admin-tab").then((m) => m.AdminTab), {
   loading: () => <TabLoadingFallback />,
 });
+export const BrandingTab = dynamic(() => import("./branding-tab").then((m) => m.BrandingTab), {
+  loading: () => <TabLoadingFallback />,
+});
 export const ResearchLabTab = dynamic(() => import("./research-lab-tab").then((m) => m.ResearchLabTab), {
   loading: () => <TabLoadingFallback />,
 });
