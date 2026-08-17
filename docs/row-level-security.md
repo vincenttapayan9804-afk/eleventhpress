@@ -53,6 +53,12 @@ codebase's LiveMode pattern exists to avoid.
   (tenantId, fn)` — a session-free counterpart to `withRlsContext`, for the
   public/unauthenticated browsing reads on these tables (a visitor has a
   resolved tenant from the Host header but no session).
+- **EP University OS Phase 1 — `Department`** joined this convention from
+  day one rather than being retrofitted later: it has a direct `tenantId`
+  column, so it was added straight into the same `FOREACH` loop as
+  Book/Magazine/Podcast/MediaPost/Collection/Journal, and its one read path
+  (`GET /api/admin/departments`, `GET /api/departments`) was wired into
+  `withRlsContext`/`withTenantRlsContext` from the route's first commit.
 - **Whitelabel Phase 8 — the tenant-table policies are `FOR SELECT` only**
   (like `auditlog_read_privileged_only` above), not the original blanket
   `USING`/`WITH CHECK` that covered every command. `INSERT`/`UPDATE`/
@@ -89,7 +95,7 @@ codebase's LiveMode pattern exists to avoid.
 > sees `app.tenant_id` as unset once `app_runtime` is active, and **that
 > one call will return zero rows to everyone except SUPER_ADMIN** — a
 > silent, fails-closed content gap on just that path, not a leak. Grep for
-> `db\.(book|magazine|magazineIssue|podcast|podcastEpisode|mediaPost|collection|journal|article)\.(findMany|findFirst|findUnique|findUniqueOrThrow|findFirstOrThrow|count|aggregate)\(`
+> `db\.(book|magazine|magazineIssue|podcast|podcastEpisode|mediaPost|collection|journal|article|department)\.(findMany|findFirst|findUnique|findUniqueOrThrow|findFirstOrThrow|count|aggregate)\(`
 > across `src/app` before activating, to confirm no new unwrapped call has
 > landed since. Invoice/AuditLog are unaffected by any of this; their read
 > paths have been wired in since before Phase 5.

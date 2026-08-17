@@ -10,7 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { PRIVILEGED_ROLES_LIST } from "@/lib/roles";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PRIVILEGED_ROLES_LIST, ACADEMIC_STATUS_OPTIONS } from "@/lib/roles";
 import { toast } from "sonner";
 import {
   Loader2,
@@ -29,6 +30,7 @@ import {
   KeyRound,
   Download,
   AlertOctagon,
+  GraduationCap,
 } from "lucide-react";
 
 interface Profile {
@@ -45,6 +47,14 @@ interface Profile {
   contactEmail: string | null;
   contactPhone: string | null;
   twoFactorEnabled: boolean;
+  departmentId: string | null;
+  academicStatus: string | null;
+}
+
+interface DepartmentOption {
+  id: string;
+  name: string;
+  slug: string;
 }
 
 const AVATAR_ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
@@ -69,6 +79,12 @@ export function ProfileTab() {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // EP University OS Phase 1 — self-service academic identity
+  const [departmentOptions, setDepartmentOptions] = useState<DepartmentOption[]>([]);
+  const [academicStatus, setAcademicStatus] = useState<string>("");
+  const [departmentId, setDepartmentId] = useState<string>("");
+  const [savingUniversity, setSavingUniversity] = useState(false);
 
   // Two-factor authentication (TOTP)
   const [twoFactorSetup, setTwoFactorSetup] = useState<{ secret: string; qrCode: string } | null>(null);
@@ -112,10 +128,37 @@ export function ProfileTab() {
           contactEmail: p.contactEmail || "",
           contactPhone: p.contactPhone || "",
         });
+        setAcademicStatus(p.academicStatus || "");
+        setDepartmentId(p.departmentId || "");
       })
       .catch((e) => toast.error("Failed to load profile", { description: e.message }))
       .finally(() => setLoading(false));
+    // Empty (no tenant context) for a pre-Phase-1 session or a non-university
+    // tenant — the card below hides itself in that case rather than showing
+    // an empty picker.
+    apiFetch<{ departments: DepartmentOption[] }>("/api/departments")
+      .then((res) => setDepartmentOptions(res.departments))
+      .catch(() => setDepartmentOptions([]));
   }, []);
+
+  async function saveUniversityInfo() {
+    setSavingUniversity(true);
+    try {
+      const { user: updated } = await apiFetch<{ user: Profile }>("/api/auth/me", {
+        method: "PATCH",
+        body: JSON.stringify({
+          academicStatus: academicStatus || null,
+          departmentId: departmentId || null,
+        }),
+      });
+      setProfile(updated);
+      toast.success("Academic details updated");
+    } catch (e: any) {
+      toast.error("Failed to save", { description: e.message });
+    } finally {
+      setSavingUniversity(false);
+    }
+  }
 
   async function handleAvatarSelected(file: File) {
     if (!AVATAR_ALLOWED_TYPES.includes(file.type)) {
@@ -433,6 +476,64 @@ export function ProfileTab() {
             </div>
           </CardContent>
         </Card>
+
+        {/* EP University OS Phase 1 — academic identity, only shown when
+            there's a tenant's departments to choose from (a session with no
+            tenant context, or a tenant with no departments set up yet, gets
+            nothing to select — self-disclosure, not a required field). */}
+        {departmentOptions.length > 0 && (
+          <Card className="paper-card">
+            <CardHeader>
+              <p className="eyebrow">Academic details</p>
+              <p className="text-xs text-muted-foreground">
+                Optional — lets your institution's admin see who's faculty, staff, or a student, and which
+                department you belong to.
+              </p>
+            </CardHeader>
+            <CardContent className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label className="flex items-center gap-1.5">
+                  <GraduationCap className="h-3 w-3" /> Academic status
+                </Label>
+                <Select value={academicStatus || "__none__"} onValueChange={(v) => setAcademicStatus(v === "__none__" ? "" : v)}>
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder="Not set" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Not set</SelectItem>
+                    {ACADEMIC_STATUS_OPTIONS.map((opt) => (
+                      <SelectItem key={opt} value={opt}>
+                        {opt.charAt(0) + opt.slice(1).toLowerCase()}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Department</Label>
+                <Select value={departmentId || "__none__"} onValueChange={(v) => setDepartmentId(v === "__none__" ? "" : v)}>
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder="Not set" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Not set</SelectItem>
+                    {departmentOptions.map((d) => (
+                      <SelectItem key={d.id} value={d.id}>
+                        {d.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="sm:col-span-2">
+                <Button type="button" size="sm" disabled={savingUniversity} onClick={saveUniversityInfo}>
+                  {savingUniversity ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-2 h-3.5 w-3.5" />}
+                  Save academic details
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Social links */}
         <Card className="paper-card">

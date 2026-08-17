@@ -88,6 +88,12 @@ model User {
   // any code path that hasn't been updated keep working; the backfill
   // script sets this to the platform tenant for every pre-existing user.
   tenantId              String?
+  // EP University OS Phase 1 — nullable, orthogonal to `role` (role gates
+  // permissions; academicStatus answers "is this EDITOR also faculty?" —
+  // a STUDENT can be an AUTHOR, a FACULTY member can be an EDITOR). Both
+  // null for every pre-existing row and every non-university tenant.
+  departmentId          String?
+  academicStatus        String? // FACULTY | STUDENT | STAFF | null — see ACADEMIC_STATUS_OPTIONS
   // Real scholarly-output metrics from OpenAlex (src/lib/citation-metrics.ts),
   // by ORCID — only meaningful for editorial-board accounts (SUPER_ADMIN/
   // EDITOR/ASSOCIATE_EDITOR) and only populated when `orcid` is set.
@@ -121,6 +127,8 @@ model User {
   auditLogs                      AuditLog[]
   institution                    Institution?           @relation(fields: [institutionId], references: [id])
   tenant                         Tenant?                @relation(fields: [tenantId], references: [id])
+  department                     Department?            @relation("DepartmentMembers", fields: [departmentId], references: [id])
+  departmentsHeaded              Department[]           @relation("DepartmentHead")
   correctionsIssued              Correction[]
   roleApplications               RoleApplication[]      @relation("ApplicantApplications")
   reviewedApplications           RoleApplication[]      @relation("ReviewerApplications")
@@ -142,6 +150,7 @@ model User {
   narrationJobsCreated           NarrationJob[]
 
   @@index([tenantId])
+  @@index([departmentId])
 }
 
 // ---------------------------------------------------------------------------
@@ -816,7 +825,7 @@ model AuditLog {
   // userId (rare — e.g. a webhook-triggered write) whose tenant can't be
   // determined; never retroactively backfilled onto rows written before
   // this field existed for the same reason Tenant.maxUsers isn't defaulted.
-  tenantId String?
+  tenantId   String?
 
   user    User?    @relation(fields: [userId], references: [id])
   article Article? @relation(fields: [articleId], references: [id])
@@ -1614,6 +1623,8 @@ model Tenant {
   institution Institution?   @relation(fields: [institutionId], references: [id])
   domains     TenantDomain[]
   users       User[]
+  // EP University OS Phase 1
+  departments Department[]
 
   @@index([status])
 }
@@ -1651,6 +1662,38 @@ model TenantDomain {
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
+}
+
+// ---------------------------------------------------------------------------
+// EP University OS Phase 1 — tenant org structure. Flat by design:
+// parentDepartmentId exists so a future School > Department hierarchy
+// doesn't need a second migration, but nothing in Phase 1 enforces or
+// displays it. Department management is a tenant-scoped admin action (see
+// TENANT_SCOPED_ADMIN_ROLES in src/lib/roles.ts) — a university's own
+// TENANT_ADMIN manages its departments without platform involvement.
+// ---------------------------------------------------------------------------
+model Department {
+  id                 String   @id @default(cuid())
+  tenantId           String
+  name               String
+  slug               String
+  // Display/attribution pointer only — grants no permission. Phase 1
+  // deliberately does not introduce a DEPARTMENT_ADMIN role; see roles.ts.
+  headUserId         String?
+  // Self-referential parent, nullable, unused by any Phase 1 code path.
+  parentDepartmentId String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  tenant   Tenant       @relation(fields: [tenantId], references: [id])
+  head     User?        @relation("DepartmentHead", fields: [headUserId], references: [id])
+  parent   Department?  @relation("DepartmentHierarchy", fields: [parentDepartmentId], references: [id])
+  children Department[] @relation("DepartmentHierarchy")
+  members  User[]       @relation("DepartmentMembers")
+
+  @@unique([tenantId, slug])
+  @@index([tenantId])
+  @@index([parentDepartmentId])
 }
 
 // ---------------------------------------------------------------------------
