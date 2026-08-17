@@ -4,10 +4,12 @@ import { useTranslations } from "next-intl";
 import { useApp } from "@/lib/store";
 import { Globe, ShieldCheck } from "lucide-react";
 import { DOI_REGISTRAR } from "@/lib/site";
+import { useTenantBranding } from "@/lib/tenant-branding-context";
 
 export function SiteFooter() {
   const setView = useApp((s) => s.setView);
   const t = useTranslations("footer");
+  const branding = useTenantBranding();
   return (
     <footer className="mt-auto">
       <div className="royal-divider" />
@@ -16,15 +18,19 @@ export function SiteFooter() {
           <div className="grid gap-10 md:grid-cols-4">
             <div className="md:col-span-2">
               <div className="flex items-center gap-3">
-                <span className="wax-mark">
-                  <span className="wax-mark-text">EP</span>
-                </span>
+                {branding.logoUrl ? (
+                  <img src={branding.logoUrl} alt={branding.siteName || "Eleventh Press"} className="h-8 w-8 rounded-full object-cover" />
+                ) : (
+                  <span className="wax-mark">
+                    <span className="wax-mark-text">EP</span>
+                  </span>
+                )}
                 <div>
                   <p className="font-display text-lg font-semibold text-foreground">
-                    Eleventh Press International Publishing
+                    {branding.siteName || "Eleventh Press International Publishing"}
                   </p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {t("tagline", { registrar: DOI_REGISTRAR })}
+                    {branding.tagline || t("tagline", { registrar: DOI_REGISTRAR })}
                   </p>
                 </div>
               </div>

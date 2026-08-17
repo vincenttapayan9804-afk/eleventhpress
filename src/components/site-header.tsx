@@ -24,9 +24,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { apiFetch } from "@/lib/api-client";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { useTenantBranding } from "@/lib/tenant-branding-context";
 
 export function SiteHeader() {
   const { view, setView, user, logout, openDashboard, mobileNavOpen, setMobileNavOpen } = useApp();
+  const branding = useTenantBranding();
   const [unread, setUnread] = useState(0);
   const t = useTranslations("nav");
   const tHeader = useTranslations("header");
@@ -75,15 +77,24 @@ export function SiteHeader() {
               of the whole button being flex-shrink-0) so on the tightest
               screens it degrades to an ellipsis rather than overflowing. */}
           <button onClick={() => setView("home")} className="flex min-w-0 items-center gap-2.5 text-left group sm:gap-3">
-            <span className="wax-mark flex-shrink-0 group-hover:scale-105 transition-transform duration-500" style={{ transitionTimingFunction: "var(--ease-luxury)" }}>
-              <span className="wax-mark-text">EP</span>
-            </span>
+            {branding.logoUrl ? (
+              <img
+                src={branding.logoUrl}
+                alt={branding.siteName || tHeader("brandName")}
+                className="h-8 w-8 flex-shrink-0 rounded-full object-cover group-hover:scale-105 transition-transform duration-500"
+                style={{ transitionTimingFunction: "var(--ease-luxury)" }}
+              />
+            ) : (
+              <span className="wax-mark flex-shrink-0 group-hover:scale-105 transition-transform duration-500" style={{ transitionTimingFunction: "var(--ease-luxury)" }}>
+                <span className="wax-mark-text">EP</span>
+              </span>
+            )}
             <span className="flex min-w-0 flex-col leading-tight">
               <span className="truncate font-display text-sm font-semibold text-foreground sm:text-base">
-                {tHeader("brandName")}
+                {branding.siteName || tHeader("brandName")}
               </span>
               <span className="truncate text-[0.55rem] font-sans font-medium uppercase tracking-[0.14em] text-muted-foreground sm:text-[0.62rem] sm:tracking-[0.22em]">
-                {tHeader("brandTagline")}
+                {branding.tagline || tHeader("brandTagline")}
               </span>
             </span>
           </button>
@@ -211,7 +222,7 @@ export function SiteHeader() {
               <SheetContent side="right" className="glass-strong w-72">
                 <SheetHeader>
                   <SheetTitle className="font-display text-foreground">
-                    Eleventh Press
+                    {branding.siteName || "Eleventh Press"}
                   </SheetTitle>
                 </SheetHeader>
                 <nav className="mt-6 flex flex-col gap-1">

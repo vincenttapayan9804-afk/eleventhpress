@@ -1556,6 +1556,17 @@ model Tenant {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  // --- Phase 2: branding (all optional — null means "inherit the
+  // platform default", so an unbranded tenant renders identically to
+  // today's single-tenant site). ---
+  siteName     String? // overrides the default "Eleventh Press" display name
+  tagline      String?
+  logoUrl      String?
+  faviconUrl   String?
+  primaryColor String? // CSS color (oklch()/hex/etc), applied to --primary
+  accentColor  String? // applied to --accent
+  fontFamily   String? // "inter" | "fraunces" | "system" — see FONT_FAMILY_OPTIONS
+
   institution Institution?   @relation(fields: [institutionId], references: [id])
   domains     TenantDomain[]
   users       User[]

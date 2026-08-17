@@ -54,7 +54,8 @@ export type DashboardTab =
   | "researchLab"
   | "narration"
   | "researchIntegrity"
-  | "admin";
+  | "admin"
+  | "branding";
 
 interface SessionUser {
   id: string;

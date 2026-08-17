@@ -139,6 +139,17 @@
   --shadow-pearl: 0 1px 0 oklch(1 0 0 / 0.7) inset, 0 8px 32px oklch(0.38 0.18 295 / 0.06);
 }
 
+/* Phase 2 whitelabel: per-tenant font family, set via body[data-tenant-font]
+   in src/app/layout.tsx. "inter" (default) and "fraunces" just repoint
+   --font-sans at fonts already loaded via next/font — no extra font
+   downloads. "system" opts out of the loaded webfonts entirely. */
+body[data-tenant-font="fraunces"] {
+  --font-sans: var(--font-serif);
+}
+body[data-tenant-font="system"] {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
 .dark {
   --background: oklch(0.14 0.02 285);
   --foreground: oklch(0.96 0.006 285);
