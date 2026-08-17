@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { presignGet } from "@/lib/storage";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
 import { PRIVILEGED_ROLES_LIST as PRIVILEGED_ROLES } from "@/lib/roles";
 const FORMATS = new Set(["MONOGRAPH", "EDITED_VOLUME", "ANTHOLOGY"]);
 
@@ -16,10 +17,16 @@ const FORMATS = new Set(["MONOGRAPH", "EDITED_VOLUME", "ANTHOLOGY"]);
  */
 export async function GET(req: NextRequest) {
   const session = getSessionFromHeaders(req.headers);
+  // Whitelabel Phase 4 — a tenant's catalog only shows that tenant's own
+  // books. Rows that predate this column (tenantId null) are backfilled
+  // onto the platform tenant by scripts/backfill-platform-tenant.ts, so
+  // this filter never silently hides pre-existing content.
+  const tenant = await resolveTenantFromHeaders(req.headers);
+  const tenantId = tenant?.id ?? null;
 
   if (!session) {
     const books = await db.book.findMany({
-      where: { status: "PUBLISHED" },
+      where: { status: "PUBLISHED", tenantId },
       orderBy: { publishedAt: "desc" },
       select: {
         id: true, title: true, subtitle: true, authors: true, description: true,
@@ -43,7 +50,7 @@ export async function GET(req: NextRequest) {
   const status = searchParams.get("status");
   const wantsAll = searchParams.get("all") === "1";
 
-  const where: any = {};
+  const where: any = { tenantId };
   if (status) where.status = status;
   if (!(wantsAll && PRIVILEGED_ROLES.includes(session.role))) {
     where.correspondingAuthorId = session.userId;
@@ -132,6 +139,8 @@ export async function POST(req: NextRequest) {
     chapterLinks = articleIds.map((id, i) => ({ articleId: id, chapterOrder: i }));
   }
 
+  const tenant = await resolveTenantFromHeaders(req.headers);
+
   const book = await db.book.create({
     data: {
       title: body.title,
@@ -146,6 +155,7 @@ export async function POST(req: NextRequest) {
       manuscriptKey: body.format === "MONOGRAPH" ? body.manuscriptKey : null,
       correspondingAuthorId: session.userId,
       status: "SUBMITTED",
+      tenantId: tenant?.id ?? null,
       chapters: chapterLinks.length ? { create: chapterLinks } : undefined,
     },
   });

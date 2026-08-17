@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
 
-const EDITOR_ROLES = ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"];
+const EDITOR_ROLES = ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN", "TENANT_ADMIN"];
 
 function slugify(title: string): string {
   return title
@@ -21,9 +22,10 @@ function slugify(title: string): string {
  * returns collections an editor has actually published (publishedAt set)
  * — one still being assembled stays invisible to readers.
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const tenant = await resolveTenantFromHeaders(req.headers);
   const collections = await db.collection.findMany({
-    where: { publishedAt: { not: null } },
+    where: { publishedAt: { not: null }, tenantId: tenant?.id ?? null },
     orderBy: { publishedAt: "desc" },
     include: { _count: { select: { articles: true } } },
   });
@@ -80,6 +82,7 @@ export async function POST(req: NextRequest) {
       ).map((a) => a.id)
     : [];
 
+  const tenant = await resolveTenantFromHeaders(req.headers);
   const collection = await db.collection.create({
     data: {
       title,
@@ -87,6 +90,7 @@ export async function POST(req: NextRequest) {
       description,
       createdById: session.userId,
       publishedAt: new Date(),
+      tenantId: tenant?.id ?? null,
       articles: {
         create: validArticleIds.map((articleId, order) => ({ articleId, order })),
       },

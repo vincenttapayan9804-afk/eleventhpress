@@ -1292,6 +1292,13 @@ model Book {
   // change to this default never rewrites a past statement's numbers.
   royaltySharePercent Float? @default(70)
 
+  // Whitelabel tenant this book belongs to (Phase 4 — nullable/plain scalar,
+  // same convention as User.tenantId; no formal Prisma relation). Set from
+  // the submitting request's resolved tenant; null on rows that predate
+  // this column until scripts/backfill-platform-tenant.ts assigns them to
+  // the platform tenant.
+  tenantId String?
+
   author            User?              @relation(fields: [correspondingAuthorId], references: [id])
   chapters          BookArticle[]
   distributions     BookDistribution[]
@@ -1300,6 +1307,7 @@ model Book {
 
   @@index([status, submittedAt])
   @@index([correspondingAuthorId])
+  @@index([tenantId])
 }
 
 // Self-reported royalty statements for book sales through the aggregator
@@ -1409,8 +1417,13 @@ model Collection {
   // collections are ever returned by the public GET /api/collections.
   publishedAt   DateTime?
 
+  // Whitelabel tenant — see Book.tenantId's doc comment for the convention.
+  tenantId String?
+
   createdBy User                @relation(fields: [createdById], references: [id])
   articles  CollectionArticle[]
+
+  @@index([tenantId])
 }
 
 model CollectionArticle {
@@ -1827,7 +1840,12 @@ model Magazine {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  // Whitelabel tenant — see Book.tenantId's doc comment for the convention.
+  tenantId String?
+
   issues MagazineIssue[]
+
+  @@index([tenantId])
 }
 
 // One issue of a magazine — the compiled, distributable unit (mirrors Book:
@@ -1956,9 +1974,14 @@ model Podcast {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  // Whitelabel tenant — see Book.tenantId's doc comment for the convention.
+  tenantId String?
+
   createdBy     User                  @relation(fields: [createdById], references: [id])
   episodes      PodcastEpisode[]
   distributions PodcastDistribution[]
+
+  @@index([tenantId])
 }
 
 model PodcastEpisode {
@@ -2042,7 +2065,11 @@ model MediaPost {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
+  // Whitelabel tenant — see Book.tenantId's doc comment for the convention.
+  tenantId String?
+
   createdBy User @relation(fields: [createdById], references: [id])
 
   @@index([type, status, publishedAt])
+  @@index([tenantId])
 }

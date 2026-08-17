@@ -2,17 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { presignGet } from "@/lib/storage";
 import { requireRole } from "@/lib/auth";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
 import { PRIVILEGED_ROLES_LIST as PRIVILEGED_ROLES } from "@/lib/roles";
 
 /**
  * GET /api/podcasts
- * Public — every show is visible (there's no draft/hidden state at the
- * show level, only at the episode level). Each entry includes its
- * published-episode count so the browse page can show "12 episodes"
- * without a second round trip.
+ * Public — every show belonging to the current tenant is visible (there's
+ * no draft/hidden state at the show level, only at the episode level).
+ * Each entry includes its published-episode count so the browse page can
+ * show "12 episodes" without a second round trip.
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const tenant = await resolveTenantFromHeaders(req.headers);
   const podcasts = await db.podcast.findMany({
+    where: { tenantId: tenant?.id ?? null },
     orderBy: { title: "asc" },
     include: { episodes: { where: { status: "PUBLISHED" }, select: { id: true } } },
   });
@@ -39,7 +42,7 @@ export async function GET() {
  * author (see prisma/schema.prisma's "Publications" section comment).
  */
 export async function POST(req: NextRequest) {
-  const auth = requireRole(req.headers, PRIVILEGED_ROLES);
+  const auth = requireRole(req.headers, [...PRIVILEGED_ROLES, "TENANT_ADMIN"]);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const { session } = auth;
 
@@ -63,6 +66,7 @@ export async function POST(req: NextRequest) {
   const existing = await db.podcast.findUnique({ where: { slug: body.slug } });
   if (existing) return NextResponse.json({ error: "That slug is already in use" }, { status: 409 });
 
+  const tenant = await resolveTenantFromHeaders(req.headers);
   const podcast = await db.podcast.create({
     data: {
       title: body.title,
@@ -74,6 +78,7 @@ export async function POST(req: NextRequest) {
       language: body.language || "eng",
       explicit: !!body.explicit,
       createdById: session.userId,
+      tenantId: tenant?.id ?? null,
     },
   });
 

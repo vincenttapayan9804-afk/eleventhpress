@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/auth";
+import { requireTenantScope } from "@/lib/tenant-auth";
+import { TENANT_SCOPED_ADMIN_ROLES } from "@/lib/roles";
 import { parseBody } from "@/lib/validate";
 
 // Deliberately conservative — a bare, valid DNS hostname only (no scheme,
@@ -15,10 +16,10 @@ const CreateDomainSchema = z.object({
 });
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = requireRole(req.headers, ["SUPER_ADMIN"]);
+  const { id } = await params;
+  const auth = requireTenantScope(req.headers, id, TENANT_SCOPED_ADMIN_ROLES);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
-  const { id } = await params;
   const tenant = await db.tenant.findUnique({ where: { id } });
   if (!tenant) return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
 
@@ -37,10 +38,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = requireRole(req.headers, ["SUPER_ADMIN"]);
+  const { id } = await params;
+  const auth = requireTenantScope(req.headers, id, TENANT_SCOPED_ADMIN_ROLES);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
-  const { id } = await params;
   const tenant = await db.tenant.findUnique({ where: { id } });
   if (!tenant) return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
 

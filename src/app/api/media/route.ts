@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { presignGet } from "@/lib/storage";
 import { getSessionFromHeaders, requireRole } from "@/lib/auth";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
 import { PRIVILEGED_ROLES_LIST as PRIVILEGED_ROLES } from "@/lib/roles";
 
 const TYPES = new Set(["NEWS", "BLOG"]);
@@ -20,10 +21,11 @@ export async function GET(req: NextRequest) {
 
   const session = getSessionFromHeaders(req.headers);
   const wantsAll = searchParams.get("all") === "1";
-  const canSeeAll = wantsAll && !!session && PRIVILEGED_ROLES.includes(session.role);
+  const canSeeAll = wantsAll && !!session && (PRIVILEGED_ROLES.includes(session.role) || session.role === "TENANT_ADMIN");
+  const tenant = await resolveTenantFromHeaders(req.headers);
 
   const posts = await db.mediaPost.findMany({
-    where: { ...(type ? { type } : {}), ...(canSeeAll ? {} : { status: "PUBLISHED" }) },
+    where: { tenantId: tenant?.id ?? null, ...(type ? { type } : {}), ...(canSeeAll ? {} : { status: "PUBLISHED" }) },
     orderBy: canSeeAll ? { createdAt: "desc" } : { publishedAt: "desc" },
   });
 
@@ -40,7 +42,7 @@ export async function GET(req: NextRequest) {
  * submitted (see prisma/schema.prisma's "Publications" section comment).
  */
 export async function POST(req: NextRequest) {
-  const auth = requireRole(req.headers, PRIVILEGED_ROLES);
+  const auth = requireRole(req.headers, [...PRIVILEGED_ROLES, "TENANT_ADMIN"]);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const { session } = auth;
 
@@ -61,6 +63,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "title, authorName, bodyHtml, and category are required" }, { status: 400 });
   }
 
+  const tenant = await resolveTenantFromHeaders(req.headers);
   const post = await db.mediaPost.create({
     data: {
       type: body.type,
@@ -73,6 +76,7 @@ export async function POST(req: NextRequest) {
       heroImageKey: body.heroImageKey,
       createdById: session.userId,
       status: "DRAFT",
+      tenantId: tenant?.id ?? null,
     },
   });
 

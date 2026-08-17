@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/auth";
+import { requireTenantScope } from "@/lib/tenant-auth";
+import { TENANT_SCOPED_ADMIN_ROLES } from "@/lib/roles";
 import { verifyDomainTxtRecord } from "@/lib/domain-verify";
 import { addDomainToVercelProject } from "@/lib/vercel-domains";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string; domainId: string }> }) {
-  const auth = requireRole(req.headers, ["SUPER_ADMIN"]);
+  const { id, domainId } = await params;
+  const auth = requireTenantScope(req.headers, id, TENANT_SCOPED_ADMIN_ROLES);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
-  const { id, domainId } = await params;
   const domain = await db.tenantDomain.findUnique({ where: { id: domainId } });
   if (!domain || domain.tenantId !== id) {
     return NextResponse.json({ error: "Domain not found" }, { status: 404 });

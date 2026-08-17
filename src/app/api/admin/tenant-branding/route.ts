@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/auth";
+import { requireTenantScope } from "@/lib/tenant-auth";
+import { TENANT_SCOPED_ADMIN_ROLES } from "@/lib/roles";
 import { resolveTenantFromHeaders, FONT_FAMILY_OPTIONS } from "@/lib/tenant";
 import { parseBody } from "@/lib/validate";
 
 /**
  * GET/PUT /api/admin/tenant-branding
- * SUPER_ADMIN only. Operates on whichever tenant the request's Host header
- * resolves to (same resolution every public page uses) — there is no
- * per-tenant admin role yet (that's Phase 4), so today this is scoped by
- * "which tenant's domain did the admin request this from," matching the
- * platform tenant for the current single-tenant deployment.
+ * Operates on whichever tenant the request's Host header resolves to (same
+ * resolution every public page uses). SUPER_ADMIN may edit any tenant's
+ * branding this way; TENANT_ADMIN may only edit branding while the request
+ * is being made from their own tenant's domain (requireTenantScope below).
  */
 
 // Deliberately restrictive — this value is interpolated into a raw <style>
@@ -38,14 +38,14 @@ const BrandingSchema = z.object({
 });
 
 export async function GET(req: NextRequest) {
-  const auth = requireRole(req.headers, ["SUPER_ADMIN"]);
-  if (!auth.ok) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
-  }
-
   const tenant = await resolveTenantFromHeaders(req.headers);
   if (!tenant) {
     return NextResponse.json({ error: "No tenant resolved for this request" }, { status: 404 });
+  }
+
+  const auth = requireTenantScope(req.headers, tenant.id, TENANT_SCOPED_ADMIN_ROLES);
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
   return NextResponse.json({
@@ -63,14 +63,14 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  const auth = requireRole(req.headers, ["SUPER_ADMIN"]);
-  if (!auth.ok) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
-  }
-
   const tenant = await resolveTenantFromHeaders(req.headers);
   if (!tenant) {
     return NextResponse.json({ error: "No tenant resolved for this request" }, { status: 404 });
+  }
+
+  const auth = requireTenantScope(req.headers, tenant.id, TENANT_SCOPED_ADMIN_ROLES);
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
   const parsed = await parseBody(req, BrandingSchema);

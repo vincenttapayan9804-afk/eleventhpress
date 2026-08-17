@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
+import { requireTenantScope } from "@/lib/tenant-auth";
+import { TENANT_SCOPED_ADMIN_ROLES } from "@/lib/roles";
 import { parseBody } from "@/lib/validate";
 
 const UpdateTenantSchema = z.object({
@@ -9,18 +11,27 @@ const UpdateTenantSchema = z.object({
   status: z.enum(["ACTIVE", "SUSPENDED", "PROVISIONING"]).optional(),
 });
 
+/**
+ * TENANT_ADMIN may rename their own tenant but never change `status`
+ * (suspend/reactivate is a platform-level moderation action) — enforced by
+ * simply stripping that field before it reaches Prisma, rather than
+ * trusting the caller not to send it.
+ */
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = requireRole(req.headers, ["SUPER_ADMIN"]);
+  const { id } = await params;
+  const auth = requireTenantScope(req.headers, id, TENANT_SCOPED_ADMIN_ROLES);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
-  const { id } = await params;
   const parsed = await parseBody(req, UpdateTenantSchema);
   if (!parsed.ok) return parsed.response;
 
   const tenant = await db.tenant.findUnique({ where: { id } });
   if (!tenant) return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
 
-  const updated = await db.tenant.update({ where: { id }, data: parsed.data });
+  const data = { ...parsed.data };
+  if (auth.session.role !== "SUPER_ADMIN") delete data.status;
+
+  const updated = await db.tenant.update({ where: { id }, data });
   return NextResponse.json({
     tenant: { id: updated.id, slug: updated.slug, name: updated.name, status: updated.status, isPlatform: updated.isPlatform },
   });
