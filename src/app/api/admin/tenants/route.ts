@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { parseBody } from "@/lib/validate";
+import { getOrCreateTenantJournal } from "@/lib/tenant";
 
 /**
  * GET/POST /api/admin/tenants
@@ -67,6 +68,10 @@ export async function POST(req: NextRequest) {
   const tenant = await db.tenant.create({
     data: { slug: parsed.data.slug, name: parsed.data.name, status: "ACTIVE" },
   });
+
+  // Whitelabel Phase 5 — every tenant needs its own Journal to submit
+  // manuscripts into; see getOrCreateTenantJournal's doc comment.
+  await getOrCreateTenantJournal(tenant);
 
   // Free subdomain under the configured root domain, if one is set — no DNS
   // challenge needed since we already control the whole zone.

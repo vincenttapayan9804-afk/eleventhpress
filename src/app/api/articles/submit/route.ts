@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
+import { resolveTenantFromHeaders, getOrCreateTenantJournal } from "@/lib/tenant";
 import { checkSimilarity } from "@/lib/manuscript-checks";
 import { INSIGHT_CATEGORIES, INSIGHT_CATEGORY_LABELS, KEY_TAKEAWAYS_COUNT, type InsightCategory } from "@/lib/article";
 import { safeManuscriptFilename } from "@/lib/storage";
@@ -79,11 +80,14 @@ export async function POST(req: NextRequest) {
     // parallel facet — see Article.insightCategory's schema comment.
     const effectiveDiscipline = isExpert ? INSIGHT_CATEGORY_LABELS[insightCategory as InsightCategory] : discipline!;
 
-    // Find journal
-    const journal = await db.journal.findFirst();
-    if (!journal) {
+    // Find (or auto-provision) this request's tenant's journal — see
+    // getOrCreateTenantJournal's doc comment (src/lib/tenant.ts) for why
+    // this is what makes Article isolation work without touching Article.
+    const tenant = await resolveTenantFromHeaders(req.headers);
+    if (!tenant) {
       return NextResponse.json({ error: "Journal not configured" }, { status: 500 });
     }
+    const journal = await getOrCreateTenantJournal(tenant);
 
     // Mint draft DOI (mock Crossref)
     const doiSuffix = Math.floor(Math.random() * 90000) + 10000;

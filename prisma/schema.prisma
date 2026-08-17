@@ -262,8 +262,19 @@ model Journal {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  // Whitelabel Phase 5 — same nullable-scalar convention as Book.tenantId
+  // (see that field's comment). Every tenant gets exactly one Journal,
+  // auto-provisioned on tenant creation (see getOrCreateTenantJournal in
+  // src/lib/tenant.ts) — this is what makes Article isolation work without
+  // touching Article itself: every Article already belongs to a Journal
+  // via journalId, so scoping Journal by tenant transitively scopes every
+  // Article underneath it.
+  tenantId String?
+
   articles Article[]
   issues   Issue[]
+
+  @@index([tenantId])
 }
 
 model Issue {

@@ -43,8 +43,38 @@ codebase's LiveMode pattern exists to avoid.
   Invoice/AuditLog **read** paths (`/api/dashboard`, `/api/billing/status`,
   `/api/crossref-log`). Calling it today is a harmless no-op: it sets a
   session variable nothing enforces yet, and changes no query results.
+- **Whitelabel Phase 5 — tenant isolation policies.** `prisma/rls.sql` also
+  enables RLS on `Book`, `Magazine`, `Podcast`, `MediaPost`, `Collection`,
+  and `Journal` (each keyed on their `tenantId` column matching
+  `app.tenant_id`), plus `Article` (keyed transitively through its
+  `Journal.tenantId`, since `Article` has no `tenantId` column of its own —
+  see prisma/schema.prisma's `Journal.tenantId` comment). `SUPER_ADMIN`
+  bypasses all of them. `src/lib/db-rls.ts` adds `withTenantRlsContext
+  (tenantId, fn)` — a session-free counterpart to `withRlsContext`, for the
+  public/unauthenticated browsing reads on these tables (a visitor has a
+  resolved tenant from the Host header but no session).
+  **Unlike Invoice/AuditLog, these policies are *not yet wired into any
+  read path*** — see the warning under Activation below before treating
+  this the same as the rest of this document.
 
 ## Activation (the one manual, production-only step)
+
+> **Before doing this for the tenant-scoped tables (Book/Magazine/Podcast/
+> MediaPost/Collection/Journal/Article):** every read path on those tables
+> must first be wrapped in `withRlsContext`/`withTenantRlsContext`, so
+> `app.tenant_id` is actually set on every request that touches them. None
+> of them are today (Phase 5 shipped the schema/helper/policies only, the
+> same staged-rollout the rest of this doc describes for Invoice/AuditLog —
+> see the task list). If you switch the runtime connection to `app_runtime`
+> before that wiring is done, every plain `db.book.findMany()`-style call
+> (i.e. essentially all of them right now) will see `app.tenant_id` as
+> unset and **every tenant-scoped table will return zero rows to everyone
+> except SUPER_ADMIN** — including public visitors browsing a tenant's own
+> site. This fails closed rather than leaking data, but it is a full outage
+> of tenant-scoped content, not "extra defense-in-depth" — treat wiring the
+> read paths as a hard prerequisite for this step, not an optional
+> follow-up. Invoice/AuditLog are unaffected by this warning; their read
+> paths are already wired in.
 
 1. Connect to the production database as an actual superuser/owner (e.g.
    via the provider's console — Vercel Storage, Neon, Supabase, etc.).
@@ -82,3 +112,16 @@ codebase's LiveMode pattern exists to avoid.
   RLS `INSERT` policy stays permissive (`WITH CHECK (true)`) and doesn't
   need per-call-site session context. What RLS restricts is *reading* or
   *tampering with* the trail, not adding to it.
+- **Wiring the Phase 5 tenant-table read paths into `withRlsContext` /
+  `withTenantRlsContext`** — the policies and helper exist, but no route
+  calls the helper yet (see the warning under Activation above). Today's
+  actual tenant isolation on these tables is entirely application-layer
+  (the `where: { tenantId }` filters added in Whitelabel Phases 4-5); this
+  RLS layer is prepared but not yet the backstop it's designed to be.
+- **Tenant-scoping `AuditLog` itself, or editorial roles
+  (`EDITOR`/`REVIEWER`/etc.)** — both remain platform-wide. An editor
+  account today can see and act on every tenant's submission queue; there
+  is no per-tenant editorial staff separation. Whether that's the intended
+  operating model (shared editorial back-office across tenants) or a gap
+  to close is a product decision, not an engineering default — flagged for
+  a future phase rather than assumed either way.

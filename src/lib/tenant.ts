@@ -137,3 +137,24 @@ export async function getPlatformTenant(): Promise<TenantContext> {
   }
   return toTenantContext(platform);
 }
+
+/**
+ * Whitelabel Phase 5 — every tenant needs exactly one Journal to submit
+ * manuscripts into (this is what makes Article isolation work: every
+ * Article belongs to a Journal via journalId, so scoping Journal by tenant
+ * transitively scopes every Article underneath it, with zero changes to
+ * Article itself or the ~30 editorial-workflow routes that operate on an
+ * already-known articleId).
+ *
+ * Auto-provisioning here (rather than only at tenant-creation time) is the
+ * safety net for tenants that existed before this field did, or any future
+ * path that creates a Tenant row without going through
+ * /api/admin/tenants — it always returns a usable Journal, never null.
+ */
+export async function getOrCreateTenantJournal(tenant: { id: string; name: string }) {
+  const existing = await db.journal.findFirst({ where: { tenantId: tenant.id } });
+  if (existing) return existing;
+  return db.journal.create({
+    data: { name: tenant.name, tenantId: tenant.id },
+  });
+}

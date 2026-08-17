@@ -88,3 +88,65 @@ DROP POLICY IF EXISTS auditlog_immutable ON "AuditLog";
 CREATE POLICY auditlog_immutable ON "AuditLog"
   FOR UPDATE
   USING (false);
+
+-- ---------------------------------------------------------------------------
+-- Whitelabel Phase 5 — tenant isolation, defense-in-depth.
+--
+-- The app layer already filters every read/write on these tables by the
+-- current request's tenantId (Whitelabel Phases 4-5). These policies exist
+-- so that a bug in that app-layer filtering — a missing `where` clause, a
+-- route that forgets to resolve the tenant — fails closed at the database
+-- instead of silently leaking one tenant's content to another. Same
+-- inert-until-activated story as Invoice/AuditLog above: harmless today,
+-- takes effect only once the app's runtime connection is switched to
+-- app_runtime (docs/row-level-security.md).
+--
+-- SUPER_ADMIN bypasses every one of these (platform staff legitimately see
+-- across all tenants); every other role/session is confined to rows whose
+-- tenantId matches app.tenant_id, set per-request by withRlsContext
+-- (src/lib/db-rls.ts). A row with tenantId IS NULL (pre-backfill data, or a
+-- session with no tenant context at all) matches nothing but SUPER_ADMIN —
+-- fails closed rather than open.
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE
+  t TEXT;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['Book', 'Magazine', 'Podcast', 'MediaPost', 'Collection', 'Journal']
+  LOOP
+    EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
+    EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', t);
+    EXECUTE format('DROP POLICY IF EXISTS %I ON %I', t || '_tenant_scoped', t);
+    EXECUTE format(
+      'CREATE POLICY %I ON %I USING ("tenantId" = current_setting(''app.tenant_id'', true) OR current_setting(''app.role'', true) = ''SUPER_ADMIN'') WITH CHECK ("tenantId" = current_setting(''app.tenant_id'', true) OR current_setting(''app.role'', true) = ''SUPER_ADMIN'')',
+      t || '_tenant_scoped', t
+    );
+  END LOOP;
+END
+$$;
+
+-- Article has no tenantId column of its own — it's scoped transitively
+-- through its Journal (Article.journalId -> Journal.tenantId). A subquery
+-- policy rather than a denormalized column, since Journal is already the
+-- single source of truth for "which tenant does this article belong to."
+ALTER TABLE "Article" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Article" FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS article_tenant_scoped ON "Article";
+CREATE POLICY article_tenant_scoped ON "Article"
+  USING (
+    current_setting('app.role', true) = 'SUPER_ADMIN'
+    OR EXISTS (
+      SELECT 1 FROM "Journal" j
+      WHERE j.id = "Article"."journalId"
+        AND j."tenantId" = current_setting('app.tenant_id', true)
+    )
+  )
+  WITH CHECK (
+    current_setting('app.role', true) = 'SUPER_ADMIN'
+    OR EXISTS (
+      SELECT 1 FROM "Journal" j
+      WHERE j.id = "Article"."journalId"
+        AND j."tenantId" = current_setting('app.tenant_id', true)
+    )
+  );
