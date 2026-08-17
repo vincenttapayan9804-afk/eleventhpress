@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireTenantScope } from "@/lib/tenant-auth";
 import { TENANT_SCOPED_ADMIN_ROLES } from "@/lib/roles";
+import { withRlsContext } from "@/lib/db-rls";
 
 /**
  * GET /api/admin/tenants/[id]/health
@@ -30,15 +31,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!tenant) return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
 
   const [userCount, bookCount, magazineCount, podcastCount, mediaPostCount, collectionCount, journal] =
-    await Promise.all([
-      db.user.count({ where: { tenantId: id } }),
-      db.book.count({ where: { tenantId: id } }),
-      db.magazine.count({ where: { tenantId: id } }),
-      db.podcast.count({ where: { tenantId: id } }),
-      db.mediaPost.count({ where: { tenantId: id } }),
-      db.collection.count({ where: { tenantId: id } }),
-      db.journal.findFirst({ where: { tenantId: id }, include: { _count: { select: { articles: true, issues: true } } } }),
-    ]);
+    await withRlsContext(auth.session, (tx) =>
+      Promise.all([
+        tx.user.count({ where: { tenantId: id } }),
+        tx.book.count({ where: { tenantId: id } }),
+        tx.magazine.count({ where: { tenantId: id } }),
+        tx.podcast.count({ where: { tenantId: id } }),
+        tx.mediaPost.count({ where: { tenantId: id } }),
+        tx.collection.count({ where: { tenantId: id } }),
+        tx.journal.findFirst({ where: { tenantId: id }, include: { _count: { select: { articles: true, issues: true } } } }),
+      ])
+    );
 
   return NextResponse.json({
     tenant: { id: tenant.id, slug: tenant.slug, name: tenant.name, status: tenant.status, isPlatform: tenant.isPlatform },

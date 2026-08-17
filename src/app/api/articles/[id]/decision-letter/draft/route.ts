@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { draftDecisionLetter } from "@/lib/decision-letter-draft";
+import { withRlsContext } from "@/lib/db-rls";
 
 /**
  * POST /api/articles/[id]/decision-letter/draft
@@ -35,7 +36,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Decision not found for this article" }, { status: 404 });
   }
 
-  const article = await db.article.findUnique({ where: { id: articleId }, select: { title: true } });
+  const article = await withRlsContext(session, (tx) =>
+    tx.article.findUnique({ where: { id: articleId }, select: { title: true } })
+  );
   if (!article) {
     return NextResponse.json({ error: "Article not found" }, { status: 404 });
   }

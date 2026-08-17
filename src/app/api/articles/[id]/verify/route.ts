@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { computeArticleContentHash, sha256 } from "@/lib/article-provenance-server";
 import { getObject } from "@/lib/storage";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { withTenantRlsContext } from "@/lib/db-rls";
 
 /**
  * GET /api/articles/[id]/verify — public, no auth. JSON counterpart to
@@ -9,11 +11,12 @@ import { getObject } from "@/lib/storage";
  * "verified" actually means here.
  */
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const article = await db.article.findUnique({ where: { id } });
+  const tenant = await resolveTenantFromHeaders(req.headers);
+  const article = await withTenantRlsContext(tenant?.id ?? null, (tx) => tx.article.findUnique({ where: { id } }));
   if (!article || article.status !== "PUBLISHED") {
     return NextResponse.json({ found: false }, { status: 404 });
   }

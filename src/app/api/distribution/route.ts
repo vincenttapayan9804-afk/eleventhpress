@@ -4,6 +4,7 @@ import { getSessionFromHeaders } from "@/lib/auth";
 import { getPlatform, buildShareKit, buildSubmissionPackage, buildBloggerPost, PLATFORMS } from "@/lib/distribution";
 import { getValidAccessToken, publishPost } from "@/lib/blogger";
 import { PRIVILEGED_ROLES } from "@/lib/roles";
+import { withRlsContext } from "@/lib/db-rls";
 
 async function canManage(articleCorrespondingAuthorId: string | null, session: { userId: string; role: string }) {
   if (PRIVILEGED_ROLES.has(session.role)) return true;
@@ -23,7 +24,7 @@ export async function GET(req: NextRequest) {
   const articleId = new URL(req.url).searchParams.get("articleId");
   if (!articleId) return NextResponse.json({ error: "articleId is required" }, { status: 400 });
 
-  const article = await db.article.findUnique({ where: { id: articleId } });
+  const article = await withRlsContext(session, (tx) => tx.article.findUnique({ where: { id: articleId } }));
   if (!article) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (!(await canManage(article.correspondingAuthorId, session))) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -75,7 +76,7 @@ export async function POST(req: NextRequest) {
   const platformDef = getPlatform(platform);
   if (!platformDef) return NextResponse.json({ error: `Unknown platform: ${platform}` }, { status: 400 });
 
-  const article = await db.article.findUnique({ where: { id: articleId }, include: { journal: true } });
+  const article = await withRlsContext(session, (tx) => tx.article.findUnique({ where: { id: articleId }, include: { journal: true } }));
   if (!article) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (!(await canManage(article.correspondingAuthorId, session))) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });

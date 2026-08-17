@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { PRIVILEGED_ROLES_LIST as PRIVILEGED_ROLES } from "@/lib/roles";
+import { withRlsContext } from "@/lib/db-rls";
 
 /**
  * POST /api/magazines/[id]/issues { volume, issueNumber, year, title?, theme?, coverImageKey? }
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { session } = auth;
 
   const { id: magazineId } = await params;
-  const magazine = await db.magazine.findUnique({ where: { id: magazineId } });
+  const magazine = await withRlsContext(session, (tx) => tx.magazine.findUnique({ where: { id: magazineId } }));
   if (!magazine) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const body = (await req.json()) as {
@@ -28,10 +29,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (body.volume == null || body.issueNumber == null || body.year == null) {
     return NextResponse.json({ error: "volume, issueNumber, and year are required" }, { status: 400 });
   }
+  const { volume, issueNumber } = body;
 
-  const dupe = await db.magazineIssue.findUnique({
-    where: { magazineId_volume_issueNumber: { magazineId, volume: body.volume, issueNumber: body.issueNumber } },
-  });
+  const dupe = await withRlsContext(session, (tx) =>
+    tx.magazineIssue.findUnique({
+      where: { magazineId_volume_issueNumber: { magazineId, volume, issueNumber } },
+    })
+  );
   if (dupe) return NextResponse.json({ error: "An issue with that volume/number already exists for this magazine" }, { status: 409 });
 
   const issue = await db.magazineIssue.create({

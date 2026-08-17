@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { suggestKeywordsAndSummary } from "@/lib/manuscript-checks";
+import { withRlsContext } from "@/lib/db-rls";
 
 /**
  * POST /api/articles/[id]/ai-assist
@@ -19,7 +20,7 @@ export async function POST(
   }
 
   const { id } = await params;
-  const article = await db.article.findUnique({ where: { id } });
+  const article = await withRlsContext(session, (tx) => tx.article.findUnique({ where: { id } }));
   if (!article) {
     return NextResponse.json({ error: "Article not found" }, { status: 404 });
   }

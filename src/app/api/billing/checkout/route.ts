@@ -7,6 +7,7 @@ import { APP_BASE_URL } from "@/lib/site";
 import { SUBSCRIPTION_PLAN_PRICES, DISTRIBUTION_PACKAGE_ARTICLE_USD, DISTRIBUTION_PACKAGE_BOOK_USD, type SubscriptionPlan } from "@/lib/pricing";
 import { PRIVILEGED_ROLES } from "@/lib/roles";
 import { parseBody } from "@/lib/validate";
+import { withRlsContext } from "@/lib/db-rls";
 
 // `plan` isn't restricted to keyof SUBSCRIPTION_PLAN_PRICES here — the
 // handler below already does that lookup and 400s on a miss, so this only
@@ -126,14 +127,14 @@ export async function POST(req: NextRequest) {
     let description: string;
 
     if (isArticle) {
-      const article = await db.article.findUnique({ where: { id: body.targetId } });
+      const article = await withRlsContext(session, (tx) => tx.article.findUnique({ where: { id: body.targetId } }));
       if (!article) return NextResponse.json({ error: "Article not found" }, { status: 404 });
       if (!canManage(article.correspondingAuthorId)) return NextResponse.json({ error: "Not found" }, { status: 404 });
       if (article.distributionPackagePaidAt) return NextResponse.json({ error: "Distribution Package already unlocked for this article" }, { status: 409 });
       invoiceData = { userId: session.userId, type: "DISTRIBUTION_PACKAGE", amount: DISTRIBUTION_PACKAGE_ARTICLE_USD, articleId: article.id };
       description = `Distribution Package (arXiv/SSRN) — "${article.title}"`;
     } else {
-      const book = await db.book.findUnique({ where: { id: body.targetId } });
+      const book = await withRlsContext(session, (tx) => tx.book.findUnique({ where: { id: body.targetId } }));
       if (!book) return NextResponse.json({ error: "Book not found" }, { status: 404 });
       if (!canManage(book.correspondingAuthorId)) return NextResponse.json({ error: "Not found" }, { status: 404 });
       if (book.distributionPackagePaidAt) return NextResponse.json({ error: "Distribution Package already unlocked for this book" }, { status: 409 });

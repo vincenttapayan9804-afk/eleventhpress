@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { getIndependentReviewsForArticle } from "@/lib/independent-reviews";
 import { APP_BASE_URL } from "@/lib/site";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { withRlsContext, withTenantRlsContext } from "@/lib/db-rls";
 
 /**
  * POST /api/articles/[id]/review-history
@@ -26,7 +28,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { id: articleId } = await params;
   const { anonymizedReviewHistory } = (await req.json()) as { anonymizedReviewHistory?: boolean };
 
-  const article = await db.article.findUnique({ where: { id: articleId }, select: { id: true } });
+  const article = await withRlsContext(session, (tx) => tx.article.findUnique({ where: { id: articleId }, select: { id: true } }));
   if (!article) {
     return NextResponse.json({ error: "Article not found" }, { status: 404 });
   }
@@ -69,17 +71,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: articleId } = await params;
 
-  const article = await db.article.findUnique({
-    where: { id: articleId },
-    select: {
-      title: true,
-      status: true,
-      anonymizedReviewHistory: true,
-      reviewReportDoi: true,
-      reviewReportDepositedAt: true,
-      doi: true,
-    },
-  });
+  const tenant = await resolveTenantFromHeaders(req.headers);
+  const article = await withTenantRlsContext(tenant?.id ?? null, (tx) =>
+    tx.article.findUnique({
+      where: { id: articleId },
+      select: {
+        title: true,
+        status: true,
+        anonymizedReviewHistory: true,
+        reviewReportDoi: true,
+        reviewReportDepositedAt: true,
+        doi: true,
+      },
+    })
+  );
   if (!article) {
     return NextResponse.json({ error: "Article not found" }, { status: 404 });
   }

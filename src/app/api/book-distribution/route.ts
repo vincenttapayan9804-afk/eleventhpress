@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { getBookPlatform, buildBookPackage, BOOK_PLATFORMS } from "@/lib/book-distribution";
 import { PRIVILEGED_ROLES } from "@/lib/roles";
+import { withRlsContext } from "@/lib/db-rls";
 
 async function canManage(bookCorrespondingAuthorId: string | null, session: { userId: string; role: string }) {
   if (PRIVILEGED_ROLES.has(session.role)) return true;
@@ -22,7 +23,7 @@ export async function GET(req: NextRequest) {
   const bookId = new URL(req.url).searchParams.get("bookId");
   if (!bookId) return NextResponse.json({ error: "bookId is required" }, { status: 400 });
 
-  const book = await db.book.findUnique({ where: { id: bookId } });
+  const book = await withRlsContext(session, (tx) => tx.book.findUnique({ where: { id: bookId } }));
   if (!book) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (!(await canManage(book.correspondingAuthorId, session))) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -73,7 +74,7 @@ export async function POST(req: NextRequest) {
   const platformDef = getBookPlatform(platform);
   if (!platformDef) return NextResponse.json({ error: `Unknown platform: ${platform}` }, { status: 400 });
 
-  const book = await db.book.findUnique({ where: { id: bookId } });
+  const book = await withRlsContext(session, (tx) => tx.book.findUnique({ where: { id: bookId } }));
   if (!book) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (!(await canManage(book.correspondingAuthorId, session))) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });

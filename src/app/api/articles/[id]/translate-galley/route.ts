@@ -7,6 +7,8 @@ import {
   TRANSLATABLE_LOCALES,
   type TranslatableLocale,
 } from "@/lib/galley-translation";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { withRlsContext, withTenantRlsContext } from "@/lib/db-rls";
 
 /**
  * POST /api/articles/[id]/translate-galley
@@ -36,7 +38,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: `locale must be one of ${TRANSLATABLE_LOCALES.join(", ")}` }, { status: 400 });
   }
 
-  const article = await db.article.findUnique({ where: { id } });
+  const article = await withRlsContext(session, (tx) => tx.article.findUnique({ where: { id } }));
   if (!article) {
     return NextResponse.json({ error: "Article not found" }, { status: 404 });
   }
@@ -71,7 +73,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: `locale must be one of ${TRANSLATABLE_LOCALES.join(", ")}` }, { status: 400 });
   }
 
-  const article = await db.article.findUnique({ where: { id }, select: { status: true } });
+  const tenant = await resolveTenantFromHeaders(req.headers);
+  const article = await withTenantRlsContext(tenant?.id ?? null, (tx) =>
+    tx.article.findUnique({ where: { id }, select: { status: true } })
+  );
   if (!article || article.status !== "PUBLISHED") {
     return NextResponse.json({ error: "Article not found" }, { status: 404 });
   }

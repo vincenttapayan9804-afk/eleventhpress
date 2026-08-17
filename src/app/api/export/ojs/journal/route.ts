@@ -1,6 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { buildOjsIssuesExportXml } from "@/lib/ojs-native";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { withTenantRlsContext } from "@/lib/db-rls";
 
 /**
  * GET /api/export/ojs/journal
@@ -8,8 +10,9 @@ import { buildOjsIssuesExportXml } from "@/lib/ojs-native";
  * article, wrapped in an <issues> root. This is the format PKP's admin
  * guide recommends for bulk / back-issue import into a real OJS instance.
  */
-export async function GET() {
-  const journal = await db.journal.findFirst();
+export async function GET(req: NextRequest) {
+  const tenant = await resolveTenantFromHeaders(req.headers);
+  const journal = await withTenantRlsContext(tenant?.id ?? null, (tx) => tx.journal.findFirst());
   if (!journal) {
     return NextResponse.json({ error: "Journal not configured" }, { status: 500 });
   }

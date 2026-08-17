@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { buildOnixMessage } from "@/lib/onix";
 import { APP_BASE_URL } from "@/lib/site";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { withTenantRlsContext } from "@/lib/db-rls";
 
 /**
  * GET /api/books/[id]/onix
@@ -10,13 +12,18 @@ import { APP_BASE_URL } from "@/lib/site";
  * PDF). Used both as a direct download and as the dashboard's preview
  * pane (src/components/dashboard/indexing-tab.tsx), same pattern as
  * /api/crossref/xml/[id].
+ *
+ * Whitelabel Phase 8 — scoped by the resolved tenant, same as every other
+ * public single-record read: an id from a different tenant 404s.
  */
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const book = await db.book.findUnique({ where: { id } });
+  const tenant = await resolveTenantFromHeaders(req.headers);
+  const tenantId = tenant?.id ?? null;
+  const book = await withTenantRlsContext(tenantId, (tx) => tx.book.findFirst({ where: { id, tenantId } }));
   if (!book) {
     return NextResponse.json({ error: "Book not found" }, { status: 404 });
   }

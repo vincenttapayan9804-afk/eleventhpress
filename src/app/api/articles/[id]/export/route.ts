@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { canViewUnpublishedArticle } from "@/lib/article-access";
 import { buildBibTeX, buildRis, buildWikidataQuickStatements } from "@/lib/citation-export";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { withTenantRlsContext } from "@/lib/db-rls";
 
 /**
  * GET /api/articles/[id]/export?format=ris|bibtex|wikidata
@@ -25,10 +27,13 @@ export async function GET(
     return NextResponse.json({ error: "format must be 'ris', 'bibtex', or 'wikidata'" }, { status: 400 });
   }
 
-  const article = await db.article.findUnique({
-    where: { id },
-    include: { journal: true, issue: true },
-  });
+  const tenant = await resolveTenantFromHeaders(req.headers);
+  const article = await withTenantRlsContext(tenant?.id ?? null, (tx) =>
+    tx.article.findUnique({
+      where: { id },
+      include: { journal: true, issue: true },
+    })
+  );
   if (!article) {
     return NextResponse.json({ error: "Article not found" }, { status: 404 });
   }

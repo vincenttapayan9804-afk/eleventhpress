@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { presignGet } from "@/lib/storage";
 import { resolveTenantFromHeaders } from "@/lib/tenant";
-import { withTenantRlsContext } from "@/lib/db-rls";
+import { withRlsContext, withTenantRlsContext } from "@/lib/db-rls";
 import { PRIVILEGED_ROLES_LIST as PRIVILEGED_ROLES } from "@/lib/roles";
 const FORMATS = new Set(["MONOGRAPH", "EDITED_VOLUME", "ANTHOLOGY"]);
 
@@ -133,7 +133,7 @@ export async function POST(req: NextRequest) {
     if (articleIds.length === 0) {
       return NextResponse.json({ error: "articleIds is required for EDITED_VOLUME/ANTHOLOGY" }, { status: 400 });
     }
-    const articles = await db.article.findMany({ where: { id: { in: articleIds } } });
+    const articles = await withRlsContext(session, (tx) => tx.article.findMany({ where: { id: { in: articleIds } } }));
     const byId = new Map(articles.map((a) => [a.id, a]));
     for (const id of articleIds) {
       const article = byId.get(id);

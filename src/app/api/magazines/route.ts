@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { presignGet } from "@/lib/storage";
 import { requireRole } from "@/lib/auth";
 import { resolveTenantFromHeaders } from "@/lib/tenant";
-import { withTenantRlsContext } from "@/lib/db-rls";
+import { withRlsContext, withTenantRlsContext } from "@/lib/db-rls";
 import { PRIVILEGED_ROLES_LIST as PRIVILEGED_ROLES } from "@/lib/roles";
 
 /**
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "slug must be lowercase letters, numbers, and hyphens only" }, { status: 400 });
   }
 
-  const existing = await db.magazine.findUnique({ where: { slug: body.slug } });
+  const existing = await withRlsContext(auth.session, (tx) => tx.magazine.findUnique({ where: { slug: body.slug } }));
   if (existing) return NextResponse.json({ error: "That slug is already in use" }, { status: 409 });
 
   const tenant = await resolveTenantFromHeaders(req.headers);

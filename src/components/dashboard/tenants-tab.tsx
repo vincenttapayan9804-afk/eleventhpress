@@ -535,9 +535,10 @@ export function TenantsTab() {
                           </div>
                           <p className="text-xs text-muted-foreground">
                             Permanently deletes this tenant along with its safe-to-remove content (media posts,
-                            collections, empty magazines/podcasts/journal). Books with distribution or royalty
-                            history and journals with articles are never deleted automatically — remove those
-                            first. Requires zero users on the tenant.
+                            collections, empty magazines/podcasts/journals). Books with distribution or royalty
+                            history, journals with articles, and magazines with issues are never deleted
+                            automatically — remove those first, or opt into the destructive option below.
+                            Requires zero users on the tenant.
                           </p>
                           {purgeBlockers[t.id] && (
                             <div className="space-y-2 rounded bg-background/60 p-2 text-xs">
@@ -550,20 +551,19 @@ export function TenantsTab() {
                               {purgeBlockers[t.id].journals.map((j) => (
                                 <p key={j.id}>Journal "{j.name}" — {j.reason}</p>
                               ))}
-                              {purgeBlockers[t.id].magazines.length === 0 && (
-                                <label className="flex items-start gap-1.5 border-t border-border/50 pt-2 text-destructive">
-                                  <input
-                                    type="checkbox"
-                                    className="mt-0.5"
-                                    checked={!!forceCascade[t.id]}
-                                    onChange={(e) => setForceCascade((prev) => ({ ...prev, [t.id]: e.target.checked }))}
-                                  />
-                                  <span>
-                                    Also permanently delete the books/journal content listed above, including all
-                                    articles, reviews, and royalty/distribution history. This cannot be undone.
-                                  </span>
-                                </label>
-                              )}
+                              <label className="flex items-start gap-1.5 border-t border-border/50 pt-2 text-destructive">
+                                <input
+                                  type="checkbox"
+                                  className="mt-0.5"
+                                  checked={!!forceCascade[t.id]}
+                                  onChange={(e) => setForceCascade((prev) => ({ ...prev, [t.id]: e.target.checked }))}
+                                />
+                                <span>
+                                  Also permanently delete the books/magazines/journal content listed above,
+                                  including all articles, issues, reviews, and royalty/distribution history. This
+                                  cannot be undone.
+                                </span>
+                              </label>
                             </div>
                           )}
                           <div className="flex flex-wrap items-end gap-2">

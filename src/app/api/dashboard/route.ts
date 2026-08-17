@@ -34,17 +34,19 @@ export async function GET(req: NextRequest) {
   let payload: any = { role, notifications, unreadCount: notifCount };
 
   if (role === "AUTHOR" || role === "EXPERT" || role === "SUPER_ADMIN") {
-    const submissions = await db.article.findMany({
-      where: { correspondingAuthorId: userId },
-      orderBy: { createdAt: "desc" },
-      include: { issue: true, reviews: true },
-    });
-    const invoices = await withRlsContext(session, (tx) =>
-      tx.invoice.findMany({
-        where: { userId },
-        include: { article: { select: { title: true, doi: true } } },
-        orderBy: { createdAt: "desc" },
-      })
+    const [submissions, invoices] = await withRlsContext(session, (tx) =>
+      Promise.all([
+        tx.article.findMany({
+          where: { correspondingAuthorId: userId },
+          orderBy: { createdAt: "desc" },
+          include: { issue: true, reviews: true },
+        }),
+        tx.invoice.findMany({
+          where: { userId },
+          include: { article: { select: { title: true, doi: true } } },
+          orderBy: { createdAt: "desc" },
+        }),
+      ])
     );
     payload.submissions = submissions;
     payload.invoices = invoices;
@@ -56,36 +58,41 @@ export async function GET(req: NextRequest) {
     // platform-wide view (role === "SUPER_ADMIN" below, unfiltered) — same
     // "session.tenantId null means no tenant context, allow through"
     // fail-open posture as isSameEditorialTenant (src/lib/tenant-auth.ts).
+    // Whitelabel Phase 8 — every read here now runs inside withRlsContext
+    // (previously only invoices/recentAudit did), so this route is fully
+    // covered once RLS activation flips the runtime DB role.
     const tenantFilter =
       role === "SUPER_ADMIN" || !session.tenantId ? {} : { journal: { tenantId: session.tenantId } };
+    const auditFilter = role === "SUPER_ADMIN" || !session.tenantId ? {} : { tenantId: session.tenantId };
 
-    const queue = await db.article.findMany({
-      where: {
-        status: { in: ["SUBMITTED", "UNDER_REVIEW", "REVISIONS_REQUIRED", "ACCEPTED", "IN_PRODUCTION", "PUBLISHED"] },
-        ...tenantFilter,
-      },
-      orderBy: { submittedAt: "desc" },
-      include: {
-        author: { select: { fullName: true, email: true, affiliation: true } },
-        reviews: {
-          include: {
-            reviewer: { select: { fullName: true, affiliation: true } },
+    const [queue, published, inReview, accepted, submitted, recentAudit] = await withRlsContext(session, (tx) =>
+      Promise.all([
+        tx.article.findMany({
+          where: {
+            status: { in: ["SUBMITTED", "UNDER_REVIEW", "REVISIONS_REQUIRED", "ACCEPTED", "IN_PRODUCTION", "PUBLISHED"] },
+            ...tenantFilter,
           },
-        },
-      },
-    });
-    const published = await db.article.count({ where: { status: "PUBLISHED", ...tenantFilter } });
-    const inReview = await db.article.count({ where: { status: "UNDER_REVIEW", ...tenantFilter } });
-    const accepted = await db.article.count({ where: { status: "ACCEPTED", ...tenantFilter } });
-    const submitted = await db.article.count({ where: { status: "SUBMITTED", ...tenantFilter } });
-
-    const recentAudit = await withRlsContext(session, (tx) =>
-      tx.auditLog.findMany({
-        where: role === "SUPER_ADMIN" || !session.tenantId ? {} : { tenantId: session.tenantId },
-        orderBy: { createdAt: "desc" },
-        take: 15,
-        include: { user: { select: { fullName: true, role: true } } },
-      })
+          orderBy: { submittedAt: "desc" },
+          include: {
+            author: { select: { fullName: true, email: true, affiliation: true } },
+            reviews: {
+              include: {
+                reviewer: { select: { fullName: true, affiliation: true } },
+              },
+            },
+          },
+        }),
+        tx.article.count({ where: { status: "PUBLISHED", ...tenantFilter } }),
+        tx.article.count({ where: { status: "UNDER_REVIEW", ...tenantFilter } }),
+        tx.article.count({ where: { status: "ACCEPTED", ...tenantFilter } }),
+        tx.article.count({ where: { status: "SUBMITTED", ...tenantFilter } }),
+        tx.auditLog.findMany({
+          where: auditFilter,
+          orderBy: { createdAt: "desc" },
+          take: 15,
+          include: { user: { select: { fullName: true, role: true } } },
+        }),
+      ])
     );
 
     payload.queue = queue;

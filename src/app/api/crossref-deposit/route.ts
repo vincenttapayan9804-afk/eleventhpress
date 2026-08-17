@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { buildDoiBatchXml, depositToCrossref } from "@/lib/crossref";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { withRlsContext, withTenantRlsContext } from "@/lib/db-rls";
 
 /**
  * POST /api/crossref-deposit
@@ -24,10 +26,12 @@ export async function POST(req: NextRequest) {
 
   const { articleId } = (await req.json()) as { articleId: string };
 
-  const article = await db.article.findUnique({
-    where: { id: articleId },
-    include: { journal: true, issue: true },
-  });
+  const article = await withRlsContext(session, (tx) =>
+    tx.article.findUnique({
+      where: { id: articleId },
+      include: { journal: true, issue: true },
+    })
+  );
   if (!article) {
     return NextResponse.json({ error: "Article not found" }, { status: 404 });
   }
@@ -109,10 +113,13 @@ export async function GET(req: NextRequest) {
   if (!articleId) {
     return NextResponse.json({ error: "articleId required" }, { status: 400 });
   }
-  const article = await db.article.findUnique({
-    where: { id: articleId },
-    include: { journal: true, issue: true },
-  });
+  const tenant = await resolveTenantFromHeaders(req.headers);
+  const article = await withTenantRlsContext(tenant?.id ?? null, (tx) =>
+    tx.article.findUnique({
+      where: { id: articleId },
+      include: { journal: true, issue: true },
+    })
+  );
   if (!article) {
     return NextResponse.json({ error: "Article not found" }, { status: 404 });
   }

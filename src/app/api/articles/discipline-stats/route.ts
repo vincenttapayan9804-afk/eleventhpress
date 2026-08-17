@@ -1,5 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { withTenantRlsContext } from "@/lib/db-rls";
 
 /**
  * GET /api/articles/discipline-stats
@@ -15,20 +17,23 @@ import { db } from "@/lib/db";
  * src/lib/directory-listings.ts — apply to the journal as a whole), so this
  * doesn't fabricate one.
  */
-export async function GET() {
-  const [grouped, indexedRows] = await Promise.all([
-    db.article.groupBy({
-      by: ["discipline"],
-      where: { status: "PUBLISHED" },
-      _count: { _all: true },
-      _sum: { citations: true, views: true },
-    }),
-    db.article.findMany({
-      where: { status: "PUBLISHED", doiStatus: { in: ["REGISTERED", "PUBLISHED"] } },
-      select: { discipline: true },
-      distinct: ["discipline"],
-    }),
-  ]);
+export async function GET(req: NextRequest) {
+  const tenant = await resolveTenantFromHeaders(req.headers);
+  const [grouped, indexedRows] = await withTenantRlsContext(tenant?.id ?? null, (tx) =>
+    Promise.all([
+      tx.article.groupBy({
+        by: ["discipline"],
+        where: { status: "PUBLISHED" },
+        _count: { _all: true },
+        _sum: { citations: true, views: true },
+      }),
+      tx.article.findMany({
+        where: { status: "PUBLISHED", doiStatus: { in: ["REGISTERED", "PUBLISHED"] } },
+        select: { discipline: true },
+        distinct: ["discipline"],
+      }),
+    ])
+  );
 
   const indexedSet = new Set(indexedRows.map((r) => r.discipline));
 

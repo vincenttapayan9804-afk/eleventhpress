@@ -53,38 +53,46 @@ codebase's LiveMode pattern exists to avoid.
   (tenantId, fn)` — a session-free counterpart to `withRlsContext`, for the
   public/unauthenticated browsing reads on these tables (a visitor has a
   resolved tenant from the Host header but no session).
-  **Whitelabel Phase 7 — partially wired, not yet complete.** The primary
-  public list/browse endpoints are wrapped in `withTenantRlsContext`:
-  `GET /api/books`, `/api/magazines`, `/api/podcasts`, `/api/media`,
-  `/api/collections`, and `/api/articles` (the last of these was also a
-  real, active tenant-isolation bug fixed in the same pass — it had never
-  been scoped by tenant at all, so any visitor could browse every tenant's
-  published articles from any tenant's site; see that route's Phase 7
-  comment). **Still not wired:** the `[id]` single-record routes for each
-  of those content types, the editorial/admin screens that read these
-  tables (dashboards, workflow, export), and Journal's own read paths.
-  Do not treat this list as complete — see the warning under Activation
-  below before switching the runtime connection.
+- **Whitelabel Phase 8 — the tenant-table policies are `FOR SELECT` only**
+  (like `auditlog_read_privileged_only` above), not the original blanket
+  `USING`/`WITH CHECK` that covered every command. `INSERT`/`UPDATE`/
+  `DELETE` on `Book`/`Magazine`/`Podcast`/`MediaPost`/`Collection`/
+  `Journal`/`Article` stay ungated at the database layer — write-side
+  isolation is already enforced at the application layer (the
+  `where: { tenantId }` filters and `isSameEditorialTenant` checks built
+  across Whitelabel Phases 4-7). This matters because some write-heavy
+  editorial routes (the article PUBLISH workflow, most notably) interleave
+  DB writes with slow external calls — Crossref/Zenodo deposits, the
+  pandoc-worker galley pipeline — that must never sit inside one held DB
+  transaction; a write-inclusive RLS policy would force rearchitecting
+  those pipelines purely to satisfy a defense-in-depth layer, which isn't a
+  trade worth making. Restricting enforcement to reads keeps the
+  activation prerequisite bounded to "every `SELECT` touching these tables
+  sets `app.tenant_id` first" — and that prerequisite is now **complete**:
+  every read of these tables anywhere in the app — public list/browse
+  endpoints, `[id]` single-record routes, editorial/admin screens
+  (dashboards, workflow, triage, purge, export), and Journal's own read
+  paths (OAI-PMH, ONIX, ReDIF, sitemap, and friends) — runs inside
+  `withRlsContext` or `withTenantRlsContext`. See the Activation section
+  below for what that means for the actual switch.
 
 ## Activation (the one manual, production-only step)
 
-> **Before doing this for the tenant-scoped tables (Book/Magazine/Podcast/
-> MediaPost/Collection/Journal/Article):** every read path on those tables
-> must first be wrapped in `withRlsContext`/`withTenantRlsContext`, so
-> `app.tenant_id` is actually set on every request that touches them.
-> Phase 7 wired the primary public list endpoints (see above) but **not**
-> the full set — plenty of `db.book.findMany()`-style calls elsewhere in
-> the app (admin screens, `[id]` detail routes, editorial workflow, export)
-> still aren't wrapped. If you switch the runtime connection to
-> `app_runtime` before *all* of them are done, every one of those unwrapped
-> calls will see `app.tenant_id` as unset and **every tenant-scoped table
-> will return zero rows to everyone except SUPER_ADMIN** — including public
-> visitors browsing a tenant's own site. This fails closed rather than
-> leaking data, but it is a full outage of tenant-scoped content, not
-> "extra defense-in-depth" — treat wiring the
-> read paths as a hard prerequisite for this step, not an optional
-> follow-up. Invoice/AuditLog are unaffected by this warning; their read
-> paths are already wired in.
+> Every `SELECT` touching the tenant-scoped tables (Book/Magazine/Podcast/
+> MediaPost/Collection/Journal/Article) is wrapped in `withRlsContext`/
+> `withTenantRlsContext` as of Whitelabel Phase 8 — see above. Writes to
+> those tables are intentionally not RLS-gated (also Phase 8 — see above),
+> so they need no wrapping and don't affect this warning. If you still find
+> an unwrapped `db.<model>.findX()`/`count()`/`aggregate()` call against one
+> of these 7 models when you do this in the future (e.g. a new route added
+> after this doc was last updated), wrap it first: an unwrapped read call
+> sees `app.tenant_id` as unset once `app_runtime` is active, and **that
+> one call will return zero rows to everyone except SUPER_ADMIN** — a
+> silent, fails-closed content gap on just that path, not a leak. Grep for
+> `db\.(book|magazine|magazineIssue|podcast|podcastEpisode|mediaPost|collection|journal|article)\.(findMany|findFirst|findUnique|findUniqueOrThrow|findFirstOrThrow|count|aggregate)\(`
+> across `src/app` before activating, to confirm no new unwrapped call has
+> landed since. Invoice/AuditLog are unaffected by any of this; their read
+> paths have been wired in since before Phase 5.
 
 1. Connect to the production database as an actual superuser/owner (e.g.
    via the provider's console — Vercel Storage, Neon, Supabase, etc.).
@@ -122,16 +130,10 @@ codebase's LiveMode pattern exists to avoid.
   RLS `INSERT` policy stays permissive (`WITH CHECK (true)`) and doesn't
   need per-call-site session context. What RLS restricts is *reading* or
   *tampering with* the trail, not adding to it.
-- **Wiring the Phase 5 tenant-table read paths into `withRlsContext` /
-  `withTenantRlsContext`** — the policies and helper exist, but no route
-  calls the helper yet (see the warning under Activation above). Today's
-  actual tenant isolation on these tables is entirely application-layer
-  (the `where: { tenantId }` filters added in Whitelabel Phases 4-5); this
-  RLS layer is prepared but not yet the backstop it's designed to be.
-- **Tenant-scoping `AuditLog` itself, or editorial roles
-  (`EDITOR`/`REVIEWER`/etc.)** — both remain platform-wide. An editor
-  account today can see and act on every tenant's submission queue; there
-  is no per-tenant editorial staff separation. Whether that's the intended
-  operating model (shared editorial back-office across tenants) or a gap
-  to close is a product decision, not an engineering default — flagged for
-  a future phase rather than assumed either way.
+- **RLS enforcement on tenant-table writes** — deliberately scoped out for
+  the reasons explained under Phase 8 above (`FOR SELECT`-only policies).
+  Write-side tenant isolation is application-layer only: the
+  `where: { tenantId }` filters (Whitelabel Phases 4-5) and
+  `isSameEditorialTenant` checks (Whitelabel Phase 7). A bug in one of
+  those app-layer checks on a write path is not caught by this RLS layer
+  the way a same-kind bug on a read path now is.

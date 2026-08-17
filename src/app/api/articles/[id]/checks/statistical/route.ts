@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { checkStatisticalSanity } from "@/lib/manuscript-checks";
+import { withRlsContext } from "@/lib/db-rls";
 
 /**
  * GET /api/articles/[id]/checks/statistical
@@ -16,10 +17,12 @@ export async function GET(
     return NextResponse.json({ error: "Editor role required" }, { status: 403 });
   }
   const { id } = await params;
-  const article = await db.article.findUnique({
-    where: { id },
-    select: { statisticalFlags: true, statisticalCheckedAt: true },
-  });
+  const article = await withRlsContext(session, (tx) =>
+    tx.article.findUnique({
+      where: { id },
+      select: { statisticalFlags: true, statisticalCheckedAt: true },
+    })
+  );
   if (!article || !article.statisticalCheckedAt) {
     return NextResponse.json({ error: "No check run yet" }, { status: 404 });
   }
@@ -43,10 +46,12 @@ export async function POST(
     return NextResponse.json({ error: "Editor role required" }, { status: 403 });
   }
   const { id } = await params;
-  const article = await db.article.findUnique({
-    where: { id },
-    select: { title: true, abstract: true },
-  });
+  const article = await withRlsContext(session, (tx) =>
+    tx.article.findUnique({
+      where: { id },
+      select: { title: true, abstract: true },
+    })
+  );
   if (!article) {
     return NextResponse.json({ error: "Article not found" }, { status: 404 });
   }

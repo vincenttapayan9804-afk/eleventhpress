@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { isSameEditorialTenant } from "@/lib/tenant-auth";
 import { runEditorialTriage } from "@/lib/triage";
+import { withRlsContext } from "@/lib/db-rls";
 
 /**
  * POST /api/triage
@@ -24,10 +25,12 @@ export async function POST(req: NextRequest) {
   }
 
   const { articleId } = (await req.json()) as { articleId: string };
-  const article = await db.article.findUnique({
-    where: { id: articleId },
-    select: { id: true, title: true, journal: { select: { tenantId: true } } },
-  });
+  const article = await withRlsContext(session, (tx) =>
+    tx.article.findUnique({
+      where: { id: articleId },
+      select: { id: true, title: true, journal: { select: { tenantId: true } } },
+    })
+  );
   if (!article) {
     return NextResponse.json({ error: "Article not found" }, { status: 404 });
   }

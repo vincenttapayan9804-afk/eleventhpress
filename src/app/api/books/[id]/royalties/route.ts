@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { computeAuthorPayout } from "@/lib/royalties";
 import { PRIVILEGED_ROLES_LIST as PRIVILEGED_ROLES } from "@/lib/roles";
+import { withRlsContext } from "@/lib/db-rls";
 const PLATFORMS = new Set(["DRAFT2DIGITAL", "INGRAMSPARK", "AMAZON_KDP", "LULU", "ALL"]);
 
 /**
@@ -16,7 +17,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!session) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
 
   const { id: bookId } = await params;
-  const book = await db.book.findUnique({ where: { id: bookId } });
+  const book = await withRlsContext(session, (tx) => tx.book.findUnique({ where: { id: bookId } }));
   if (!book) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const isPrivileged = PRIVILEGED_ROLES.includes(session.role);
@@ -59,7 +60,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   const { id: bookId } = await params;
-  const book = await db.book.findUnique({ where: { id: bookId } });
+  const book = await withRlsContext(session, (tx) => tx.book.findUnique({ where: { id: bookId } }));
   if (!book) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const body = (await req.json()) as {

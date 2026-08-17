@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { getPodcastPlatform, buildPodcastPackage, PODCAST_PLATFORMS } from "@/lib/podcast-distribution";
 import { PRIVILEGED_ROLES_LIST as PRIVILEGED_ROLES } from "@/lib/roles";
+import { withRlsContext } from "@/lib/db-rls";
 
 /**
  * GET /api/podcast-distribution?podcastId=X
@@ -17,10 +18,14 @@ export async function GET(req: NextRequest) {
   const podcastId = new URL(req.url).searchParams.get("podcastId");
   if (!podcastId) return NextResponse.json({ error: "podcastId is required" }, { status: 400 });
 
-  const podcast = await db.podcast.findUnique({ where: { id: podcastId } });
+  const [podcast, publishedCount] = await withRlsContext(auth.session, (tx) =>
+    Promise.all([
+      tx.podcast.findUnique({ where: { id: podcastId } }),
+      tx.podcastEpisode.count({ where: { podcastId, status: "PUBLISHED" } }),
+    ])
+  );
   if (!podcast) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const publishedCount = await db.podcastEpisode.count({ where: { podcastId, status: "PUBLISHED" } });
   if (publishedCount === 0) {
     return NextResponse.json({ error: "Distribution is only available once a show has at least one published episode" }, { status: 400 });
   }
@@ -63,10 +68,14 @@ export async function POST(req: NextRequest) {
   const platformDef = getPodcastPlatform(platform);
   if (!platformDef) return NextResponse.json({ error: `Unknown platform: ${platform}` }, { status: 400 });
 
-  const podcast = await db.podcast.findUnique({ where: { id: podcastId } });
+  const [podcast, publishedCount] = await withRlsContext(auth.session, (tx) =>
+    Promise.all([
+      tx.podcast.findUnique({ where: { id: podcastId } }),
+      tx.podcastEpisode.count({ where: { podcastId, status: "PUBLISHED" } }),
+    ])
+  );
   if (!podcast) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const publishedCount = await db.podcastEpisode.count({ where: { podcastId, status: "PUBLISHED" } });
   if (publishedCount === 0) {
     return NextResponse.json({ error: "Distribution is only available once a show has at least one published episode" }, { status: 400 });
   }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
+import { withRlsContext } from "@/lib/db-rls";
 
 const EDITOR_ROLES = ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"];
 
@@ -23,11 +24,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "articleId is required" }, { status: 400 });
   }
 
-  const [collection, article, last] = await Promise.all([
-    db.collection.findUnique({ where: { id } }),
-    db.article.findUnique({ where: { id: articleId }, select: { id: true, status: true } }),
-    db.collectionArticle.findFirst({ where: { collectionId: id }, orderBy: { order: "desc" } }),
-  ]);
+  const [collection, article, last] = await withRlsContext(session, (tx) =>
+    Promise.all([
+      tx.collection.findUnique({ where: { id } }),
+      tx.article.findUnique({ where: { id: articleId }, select: { id: true, status: true } }),
+      tx.collectionArticle.findFirst({ where: { collectionId: id }, orderBy: { order: "desc" } }),
+    ])
+  );
   if (!collection) {
     return NextResponse.json({ error: "Collection not found" }, { status: 404 });
   }

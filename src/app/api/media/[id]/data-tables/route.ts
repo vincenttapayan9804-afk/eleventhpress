@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { extractTables, isChartable } from "@/lib/data-tables";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { withTenantRlsContext } from "@/lib/db-rls";
 
 /**
  * GET /api/media/[id]/data-tables
@@ -12,10 +14,13 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const post = await db.mediaPost.findUnique({
-    where: { id },
-    select: { status: true, bodyHtml: true },
-  });
+  const tenant = await resolveTenantFromHeaders(req.headers);
+  const post = await withTenantRlsContext(tenant?.id ?? null, (tx) =>
+    tx.mediaPost.findUnique({
+      where: { id },
+      select: { status: true, bodyHtml: true },
+    })
+  );
   if (!post || post.status !== "PUBLISHED") {
     return NextResponse.json({ tables: [] });
   }

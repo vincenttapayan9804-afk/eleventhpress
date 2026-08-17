@@ -9,6 +9,7 @@ import {
   INDEPENDENT_REVIEW_CHANNELS,
   type IndependentReviewChannel,
 } from "@/lib/independent-reviews";
+import { withRlsContext } from "@/lib/db-rls";
 
 function requireEditor(req: NextRequest) {
   const session = getSessionFromHeaders(req.headers);
@@ -35,7 +36,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (auth.error) return auth.error;
 
   const { id: articleId } = await params;
-  const article = await db.article.findUnique({ where: { id: articleId }, select: { id: true } });
+  const article = await withRlsContext(auth.session!, (tx) =>
+    tx.article.findUnique({ where: { id: articleId }, select: { id: true } })
+  );
   if (!article) {
     return NextResponse.json({ error: "Article not found" }, { status: 404 });
   }
@@ -65,7 +68,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (auth.error) return auth.error;
 
   const { id: articleId } = await params;
-  const article = await db.article.findUnique({ where: { id: articleId }, select: { id: true } });
+  const article = await withRlsContext(auth.session!, (tx) =>
+    tx.article.findUnique({ where: { id: articleId }, select: { id: true } })
+  );
   if (!article) {
     return NextResponse.json({ error: "Article not found" }, { status: 404 });
   }

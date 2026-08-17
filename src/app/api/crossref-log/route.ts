@@ -19,26 +19,27 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
-  const logs = await withRlsContext(auth.session, (tx) =>
-    tx.auditLog.findMany({
-      where: {
-        action: { in: ["DOI_MINT", "DOI_PUBLISH", "PUBLISH"] },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 25,
-      include: {
-        user: { select: { fullName: true, role: true } },
-        article: { select: { id: true, title: true, doi: true, status: true, discipline: true } },
-      },
-    })
+  const [logs, published] = await withRlsContext(auth.session, (tx) =>
+    Promise.all([
+      tx.auditLog.findMany({
+        where: {
+          action: { in: ["DOI_MINT", "DOI_PUBLISH", "PUBLISH"] },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 25,
+        include: {
+          user: { select: { fullName: true, role: true } },
+          article: { select: { id: true, title: true, doi: true, status: true, discipline: true } },
+        },
+      }),
+      tx.article.findMany({
+        where: { status: "PUBLISHED" },
+        select: { id: true, doi: true, title: true, publishedAt: true, discipline: true },
+        orderBy: { publishedAt: "desc" },
+        take: 50,
+      }),
+    ])
   );
-
-  const published = await db.article.findMany({
-    where: { status: "PUBLISHED" },
-    select: { id: true, doi: true, title: true, publishedAt: true, discipline: true },
-    orderBy: { publishedAt: "desc" },
-    take: 50,
-  });
 
   return NextResponse.json({
     logs: logs.map((l) => ({

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
+import { withRlsContext } from "@/lib/db-rls";
 
 /**
  * GET /api/admin/galley-jobs
@@ -23,10 +24,12 @@ export async function GET(req: NextRequest) {
   // (see prisma/schema.prisma) — join the article titles in JS rather than
   // adding a schema relation just for this admin list view.
   const articleIds = Array.from(new Set(jobs.map((j) => j.articleId)));
-  const articles = await db.article.findMany({
-    where: { id: { in: articleIds } },
-    select: { id: true, title: true },
-  });
+  const articles = await withRlsContext(auth.session, (tx) =>
+    tx.article.findMany({
+      where: { id: { in: articleIds } },
+      select: { id: true, title: true },
+    })
+  );
   const titleById = new Map(articles.map((a) => [a.id, a.title]));
 
   return NextResponse.json({

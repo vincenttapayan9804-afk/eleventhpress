@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { APP_BASE_URL, APP_HOST, ARTICLE_LANGUAGE } from "@/lib/site";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { withTenantRlsContext } from "@/lib/db-rls";
 
 /**
  * GET /api/oai-pmh?verb=Identify
@@ -20,6 +22,8 @@ const BASE_URL = `${APP_BASE_URL}/api/oai-pmh`;
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const verb = searchParams.get("verb") || "Identify";
+  const tenant = await resolveTenantFromHeaders(req.headers);
+  const tenantId = tenant?.id ?? null;
 
   if (verb === "Identify") {
     return xmlResponse(`<?xml version="1.0" encoding="UTF-8"?>
@@ -76,7 +80,7 @@ export async function GET(req: NextRequest) {
     // Direct indexed lookup by primary key, not a full-table scan — safe
     // now that the identifier scheme is reversible (see buildOaiId).
     const article = id
-      ? await db.article.findUnique({ where: { id }, include: { journal: true, issue: true } })
+      ? await withTenantRlsContext(tenantId, (tx) => tx.article.findUnique({ where: { id }, include: { journal: true, issue: true } }))
       : null;
     if (!article || article.status !== "PUBLISHED") {
       return errorResponse(verb, "idDoesNotExist", `No matching record for identifier: ${identifier}`);
@@ -94,7 +98,7 @@ ${buildRecordXml(article)}
   }
 
   if (verb === "ListRecords") {
-    const page = await resolveHarvestPage(searchParams, verb);
+    const page = await resolveHarvestPage(searchParams, verb, tenantId);
     if (page instanceof NextResponse) return page;
 
     const records = page.articles.map(buildRecordXml).join("\n");
@@ -106,7 +110,7 @@ ${buildRecordXml(article)}
     // returns only <header> elements (no <metadata>) — the OAI-PMH verb a
     // harvester uses to enumerate identifiers/datestamps cheaply before
     // deciding which records to actually fetch via GetRecord.
-    const page = await resolveHarvestPage(searchParams, verb);
+    const page = await resolveHarvestPage(searchParams, verb, tenantId);
     if (page instanceof NextResponse) return page;
 
     const headers = page.articles.map(buildHeaderXml).join("\n");
@@ -114,11 +118,13 @@ ${buildRecordXml(article)}
   }
 
   if (verb === "ListSets") {
-    const disciplines = await db.article.findMany({
-      where: { status: "PUBLISHED" },
-      select: { discipline: true },
-      distinct: ["discipline"],
-    });
+    const disciplines = await withTenantRlsContext(tenantId, (tx) =>
+      tx.article.findMany({
+        where: { status: "PUBLISHED" },
+        select: { discipline: true },
+        distinct: ["discipline"],
+      })
+    );
     const sets = disciplines
       .map((d) => {
         const spec = d.discipline.toLowerCase().replace(/\s+/g, "_");
@@ -149,7 +155,8 @@ ${sets}
 // ---------------------------------------------------------------------------
 async function resolveHarvestPage(
   searchParams: URLSearchParams,
-  verb: string
+  verb: string,
+  tenantId: string | null
 ): Promise<{ articles: any[]; nextToken: string | null; completeListSize: number } | NextResponse> {
   const PAGE_SIZE = 100;
   const tokenParam = searchParams.get("resumptionToken");
@@ -197,12 +204,14 @@ async function resolveHarvestPage(
       }
     : where;
 
-  const articles = await db.article.findMany({
-    where: queryWhere,
-    include: { journal: true, issue: true },
-    orderBy: [{ publishedAt: "desc" }, { id: "desc" }],
-    take: PAGE_SIZE,
-  });
+  const articles = await withTenantRlsContext(tenantId, (tx) =>
+    tx.article.findMany({
+      where: queryWhere,
+      include: { journal: true, issue: true },
+      orderBy: [{ publishedAt: "desc" }, { id: "desc" }],
+      take: PAGE_SIZE,
+    })
+  );
 
   if (articles.length === 0) {
     // Only reachable on a resumptionToken continuation (we only issue a
@@ -212,7 +221,7 @@ async function resolveHarvestPage(
     return errorResponse(verb, "noRecordsMatch", "No records match the given selective-harvesting criteria");
   }
 
-  const completeListSize = await db.article.count({ where });
+  const completeListSize = await withTenantRlsContext(tenantId, (tx) => tx.article.count({ where }));
   const last = articles[articles.length - 1];
   const hasMore = articles.length === PAGE_SIZE;
   const nextToken = hasMore

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { PRIVILEGED_ROLES_LIST as PRIVILEGED_ROLES } from "@/lib/roles";
+import { withRlsContext } from "@/lib/db-rls";
 
 /**
  * POST /api/podcasts/[id]/episodes
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { session } = auth;
 
   const { id: podcastId } = await params;
-  const podcast = await db.podcast.findUnique({ where: { id: podcastId } });
+  const podcast = await withRlsContext(session, (tx) => tx.podcast.findUnique({ where: { id: podcastId } }));
   if (!podcast) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const body = (await req.json()) as {

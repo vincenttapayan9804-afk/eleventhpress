@@ -4,6 +4,8 @@ import { getSessionFromHeaders } from "@/lib/auth";
 import { isSameEditorialTenant } from "@/lib/tenant-auth";
 import { generateEmbedding } from "@/lib/embeddings";
 import { cosineSimilarity } from "@/lib/vector-math";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { withRlsContext, withTenantRlsContext } from "@/lib/db-rls";
 
 /**
  * GET /api/articles/assign-reviewer?articleId=...
@@ -26,7 +28,10 @@ export async function GET(req: NextRequest) {
   if (!articleId) {
     return NextResponse.json({ error: "articleId required" }, { status: 400 });
   }
-  const article = await db.article.findUnique({ where: { id: articleId }, include: { journal: true } });
+  const tenant = await resolveTenantFromHeaders(req.headers);
+  const article = await withTenantRlsContext(tenant?.id ?? null, (tx) =>
+    tx.article.findUnique({ where: { id: articleId }, include: { journal: true } })
+  );
   if (!article) {
     return NextResponse.json({ error: "Article not found" }, { status: 404 });
   }
@@ -103,7 +108,9 @@ export async function POST(req: NextRequest) {
     dueDate?: string;
   };
 
-  const targetArticle = await db.article.findUnique({ where: { id: articleId }, include: { journal: true } });
+  const targetArticle = await withRlsContext(session, (tx) =>
+    tx.article.findUnique({ where: { id: articleId }, include: { journal: true } })
+  );
   if (!targetArticle) {
     return NextResponse.json({ error: "Article not found" }, { status: 404 });
   }
