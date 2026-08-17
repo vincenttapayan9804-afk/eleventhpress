@@ -1,0 +1,366 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/api-client";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
+import {
+  Globe,
+  Loader2,
+  Plus,
+  CheckCircle2,
+  Clock,
+  Trash2,
+  ChevronDown,
+  ChevronRight,
+  ShieldCheck,
+  Copy,
+} from "lucide-react";
+
+interface TenantDomain {
+  id: string;
+  hostname: string;
+  isPrimary: boolean;
+  verified: boolean;
+  vercelAdded: boolean;
+  verificationToken: string | null;
+  createdAt: string;
+}
+
+interface Tenant {
+  id: string;
+  slug: string;
+  name: string;
+  status: string;
+  isPlatform: boolean;
+  domainCount: number;
+  userCount: number;
+  domains: TenantDomain[];
+}
+
+/**
+ * SUPER_ADMIN-only tenant + custom domain management (Whitelabel Phase 3).
+ * Creates tenants, adds custom domains, runs the DNS TXT verification
+ * challenge, and reports Vercel SSL-provisioning status — all against the
+ * platform-level /api/admin/tenants API (there's no tenant-scoped admin
+ * role yet; that's Phase 4).
+ */
+export function TenantsTab() {
+  const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [newSlug, setNewSlug] = useState("");
+  const [newName, setNewName] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [newHostname, setNewHostname] = useState<Record<string, string>>({});
+  const [addingDomainFor, setAddingDomainFor] = useState<string | null>(null);
+  const [verifyingId, setVerifyingId] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const res = await apiFetch<{ tenants: Tenant[] }>("/api/admin/tenants");
+      setTenants(res.tenants);
+    } catch (e: any) {
+      toast.error(e.message || "Failed to load tenants");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function createTenant() {
+    if (!newSlug.trim() || !newName.trim()) {
+      toast.error("Slug and name are required");
+      return;
+    }
+    setCreating(true);
+    try {
+      await apiFetch("/api/admin/tenants", {
+        method: "POST",
+        body: JSON.stringify({ slug: newSlug.trim(), name: newName.trim() }),
+      });
+      toast.success(`Tenant "${newName}" created`);
+      setNewSlug("");
+      setNewName("");
+      await load();
+    } catch (e: any) {
+      toast.error(e.message || "Failed to create tenant");
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function addDomain(tenantId: string) {
+    const hostname = (newHostname[tenantId] || "").trim();
+    if (!hostname) {
+      toast.error("Enter a hostname");
+      return;
+    }
+    setAddingDomainFor(tenantId);
+    try {
+      await apiFetch(`/api/admin/tenants/${tenantId}/domains`, {
+        method: "POST",
+        body: JSON.stringify({ hostname }),
+      });
+      toast.success(`Added "${hostname}" — publish the TXT record shown below, then click Verify.`);
+      setNewHostname((prev) => ({ ...prev, [tenantId]: "" }));
+      await load();
+    } catch (e: any) {
+      toast.error(e.message || "Failed to add domain");
+    } finally {
+      setAddingDomainFor(null);
+    }
+  }
+
+  async function verifyDomain(tenantId: string, domainId: string) {
+    setVerifyingId(domainId);
+    try {
+      const res = await apiFetch<{ verified: boolean; vercel?: { ok: boolean; note?: string } }>(
+        `/api/admin/tenants/${tenantId}/domains/${domainId}/verify`,
+        { method: "POST" }
+      );
+      if (res.vercel?.ok) {
+        toast.success("Domain verified and added to Vercel — SSL will provision automatically.");
+      } else {
+        toast.success(`Domain verified. ${res.vercel?.note || "Add it to the Vercel project manually for SSL."}`);
+      }
+      await load();
+    } catch (e: any) {
+      toast.error(e.message || "Verification failed");
+    } finally {
+      setVerifyingId(null);
+    }
+  }
+
+  async function removeDomain(tenantId: string, domainId: string) {
+    setRemovingId(domainId);
+    try {
+      await apiFetch(`/api/admin/tenants/${tenantId}/domains/${domainId}`, { method: "DELETE" });
+      toast.success("Domain removed");
+      await load();
+    } catch (e: any) {
+      toast.error(e.message || "Failed to remove domain");
+    } finally {
+      setRemovingId(null);
+    }
+  }
+
+  function copyToken(token: string) {
+    navigator.clipboard.writeText(token);
+    toast.success("Token copied");
+  }
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-32">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      <Card className="paper-card">
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <Globe className="h-4 w-4 text-primary" />
+            <p className="eyebrow">New tenant</p>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Creates an isolated tenant with its own branding and, once a custom domain is verified
+            below, its own hostname.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+            <div className="space-y-1.5">
+              <Label htmlFor="newSlug">Slug</Label>
+              <Input id="newSlug" placeholder="harvard" value={newSlug} onChange={(e) => setNewSlug(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="newName">Name</Label>
+              <Input id="newName" placeholder="Harvard University Press" value={newName} onChange={(e) => setNewName(e.target.value)} />
+            </div>
+            <Button onClick={createTenant} disabled={creating}>
+              {creating ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Plus className="mr-1.5 h-3.5 w-3.5" />}
+              Create
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="paper-card">
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-primary" />
+            <p className="eyebrow">{tenants.length} tenant{tenants.length === 1 ? "" : "s"}</p>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {tenants.map((t) => (
+              <div key={t.id} className="rounded-md border border-border">
+                <button
+                  type="button"
+                  onClick={() => setExpanded(expanded === t.id ? null : t.id)}
+                  className="flex w-full items-center justify-between gap-3 p-4 text-left"
+                >
+                  <div className="flex min-w-0 items-center gap-2">
+                    {expanded === t.id ? (
+                      <ChevronDown className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                    )}
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="font-display text-base font-semibold">{t.name}</h3>
+                        {t.isPlatform && (
+                          <Badge variant="outline" className="border-primary/30 bg-primary/5 text-[0.6rem] text-primary">
+                            PLATFORM
+                          </Badge>
+                        )}
+                        <Badge
+                          variant="outline"
+                          className={`text-[0.6rem] ${
+                            t.status === "ACTIVE"
+                              ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                              : "border-amber-300 bg-amber-50 text-amber-700"
+                          }`}
+                        >
+                          {t.status}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {t.slug} · {t.domainCount} domain{t.domainCount === 1 ? "" : "s"} · {t.userCount} user{t.userCount === 1 ? "" : "s"}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+
+                {expanded === t.id && (
+                  <div className="border-t border-border p-4 pt-3">
+                    <div className="space-y-2">
+                      {t.domains.length === 0 && (
+                        <p className="text-xs text-muted-foreground">No domains yet.</p>
+                      )}
+                      {t.domains.map((d) => (
+                        <div key={d.id} className="rounded-md border border-border/70 p-3">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <code className="font-mono text-xs">{d.hostname}</code>
+                              {d.isPrimary && (
+                                <Badge variant="outline" className="text-[0.6rem]">
+                                  primary
+                                </Badge>
+                              )}
+                              {d.verified ? (
+                                <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-[0.6rem] text-emerald-700">
+                                  <CheckCircle2 className="mr-1 h-3 w-3" /> verified
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="border-amber-300 bg-amber-50 text-[0.6rem] text-amber-700">
+                                  <Clock className="mr-1 h-3 w-3" /> pending
+                                </Badge>
+                              )}
+                              {d.verified && (
+                                <Badge
+                                  variant="outline"
+                                  className={`text-[0.6rem] ${
+                                    d.vercelAdded
+                                      ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                                      : "border-stone-300 bg-stone-100 text-stone-700"
+                                  }`}
+                                >
+                                  {d.vercelAdded ? "SSL provisioning" : "SSL not configured"}
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              {!d.verified && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 px-2 text-[0.7rem]"
+                                  disabled={verifyingId === d.id}
+                                  onClick={() => verifyDomain(t.id, d.id)}
+                                >
+                                  {verifyingId === d.id && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+                                  Verify
+                                </Button>
+                              )}
+                              {!d.isPrimary && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 px-2 text-destructive"
+                                  disabled={removingId === d.id}
+                                  onClick={() => removeDomain(t.id, d.id)}
+                                >
+                                  {removingId === d.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                          {!d.verified && d.verificationToken && (
+                            <div className="mt-2 rounded bg-muted/50 p-2 text-[0.7rem]">
+                              <p className="text-muted-foreground">
+                                Add a TXT record at <code className="font-mono">_ep-verify.{d.hostname}</code> with this value:
+                              </p>
+                              <div className="mt-1 flex items-center gap-1.5">
+                                <code className="flex-1 truncate rounded bg-background px-1.5 py-1 font-mono">{d.verificationToken}</code>
+                                <Button size="sm" variant="ghost" className="h-6 px-1.5" onClick={() => copyToken(d.verificationToken!)}>
+                                  <Copy className="h-3 w-3" />
+                                </Button>
+                              </div>
+                              <p className="mt-1 text-muted-foreground">
+                                Then point the domain at Vercel (CNAME → cname.vercel-dns.com, or A → 76.76.21.21 for an apex domain).
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    <Separator className="my-3" />
+
+                    <div className="flex flex-wrap items-end gap-2">
+                      <div className="min-w-[220px] flex-1 space-y-1.5">
+                        <Label htmlFor={`domain-${t.id}`} className="text-xs">
+                          Add custom domain
+                        </Label>
+                        <Input
+                          id={`domain-${t.id}`}
+                          placeholder="journals.example.edu"
+                          value={newHostname[t.id] || ""}
+                          onChange={(e) => setNewHostname((prev) => ({ ...prev, [t.id]: e.target.value }))}
+                        />
+                      </div>
+                      <Button
+                        size="sm"
+                        disabled={addingDomainFor === t.id}
+                        onClick={() => addDomain(t.id)}
+                      >
+                        {addingDomainFor === t.id ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Plus className="mr-1.5 h-3.5 w-3.5" />}
+                        Add
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
