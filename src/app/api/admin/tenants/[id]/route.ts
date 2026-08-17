@@ -5,6 +5,7 @@ import { requireRole } from "@/lib/auth";
 import { requireTenantScope } from "@/lib/tenant-auth";
 import { TENANT_SCOPED_ADMIN_ROLES } from "@/lib/roles";
 import { parseBody } from "@/lib/validate";
+import { withRlsContext } from "@/lib/db-rls";
 
 const UpdateTenantSchema = z.object({
   name: z.string().trim().min(1).max(200).optional(),
@@ -70,14 +71,18 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   // a tenantId that no longer resolves to anything. Block it here instead;
   // /api/admin/tenants/[id]/purge is the endpoint for tenants that do have
   // content to clean up.
-  const [bookCount, magazineCount, podcastCount, mediaPostCount, collectionCount, journalCount] = await Promise.all([
-    db.book.count({ where: { tenantId: id } }),
-    db.magazine.count({ where: { tenantId: id } }),
-    db.podcast.count({ where: { tenantId: id } }),
-    db.mediaPost.count({ where: { tenantId: id } }),
-    db.collection.count({ where: { tenantId: id } }),
-    db.journal.count({ where: { tenantId: id } }),
-  ]);
+  const [bookCount, magazineCount, podcastCount, mediaPostCount, collectionCount, journalCount] = await withRlsContext(
+    auth.session,
+    (tx) =>
+      Promise.all([
+        tx.book.count({ where: { tenantId: id } }),
+        tx.magazine.count({ where: { tenantId: id } }),
+        tx.podcast.count({ where: { tenantId: id } }),
+        tx.mediaPost.count({ where: { tenantId: id } }),
+        tx.collection.count({ where: { tenantId: id } }),
+        tx.journal.count({ where: { tenantId: id } }),
+      ])
+  );
   const contentCount = bookCount + magazineCount + podcastCount + mediaPostCount + collectionCount + journalCount;
   if (contentCount > 0) {
     return NextResponse.json(

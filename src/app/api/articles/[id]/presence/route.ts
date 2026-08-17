@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { extractRequestIp } from "@/lib/institutions";
 import { checkRateLimit } from "@/lib/ratelimit";
 import { heartbeatPresence, getPresenceCount } from "@/lib/presence";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { withTenantRlsContext } from "@/lib/db-rls";
 
 /**
  * POST /api/articles/[id]/presence
@@ -34,7 +36,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "sessionId is required" }, { status: 400 });
   }
 
-  const article = await db.article.findUnique({ where: { id: articleId }, select: { status: true } });
+  const tenant = await resolveTenantFromHeaders(req.headers);
+  const article = await withTenantRlsContext(tenant?.id ?? null, (tx) =>
+    tx.article.findUnique({ where: { id: articleId }, select: { status: true } })
+  );
   if (!article || article.status !== "PUBLISHED") {
     return NextResponse.json({ error: "Article not found" }, { status: 404 });
   }

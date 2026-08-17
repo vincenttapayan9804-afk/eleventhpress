@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getObject } from "@/lib/storage";
 import { extractTables, isChartable } from "@/lib/data-tables";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { withTenantRlsContext } from "@/lib/db-rls";
 
 /**
  * GET /api/articles/[id]/data-tables
@@ -20,10 +22,13 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const article = await db.article.findUnique({
-    where: { id },
-    select: { status: true, galleyHtmlKey: true },
-  });
+  const tenant = await resolveTenantFromHeaders(req.headers);
+  const article = await withTenantRlsContext(tenant?.id ?? null, (tx) =>
+    tx.article.findUnique({
+      where: { id },
+      select: { status: true, galleyHtmlKey: true },
+    })
+  );
   if (!article || article.status !== "PUBLISHED" || !article.galleyHtmlKey) {
     return NextResponse.json({ tables: [] });
   }

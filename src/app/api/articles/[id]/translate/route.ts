@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { translateAbstract, TRANSLATABLE_LOCALES, type TranslatableLocale } from "@/lib/manuscript-checks";
+import { withRlsContext } from "@/lib/db-rls";
 
 /**
  * POST /api/articles/[id]/translate
@@ -26,7 +27,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: `locale must be one of ${TRANSLATABLE_LOCALES.join(", ")}` }, { status: 400 });
   }
 
-  const article = await db.article.findUnique({ where: { id } });
+  const article = await withRlsContext(session, (tx) => tx.article.findUnique({ where: { id } }));
   if (!article) {
     return NextResponse.json({ error: "Article not found" }, { status: 404 });
   }

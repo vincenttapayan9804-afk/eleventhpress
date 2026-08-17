@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { verifySushiApiKey } from "@/lib/institutions";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { withTenantRlsContext } from "@/lib/db-rls";
 
 /**
  * GET /api/reports/counter
@@ -66,12 +68,15 @@ export async function GET(req: NextRequest) {
 
   // For articles with no recorded events, synthesise plausible metrics from
   // the Article.views / Article.downloads fields so the report is meaningful.
-  const publishedArticles = await db.article.findMany({
-    where: {
-      status: "PUBLISHED",
-      publishedAt: { gte: begin, lte: end },
-    },
-  });
+  const tenant = await resolveTenantFromHeaders(req.headers);
+  const publishedArticles = await withTenantRlsContext(tenant?.id ?? null, (tx) =>
+    tx.article.findMany({
+      where: {
+        status: "PUBLISHED",
+        publishedAt: { gte: begin, lte: end },
+      },
+    })
+  );
 
   const report = buildReport(reportType, publishedArticles, events, beginDate, endDate, customerId, requestorId);
   return NextResponse.json(report, {

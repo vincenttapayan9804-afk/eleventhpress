@@ -5,6 +5,8 @@ import { recordCounterEvent } from "@/lib/institutions";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { stampPdf, stampEpub, type DownloadStamp } from "@/lib/watermark";
 import { APP_BASE_URL } from "@/lib/site";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { withTenantRlsContext } from "@/lib/db-rls";
 
 /**
  * GET /api/articles/[id]/galley?format=pdf|html|jats|epub
@@ -39,10 +41,13 @@ export async function GET(
     return NextResponse.json({ error: "format must be pdf, html, jats, or epub" }, { status: 400 });
   }
 
-  const article = await db.article.findUnique({
-    where: { id },
-    include: { journal: true, issue: true },
-  });
+  const tenant = await resolveTenantFromHeaders(req.headers);
+  const article = await withTenantRlsContext(tenant?.id ?? null, (tx) =>
+    tx.article.findUnique({
+      where: { id },
+      include: { journal: true, issue: true },
+    })
+  );
   if (!article) {
     return NextResponse.json({ error: "Article not found" }, { status: 404 });
   }

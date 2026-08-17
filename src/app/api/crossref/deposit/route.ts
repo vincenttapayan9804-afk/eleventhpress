@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { depositToCrossref, isLiveMode, buildDoiBatchXml } from "@/lib/crossref";
 import { APP_BASE_URL } from "@/lib/site";
+import { withRlsContext } from "@/lib/db-rls";
 
 /**
  * POST /api/crossref/deposit
@@ -22,10 +23,12 @@ export async function POST(req: NextRequest) {
   }
 
   const { articleId } = (await req.json()) as { articleId: string };
-  const article = await db.article.findUnique({
-    where: { id: articleId },
-    include: { journal: true, issue: true },
-  });
+  const article = await withRlsContext(session, (tx) =>
+    tx.article.findUnique({
+      where: { id: articleId },
+      include: { journal: true, issue: true },
+    })
+  );
   if (!article) {
     return NextResponse.json({ error: "Article not found" }, { status: 404 });
   }

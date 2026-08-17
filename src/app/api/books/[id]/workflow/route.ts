@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { runBookProductionJob } from "@/lib/book-production";
 import { PRIVILEGED_ROLES_LIST as PRIVILEGED_ROLES } from "@/lib/roles";
+import { withRlsContext } from "@/lib/db-rls";
 
 const ACTIONS: Record<string, { from: string[]; to: string }> = {
   SEND_TO_REVIEW: { from: ["SUBMITTED"], to: "UNDER_REVIEW" },
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: `action must be one of ${Object.keys(ACTIONS).join(", ")}` }, { status: 400 });
   }
 
-  const book = await db.book.findUnique({ where: { id } });
+  const book = await withRlsContext(session, (tx) => tx.book.findUnique({ where: { id } }));
   if (!book) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (!transition.from.includes(book.status)) {
     return NextResponse.json({ error: `Cannot ${action} a book in status ${book.status}` }, { status: 400 });
@@ -70,7 +71,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     await runBookProductionJob(job.id, session.userId, { status: "QUEUED" });
     const finished = await db.bookProductionJob.findUnique({ where: { id: job.id } });
     return NextResponse.json({
-      book: await db.book.findUnique({ where: { id } }),
+      book: await withRlsContext(session, (tx) => tx.book.findUnique({ where: { id } })),
       productionJob: finished,
     });
   }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { PRIVILEGED_ROLES_LIST as PRIVILEGED_ROLES } from "@/lib/roles";
+import { withRlsContext } from "@/lib/db-rls";
 
 const ACTIONS: Record<string, { from: string[]; to: string }> = {
   PUBLISH: { from: ["DRAFT"], to: "PUBLISHED" },
@@ -23,7 +24,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: `action must be one of ${Object.keys(ACTIONS).join(", ")}` }, { status: 400 });
   }
 
-  const post = await db.mediaPost.findUnique({ where: { id } });
+  const post = await withRlsContext(session, (tx) => tx.mediaPost.findUnique({ where: { id } }));
   if (!post) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (!transition.from.includes(post.status)) {
     return NextResponse.json({ error: `Cannot ${action} a post in status ${post.status}` }, { status: 400 });

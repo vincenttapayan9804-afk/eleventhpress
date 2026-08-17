@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { withRlsContext, withTenantRlsContext } from "@/lib/db-rls";
 
 /**
  * POST /api/articles/open-review
@@ -32,10 +34,12 @@ export async function POST(req: NextRequest) {
     openReview: boolean;
   };
 
-  const article = await db.article.findUnique({
-    where: { id: articleId },
-    include: { reviews: { include: { reviewer: true } } },
-  });
+  const article = await withRlsContext(session, (tx) =>
+    tx.article.findUnique({
+      where: { id: articleId },
+      include: { reviews: { include: { reviewer: true } } },
+    })
+  );
   if (!article) {
     return NextResponse.json({ error: "Article not found" }, { status: 404 });
   }
@@ -95,10 +99,13 @@ export async function GET(req: NextRequest) {
   const articleId = searchParams.get("articleId");
   if (!articleId) return NextResponse.json({ error: "articleId required" }, { status: 400 });
 
-  const article = await db.article.findUnique({
-    where: { id: articleId },
-    select: { openReview: true, title: true },
-  });
+  const tenant = await resolveTenantFromHeaders(req.headers);
+  const article = await withTenantRlsContext(tenant?.id ?? null, (tx) =>
+    tx.article.findUnique({
+      where: { id: articleId },
+      select: { openReview: true, title: true },
+    })
+  );
   if (!article) return NextResponse.json({ error: "Article not found" }, { status: 404 });
 
   if (!article.openReview) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
+import { withRlsContext } from "@/lib/db-rls";
 import { PRESERVATION_PROVIDERS, PRESERVATION_STATUSES, type PreservationProvider, type PreservationStatus } from "@/lib/preservation";
 
 /**
@@ -18,7 +19,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
-  const journal = await db.journal.findFirst();
+  const journal = await withRlsContext(auth.session, (tx) => tx.journal.findFirst());
   if (!journal) {
     return NextResponse.json({ deposits: [] });
   }
@@ -71,7 +72,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: `status must be one of ${PRESERVATION_STATUSES.join(", ")}` }, { status: 400 });
   }
 
-  const journal = await db.journal.findUnique({ where: { id: body.journalId } });
+  const journal = await withRlsContext(session, (tx) => tx.journal.findUnique({ where: { id: body.journalId } }));
   if (!journal) {
     return NextResponse.json({ error: "Journal not found" }, { status: 404 });
   }

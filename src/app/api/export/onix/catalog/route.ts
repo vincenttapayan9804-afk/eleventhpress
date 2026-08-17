@@ -1,7 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { buildOnixMessage } from "@/lib/onix";
 import { APP_BASE_URL } from "@/lib/site";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { withTenantRlsContext } from "@/lib/db-rls";
 
 /**
  * GET /api/export/onix/catalog
@@ -13,11 +15,14 @@ import { APP_BASE_URL } from "@/lib/site";
  * feeds this platform already publishes (OAI-PMH, sitemap, OJS export) —
  * it only ever exposes already-public, already-published book metadata.
  */
-export async function GET() {
-  const books = await db.book.findMany({
-    where: { status: "PUBLISHED" },
-    orderBy: { publishedAt: "desc" },
-  });
+export async function GET(req: NextRequest) {
+  const tenant = await resolveTenantFromHeaders(req.headers);
+  const books = await withTenantRlsContext(tenant?.id ?? null, (tx) =>
+    tx.book.findMany({
+      where: { status: "PUBLISHED" },
+      orderBy: { publishedAt: "desc" },
+    })
+  );
 
   const xml = buildOnixMessage(
     books.map((b) => ({

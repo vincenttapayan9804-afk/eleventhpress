@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { PREPRINT_ELIGIBLE_STATUSES } from "@/lib/article";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { withTenantRlsContext } from "@/lib/db-rls";
 
 /**
  * GET /api/preprints?page=1&pageSize=20
@@ -20,25 +22,28 @@ export async function GET(req: NextRequest) {
 
   const where = { isPreprint: true, status: { in: PREPRINT_ELIGIBLE_STATUSES } };
 
-  const [rows, total] = await Promise.all([
-    db.article.findMany({
-      where,
-      orderBy: { preprintPostedAt: "desc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-      select: {
-        id: true,
-        title: true,
-        abstract: true,
-        keywords: true,
-        discipline: true,
-        authors: true,
-        status: true,
-        preprintPostedAt: true,
-      },
-    }),
-    db.article.count({ where }),
-  ]);
+  const tenant = await resolveTenantFromHeaders(req.headers);
+  const [rows, total] = await withTenantRlsContext(tenant?.id ?? null, (tx) =>
+    Promise.all([
+      tx.article.findMany({
+        where,
+        orderBy: { preprintPostedAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        select: {
+          id: true,
+          title: true,
+          abstract: true,
+          keywords: true,
+          discipline: true,
+          authors: true,
+          status: true,
+          preprintPostedAt: true,
+        },
+      }),
+      tx.article.count({ where }),
+    ])
+  );
 
   return NextResponse.json({ items: rows, total, page, pageSize });
 }

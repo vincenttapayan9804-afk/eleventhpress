@@ -4,6 +4,7 @@ import { getSessionFromHeaders } from "@/lib/auth";
 import { correctionTypeToIntegrityStatus, CorrectionType, CORRECTION_TYPE_LABELS } from "@/lib/article";
 import { depositToCrossref, depositCrossmarkUpdate } from "@/lib/crossref";
 import { APP_BASE_URL } from "@/lib/site";
+import { withRlsContext } from "@/lib/db-rls";
 
 /**
  * GET /api/articles/[id]/corrections
@@ -59,10 +60,12 @@ export async function POST(
     return NextResponse.json({ error: "title and description are required" }, { status: 400 });
   }
 
-  const article = await db.article.findUnique({
-    where: { id },
-    include: { journal: true, issue: true },
-  });
+  const article = await withRlsContext(session, (tx) =>
+    tx.article.findUnique({
+      where: { id },
+      include: { journal: true, issue: true },
+    })
+  );
   if (!article) {
     return NextResponse.json({ error: "Article not found" }, { status: 404 });
   }

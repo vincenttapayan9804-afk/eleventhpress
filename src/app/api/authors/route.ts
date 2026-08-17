@@ -1,7 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { parseAuthors } from "@/lib/article";
 import { fetchAuthorCitationMetrics, computeHIndex } from "@/lib/citation-metrics";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { withTenantRlsContext } from "@/lib/db-rls";
 
 /**
  * GET /api/authors
@@ -39,22 +41,25 @@ import { fetchAuthorCitationMetrics, computeHIndex } from "@/lib/citation-metric
  */
 const ORCID_LOOKUP_CONCURRENCY = 5;
 
-export async function GET() {
-  const articles = await db.article.findMany({
-    where: { status: "PUBLISHED" },
-    select: {
-      id: true,
-      title: true,
-      discipline: true,
-      authors: true,
-      publishedAt: true,
-      doi: true,
-      views: true,
-      downloads: true,
-      citations: true,
-    },
-    orderBy: { publishedAt: "desc" },
-  });
+export async function GET(req: NextRequest) {
+  const tenant = await resolveTenantFromHeaders(req.headers);
+  const articles = await withTenantRlsContext(tenant?.id ?? null, (tx) =>
+    tx.article.findMany({
+      where: { status: "PUBLISHED" },
+      select: {
+        id: true,
+        title: true,
+        discipline: true,
+        authors: true,
+        publishedAt: true,
+        doi: true,
+        views: true,
+        downloads: true,
+        citations: true,
+      },
+      orderBy: { publishedAt: "desc" },
+    })
+  );
 
   interface Entry {
     key: string;

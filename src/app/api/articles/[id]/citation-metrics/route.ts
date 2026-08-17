@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { fetchWorkCitationMetrics } from "@/lib/citation-metrics";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { withTenantRlsContext } from "@/lib/db-rls";
 
 /**
  * GET /api/articles/[id]/citation-metrics
@@ -23,10 +25,13 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const article = await db.article.findUnique({
-    where: { id },
-    select: { status: true, doi: true },
-  });
+  const tenant = await resolveTenantFromHeaders(req.headers);
+  const article = await withTenantRlsContext(tenant?.id ?? null, (tx) =>
+    tx.article.findUnique({
+      where: { id },
+      select: { status: true, doi: true },
+    })
+  );
 
   if (!article || article.status !== "PUBLISHED" || !article.doi) {
     return NextResponse.json({ available: false, reason: "no_doi" });

@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { depositToZenodo } from "@/lib/zenodo";
 import { parseAuthors } from "@/lib/article";
+import { withRlsContext } from "@/lib/db-rls";
 
 /**
  * POST /api/datasets/zenodo
@@ -29,10 +30,12 @@ export async function POST(req: NextRequest) {
     accessRight: string;
   };
 
-  const article = await db.article.findUnique({
-    where: { id: body.articleId },
-    select: { id: true, title: true, authors: true, doi: true, correspondingAuthorId: true },
-  });
+  const article = await withRlsContext(session, (tx) =>
+    tx.article.findUnique({
+      where: { id: body.articleId },
+      select: { id: true, title: true, authors: true, doi: true, correspondingAuthorId: true },
+    })
+  );
   if (!article) {
     return NextResponse.json({ error: "Article not found" }, { status: 404 });
   }

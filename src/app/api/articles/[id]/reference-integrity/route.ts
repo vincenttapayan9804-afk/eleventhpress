@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { checkReferencesForRetractions } from "@/lib/retraction-watch";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { withTenantRlsContext } from "@/lib/db-rls";
 
 /**
  * GET /api/articles/[id]/reference-integrity
@@ -13,7 +15,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const article = await db.article.findUnique({ where: { id }, select: { status: true } });
+  const tenant = await resolveTenantFromHeaders(req.headers);
+  const article = await withTenantRlsContext(tenant?.id ?? null, (tx) =>
+    tx.article.findUnique({ where: { id }, select: { status: true } })
+  );
   if (!article || article.status !== "PUBLISHED") {
     return NextResponse.json({ everSynced: false, syncedAt: null, flagged: [] });
   }

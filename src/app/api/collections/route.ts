@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { resolveTenantFromHeaders } from "@/lib/tenant";
-import { withTenantRlsContext } from "@/lib/db-rls";
+import { withRlsContext, withTenantRlsContext } from "@/lib/db-rls";
 
 const EDITOR_ROLES = ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN", "TENANT_ADMIN"];
 
@@ -73,16 +73,18 @@ export async function POST(req: NextRequest) {
   const baseSlug = slugify(title) || "collection";
   let slug = baseSlug;
   let n = 1;
-  while (await db.collection.findUnique({ where: { slug } })) {
+  while (await withRlsContext(session, (tx) => tx.collection.findUnique({ where: { slug } }))) {
     slug = `${baseSlug}-${++n}`;
   }
 
   const validArticleIds = body.articleIds?.length
     ? (
-        await db.article.findMany({
-          where: { id: { in: body.articleIds }, status: "PUBLISHED" },
-          select: { id: true },
-        })
+        await withRlsContext(session, (tx) =>
+          tx.article.findMany({
+            where: { id: { in: body.articleIds }, status: "PUBLISHED" },
+            select: { id: true },
+          })
+        )
       ).map((a) => a.id)
     : [];
 

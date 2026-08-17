@@ -103,10 +103,27 @@ CREATE POLICY auditlog_immutable ON "AuditLog"
 --
 -- SUPER_ADMIN bypasses every one of these (platform staff legitimately see
 -- across all tenants); every other role/session is confined to rows whose
--- tenantId matches app.tenant_id, set per-request by withRlsContext
--- (src/lib/db-rls.ts). A row with tenantId IS NULL (pre-backfill data, or a
--- session with no tenant context at all) matches nothing but SUPER_ADMIN —
--- fails closed rather than open.
+-- tenantId matches app.tenant_id, set per-request by withRlsContext /
+-- withTenantRlsContext (src/lib/db-rls.ts). A row with tenantId IS NULL
+-- (pre-backfill data, or a session with no tenant context at all) matches
+-- nothing but SUPER_ADMIN — fails closed rather than open.
+--
+-- Whitelabel Phase 8 — SELECT-only (FOR SELECT), same convention as
+-- AuditLog's auditlog_read_privileged_only policy above, not the original
+-- blanket USING/WITH CHECK (which covered every command). INSERT/UPDATE/
+-- DELETE on these tables stay ungated at the database layer, same as
+-- AuditLog's inserts: write-side isolation is already enforced at the
+-- application layer (the `where: { tenantId }` filters and
+-- isSameEditorialTenant checks built across Whitelabel Phases 4-7), and
+-- several write-heavy editorial routes (e.g. the article PUBLISH workflow)
+-- interleave DB writes with slow external calls — Crossref/Zenodo deposits,
+-- the pandoc-worker galley pipeline — that must never sit inside one
+-- held DB transaction. Restricting RLS to reads keeps activation's
+-- prerequisite bounded to "every SELECT touching these tables sets
+-- app.tenant_id first," which is a completable, auditable bar; a
+-- write-inclusive policy would require rearchitecting those pipelines
+-- around single transactions purely to satisfy a defense-in-depth layer,
+-- which is not a trade worth making.
 -- ---------------------------------------------------------------------------
 DO $$
 DECLARE
@@ -118,7 +135,7 @@ BEGIN
     EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', t);
     EXECUTE format('DROP POLICY IF EXISTS %I ON %I', t || '_tenant_scoped', t);
     EXECUTE format(
-      'CREATE POLICY %I ON %I USING ("tenantId" = current_setting(''app.tenant_id'', true) OR current_setting(''app.role'', true) = ''SUPER_ADMIN'') WITH CHECK ("tenantId" = current_setting(''app.tenant_id'', true) OR current_setting(''app.role'', true) = ''SUPER_ADMIN'')',
+      'CREATE POLICY %I ON %I FOR SELECT USING ("tenantId" = current_setting(''app.tenant_id'', true) OR current_setting(''app.role'', true) = ''SUPER_ADMIN'')',
       t || '_tenant_scoped', t
     );
   END LOOP;
@@ -134,15 +151,8 @@ ALTER TABLE "Article" FORCE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS article_tenant_scoped ON "Article";
 CREATE POLICY article_tenant_scoped ON "Article"
+  FOR SELECT
   USING (
-    current_setting('app.role', true) = 'SUPER_ADMIN'
-    OR EXISTS (
-      SELECT 1 FROM "Journal" j
-      WHERE j.id = "Article"."journalId"
-        AND j."tenantId" = current_setting('app.tenant_id', true)
-    )
-  )
-  WITH CHECK (
     current_setting('app.role', true) = 'SUPER_ADMIN'
     OR EXISTS (
       SELECT 1 FROM "Journal" j

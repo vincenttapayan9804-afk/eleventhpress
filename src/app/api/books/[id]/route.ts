@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { deleteBookCascade } from "@/lib/book-delete";
+import { withRlsContext } from "@/lib/db-rls";
 
 /**
  * DELETE /api/books/[id]
@@ -26,7 +27,7 @@ export async function DELETE(
   }
 
   const { id } = await params;
-  const book = await db.book.findUnique({ where: { id } });
+  const book = await withRlsContext(session, (tx) => tx.book.findUnique({ where: { id } }));
   if (!book) {
     return NextResponse.json({ error: "Book not found" }, { status: 404 });
   }

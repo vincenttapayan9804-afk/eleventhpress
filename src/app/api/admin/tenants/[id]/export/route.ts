@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireTenantScope } from "@/lib/tenant-auth";
 import { TENANT_SCOPED_ADMIN_ROLES } from "@/lib/roles";
+import { withRlsContext } from "@/lib/db-rls";
 
 /**
  * GET /api/admin/tenants/[id]/export
@@ -28,20 +29,24 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const tenant = await db.tenant.findUnique({ where: { id } });
   if (!tenant) return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
 
-  const [users, books, magazines, podcasts, mediaPosts, collections, journals] = await Promise.all([
-    db.user.findMany({
-      where: { tenantId: id },
-      select: {
-        id: true, email: true, fullName: true, role: true, affiliation: true, country: true, createdAt: true,
-      },
-    }),
-    db.book.findMany({ where: { tenantId: id } }),
-    db.magazine.findMany({ where: { tenantId: id } }),
-    db.podcast.findMany({ where: { tenantId: id } }),
-    db.mediaPost.findMany({ where: { tenantId: id } }),
-    db.collection.findMany({ where: { tenantId: id } }),
-    db.journal.findMany({ where: { tenantId: id }, include: { articles: true, issues: true } }),
-  ]);
+  const [users, books, magazines, podcasts, mediaPosts, collections, journals] = await withRlsContext(
+    auth.session,
+    (tx) =>
+      Promise.all([
+        tx.user.findMany({
+          where: { tenantId: id },
+          select: {
+            id: true, email: true, fullName: true, role: true, affiliation: true, country: true, createdAt: true,
+          },
+        }),
+        tx.book.findMany({ where: { tenantId: id } }),
+        tx.magazine.findMany({ where: { tenantId: id } }),
+        tx.podcast.findMany({ where: { tenantId: id } }),
+        tx.mediaPost.findMany({ where: { tenantId: id } }),
+        tx.collection.findMany({ where: { tenantId: id } }),
+        tx.journal.findMany({ where: { tenantId: id }, include: { articles: true, issues: true } }),
+      ])
+  );
 
   return NextResponse.json({
     exportedAt: new Date().toISOString(),

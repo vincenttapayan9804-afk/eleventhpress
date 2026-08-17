@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { presignGet } from "@/lib/storage";
 import { KOKORO_VOICES, type NarrationContentType } from "@/lib/kokoro-tts";
+import { withRlsContext } from "@/lib/db-rls";
 
 const EDITORIAL_ROLES = ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"];
 
@@ -25,12 +26,14 @@ export async function GET(req: NextRequest) {
   let items: { id: string; title: string; subtitle: string }[] = [];
 
   if (contentType === "ARTICLE") {
-    const rows = await db.article.findMany({
-      where: { status: "PUBLISHED", ...(query ? { title: { contains: query, mode: "insensitive" } } : {}) },
-      select: { id: true, title: true, discipline: true },
-      orderBy: { createdAt: "desc" },
-      take: 50,
-    });
+    const rows = await withRlsContext(auth.session, (tx) =>
+      tx.article.findMany({
+        where: { status: "PUBLISHED", ...(query ? { title: { contains: query, mode: "insensitive" } } : {}) },
+        select: { id: true, title: true, discipline: true },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+      })
+    );
     items = rows.map((r) => ({ id: r.id, title: r.title, subtitle: r.discipline }));
   } else if (contentType === "MAGAZINE_PIECE") {
     const rows = await db.magazinePiece.findMany({
@@ -44,12 +47,14 @@ export async function GET(req: NextRequest) {
     });
     items = rows.map((r) => ({ id: r.id, title: r.title, subtitle: `${r.issue.magazine.name} · ${r.category}` }));
   } else if (contentType === "MEDIA_POST") {
-    const rows = await db.mediaPost.findMany({
-      where: { status: "PUBLISHED", ...(query ? { title: { contains: query, mode: "insensitive" } } : {}) },
-      select: { id: true, title: true, type: true, category: true },
-      orderBy: { createdAt: "desc" },
-      take: 50,
-    });
+    const rows = await withRlsContext(auth.session, (tx) =>
+      tx.mediaPost.findMany({
+        where: { status: "PUBLISHED", ...(query ? { title: { contains: query, mode: "insensitive" } } : {}) },
+        select: { id: true, title: true, type: true, category: true },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+      })
+    );
     items = rows.map((r) => ({ id: r.id, title: r.title, subtitle: `${r.type} · ${r.category}` }));
   } else {
     return NextResponse.json({ error: "contentType must be one of ARTICLE, MAGAZINE_PIECE, MEDIA_POST" }, { status: 400 });

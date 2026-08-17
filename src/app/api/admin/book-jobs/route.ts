@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
+import { withRlsContext } from "@/lib/db-rls";
 
 /**
  * GET /api/admin/book-jobs
@@ -19,10 +20,12 @@ export async function GET(req: NextRequest) {
   });
 
   const bookIds = Array.from(new Set(jobs.map((j) => j.bookId)));
-  const books = await db.book.findMany({
-    where: { id: { in: bookIds } },
-    select: { id: true, title: true },
-  });
+  const books = await withRlsContext(auth.session, (tx) =>
+    tx.book.findMany({
+      where: { id: { in: bookIds } },
+      select: { id: true, title: true },
+    })
+  );
   const titleById = new Map(books.map((b) => [b.id, b.title]));
 
   return NextResponse.json({

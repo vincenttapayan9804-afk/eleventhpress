@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { depositPublishedArticleToZenodo } from "@/lib/zenodo";
+import { withRlsContext } from "@/lib/db-rls";
 
 /**
  * POST /api/zenodo/deposit
@@ -22,7 +23,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { articleId } = (await req.json()) as { articleId: string };
-  const article = await db.article.findUnique({ where: { id: articleId } });
+  const article = await withRlsContext(session, (tx) => tx.article.findUnique({ where: { id: articleId } }));
   if (!article) {
     return NextResponse.json({ error: "Article not found" }, { status: 404 });
   }

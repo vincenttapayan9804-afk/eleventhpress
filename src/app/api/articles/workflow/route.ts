@@ -14,6 +14,7 @@ import { generateGalleysForArticle } from "@/lib/galley-regenerate";
 import { APP_BASE_URL } from "@/lib/site";
 import { APC_USD } from "@/lib/pricing";
 import { upsertArticleDocument, meilisearchLiveMode } from "@/lib/meilisearch";
+import { withRlsContext } from "@/lib/db-rls";
 
 /**
  * POST /api/articles/workflow
@@ -50,10 +51,12 @@ export async function POST(req: NextRequest) {
       note?: string;
     };
 
-    const article = await db.article.findUnique({
-      where: { id: articleId },
-      include: { journal: true, issue: true },
-    });
+    const article = await withRlsContext(session, (tx) =>
+      tx.article.findUnique({
+        where: { id: articleId },
+        include: { journal: true, issue: true },
+      })
+    );
     if (!article) {
       return NextResponse.json({ error: "Article not found" }, { status: 404 });
     }
@@ -319,7 +322,7 @@ export async function POST(req: NextRequest) {
       // isn't verifiable yet (same honesty convention as the glossary/lay
       // summary generation above).
       try {
-        const current = await db.article.findUniqueOrThrow({ where: { id: articleId } });
+        const current = await withRlsContext(session, (tx) => tx.article.findUniqueOrThrow({ where: { id: articleId } }));
         const [pdfBytes, epubBytes] = await Promise.all([
           current.galleyPdfKey ? getObject(current.galleyPdfKey) : Promise.resolve(null),
           current.galleyEpubKey ? getObject(current.galleyEpubKey) : Promise.resolve(null),
@@ -462,7 +465,7 @@ export async function POST(req: NextRequest) {
       // Checks panel). Suggestions are never auto-applied — see
       // src/lib/alt-text.ts — an editor still reviews and applies them
       // there; this only ensures suggestions exist to review by default.
-      db.article.findUnique({ where: { id: articleId }, select: { galleyHtmlKey: true } })
+      withRlsContext(session, (tx) => tx.article.findUnique({ where: { id: articleId }, select: { galleyHtmlKey: true } }))
         .then((a) => {
           if (!a?.galleyHtmlKey) return;
           return db.altTextJob.create({ data: { articleId, status: "QUEUED" } }).then((job) =>
@@ -474,7 +477,7 @@ export async function POST(req: NextRequest) {
       // Accessibility: same auto-generate-but-never-auto-apply treatment
       // as figure alt-text above, for <table> elements — see
       // src/lib/table-accessibility.ts.
-      db.article.findUnique({ where: { id: articleId }, select: { galleyHtmlKey: true } })
+      withRlsContext(session, (tx) => tx.article.findUnique({ where: { id: articleId }, select: { galleyHtmlKey: true } }))
         .then((a) => {
           if (!a?.galleyHtmlKey) return;
           return db.tableAccessibilityJob.create({ data: { articleId, status: "QUEUED" } }).then((job) =>

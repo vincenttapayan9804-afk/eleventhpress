@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSimilarArticles } from "@/lib/manuscript-checks";
 import { getOrGenerateRelationExplanation } from "@/lib/related-explanation";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { withTenantRlsContext } from "@/lib/db-rls";
 
 /**
  * GET /api/articles/[id]/similar?limit=3
@@ -22,10 +24,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ items: [] });
   }
 
-  const rows = await db.article.findMany({
-    where: { id: { in: ranked.map((r) => r.articleId) }, status: "PUBLISHED" },
-    select: { id: true, title: true, discipline: true, citations: true, views: true },
-  });
+  const tenant = await resolveTenantFromHeaders(req.headers);
+  const rows = await withTenantRlsContext(tenant?.id ?? null, (tx) =>
+    tx.article.findMany({
+      where: { id: { in: ranked.map((r) => r.articleId) }, status: "PUBLISHED" },
+      select: { id: true, title: true, discipline: true, citations: true, views: true },
+    })
+  );
   const byId = new Map(rows.map((r) => [r.id, r]));
   const matched = ranked.map((r) => byId.get(r.articleId)).filter((r): r is NonNullable<typeof r> => !!r);
 

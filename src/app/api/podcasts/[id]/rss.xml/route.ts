@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { presignGet } from "@/lib/storage";
 import { buildPodcastRss } from "@/lib/podcast-rss";
 import { APP_BASE_URL } from "@/lib/site";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { withTenantRlsContext } from "@/lib/db-rls";
 
 /**
  * presignGet returns a relative /api/storage/download URL in local-
@@ -28,15 +30,19 @@ async function absoluteAssetUrl(key: string): Promise<string> {
  * fabricating a length would be worse than a validator flagging the
  * omission.
  */
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const podcast = await db.podcast.findUnique({ where: { id } });
+  const tenant = await resolveTenantFromHeaders(req.headers);
+  const [podcast, episodes] = await withTenantRlsContext(tenant?.id ?? null, (tx) =>
+    Promise.all([
+      tx.podcast.findUnique({ where: { id } }),
+      tx.podcastEpisode.findMany({
+        where: { podcastId: id, status: "PUBLISHED", audioKey: { not: null } },
+        orderBy: { publishedAt: "desc" },
+      }),
+    ])
+  );
   if (!podcast) return NextResponse.json({ error: "Not found" }, { status: 404 });
-
-  const episodes = await db.podcastEpisode.findMany({
-    where: { podcastId: id, status: "PUBLISHED", audioKey: { not: null } },
-    orderBy: { publishedAt: "desc" },
-  });
 
   const rssEpisodes = await Promise.all(
     episodes.map(async (e) => ({

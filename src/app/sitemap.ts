@@ -1,6 +1,9 @@
 import type { MetadataRoute } from "next";
+import { headers } from "next/headers";
 import { db } from "@/lib/db";
 import { APP_BASE_URL } from "@/lib/site";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { withTenantRlsContext } from "@/lib/db-rls";
 
 // Next.js treats sitemap.ts as a static metadata route by default and
 // tries to prerender it at build time — this environment (like the rest of
@@ -22,11 +25,14 @@ export const dynamic = "force-dynamic";
  * src/app/page.tsx) — nothing to list here for those until that changes.
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const articles = await db.article.findMany({
-    where: { status: "PUBLISHED" },
-    select: { id: true, publishedAt: true },
-    orderBy: { publishedAt: "desc" },
-  });
+  const tenant = await resolveTenantFromHeaders(await headers());
+  const articles = await withTenantRlsContext(tenant?.id ?? null, (tx) =>
+    tx.article.findMany({
+      where: { status: "PUBLISHED" },
+      select: { id: true, publishedAt: true },
+      orderBy: { publishedAt: "desc" },
+    })
+  );
 
   return [
     { url: APP_BASE_URL, changeFrequency: "daily", priority: 1 },

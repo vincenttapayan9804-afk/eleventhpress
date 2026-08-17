@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { withTenantRlsContext } from "@/lib/db-rls";
 
 /**
  * GET /api/articles/[id]/reviews
@@ -17,21 +19,24 @@ import { db } from "@/lib/db";
  * confidential to the editorial office regardless of review model.
  */
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const article = await db.article.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      title: true,
-      status: true,
-      openReview: true,
-      reviewModel: true,
-      publishedAt: true,
-    },
-  });
+  const tenant = await resolveTenantFromHeaders(req.headers);
+  const article = await withTenantRlsContext(tenant?.id ?? null, (tx) =>
+    tx.article.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        openReview: true,
+        reviewModel: true,
+        publishedAt: true,
+      },
+    })
+  );
 
   if (!article) {
     return NextResponse.json({ error: "Article not found" }, { status: 404 });

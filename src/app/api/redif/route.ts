@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { buildArchiveTemplate, buildSeriesTemplate, buildPaperTemplate } from "@/lib/redif";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { withTenantRlsContext } from "@/lib/db-rls";
 
 /**
  * GET /api/redif?type=archive|series|papers
@@ -16,7 +18,9 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const type = searchParams.get("type") || "archive";
 
-  const journal = await db.journal.findFirst();
+  const tenant = await resolveTenantFromHeaders(req.headers);
+  const tenantId = tenant?.id ?? null;
+  const journal = await withTenantRlsContext(tenantId, (tx) => tx.journal.findFirst());
   if (!journal) {
     return textResponse("% No journal configured yet.");
   }
@@ -30,11 +34,13 @@ export async function GET(req: NextRequest) {
   }
 
   if (type === "papers") {
-    const articles = await db.article.findMany({
-      where: { status: "PUBLISHED" },
-      orderBy: [{ publishedAt: "desc" }],
-      take: 1000,
-    });
+    const articles = await withTenantRlsContext(tenantId, (tx) =>
+      tx.article.findMany({
+        where: { status: "PUBLISHED" },
+        orderBy: [{ publishedAt: "desc" }],
+        take: 1000,
+      })
+    );
     const templates = articles.map((a) => buildPaperTemplate(a)).join("\n\n");
     return textResponse(templates || "% No published articles yet.");
   }

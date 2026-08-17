@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { semanticSearch } from "@/lib/embeddings";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { withTenantRlsContext } from "@/lib/db-rls";
 
 /**
  * GET /api/search/semantic?q=<query>&limit=20
@@ -22,18 +24,21 @@ export async function GET(req: NextRequest) {
   const semanticResults = await semanticSearch(q, { limit: limit * 2 });
 
   // 2. Lexical search (keyword)
-  const lexicalArticles = await db.article.findMany({
-    where: {
-      status: "PUBLISHED",
-      OR: [
-        { title: { contains: q } },
-        { abstract: { contains: q } },
-        { keywords: { contains: q } },
-      ],
-    },
-    take: limit * 2,
-    select: { id: true },
-  });
+  const tenant = await resolveTenantFromHeaders(req.headers);
+  const lexicalArticles = await withTenantRlsContext(tenant?.id ?? null, (tx) =>
+    tx.article.findMany({
+      where: {
+        status: "PUBLISHED",
+        OR: [
+          { title: { contains: q } },
+          { abstract: { contains: q } },
+          { keywords: { contains: q } },
+        ],
+      },
+      take: limit * 2,
+      select: { id: true },
+    })
+  );
 
   // 3. Merge and rank
   const scoreMap = new Map<string, { semantic: number; lexical: boolean }>();
@@ -63,10 +68,12 @@ export async function GET(req: NextRequest) {
 
   // 4. Fetch full article data
   const articleIds = ranked.map((r) => r.articleId);
-  const articles = await db.article.findMany({
-    where: { id: { in: articleIds } },
-    include: { issue: true, journal: true },
-  });
+  const articles = await withTenantRlsContext(tenant?.id ?? null, (tx) =>
+    tx.article.findMany({
+      where: { id: { in: articleIds } },
+      include: { issue: true, journal: true },
+    })
+  );
 
   const articleMap = new Map(articles.map((a) => [a.id, a]));
   const results = ranked

@@ -6,6 +6,8 @@ import { deleteArticleCascade } from "@/lib/article-delete";
 import { recordCounterEvent } from "@/lib/institutions";
 import { resolveAuthorAvatars } from "@/lib/author-accounts";
 import { parseAuthors } from "@/lib/article";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { withRlsContext, withTenantRlsContext } from "@/lib/db-rls";
 
 /**
  * GET /api/articles/[id]
@@ -24,10 +26,13 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const article = await db.article.findUnique({
-    where: { id },
-    include: { issue: true, journal: true, author: true },
-  });
+  const tenant = await resolveTenantFromHeaders(req.headers);
+  const article = await withTenantRlsContext(tenant?.id ?? null, (tx) =>
+    tx.article.findUnique({
+      where: { id },
+      include: { issue: true, journal: true, author: true },
+    })
+  );
   if (!article) {
     return NextResponse.json({ error: "Article not found" }, { status: 404 });
   }
@@ -172,7 +177,7 @@ export async function DELETE(
   }
 
   const { id } = await params;
-  const article = await db.article.findUnique({ where: { id } });
+  const article = await withRlsContext(session, (tx) => tx.article.findUnique({ where: { id } }));
   if (!article) {
     return NextResponse.json({ error: "Article not found" }, { status: 404 });
   }

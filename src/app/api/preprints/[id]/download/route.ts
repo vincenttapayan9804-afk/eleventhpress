@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { presignGet } from "@/lib/storage";
 import { PREPRINT_ELIGIBLE_STATUSES } from "@/lib/article";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { withTenantRlsContext } from "@/lib/db-rls";
 
 /**
  * GET /api/preprints/[id]/download
@@ -14,7 +16,8 @@ import { PREPRINT_ELIGIBLE_STATUSES } from "@/lib/article";
  */
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const article = await db.article.findUnique({ where: { id } });
+  const tenant = await resolveTenantFromHeaders(req.headers);
+  const article = await withTenantRlsContext(tenant?.id ?? null, (tx) => tx.article.findUnique({ where: { id } }));
   if (!article || !article.isPreprint || !PREPRINT_ELIGIBLE_STATUSES.includes(article.status as any)) {
     return NextResponse.json({ error: "Preprint not found" }, { status: 404 });
   }

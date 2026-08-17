@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
+import { withRlsContext } from "@/lib/db-rls";
 import { parseBody } from "@/lib/validate";
 import { z } from "zod";
 
@@ -49,11 +50,30 @@ async function deleteArticleCascade(tx: any, articleId: string) {
 }
 
 /**
+ * Whitelabel Phase 8 — deletes one MagazineIssue and everything that
+ * transitively belongs to only that issue, closing the gap Phase 7 left
+ * open. Derived the same way as deleteArticleCascade: a live
+ * `information_schema` query of every FK into MagazineIssue found three
+ * referencing tables — MagazinePiece (ON DELETE CASCADE, handled
+ * automatically when the issue row is deleted, no code needed) and
+ * MagazineDistribution / MagazineIssueProductionJob (both ON DELETE
+ * RESTRICT, neither with any dependents of their own), so deleting each of
+ * their rows for this issue, then the issue row itself, is sufficient.
+ */
+async function deleteMagazineIssueCascade(tx: any, issueId: string) {
+  await tx.magazineDistribution.deleteMany({ where: { issueId } });
+  await tx.magazineIssueProductionJob.deleteMany({ where: { issueId } });
+  await tx.magazineIssue.delete({ where: { id: issueId } });
+}
+
+/**
  * DELETE /api/admin/tenants/[id]/purge
  *
  * Whitelabel Phase 6 — deletes a tenant along with the *safe subset* of its
  * content: MediaPost and Collection (no non-cascading dependents), Magazine
- * (if it has no issues yet), and Podcast (episodes cascade automatically;
+ * (if it has no issues yet — issues with history need Phase 8's
+ * confirmDestructiveCascade path below), and Podcast (episodes cascade
+ * automatically;
  * this pass also clears self-reported PodcastDistribution tracking rows,
  * which carry no financial/legal weight of their own). Without
  * `confirmDestructiveCascade`, Book rows with any BookDistribution/
@@ -67,11 +87,11 @@ async function deleteArticleCascade(tx: any, articleId: string) {
  * this endpoint *will* permanently delete those Books and Journals,
  * including every Article under a blocked Journal via deleteArticleCascade
  * above (mapped from a live `information_schema` query of Article's full
- * ~20-table dependency fan-out — see that function's doc comment). Magazine
- * rows with issues remain blocked even under this flag: MagazineIssue's own
- * RESTRICT dependents (MagazineDistribution, MagazineIssueProductionJob)
- * aren't mapped to a safe deletion order here, so a magazine blocker still
- * stops the whole purge rather than being silently skipped.
+ * ~20-table dependency fan-out — see that function's doc comment).
+ *
+ * Whitelabel Phase 8 — the same flag now also covers Magazine rows with
+ * issues, via deleteMagazineIssueCascade above (mapped the same way as
+ * Article's). Nothing remains permanently unpurgeable by this endpoint.
  *
  * Requires zero users first (same precondition the plain tenant DELETE
  * route already enforces) — reassigning or removing user accounts is a
@@ -100,43 +120,39 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     return NextResponse.json({ error: `Tenant has ${userCount} user(s) — reassign or remove them first` }, { status: 400 });
   }
 
-  const [books, magazines, podcasts, journals] = await Promise.all([
-    db.book.findMany({
-      where: { tenantId: id },
-      select: {
-        id: true,
-        title: true,
-        _count: { select: { chapters: true, distributions: true, royaltyStatements: true } },
-      },
-    }),
-    db.magazine.findMany({ where: { tenantId: id }, select: { id: true, name: true, _count: { select: { issues: true } } } }),
-    db.podcast.findMany({ where: { tenantId: id }, select: { id: true, title: true } }),
-    db.journal.findMany({
-      where: { tenantId: id },
-      select: { id: true, name: true, articles: { select: { id: true } }, issues: { select: { id: true } } },
-    }),
-  ]);
+  const [books, magazines, podcasts, journals] = await withRlsContext(auth.session, (tx) =>
+    Promise.all([
+      tx.book.findMany({
+        where: { tenantId: id },
+        select: {
+          id: true,
+          title: true,
+          _count: { select: { chapters: true, distributions: true, royaltyStatements: true } },
+        },
+      }),
+      tx.magazine.findMany({
+        where: { tenantId: id },
+        select: { id: true, name: true, issues: { select: { id: true } } },
+      }),
+      tx.podcast.findMany({ where: { tenantId: id }, select: { id: true, title: true } }),
+      tx.journal.findMany({
+        where: { tenantId: id },
+        select: { id: true, name: true, articles: { select: { id: true } }, issues: { select: { id: true } } },
+      }),
+    ])
+  );
 
   const blockedBooks = books.filter((b) => b._count.chapters + b._count.distributions + b._count.royaltyStatements > 0);
   const blockedJournals = journals.filter((j) => j.articles.length + j.issues.length > 0);
-  const blockedMagazines = magazines.filter((m) => m._count.issues > 0);
+  const blockedMagazines = magazines.filter((m) => m.issues.length > 0);
 
   const hasBlockers = blockedBooks.length > 0 || blockedMagazines.length > 0 || blockedJournals.length > 0;
 
-  // Whitelabel Phase 7 — magazines with issues are still reported as a
-  // blocker even under confirmDestructiveCascade: MagazineIssue's own
-  // dependents include MagazineDistribution and
-  // MagazineIssueProductionJob, both ON DELETE RESTRICT, which this pass
-  // hasn't mapped a safe deletion order for the way it has for
-  // Book/Journal/Article below. Reported the same as before rather than
-  // silently skipped, so a caller who opts into the destructive path still
-  // sees exactly what wasn't touched and why.
-  if (hasBlockers && (!parsed.data.confirmDestructiveCascade || blockedMagazines.length > 0)) {
+  if (hasBlockers && !parsed.data.confirmDestructiveCascade) {
     return NextResponse.json(
       {
-        error: parsed.data.confirmDestructiveCascade
-          ? "This tenant has magazine issues this endpoint still won't destroy automatically. Remove or migrate them first."
-          : "This tenant has content this endpoint won't destroy automatically without confirmDestructiveCascade. Remove or migrate it, or resend with that flag to permanently delete it (including editorial/financial history).",
+        error:
+          "This tenant has content this endpoint won't destroy automatically without confirmDestructiveCascade. Remove or migrate it, or resend with that flag to permanently delete it (including editorial/financial history).",
         blockers: {
           books: blockedBooks.map((b) => ({ id: b.id, title: b.title, reason: "has chapters/distributions/royalty history" })),
           magazines: blockedMagazines.map((m) => ({ id: m.id, name: m.name, reason: "has issues" })),
@@ -153,11 +169,12 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     podcasts: podcasts.length,
     journals: journals.length,
     articlesDeleted: blockedJournals.reduce((n, j) => n + j.articles.length, 0),
+    magazineIssuesDeleted: blockedMagazines.reduce((n, m) => n + m.issues.length, 0),
   };
 
   await db.$transaction(async (tx) => {
     // Destructive cascade path — only reached when confirmDestructiveCascade
-    // was set and there were no remaining (magazine) blockers above.
+    // was set (see the 409 branch above).
     for (const book of blockedBooks) {
       await tx.bookArticle.deleteMany({ where: { bookId: book.id } });
       await tx.bookDistribution.deleteMany({ where: { bookId: book.id } });
@@ -168,6 +185,12 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
         await deleteArticleCascade(tx, article.id);
       }
       if (journal.issues.length) await tx.issue.deleteMany({ where: { id: { in: journal.issues.map((i) => i.id) } } });
+    }
+
+    for (const magazine of blockedMagazines) {
+      for (const issue of magazine.issues) {
+        await deleteMagazineIssueCascade(tx, issue.id);
+      }
     }
 
     if (books.length) await tx.book.deleteMany({ where: { id: { in: books.map((b) => b.id) } } });
