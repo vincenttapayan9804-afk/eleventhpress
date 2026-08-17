@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
+import { isSameEditorialTenant } from "@/lib/tenant-auth";
 import type { ArticleStatus } from "@/lib/article";
 import { depositToCrossref } from "@/lib/crossref";
 import { depositPublishedArticleToZenodo, zenodoLiveMode } from "@/lib/zenodo";
@@ -55,6 +56,9 @@ export async function POST(req: NextRequest) {
     });
     if (!article) {
       return NextResponse.json({ error: "Article not found" }, { status: 404 });
+    }
+    if (!isSameEditorialTenant(session, article.journal?.tenantId)) {
+      return NextResponse.json({ error: "Forbidden — not an editor of this article's tenant" }, { status: 403 });
     }
 
     // Compute next status from action

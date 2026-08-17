@@ -808,12 +808,22 @@ model AuditLog {
   articleId  String?
   metadata   String? // JSON string
   createdAt  DateTime @default(now())
+  // Whitelabel Phase 7 — populated transparently by a Prisma Client
+  // Extension (src/lib/db.ts's `auditLog.create` query override), not by
+  // any of the ~46 call sites: derived from articleId's Journal.tenantId
+  // when present, else from userId's own tenantId. Null means either a
+  // platform-tenant actor/entity, or an event with neither articleId nor
+  // userId (rare — e.g. a webhook-triggered write) whose tenant can't be
+  // determined; never retroactively backfilled onto rows written before
+  // this field existed for the same reason Tenant.maxUsers isn't defaulted.
+  tenantId String?
 
   user    User?    @relation(fields: [userId], references: [id])
   article Article? @relation(fields: [articleId], references: [id])
 
   @@index([articleId, createdAt])
   @@index([userId, createdAt])
+  @@index([tenantId, createdAt])
 }
 
 // ---------------------------------------------------------------------------

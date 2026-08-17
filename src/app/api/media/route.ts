@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { presignGet } from "@/lib/storage";
 import { getSessionFromHeaders, requireRole } from "@/lib/auth";
 import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { withTenantRlsContext } from "@/lib/db-rls";
 import { PRIVILEGED_ROLES_LIST as PRIVILEGED_ROLES } from "@/lib/roles";
 
 const TYPES = new Set(["NEWS", "BLOG"]);
@@ -23,11 +24,14 @@ export async function GET(req: NextRequest) {
   const wantsAll = searchParams.get("all") === "1";
   const canSeeAll = wantsAll && !!session && (PRIVILEGED_ROLES.includes(session.role) || session.role === "TENANT_ADMIN");
   const tenant = await resolveTenantFromHeaders(req.headers);
+  const tenantId = tenant?.id ?? null;
 
-  const posts = await db.mediaPost.findMany({
-    where: { tenantId: tenant?.id ?? null, ...(type ? { type } : {}), ...(canSeeAll ? {} : { status: "PUBLISHED" }) },
-    orderBy: canSeeAll ? { createdAt: "desc" } : { publishedAt: "desc" },
-  });
+  const posts = await withTenantRlsContext(tenantId, (tx) =>
+    tx.mediaPost.findMany({
+      where: { tenantId, ...(type ? { type } : {}), ...(canSeeAll ? {} : { status: "PUBLISHED" }) },
+      orderBy: canSeeAll ? { createdAt: "desc" } : { publishedAt: "desc" },
+    })
+  );
 
   const withUrls = await Promise.all(
     posts.map(async (p) => ({ ...p, heroImageUrl: p.heroImageKey ? await presignGet(p.heroImageKey) : null }))

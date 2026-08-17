@@ -51,9 +51,18 @@ export async function GET(req: NextRequest) {
   }
 
   if (["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"].includes(role)) {
+    // Whitelabel Phase 7 — a tenant's editorial board only sees that
+    // tenant's own queue, stats, and audit trail. SUPER_ADMIN keeps the
+    // platform-wide view (role === "SUPER_ADMIN" below, unfiltered) — same
+    // "session.tenantId null means no tenant context, allow through"
+    // fail-open posture as isSameEditorialTenant (src/lib/tenant-auth.ts).
+    const tenantFilter =
+      role === "SUPER_ADMIN" || !session.tenantId ? {} : { journal: { tenantId: session.tenantId } };
+
     const queue = await db.article.findMany({
       where: {
         status: { in: ["SUBMITTED", "UNDER_REVIEW", "REVISIONS_REQUIRED", "ACCEPTED", "IN_PRODUCTION", "PUBLISHED"] },
+        ...tenantFilter,
       },
       orderBy: { submittedAt: "desc" },
       include: {
@@ -65,13 +74,14 @@ export async function GET(req: NextRequest) {
         },
       },
     });
-    const published = await db.article.count({ where: { status: "PUBLISHED" } });
-    const inReview = await db.article.count({ where: { status: "UNDER_REVIEW" } });
-    const accepted = await db.article.count({ where: { status: "ACCEPTED" } });
-    const submitted = await db.article.count({ where: { status: "SUBMITTED" } });
+    const published = await db.article.count({ where: { status: "PUBLISHED", ...tenantFilter } });
+    const inReview = await db.article.count({ where: { status: "UNDER_REVIEW", ...tenantFilter } });
+    const accepted = await db.article.count({ where: { status: "ACCEPTED", ...tenantFilter } });
+    const submitted = await db.article.count({ where: { status: "SUBMITTED", ...tenantFilter } });
 
     const recentAudit = await withRlsContext(session, (tx) =>
       tx.auditLog.findMany({
+        where: role === "SUPER_ADMIN" || !session.tenantId ? {} : { tenantId: session.tenantId },
         orderBy: { createdAt: "desc" },
         take: 15,
         include: { user: { select: { fullName: true, role: true } } },

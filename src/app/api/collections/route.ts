@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { withTenantRlsContext } from "@/lib/db-rls";
 
 const EDITOR_ROLES = ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN", "TENANT_ADMIN"];
 
@@ -24,11 +25,14 @@ function slugify(title: string): string {
  */
 export async function GET(req: NextRequest) {
   const tenant = await resolveTenantFromHeaders(req.headers);
-  const collections = await db.collection.findMany({
-    where: { publishedAt: { not: null }, tenantId: tenant?.id ?? null },
-    orderBy: { publishedAt: "desc" },
-    include: { _count: { select: { articles: true } } },
-  });
+  const tenantId = tenant?.id ?? null;
+  const collections = await withTenantRlsContext(tenantId, (tx) =>
+    tx.collection.findMany({
+      where: { publishedAt: { not: null }, tenantId },
+      orderBy: { publishedAt: "desc" },
+      include: { _count: { select: { articles: true } } },
+    })
+  );
 
   return NextResponse.json({
     items: collections.map((c) => ({
