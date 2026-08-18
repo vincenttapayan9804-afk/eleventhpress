@@ -148,6 +148,8 @@ model User {
   podcastDistributionsSubmitted  PodcastDistribution[]
   mediaPostsCreated              MediaPost[]
   narrationJobsCreated           NarrationJob[]
+  ethicsSubmissionsFiled         EthicsSubmission[]     @relation("EthicsSubmittedBy")
+  ethicsSubmissionsReviewed      EthicsSubmission[]     @relation("EthicsReviewedBy")
 
   @@index([tenantId])
   @@index([departmentId])
@@ -538,6 +540,7 @@ model Article {
   bookChapters               BookArticle[]
   downloadStamps             ArticleDownload[]
   independentReviews         IndependentReview[]
+  ethicsSubmissions          EthicsSubmission[]
 
   // Composite indexes mirror the actual query shapes used across the app:
   // public/browse listing and the dashboard queue both filter by status
@@ -1620,11 +1623,13 @@ model Tenant {
   // creation, so that path doesn't need a second check.
   maxUsers Int?
 
-  institution Institution?   @relation(fields: [institutionId], references: [id])
-  domains     TenantDomain[]
-  users       User[]
+  institution       Institution?       @relation(fields: [institutionId], references: [id])
+  domains           TenantDomain[]
+  users             User[]
   // EP University OS Phase 1
-  departments Department[]
+  departments       Department[]
+  // EP University OS Phase 3
+  ethicsSubmissions EthicsSubmission[]
 
   @@index([status])
 }
@@ -1685,15 +1690,75 @@ model Department {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  tenant   Tenant       @relation(fields: [tenantId], references: [id])
-  head     User?        @relation("DepartmentHead", fields: [headUserId], references: [id])
-  parent   Department?  @relation("DepartmentHierarchy", fields: [parentDepartmentId], references: [id])
-  children Department[] @relation("DepartmentHierarchy")
-  members  User[]       @relation("DepartmentMembers")
+  tenant            Tenant             @relation(fields: [tenantId], references: [id])
+  head              User?              @relation("DepartmentHead", fields: [headUserId], references: [id])
+  parent            Department?        @relation("DepartmentHierarchy", fields: [parentDepartmentId], references: [id])
+  children          Department[]       @relation("DepartmentHierarchy")
+  members           User[]             @relation("DepartmentMembers")
+  ethicsSubmissions EthicsSubmission[]
 
   @@unique([tenantId, slug])
   @@index([tenantId])
   @@index([parentDepartmentId])
+}
+
+// ---------------------------------------------------------------------------
+// EP University OS Phase 3 — Ethics/IRB/COI tracking
+// ---------------------------------------------------------------------------
+// One model covers both IRB protocol submissions and conflict-of-interest
+// disclosures (submissionType discriminates), mirroring how RoleApplication
+// covers REVIEWER/EDITOR/EXPERT_* applications with a single requestedRole
+// discriminator rather than one model per kind. Direct tenantId column
+// (not derived through Article/Department, both of which are optional
+// here) so it fits prisma/rls.sql's tenant-scoped FOREACH loop verbatim,
+// the same reasoning Department itself used.
+model EthicsSubmission {
+  id       String @id @default(cuid())
+  // Denormalized off submittedBy.tenantId at creation rather than derived
+  // via a join at every read — same posture as Department.tenantId.
+  tenantId String
+
+  // IRB_PROTOCOL | COI_DISCLOSURE
+  submissionType String
+  title          String
+  description    String?
+  // SUBMITTED | UNDER_REVIEW | APPROVED | REJECTED | EXPIRED
+  status         String  @default("SUBMITTED")
+  // Assigned by the reviewer on approval (e.g. an IRB protocol number) —
+  // never set by the submitter. Null until then.
+  protocolNumber String?
+
+  // Optional scoping — a submission need not be tied to either. A COI
+  // disclosure is commonly filed standalone (e.g. by a reviewer before
+  // ever being assigned a manuscript); an IRB protocol may predate the
+  // manuscript that eventually cites it.
+  departmentId String?
+  articleId    String?
+
+  submittedByUserId String
+  reviewedByUserId  String?
+  reviewNote        String?
+
+  submittedAt DateTime  @default(now())
+  reviewedAt  DateTime?
+  // Set on approval for time-bounded IRB protocols; null means no expiry
+  // (typical for a COI disclosure, which is a point-in-time statement).
+  expiresAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  department  Department? @relation(fields: [departmentId], references: [id])
+  article     Article?    @relation(fields: [articleId], references: [id])
+  submittedBy User        @relation("EthicsSubmittedBy", fields: [submittedByUserId], references: [id])
+  reviewedBy  User?       @relation("EthicsReviewedBy", fields: [reviewedByUserId], references: [id])
+
+  @@index([tenantId])
+  @@index([departmentId])
+  @@index([articleId])
+  @@index([submittedByUserId])
+  @@index([status])
 }
 
 // ---------------------------------------------------------------------------
