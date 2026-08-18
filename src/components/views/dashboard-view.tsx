@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Fragment } from "react";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { useApp } from "@/lib/store";
 import { apiFetch } from "@/lib/api-client";
@@ -143,60 +143,85 @@ export function DashboardView() {
   }
 
   // Role-based tab list
-  const TABS: { key: string; label: string; icon: any; roles: string[] }[] = [
-    { key: "overview", label: "Overview", icon: LayoutDashboard, roles: ["*"] },
-    { key: "expertDashboard", label: "Professional Dashboard", icon: Crown, roles: ["EXPERT", "SUPER_ADMIN"] },
-    { key: "profile", label: "Profile", icon: UserCircle, roles: ["*"] },
-    { key: "submit", label: "New submission", icon: FilePlus2, roles: ["AUTHOR", "EXPERT", "SUPER_ADMIN"] },
-    { key: "myArticles", label: "My articles", icon: FolderOpen, roles: ["AUTHOR", "EXPERT", "SUPER_ADMIN"] },
-    { key: "invoices", label: "Billing & invoices", icon: Receipt, roles: ["AUTHOR", "READER", "SUPER_ADMIN"] },
-    { key: "editorQueue", label: "Editorial queue", icon: ListChecks, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"] },
-    { key: "reviewerQueue", label: "My reviews", icon: PenSquare, roles: ["REVIEWER", "SUPER_ADMIN"] },
-    { key: "indexing", label: "Indexing & discovery", icon: Search, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"] },
-    { key: "counter", label: "COUNTER 5 / SUSHI", icon: BarChart3, roles: ["SUPER_ADMIN", "EDITOR"] },
-    { key: "institutions", label: "Institutions", icon: Building2, roles: ["SUPER_ADMIN", "EDITOR"] },
-    { key: "application", label: "Role application", icon: FilePlus2, roles: ["READER", "AUTHOR"] },
-    { key: "distribution", label: "Article distribution", icon: Share2, roles: ["AUTHOR", "SUPER_ADMIN"] },
-    { key: "myBooks", label: "My books", icon: BookOpen, roles: ["AUTHOR", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"] },
-    { key: "bookAcquisitions", label: "Book acquisitions", icon: LibraryIcon, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"] },
-    { key: "magazines", label: "Magazines", icon: Newspaper, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"] },
-    { key: "podcasts", label: "Podcasts", icon: Mic, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"] },
-    { key: "media", label: "Media (News/Blog)", icon: FileText, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"] },
-    { key: "narration", label: "Narration", icon: Volume2, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"] },
-    { key: "researchIntegrity", label: "Research integrity", icon: ShieldCheck, roles: ["SUPER_ADMIN"] },
-    { key: "branding", label: "Branding", icon: Palette, roles: ["SUPER_ADMIN"] },
-    { key: "tenants", label: "Tenants", icon: Globe, roles: ["SUPER_ADMIN"] },
-    { key: "departments", label: "Departments", icon: GraduationCap, roles: ["SUPER_ADMIN", "TENANT_ADMIN"] },
-    {
-      key: "ethics",
-      label: "Ethics & COI",
-      icon: ShieldCheck,
-      roles: ["AUTHOR", "EXPERT", "REVIEWER", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN", "TENANT_ADMIN"],
-    },
-    { key: "ethicsReview", label: "Ethics review", icon: Gavel, roles: ["SUPER_ADMIN", "TENANT_ADMIN"] },
-    {
-      key: "myGrants",
-      label: "My grants",
-      icon: Coins,
-      roles: ["AUTHOR", "EXPERT", "REVIEWER", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN", "TENANT_ADMIN"],
-    },
-    { key: "grants", label: "Grants", icon: Landmark, roles: ["SUPER_ADMIN", "TENANT_ADMIN"] },
-    {
-      key: "researchDashboard",
-      label: "Research dashboard",
-      icon: LineChart,
-      roles: ["SUPER_ADMIN", "TENANT_ADMIN"],
-    },
-    { key: "rankings", label: "Institutional rankings", icon: Trophy, roles: ["SUPER_ADMIN"] },
-    { key: "reader", label: "Subscription", icon: Library, roles: ["READER", "AUTHOR", "REVIEWER", "SUPER_ADMIN"] },
-    { key: "certificates", label: "Certificates", icon: Award, roles: ["AUTHOR", "REVIEWER", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"] },
+  // Grouped into 9 sections for the sidebar nav (see docs/dashboard-navigation.md)
+  // rather than one flat 33-item list. Grouping is purely presentational —
+  // every tab keeps its exact pre-existing `roles` gate, so this changes
+  // nothing about who can see what, only how it's organized on screen.
+  const TABS: { key: string; label: string; icon: any; roles: string[]; group: string }[] = [
+    // --- Home ---
+    { key: "overview", label: "Overview", icon: LayoutDashboard, roles: ["*"], group: "Home" },
+    { key: "profile", label: "Profile", icon: UserCircle, roles: ["*"], group: "Home" },
+    { key: "expertDashboard", label: "Professional Dashboard", icon: Crown, roles: ["EXPERT", "SUPER_ADMIN"], group: "Home" },
+
+    // --- Publishing — My Work ---
+    { key: "submit", label: "New submission", icon: FilePlus2, roles: ["AUTHOR", "EXPERT", "SUPER_ADMIN"], group: "Publishing — My Work" },
+    { key: "myArticles", label: "My articles", icon: FolderOpen, roles: ["AUTHOR", "EXPERT", "SUPER_ADMIN"], group: "Publishing — My Work" },
+    { key: "myBooks", label: "My books", icon: BookOpen, roles: ["AUTHOR", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"], group: "Publishing — My Work" },
+    { key: "distribution", label: "Article distribution", icon: Share2, roles: ["AUTHOR", "SUPER_ADMIN"], group: "Publishing — My Work" },
+    { key: "reviewerQueue", label: "My reviews", icon: PenSquare, roles: ["REVIEWER", "SUPER_ADMIN"], group: "Publishing — My Work" },
+    { key: "certificates", label: "Certificates", icon: Award, roles: ["AUTHOR", "REVIEWER", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"], group: "Publishing — My Work" },
     {
       key: "researchLab",
       label: "Eleventh Research Lab",
       icon: FlaskConical,
       roles: ["AUTHOR", "EXPERT", "REVIEWER", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"],
+      group: "Publishing — My Work",
     },
-    { key: "admin", label: "Admin & audit", icon: Users, roles: ["SUPER_ADMIN"] },
+
+    // --- Account & Access ---
+    { key: "invoices", label: "Billing & invoices", icon: Receipt, roles: ["AUTHOR", "READER", "SUPER_ADMIN"], group: "Account & Access" },
+    { key: "reader", label: "Subscription", icon: Library, roles: ["READER", "AUTHOR", "REVIEWER", "SUPER_ADMIN"], group: "Account & Access" },
+    { key: "application", label: "Role application", icon: FilePlus2, roles: ["READER", "AUTHOR"], group: "Account & Access" },
+
+    // --- Research Compliance ---
+    {
+      key: "ethics",
+      label: "Ethics & COI",
+      icon: ShieldCheck,
+      roles: ["AUTHOR", "EXPERT", "REVIEWER", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN", "TENANT_ADMIN"],
+      group: "Research Compliance",
+    },
+    {
+      key: "myGrants",
+      label: "My grants",
+      icon: Coins,
+      roles: ["AUTHOR", "EXPERT", "REVIEWER", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN", "TENANT_ADMIN"],
+      group: "Research Compliance",
+    },
+
+    // --- Editorial Operations ---
+    { key: "editorQueue", label: "Editorial queue", icon: ListChecks, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"], group: "Editorial Operations" },
+    { key: "indexing", label: "Indexing & discovery", icon: Search, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"], group: "Editorial Operations" },
+    { key: "bookAcquisitions", label: "Book acquisitions", icon: LibraryIcon, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"], group: "Editorial Operations" },
+    { key: "researchIntegrity", label: "Research integrity", icon: ShieldCheck, roles: ["SUPER_ADMIN"], group: "Editorial Operations" },
+
+    // --- Content Channels ---
+    { key: "magazines", label: "Magazines", icon: Newspaper, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"], group: "Content Channels" },
+    { key: "podcasts", label: "Podcasts", icon: Mic, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"], group: "Content Channels" },
+    { key: "media", label: "Media (News/Blog)", icon: FileText, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"], group: "Content Channels" },
+    { key: "narration", label: "Narration", icon: Volume2, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"], group: "Content Channels" },
+
+    // --- Analytics & Reporting ---
+    { key: "counter", label: "COUNTER 5 / SUSHI", icon: BarChart3, roles: ["SUPER_ADMIN", "EDITOR"], group: "Analytics & Reporting" },
+    { key: "institutions", label: "Institutions", icon: Building2, roles: ["SUPER_ADMIN", "EDITOR"], group: "Analytics & Reporting" },
+    {
+      key: "researchDashboard",
+      label: "Research dashboard",
+      icon: LineChart,
+      roles: ["SUPER_ADMIN", "TENANT_ADMIN"],
+      group: "Analytics & Reporting",
+    },
+    { key: "rankings", label: "Institutional rankings", icon: Trophy, roles: ["SUPER_ADMIN"], group: "Analytics & Reporting" },
+
+    // --- Institution Administration ---
+    { key: "departments", label: "Departments", icon: GraduationCap, roles: ["SUPER_ADMIN", "TENANT_ADMIN"], group: "Institution Administration" },
+    { key: "ethicsReview", label: "Ethics review", icon: Gavel, roles: ["SUPER_ADMIN", "TENANT_ADMIN"], group: "Institution Administration" },
+    { key: "grants", label: "Grants", icon: Landmark, roles: ["SUPER_ADMIN", "TENANT_ADMIN"], group: "Institution Administration" },
+
+    // --- Platform Administration ---
+    { key: "branding", label: "Branding", icon: Palette, roles: ["SUPER_ADMIN"], group: "Platform Administration" },
+    { key: "tenants", label: "Tenants", icon: Globe, roles: ["SUPER_ADMIN"], group: "Platform Administration" },
+    { key: "admin", label: "Admin & audit", icon: Users, roles: ["SUPER_ADMIN"], group: "Platform Administration" },
   ];
 
   const visibleTabs = TABS.filter((t) => t.roles.includes("*") || t.roles.includes(user.role));
@@ -256,21 +281,32 @@ export function DashboardView() {
               scrolls horizontally on mobile/tablet (below lg it's not a
               vertical list yet); no-op on lg+ where it's a static column. */}
           <nav className="flex flex-row gap-1 overflow-x-auto [mask-image:linear-gradient(to_right,transparent,black_16px,black_calc(100%-16px),transparent)] lg:flex-col lg:[mask-image:none]">
-            {visibleTabs.map((t) => {
+            {visibleTabs.map((t, i) => {
               const Icon = t.icon;
               const active = dashboardTab === t.key;
+              // Section headers are lg-only: below lg the sidebar is a
+              // horizontally-scrolling flat row (unchanged from before this
+              // grouping was added), where an inline label would break the
+              // scroll rhythm rather than help it.
+              const isNewGroup = i === 0 || visibleTabs[i - 1].group !== t.group;
               return (
-                <button
-                  key={t.key}
-                  onClick={() => openDashboard(t.key as any)}
-                  className={`flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-left font-sans text-sm font-medium transition-colors ${
-                    active
-                      ? "bg-primary text-primary-foreground"
-                      : "text-foreground/80 hover:bg-accent"
-                  }`}
-                >
-                  <Icon className="h-4 w-4" /> {t.label}
-                </button>
+                <Fragment key={t.key}>
+                  {isNewGroup && (
+                    <p className={`hidden px-3 pb-1 font-sans text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground lg:block ${i === 0 ? "pt-1" : "pt-4"}`}>
+                      {t.group}
+                    </p>
+                  )}
+                  <button
+                    onClick={() => openDashboard(t.key as any)}
+                    className={`flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-left font-sans text-sm font-medium transition-colors ${
+                      active
+                        ? "bg-primary text-primary-foreground"
+                        : "text-foreground/80 hover:bg-accent"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" /> {t.label}
+                  </button>
+                </Fragment>
               );
             })}
           </nav>
