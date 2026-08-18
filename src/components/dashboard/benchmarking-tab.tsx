@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api-client";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Loader2, Scale } from "lucide-react";
 
 interface TenantResearchMetrics {
@@ -37,6 +38,12 @@ interface PeerAggregate {
 interface BenchmarkResult {
   own: TenantResearchMetrics;
   peers: PeerAggregate;
+}
+
+interface TenantOption {
+  id: string;
+  name: string;
+  slug: string;
 }
 
 function fmtCurrency(n: number): string {
@@ -81,16 +88,71 @@ function Row({ label, own, peer, ownFmt, peerFmt }: { label: string; own: number
  * size?" Every number is a live count from GET /api/admin/benchmarking;
  * peer figures are a band median/aggregate only, never another tenant's
  * raw identifiable data (see research-benchmark.ts).
+ *
+ * GET /api/admin/benchmarking always benchmarks exactly one tenant: for
+ * TENANT_ADMIN that's implicitly session.tenantId, but SUPER_ADMIN has no
+ * tenant of its own and must pass ?tenantId= explicitly — so SUPER_ADMIN
+ * gets a tenant picker here instead of an unconditional fetch on mount.
  */
-export function BenchmarkingTab() {
+export function BenchmarkingTab({ role }: { role: string }) {
+  const isSuperAdmin = role === "SUPER_ADMIN";
   const [data, setData] = useState<BenchmarkResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [tenants, setTenants] = useState<TenantOption[]>([]);
+  const [selectedTenantId, setSelectedTenantId] = useState("");
 
   useEffect(() => {
+    if (isSuperAdmin) {
+      apiFetch<{ tenants: TenantOption[] }>("/api/admin/tenants")
+        .then((res) => setTenants(res.tenants))
+        .catch((e: any) => setError(e.message || "Failed to load tenants"));
+      return;
+    }
     apiFetch<BenchmarkResult>("/api/admin/benchmarking")
       .then(setData)
       .catch((e: any) => setError(e.message || "Failed to load benchmarking data"));
-  }, []);
+  }, [isSuperAdmin]);
+
+  function selectTenant(tenantId: string) {
+    setSelectedTenantId(tenantId);
+    setData(null);
+    setError(null);
+    if (!tenantId) return;
+    apiFetch<BenchmarkResult>(`/api/admin/benchmarking?tenantId=${tenantId}`)
+      .then(setData)
+      .catch((e: any) => setError(e.message || "Failed to load benchmarking data"));
+  }
+
+  if (isSuperAdmin && !selectedTenantId) {
+    return (
+      <div className="space-y-4">
+        <div>
+          <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
+            Executive Command Intelligence · Phase 1 of 5
+          </p>
+          <p className="eyebrow mt-1 flex items-center gap-1.5">
+            <Scale className="h-3 w-3" /> Research Benchmarking
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Pick an institution to benchmark against its peer band.
+          </p>
+        </div>
+        {error && <p className="text-sm text-rose-600">{error}</p>}
+        <select
+          className="border-input h-9 w-full max-w-sm rounded-md border bg-transparent px-3 text-sm shadow-xs"
+          value={selectedTenantId}
+          onChange={(e) => selectTenant(e.target.value)}
+        >
+          <option value="">— select an institution —</option>
+          {tenants.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name}
+            </option>
+          ))}
+        </select>
+      </div>
+    );
+  }
 
   if (error) {
     return <p className="text-sm text-rose-600">{error}</p>;
@@ -107,18 +169,25 @@ export function BenchmarkingTab() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
-          Executive Command Intelligence · Phase 1 of 5
-        </p>
-        <p className="eyebrow mt-1 flex items-center gap-1.5">
-          <Scale className="h-3 w-3" /> Research Benchmarking
-        </p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Your ecosystem compared with {peers.peerCount} institution{peers.peerCount === 1 ? "" : "s"} in the{" "}
-          <span className="font-medium text-foreground">{peers.band.label}</span> peer band — every figure is a live count, and peer
-          numbers shown are the band's median, never another institution's raw data.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
+            Executive Command Intelligence · Phase 1 of 5
+          </p>
+          <p className="eyebrow mt-1 flex items-center gap-1.5">
+            <Scale className="h-3 w-3" /> Research Benchmarking
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Your ecosystem compared with {peers.peerCount} institution{peers.peerCount === 1 ? "" : "s"} in the{" "}
+            <span className="font-medium text-foreground">{peers.band.label}</span> peer band — every figure is a live count, and peer
+            numbers shown are the band's median, never another institution's raw data.
+          </p>
+        </div>
+        {isSuperAdmin && (
+          <Button size="sm" variant="outline" onClick={() => selectTenant("")}>
+            Change institution
+          </Button>
+        )}
       </div>
 
       <Card className="paper-card">
