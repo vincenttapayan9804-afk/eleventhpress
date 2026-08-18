@@ -41,6 +41,7 @@ import {
   Palette,
   Globe,
   GraduationCap,
+  Gavel,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -73,6 +74,8 @@ import {
   BrandingTab,
   TenantsTab,
   DepartmentsTab,
+  EthicsTab,
+  EthicsReviewTab,
 } from "@/components/dashboard/lazy";
 import { useLiveDashboard } from "@/hooks/use-live-dashboard";
 
@@ -156,6 +159,13 @@ export function DashboardView() {
     { key: "branding", label: "Branding", icon: Palette, roles: ["SUPER_ADMIN"] },
     { key: "tenants", label: "Tenants", icon: Globe, roles: ["SUPER_ADMIN"] },
     { key: "departments", label: "Departments", icon: GraduationCap, roles: ["SUPER_ADMIN", "TENANT_ADMIN"] },
+    {
+      key: "ethics",
+      label: "Ethics & COI",
+      icon: ShieldCheck,
+      roles: ["AUTHOR", "EXPERT", "REVIEWER", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN", "TENANT_ADMIN"],
+    },
+    { key: "ethicsReview", label: "Ethics review", icon: Gavel, roles: ["SUPER_ADMIN", "TENANT_ADMIN"] },
     { key: "reader", label: "Subscription", icon: Library, roles: ["READER", "AUTHOR", "REVIEWER", "SUPER_ADMIN"] },
     { key: "certificates", label: "Certificates", icon: Award, roles: ["AUTHOR", "REVIEWER", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"] },
     {
@@ -334,6 +344,8 @@ export function DashboardView() {
           {dashboardTab === "branding" && <BrandingTab />}
           {dashboardTab === "tenants" && <TenantsTab />}
           {dashboardTab === "departments" && <DepartmentsTab />}
+          {dashboardTab === "ethics" && <EthicsTab />}
+          {dashboardTab === "ethicsReview" && <EthicsReviewTab />}
           {dashboardTab === "reader" && <ReaderTab subscription={data.subscription} onRefresh={loadDashboard} />}
           {dashboardTab === "certificates" && <CertificatesTab />}
           {dashboardTab === "researchLab" && <ResearchLabTab />}

@@ -59,6 +59,11 @@ codebase's LiveMode pattern exists to avoid.
   Book/Magazine/Podcast/MediaPost/Collection/Journal, and its one read path
   (`GET /api/admin/departments`, `GET /api/departments`) was wired into
   `withRlsContext`/`withTenantRlsContext` from the route's first commit.
+- **EP University OS Phase 3 — `EthicsSubmission`** joined the same
+  `FOREACH` loop the same way, for the same reason (direct `tenantId`
+  column). Its two read paths (`GET /api/ethics-submissions`,
+  `GET /api/admin/ethics-submissions`) were wired into
+  `withTenantRlsContext`/`withRlsContext` from the route's first commit.
 - **Whitelabel Phase 8 — the tenant-table policies are `FOR SELECT` only**
   (like `auditlog_read_privileged_only` above), not the original blanket
   `USING`/`WITH CHECK` that covered every command. `INSERT`/`UPDATE`/

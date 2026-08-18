@@ -61,3 +61,23 @@ export const EXPERT_APPLICATION_TIERS: readonly string[] = ["EXPERT_CONTRIBUTOR"
  * the user via /api/auth/me, same posture as SELF_SELECTABLE_ROLES.
  */
 export const ACADEMIC_STATUS_OPTIONS: readonly string[] = ["FACULTY", "STUDENT", "STAFF"];
+
+/**
+ * EP University OS Phase 3 — EthicsSubmission.submissionType values (IRB
+ * protocol submissions and conflict-of-interest disclosures share one
+ * model; see prisma/schema.prisma).
+ */
+export const ETHICS_SUBMISSION_TYPES: readonly string[] = ["IRB_PROTOCOL", "COI_DISCLOSURE"];
+
+/** EthicsSubmission.status workflow values. */
+export const ETHICS_SUBMISSION_STATUSES: readonly string[] = ["SUBMITTED", "UNDER_REVIEW", "APPROVED", "REJECTED", "EXPIRED"];
+
+/**
+ * No new role for ethics review. Same reasoning Phase 1 used to defer
+ * DEPARTMENT_ADMIN: review authority rides on TENANT_SCOPED_ADMIN_ROLES
+ * (a university's own TENANT_ADMIN, plus platform-wide SUPER_ADMIN) —
+ * there's no existing IRB-board/COI-committee identity in this codebase to
+ * gate a narrower role against yet. Revisit if a future phase needs
+ * delegated review (e.g. a department-scoped IRB chair) that shouldn't
+ * also get full TENANT_ADMIN's other powers (branding, domains, quotas).
+ */

@@ -107,3 +107,9 @@ export const NarrationTab = dynamic(() => import("./narration-tab").then((m) => 
 export const ResearchIntegrityTab = dynamic(() => import("./research-integrity-tab").then((m) => m.ResearchIntegrityTab), {
   loading: () => <TabLoadingFallback />,
 });
+export const EthicsTab = dynamic(() => import("./ethics-tab").then((m) => m.EthicsTab), {
+  loading: () => <TabLoadingFallback />,
+});
+export const EthicsReviewTab = dynamic(() => import("./ethics-review-tab").then((m) => m.EthicsReviewTab), {
+  loading: () => <TabLoadingFallback />,
+});
