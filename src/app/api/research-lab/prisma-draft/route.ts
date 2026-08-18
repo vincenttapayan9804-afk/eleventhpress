@@ -59,8 +59,9 @@ export async function POST(req: NextRequest) {
 
   const result = await draftSystematicReview({ articleIds, externalSources, eligibilityCriteria, searchStrategy, excludedSources });
 
+  let documentId: string | undefined;
   if (result.mode === "llm") {
-    await db.researchLabDocument.create({
+    const doc = await db.researchLabDocument.create({
       data: {
         userId: session.userId,
         kind: "PRISMA_DRAFT",
@@ -70,9 +71,10 @@ export async function POST(req: NextRequest) {
         model: result.model,
       },
     });
+    documentId = doc.id;
   }
 
-  return NextResponse.json(result);
+  return NextResponse.json({ ...result, documentId });
 }
 
 /**

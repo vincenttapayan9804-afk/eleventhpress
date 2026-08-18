@@ -103,13 +103,33 @@ export async function runTranscriptionJob(jobId: string, claimFilter: Record<str
     const pipe = await getWhisperPipeline();
     if (!pipe) throw new Error(`Local transcription model (${WHISPER_MODEL_ID}) is not available in this deployment`);
 
-    const output = await pipe(samples, { chunk_length_s: 30, stride_length_s: 5 });
+    const output = await pipe(samples, { chunk_length_s: 30, stride_length_s: 5, return_timestamps: true });
     const text: string = (Array.isArray(output) ? output[0]?.text : output?.text)?.trim() ?? "";
     if (!text) throw new Error("Transcription produced no text — the audio may be silent or unintelligible");
 
+    // Whisper's own chunk-level timestamps (real model output, not
+    // estimated) — lets a researcher cite/quote a specific moment in the
+    // recording instead of only the flat transcript text.
+    const rawChunks = Array.isArray(output) ? output[0]?.chunks : output?.chunks;
+    const segments = Array.isArray(rawChunks)
+      ? rawChunks
+          .map((c: any) => ({
+            text: typeof c?.text === "string" ? c.text.trim() : "",
+            start: Array.isArray(c?.timestamp) && typeof c.timestamp[0] === "number" ? c.timestamp[0] : null,
+            end: Array.isArray(c?.timestamp) && typeof c.timestamp[1] === "number" ? c.timestamp[1] : null,
+          }))
+          .filter((s: { text: string }) => s.text)
+      : [];
+
     await db.transcriptionJob.update({
       where: { id: jobId },
-      data: { status: "COMPLETED", transcript: text, model: WHISPER_MODEL_ID, completedAt: new Date() },
+      data: {
+        status: "COMPLETED",
+        transcript: text,
+        segmentsJson: segments.length > 0 ? JSON.stringify(segments) : null,
+        model: WHISPER_MODEL_ID,
+        completedAt: new Date(),
+      },
     });
 
     await db.auditLog.create({

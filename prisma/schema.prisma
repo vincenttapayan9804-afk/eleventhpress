@@ -1036,14 +1036,19 @@ model TableExtractionJob {
 // so a run that came back "unavailable" (no LLM configured) never shows up
 // as false history.
 model ResearchLabDocument {
-  id         String   @id @default(cuid())
-  userId     String
-  kind       String // "GAP_ANALYSIS" | "PRISMA_DRAFT"
-  title      String
-  inputJson  String // JSON: the sources/article ids this was generated from
-  resultJson String // JSON: the gaps[] or draft text
-  model      String?
-  createdAt  DateTime @default(now())
+  id                 String    @id @default(cuid())
+  userId             String
+  kind               String // "GAP_ANALYSIS" | "PRISMA_DRAFT"
+  title              String
+  inputJson          String // JSON: the sources/article ids this was generated from
+  resultJson         String // JSON: the gaps[] or draft text — current version, edits applied in place
+  // Set once, the first time a researcher edits this document — preserves
+  // the pristine AI-generated output so "view original" never depends on
+  // a second LLM call or overwritten history. Null means never edited.
+  originalResultJson String?
+  editedAt           DateTime?
+  model              String?
+  createdAt          DateTime  @default(now())
 
   @@index([userId, kind, createdAt])
 }
@@ -1060,6 +1065,12 @@ model TranscriptionJob {
   fileName     String
   status       String    @default("QUEUED") // QUEUED | PROCESSING | COMPLETED | FAILED
   transcript   String?
+  // JSON: [{text, start, end}] — chunk-level timestamps from Whisper's own
+  // return_timestamps output (real model output, never estimated), so a
+  // researcher can cite/quote a specific moment in the recording. Null for
+  // jobs completed before this field existed, or if the model returned no
+  // chunk timestamps for some reason.
+  segmentsJson String?
   model        String?
   errorMessage String?
   startedAt    DateTime?

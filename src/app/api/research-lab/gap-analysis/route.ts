@@ -36,8 +36,9 @@ export async function POST(req: NextRequest) {
 
   const result = await findResearchGaps({ internalArticleIds, externalSources });
 
+  let documentId: string | undefined;
   if (result.mode === "llm") {
-    await db.researchLabDocument.create({
+    const doc = await db.researchLabDocument.create({
       data: {
         userId: session.userId,
         kind: "GAP_ANALYSIS",
@@ -47,9 +48,10 @@ export async function POST(req: NextRequest) {
         model: result.model,
       },
     });
+    documentId = doc.id;
   }
 
-  return NextResponse.json(result);
+  return NextResponse.json({ ...result, documentId });
 }
 
 /**
