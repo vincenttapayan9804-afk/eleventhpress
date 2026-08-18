@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
+import { Textarea } from "@/components/ui/textarea";
 import {
   FlaskConical,
   Search,
@@ -20,9 +21,14 @@ import {
   Mic,
   Upload,
   Copy,
+  Download,
+  RotateCcw,
   AlertCircle,
   CheckCircle2,
+  ShieldCheck,
+  ShieldAlert,
   Clock,
+  Plus,
 } from "lucide-react";
 
 interface ArticleHit {
@@ -315,16 +321,21 @@ function ArticlePicker({
   );
 }
 
+interface FieldWithEvidence {
+  value: string;
+  quote: string;
+  verified: boolean;
+}
 interface SourceMatrixEntry {
-  researchDesign: string;
-  participants: string;
-  population: string;
-  locale: string;
-  theoreticalFramework: string;
-  methodology: string;
-  keyFindings: string;
-  conclusions: string;
-  recommendations: string;
+  researchDesign: FieldWithEvidence;
+  participants: FieldWithEvidence;
+  population: FieldWithEvidence;
+  locale: FieldWithEvidence;
+  theoreticalFramework: FieldWithEvidence;
+  methodology: FieldWithEvidence;
+  keyFindings: FieldWithEvidence;
+  conclusions: FieldWithEvidence;
+  recommendations: FieldWithEvidence;
   reference: string;
 }
 interface GapAnalysisSource {
@@ -358,34 +369,57 @@ const MATRIX_COLUMNS: { key: keyof Omit<SourceMatrixEntry, "reference">; label: 
  * result (the Systematic Review tool bakes the same matrix + references
  * directly into its markdown draft instead, see prisma-draft.ts). */
 function SourceMatrixTable({ sources }: { sources: GapAnalysisSource[] }) {
-  const hasAnalysis = sources.some((s) => s.matrix.researchDesign);
+  const hasAnalysis = sources.some((s) => s.matrix.researchDesign.value);
   return (
     <div className="space-y-2">
       {hasAnalysis && (
-        <div className="overflow-x-auto rounded-md border border-border">
-          <table className="w-full min-w-[900px] border-collapse text-[0.7rem]">
-            <thead>
-              <tr className="bg-accent/40">
-                <th className="border-b border-border p-1.5 text-left font-medium">Study</th>
-                {MATRIX_COLUMNS.map((c) => (
-                  <th key={c.key} className="border-b border-border p-1.5 text-left font-medium">{c.label}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {sources.map((s) => (
-                <tr key={s.id} className="align-top odd:bg-accent/10">
-                  <td className="max-w-[10rem] border-b border-border p-1.5 font-medium">{s.title}</td>
+        <>
+          <div className="overflow-x-auto rounded-md border border-border">
+            <table className="w-full min-w-[900px] border-collapse text-[0.7rem]">
+              <thead>
+                <tr className="bg-accent/40">
+                  <th className="border-b border-border p-1.5 text-left font-medium">Study</th>
                   {MATRIX_COLUMNS.map((c) => (
-                    <td key={c.key} className="max-w-[12rem] border-b border-border p-1.5 text-muted-foreground">
-                      {s.matrix[c.key] || "—"}
-                    </td>
+                    <th key={c.key} className="border-b border-border p-1.5 text-left font-medium">{c.label}</th>
                   ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {sources.map((s) => (
+                  <tr key={s.id} className="align-top odd:bg-accent/10">
+                    <td className="max-w-[10rem] border-b border-border p-1.5 font-medium">{s.title}</td>
+                    {MATRIX_COLUMNS.map((c) => {
+                      const field = s.matrix[c.key];
+                      return (
+                        <td key={c.key} className="max-w-[12rem] border-b border-border p-1.5 text-muted-foreground">
+                          {field.value ? (
+                            <span
+                              className="inline-flex items-start gap-1"
+                              title={field.verified ? `Quote confirmed in source: "${field.quote}"` : "Could not confirm this claim's quote against the source text — verify by hand"}
+                            >
+                              {field.verified ? (
+                                <ShieldCheck className="mt-0.5 h-3 w-3 shrink-0 text-emerald-600" />
+                              ) : (
+                                <ShieldAlert className="mt-0.5 h-3 w-3 shrink-0 text-amber-600" />
+                              )}
+                              {field.value}
+                            </span>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="flex items-center gap-3 text-[0.65rem] text-muted-foreground">
+            <span className="inline-flex items-center gap-1"><ShieldCheck className="h-3 w-3 text-emerald-600" /> quote confirmed in source</span>
+            <span className="inline-flex items-center gap-1"><ShieldAlert className="h-3 w-3 text-amber-600" /> quote could not be confirmed — verify by hand</span>
+          </p>
+        </>
       )}
       <div className="rounded-md border border-border p-2 text-[0.7rem]">
         <p className="mb-1 font-medium">References (APA 7th ed.)</p>
@@ -515,20 +549,45 @@ interface PrismaDraftSource {
   title: string;
   excerpt: string;
 }
+interface PrismaFlowCounts {
+  recordsIdentified: number;
+  recordsExcludedAtScreening: number;
+  reportsSoughtForRetrieval: number;
+  reportsNotRetrieved: number;
+  studiesIncluded: number;
+}
 interface PrismaDraftResult {
   sources: PrismaDraftSource[];
   skippedUrls: { url: string; reason: string }[];
   draft: string;
+  flowCounts: PrismaFlowCounts;
   mode: "llm" | "unavailable";
   reason?: string;
   model?: string;
 }
 
+interface ExcludedSourceInput {
+  label: string;
+  reason: string;
+}
+
 function PrismaDraftPanel() {
   const [selectedArticles, setSelectedArticles] = useState<ArticleHit[]>([]);
   const [externalSources, setExternalSources] = useState<ExternalSource[]>([]);
+  const [eligibilityCriteria, setEligibilityCriteria] = useState("");
+  const [searchStrategy, setSearchStrategy] = useState("");
+  const [excludedSources, setExcludedSources] = useState<ExcludedSourceInput[]>([]);
+  const [excludedLabel, setExcludedLabel] = useState("");
+  const [excludedReason, setExcludedReason] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<PrismaDraftResult | null>(null);
+
+  function addExcluded() {
+    if (!excludedLabel.trim()) return;
+    setExcludedSources((prev) => [...prev, { label: excludedLabel.trim(), reason: excludedReason.trim() || "No reason recorded" }]);
+    setExcludedLabel("");
+    setExcludedReason("");
+  }
 
   async function run() {
     if (selectedArticles.length + externalSources.length === 0) {
@@ -542,6 +601,9 @@ function PrismaDraftPanel() {
         body: JSON.stringify({
           articleIds: selectedArticles.map((a) => a.id),
           externalSources: externalSources.map((s) => ({ url: s.url, title: s.title, authors: s.authors, year: s.year, venue: s.venue })),
+          eligibilityCriteria,
+          searchStrategy,
+          excludedSources,
         }),
       });
       setResult(r);
@@ -568,7 +630,7 @@ function PrismaDraftPanel() {
       <CardHeader className="pb-3">
         <p className="eyebrow flex items-center gap-1.5"><FileText className="h-3 w-3" /> Systematic Review / PRISMA Drafting Tool</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Select published articles and/or find external sources as your included studies — drafts a review scaffold (rationale, synthesis, limitations) grounded only in what you provide. A first draft to revise, not a finished review.
+          Record your own eligibility criteria and search strategy, select included studies and any candidates excluded at screening, and get a reproducible PRISMA flow diagram, screening log, and literature-matrix draft — every extracted claim is checked against the source&apos;s own text before it&apos;s shown. A first draft to revise, not a finished review.
         </p>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -579,6 +641,59 @@ function PrismaDraftPanel() {
         <div>
           <p className="mb-1 text-xs font-medium">External sources</p>
           <ExternalSourceSearch selected={externalSources} onChange={setExternalSources} maxSelected={8} />
+        </div>
+        <div>
+          <p className="mb-1 text-xs font-medium">Eligibility criteria</p>
+          <Textarea
+            value={eligibilityCriteria}
+            onChange={(e) => setEligibilityCriteria(e.target.value)}
+            placeholder="e.g. Peer-reviewed studies published 2015–2025 involving adult participants, reporting a quantitative outcome measure..."
+            className="min-h-16 text-xs"
+          />
+        </div>
+        <div>
+          <p className="mb-1 text-xs font-medium">Search strategy</p>
+          <Textarea
+            value={searchStrategy}
+            onChange={(e) => setSearchStrategy(e.target.value)}
+            placeholder="e.g. Searched Crossref, OpenAlex, and PubMed Central for '(topic) AND (population)' on 2026-08-18, limited to English-language results..."
+            className="min-h-16 text-xs"
+          />
+          <p className="mt-1 text-[0.65rem] text-muted-foreground">
+            Your own words — this platform can&apos;t know what search you actually ran, so eligibility criteria and search strategy are never AI-generated.
+          </p>
+        </div>
+        <div>
+          <p className="mb-1 text-xs font-medium">Candidates excluded at screening</p>
+          <div className="flex flex-wrap gap-1.5">
+            <Input
+              value={excludedLabel}
+              onChange={(e) => setExcludedLabel(e.target.value)}
+              placeholder="Title / citation"
+              className="h-7 min-w-[10rem] flex-1 text-xs"
+            />
+            <Input
+              value={excludedReason}
+              onChange={(e) => setExcludedReason(e.target.value)}
+              placeholder="Reason for exclusion"
+              className="h-7 min-w-[10rem] flex-1 text-xs"
+            />
+            <Button size="sm" variant="outline" className="h-7 shrink-0 gap-1 px-2 text-xs" disabled={!excludedLabel.trim()} onClick={addExcluded}>
+              <Plus className="h-3 w-3" /> Add
+            </Button>
+          </div>
+          {excludedSources.length > 0 && (
+            <div className="mt-1.5 space-y-1">
+              {excludedSources.map((e, i) => (
+                <div key={i} className="flex items-center justify-between gap-2 rounded border border-border px-2 py-1 text-[0.7rem]">
+                  <span className="truncate"><span className="font-medium">{e.label}</span> — {e.reason}</span>
+                  <button type="button" onClick={() => setExcludedSources((prev) => prev.filter((_, idx) => idx !== i))} aria-label="Remove">
+                    <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         <Button size="sm" onClick={run} disabled={loading} className="gap-1.5">
           {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
@@ -601,12 +716,18 @@ function PrismaDraftPanel() {
               <p className="text-xs text-muted-foreground">No draft available — {unavailableDescription(result.reason)}</p>
             ) : (
               <div className="rounded-md border border-border p-2 text-xs">
-                <div className="mb-1.5 flex items-center justify-between">
-                  <p className="text-muted-foreground">{result.model && `Generated by ${result.model}`}</p>
+                <div className="mb-1.5 flex flex-wrap items-center justify-between gap-1.5">
+                  <div className="flex flex-wrap gap-1">
+                    <Badge variant="outline" className="text-[0.6rem]">{result.flowCounts.recordsIdentified} identified</Badge>
+                    <Badge variant="outline" className="text-[0.6rem]">{result.flowCounts.recordsExcludedAtScreening} excluded</Badge>
+                    <Badge variant="outline" className="text-[0.6rem]">{result.flowCounts.reportsNotRetrieved} not retrieved</Badge>
+                    <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-[0.6rem] text-emerald-700">{result.flowCounts.studiesIncluded} included</Badge>
+                  </div>
                   <Button size="sm" variant="ghost" className="h-6 gap-1 px-2 text-[0.65rem]" onClick={copyDraft}>
                     <Copy className="h-3 w-3" /> Copy
                   </Button>
                 </div>
+                {result.model && <p className="mb-1.5 text-[0.65rem] text-muted-foreground">Narrative sections generated by {result.model}</p>}
                 <pre className="max-h-96 overflow-auto whitespace-pre-wrap font-sans text-foreground/85">{result.draft}</pre>
               </div>
             )}
@@ -630,6 +751,40 @@ interface TranscriptionJob {
 function TranscriptionPanel() {
   const [jobs, setJobs] = useState<TranscriptionJob[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
+
+  async function retry(jobId: string) {
+    setRetryingId(jobId);
+    try {
+      const r = await apiFetch<{ job: TranscriptionJob }>(`/api/research-lab/transcription/${jobId}/retry`, { method: "POST" });
+      setJobs((prev) => prev.map((j) => (j.id === jobId ? r.job : j)));
+      if (r.job.status === "COMPLETED") {
+        toast.success("Transcription complete");
+      } else {
+        toast.error("Transcription failed again", { description: r.job.errorMessage ?? undefined });
+      }
+    } catch (e: any) {
+      toast.error("Retry failed", { description: e.message });
+    } finally {
+      setRetryingId(null);
+    }
+  }
+
+  function copyTranscript(text: string) {
+    navigator.clipboard.writeText(text);
+    toast.success("Transcript copied to clipboard");
+  }
+
+  function downloadTranscript(job: TranscriptionJob) {
+    if (!job.transcript) return;
+    const blob = new Blob([job.transcript], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${job.fileName.replace(/\.[^.]+$/, "")}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   useEffect(() => {
     apiFetch<{ jobs: TranscriptionJob[] }>("/api/research-lab/transcription")
@@ -724,11 +879,32 @@ function TranscriptionPanel() {
                   </Badge>
                 </div>
                 {j.transcript && (
-                  <ScrollArea className="mt-1.5 max-h-32 epip-scroll">
-                    <p className="whitespace-pre-wrap text-foreground/85">{j.transcript}</p>
-                  </ScrollArea>
+                  <>
+                    <ScrollArea className="mt-1.5 max-h-32 epip-scroll">
+                      <p className="whitespace-pre-wrap text-foreground/85">{j.transcript}</p>
+                    </ScrollArea>
+                    <div className="mt-1.5 flex gap-1.5">
+                      <Button size="sm" variant="ghost" className="h-6 gap-1 px-2 text-[0.65rem]" onClick={() => copyTranscript(j.transcript!)}>
+                        <Copy className="h-3 w-3" /> Copy
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-6 gap-1 px-2 text-[0.65rem]" onClick={() => downloadTranscript(j)}>
+                        <Download className="h-3 w-3" /> Download .txt
+                      </Button>
+                    </div>
+                  </>
                 )}
                 {j.errorMessage && <p className="mt-1 text-rose-700">{j.errorMessage}</p>}
+                {j.status === "FAILED" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="mt-1.5 h-6 gap-1 px-2 text-[0.65rem]"
+                    disabled={retryingId === j.id}
+                    onClick={() => retry(j.id)}
+                  >
+                    {retryingId === j.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />} Retry
+                  </Button>
+                )}
               </div>
             ))}
           </div>

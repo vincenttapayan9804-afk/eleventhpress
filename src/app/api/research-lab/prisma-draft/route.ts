@@ -7,6 +7,22 @@ import { parseExternalSources } from "@/lib/research-gap-finder";
 const RESEARCH_LAB_ROLES = ["AUTHOR", "EXPERT", "REVIEWER", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"];
 const MAX_ARTICLES_PER_REQUEST = 20;
 const MAX_EXTERNAL_PER_REQUEST = 8;
+const MAX_EXCLUDED_PER_REQUEST = 20;
+const MAX_FREETEXT_CHARS = 4000;
+
+function parseExcludedSources(raw: unknown): { label: string; reason: string }[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const o = item as any;
+      const label = typeof o.label === "string" ? o.label.trim() : "";
+      const reason = typeof o.reason === "string" ? o.reason.trim() : "";
+      return label ? { label: label.slice(0, 300), reason: reason.slice(0, 500) } : null;
+    })
+    .filter((s): s is { label: string; reason: string } => s !== null)
+    .slice(0, MAX_EXCLUDED_PER_REQUEST);
+}
 
 /**
  * POST /api/research-lab/prisma-draft
@@ -25,14 +41,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Not available for this role" }, { status: 403 });
   }
 
-  const body = (await req.json().catch(() => ({}))) as { articleIds?: string[]; externalSources?: unknown };
+  const body = (await req.json().catch(() => ({}))) as {
+    articleIds?: string[];
+    externalSources?: unknown;
+    eligibilityCriteria?: string;
+    searchStrategy?: string;
+    excludedSources?: unknown;
+  };
   const articleIds = (body.articleIds ?? []).filter((s) => typeof s === "string").slice(0, MAX_ARTICLES_PER_REQUEST);
   const externalSources = parseExternalSources(body.externalSources, MAX_EXTERNAL_PER_REQUEST);
+  const excludedSources = parseExcludedSources(body.excludedSources);
+  const eligibilityCriteria = typeof body.eligibilityCriteria === "string" ? body.eligibilityCriteria.slice(0, MAX_FREETEXT_CHARS) : undefined;
+  const searchStrategy = typeof body.searchStrategy === "string" ? body.searchStrategy.slice(0, MAX_FREETEXT_CHARS) : undefined;
   if (articleIds.length === 0 && externalSources.length === 0) {
     return NextResponse.json({ error: "Select at least one included study" }, { status: 400 });
   }
 
-  const result = await draftSystematicReview({ articleIds, externalSources });
+  const result = await draftSystematicReview({ articleIds, externalSources, eligibilityCriteria, searchStrategy, excludedSources });
 
   if (result.mode === "llm") {
     await db.researchLabDocument.create({
@@ -40,8 +65,8 @@ export async function POST(req: NextRequest) {
         userId: session.userId,
         kind: "PRISMA_DRAFT",
         title: `Review draft — ${result.sources.length} included stud${result.sources.length === 1 ? "y" : "ies"}`,
-        inputJson: JSON.stringify({ articleIds, externalSources }),
-        resultJson: JSON.stringify({ sources: result.sources, draft: result.draft }),
+        inputJson: JSON.stringify({ articleIds, externalSources, eligibilityCriteria, searchStrategy, excludedSources }),
+        resultJson: JSON.stringify({ sources: result.sources, draft: result.draft, flowCounts: result.flowCounts, screeningLog: result.screeningLog }),
         model: result.model,
       },
     });

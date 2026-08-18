@@ -254,28 +254,48 @@ export async function resolveExternalSource(
 }
 
 /**
+ * One matrix cell: the extracted value, plus the verbatim quote the model
+ * claims proves it — verified server-side (see verifyQuote below) rather
+ * than trusted outright, the same "don't take the LLM's word for its own
+ * accuracy" posture Scite.ai built a whole product around for citations.
+ * `verified: true` also for the trivial case of an empty value/quote (the
+ * "Not stated..." sentence has nothing to verify against).
+ */
+export interface FieldWithEvidence {
+  value: string;
+  quote: string;
+  verified: boolean;
+}
+
+/**
  * The standard literature-review-matrix dimensions researchers compare
  * across included studies. The nine qualitative fields are LLM-extracted
- * strictly from each source's own excerpt (never inferred) — `reference`
- * is never LLM-generated at all: it's built deterministically, reusing
- * the platform's own APA 7 formatter (src/lib/article.ts's
- * formatCitation()) for internal articles, and a best-effort equivalent
- * from real discovery-search metadata for external ones — so citation
- * accuracy never depends on the model getting punctuation right.
+ * strictly from each source's own excerpt (never inferred), and each now
+ * carries a verbatim supporting quote that's programmatically checked
+ * against that source's own excerpt — `reference` is never LLM-generated
+ * at all: it's built deterministically, reusing the platform's own APA 7
+ * formatter (src/lib/article.ts's formatCitation()) for internal
+ * articles, and a best-effort equivalent from real discovery-search
+ * metadata for external ones — so citation accuracy never depends on the
+ * model getting punctuation right.
  */
 export interface SourceMatrixEntry {
-  researchDesign: string;
-  participants: string;
-  population: string;
-  locale: string;
-  theoreticalFramework: string;
-  methodology: string;
-  keyFindings: string;
-  conclusions: string;
-  recommendations: string;
+  researchDesign: FieldWithEvidence;
+  participants: FieldWithEvidence;
+  population: FieldWithEvidence;
+  locale: FieldWithEvidence;
+  theoreticalFramework: FieldWithEvidence;
+  methodology: FieldWithEvidence;
+  keyFindings: FieldWithEvidence;
+  conclusions: FieldWithEvidence;
+  recommendations: FieldWithEvidence;
   /** APA 7th-edition formatted reference — always populated, independent
    * of whether the LLM ran at all. */
   reference: string;
+}
+
+function blankField(): FieldWithEvidence {
+  return { value: "", quote: "", verified: false };
 }
 
 /** The nine qualitative fields are blank (not "Not stated") until the LLM
@@ -285,16 +305,41 @@ export interface SourceMatrixEntry {
  * there". Different meanings, both honestly distinguishable in the UI. */
 function blankMatrixFields(): Omit<SourceMatrixEntry, "reference"> {
   return {
-    researchDesign: "",
-    participants: "",
-    population: "",
-    locale: "",
-    theoreticalFramework: "",
-    methodology: "",
-    keyFindings: "",
-    conclusions: "",
-    recommendations: "",
+    researchDesign: blankField(),
+    participants: blankField(),
+    population: blankField(),
+    locale: blankField(),
+    theoreticalFramework: blankField(),
+    methodology: blankField(),
+    keyFindings: blankField(),
+    conclusions: blankField(),
+    recommendations: blankField(),
   };
+}
+
+const NOT_STATED = "Not stated in the source material provided.";
+/** Minimum quote length worth checking — below this almost any quote
+ * would trivially appear somewhere in a 3000-char excerpt by chance, so a
+ * too-short quote is treated as unverifiable rather than falsely "verified". */
+const MIN_VERIFIABLE_QUOTE_CHARS = 12;
+
+function normalizeForMatch(text: string): string {
+  return text.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Deterministic claim verification: does the model's claimed supporting
+ * quote actually appear (near-verbatim) in the source's own excerpt? This
+ * is the Scite.ai-style "don't just trust the citation, check it"
+ * mechanism, applied here to matrix-field extraction instead of citation
+ * classification. A missing/too-short quote against a real (non-"not
+ * stated") value is honestly unverified rather than assumed correct.
+ */
+export function verifyQuote(value: string, quote: string, sourceExcerpt: string): boolean {
+  if (!value.trim() || value.trim() === NOT_STATED) return true;
+  const normalizedQuote = normalizeForMatch(quote);
+  if (normalizedQuote.length < MIN_VERIFIABLE_QUOTE_CHARS) return false;
+  return normalizeForMatch(sourceExcerpt).includes(normalizedQuote);
 }
 
 /** Formats a discovery-search "First Last, First Last" author string into
@@ -411,47 +456,61 @@ export interface GapAnalysisResult {
 }
 
 const GAP_ANALYSIS_SYSTEM_PROMPT =
-  "You are a research assistant helping a scholar compare a set of sources in depth, in the standard literature-review-matrix format (research design, participants, population/sample, locale/setting, theoretical framework, methodology, key findings, conclusions, recommendations). Extract every matrix field strictly from what's stated in that source's own excerpt — write exactly 'Not stated in the source material provided.' for any field the excerpt doesn't actually address; never infer, guess, or carry a detail over from a different source. Real academic sources on a shared topic almost always differ in population, context, methodology, scope, timeframe, or emphasis — your job in the gap analysis is to surface those differences concretely, not to look for a reason to say nothing. An empty gaps list is only appropriate when the sources are near-duplicates of each other (e.g. the same study indexed twice) — for any genuinely distinct set of sources, identify at least 2-3 concrete gaps: an angle only one source covers, a population/context none of them address, a methodological limitation shared across all of them, or an apparent contradiction between findings.";
+  "You are a research assistant helping a scholar compare a set of sources in depth, in the standard literature-review-matrix format (research design, participants, population/sample, locale/setting, theoretical framework, methodology, key findings, conclusions, recommendations). Extract every matrix field strictly from what's stated in that source's own excerpt — write exactly 'Not stated in the source material provided.' for any field the excerpt doesn't actually address (and leave quote empty in that case); never infer, guess, or carry a detail over from a different source. For every other field, quote must be a short (under 200 characters) verbatim excerpt copied exactly from that source's own text that proves the value — not a paraphrase, not from a different source. Real academic sources on a shared topic almost always differ in population, context, methodology, scope, timeframe, or emphasis — your job in the gap analysis is to surface those differences concretely, not to look for a reason to say nothing. An empty gaps list is only appropriate when the sources are near-duplicates of each other (e.g. the same study indexed twice) — for any genuinely distinct set of sources, identify at least 2-3 concrete gaps: an angle only one source covers, a population/context none of them address, a methodological limitation shared across all of them, or an apparent contradiction between findings.";
+
+export interface RawMatrixField {
+  value: string;
+  /** Verbatim excerpt from this source's own text supporting `value` —
+   * empty string when `value` is the "Not stated..." sentence. */
+  quote: string;
+}
 
 export interface RawSourceAnalysis {
   index: number;
-  researchDesign: string;
-  participants: string;
-  population: string;
-  locale: string;
-  theoreticalFramework: string;
-  methodology: string;
-  keyFindings: string;
-  conclusions: string;
-  recommendations: string;
+  researchDesign: RawMatrixField;
+  participants: RawMatrixField;
+  population: RawMatrixField;
+  locale: RawMatrixField;
+  theoreticalFramework: RawMatrixField;
+  methodology: RawMatrixField;
+  keyFindings: RawMatrixField;
+  conclusions: RawMatrixField;
+  recommendations: RawMatrixField;
 }
 
+const FIELD_SHAPE = '{"value": "...", "quote": "<verbatim excerpt from this source proving the value, or empty string if the value is the not-stated sentence>"}';
 export const SOURCE_ANALYSIS_FIELD_SCHEMA =
-  '{"index": <1-based source number>, "researchDesign": "...", "participants": "...", "population": "...", "locale": "...", "theoreticalFramework": "...", "methodology": "...", "keyFindings": "...", "conclusions": "...", "recommendations": "..."}';
+  `{"index": <1-based source number>, "researchDesign": ${FIELD_SHAPE}, "participants": ${FIELD_SHAPE}, "population": ${FIELD_SHAPE}, "locale": ${FIELD_SHAPE}, "theoreticalFramework": ${FIELD_SHAPE}, "methodology": ${FIELD_SHAPE}, "keyFindings": ${FIELD_SHAPE}, "conclusions": ${FIELD_SHAPE}, "recommendations": ${FIELD_SHAPE}}`;
+
+const MATRIX_FIELD_KEYS = [
+  "researchDesign",
+  "participants",
+  "population",
+  "locale",
+  "theoreticalFramework",
+  "methodology",
+  "keyFindings",
+  "conclusions",
+  "recommendations",
+] as const;
 
 /** Merges the LLM's per-source matrix analysis back onto the resolved
- * source list by index — shared shape/logic between findResearchGaps and
- * draftSystematicReview. */
+ * source list by index, verifying each field's claimed quote against that
+ * source's own excerpt as it goes — shared shape/logic between
+ * findResearchGaps and draftSystematicReview. */
 export function mergeSourceAnalyses(sources: GapAnalysisSource[], analyses: RawSourceAnalysis[] | undefined): GapAnalysisSource[] {
   const byIndex = new Map((analyses ?? []).map((a) => [a.index, a]));
   return sources.map((s, i) => {
     const a = byIndex.get(i + 1);
     if (!a) return s;
-    return {
-      ...s,
-      matrix: {
-        ...s.matrix,
-        researchDesign: a.researchDesign ?? "",
-        participants: a.participants ?? "",
-        population: a.population ?? "",
-        locale: a.locale ?? "",
-        theoreticalFramework: a.theoreticalFramework ?? "",
-        methodology: a.methodology ?? "",
-        keyFindings: a.keyFindings ?? "",
-        conclusions: a.conclusions ?? "",
-        recommendations: a.recommendations ?? "",
-      },
-    };
+    const matrix = { ...s.matrix };
+    for (const key of MATRIX_FIELD_KEYS) {
+      const raw = a[key];
+      const value = raw?.value ?? "";
+      const quote = raw?.quote ?? "";
+      matrix[key] = { value, quote, verified: verifyQuote(value, quote, s.excerpt) };
+    }
+    return { ...s, matrix };
   });
 }
 
