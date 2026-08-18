@@ -425,7 +425,7 @@ export function DashboardView() {
           {dashboardTab === "grants" && <GrantsTab />}
           {dashboardTab === "researchDashboard" && <ResearchDashboardTab />}
           {dashboardTab === "rankings" && <RankingsTab />}
-          {dashboardTab === "benchmarking" && <BenchmarkingTab />}
+          {dashboardTab === "benchmarking" && <BenchmarkingTab role={user.role} />}
           {dashboardTab === "reader" && <ReaderTab subscription={data.subscription} onRefresh={loadDashboard} />}
           {dashboardTab === "certificates" && <CertificatesTab />}
           {dashboardTab === "researchLab" && <ResearchLabTab />}
