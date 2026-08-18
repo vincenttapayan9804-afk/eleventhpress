@@ -48,6 +48,7 @@ import {
   LineChart,
   Scale,
   Presentation,
+  Users2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -90,6 +91,7 @@ import {
   BenchmarkingTab,
   BoardIntelligenceTab,
   ReputationIntelligenceTab,
+  ReviewerMarketplaceTab,
 } from "@/components/dashboard/lazy";
 import { useLiveDashboard } from "@/hooks/use-live-dashboard";
 
@@ -228,9 +230,9 @@ export function DashboardView() {
 
     // --- Executive Command Intelligence ---
     // A single module with each phase as a sub-section under this one group
-    // header, not a separate top-level module per phase. Phases 1-3 today;
-    // Phases 4-5 (Marketplace, Research Board) join this same group as
-    // additional entries as each ships.
+    // header, not a separate top-level module per phase. Phases 1-4 today;
+    // Phase 5 (Research Board) joins this same group as an additional
+    // entry once it ships.
     { key: "benchmarking", label: "Research benchmarking", icon: Scale, roles: ["SUPER_ADMIN", "TENANT_ADMIN"], group: "Executive Command Intelligence" },
     {
       key: "boardIntelligence",
@@ -243,6 +245,13 @@ export function DashboardView() {
       key: "reputationIntelligence",
       label: "Reputation intelligence",
       icon: Award,
+      roles: ["SUPER_ADMIN", "TENANT_ADMIN"],
+      group: "Executive Command Intelligence",
+    },
+    {
+      key: "reviewerMarketplace",
+      label: "Reviewer marketplace",
+      icon: Users2,
       roles: ["SUPER_ADMIN", "TENANT_ADMIN"],
       group: "Executive Command Intelligence",
     },
@@ -445,6 +454,7 @@ export function DashboardView() {
           {dashboardTab === "benchmarking" && <BenchmarkingTab role={user.role} />}
           {dashboardTab === "boardIntelligence" && <BoardIntelligenceTab role={user.role} />}
           {dashboardTab === "reputationIntelligence" && <ReputationIntelligenceTab role={user.role} />}
+          {dashboardTab === "reviewerMarketplace" && <ReviewerMarketplaceTab role={user.role} />}
           {dashboardTab === "reader" && <ReaderTab subscription={data.subscription} onRefresh={loadDashboard} />}
           {dashboardTab === "certificates" && <CertificatesTab />}
           {dashboardTab === "researchLab" && <ResearchLabTab />}
