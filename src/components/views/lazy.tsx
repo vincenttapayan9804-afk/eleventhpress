@@ -93,3 +93,9 @@ export const MediaView = dynamic(() => import("./media-view").then((m) => m.Medi
 export const MediaPostView = dynamic(() => import("./media-post-view").then((m) => m.MediaPostView), {
   loading: () => <ViewLoadingFallback />,
 });
+export const DepartmentsView = dynamic(() => import("./departments-view").then((m) => m.DepartmentsView), {
+  loading: () => <ViewLoadingFallback />,
+});
+export const DepartmentView = dynamic(() => import("./department-view").then((m) => m.DepartmentView), {
+  loading: () => <ViewLoadingFallback />,
+});

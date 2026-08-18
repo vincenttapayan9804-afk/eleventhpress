@@ -116,7 +116,8 @@ export async function GET(req: NextRequest) {
   const orcids = [...byKey.values()].map((e) => e.orcid).filter((v): v is string => !!v);
   const emails = [...byKey.values()].map((e) => e.email).filter((v): v is string => !!v);
   const accounts = orcids.length || emails.length
-    ? await db.user.findMany({
+    ? await withTenantRlsContext(tenant?.id ?? null, (tx) =>
+        tx.user.findMany({
         where: { OR: [...(orcids.length ? [{ orcid: { in: orcids } }] : []), ...(emails.length ? [{ email: { in: emails } }] : [])] },
         select: {
           id: true,
@@ -133,8 +134,11 @@ export async function GET(req: NextRequest) {
           contactEmail: true,
           contactPhone: true,
           country: true,
+          academicStatus: true,
+          department: { select: { id: true, name: true, slug: true } },
         },
       })
+      )
     : [];
   const accountByOrcid = new Map(accounts.filter((u) => u.orcid).map((u) => [u.orcid as string, u]));
   const accountByEmail = new Map(accounts.filter((u) => u.email).map((u) => [u.email.toLowerCase(), u]));
@@ -174,6 +178,8 @@ export async function GET(req: NextRequest) {
         contactEmail: account?.contactEmail || null,
         contactPhone: account?.contactPhone || null,
         country: account?.country || null,
+        academicStatus: account?.academicStatus || null,
+        department: account?.department || null,
         citationMetrics,
       };
     })

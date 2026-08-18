@@ -27,7 +27,9 @@ export type ViewKey =
   | "magazineIssue"
   | "podcasts"
   | "media"
-  | "mediaPost";
+  | "mediaPost"
+  | "departments"
+  | "department";
 
 export type DashboardTab =
   | "overview"
@@ -83,12 +85,15 @@ interface AppState {
   articleId: string | null;
   magazineIssueId: string | null;
   mediaPostId: string | null;
+  departmentSlug: string | null;
   dashboardTab: DashboardTab;
   reviewId: string | null;
   setView: (v: ViewKey) => void;
   openArticle: (id: string) => void;
   openMagazineIssue: (id: string) => void;
   openMediaPost: (id: string) => void;
+  openDepartments: () => void;
+  openDepartment: (slug: string) => void;
   openDashboard: (tab?: DashboardTab) => void;
   openReviewerForm: (reviewId: string) => void;
 
@@ -122,12 +127,15 @@ export const useApp = create<AppState>()(
       articleId: null,
       magazineIssueId: null,
       mediaPostId: null,
+      departmentSlug: null,
       dashboardTab: "overview",
       reviewId: null,
       setView: (v) => set({ view: v }),
       openArticle: (id) => set({ view: "article", articleId: id }),
       openMagazineIssue: (id) => set({ view: "magazineIssue", magazineIssueId: id }),
       openMediaPost: (id) => set({ view: "mediaPost", mediaPostId: id }),
+      openDepartments: () => set({ view: "departments" }),
+      openDepartment: (slug) => set({ view: "department", departmentSlug: slug }),
       openDashboard: (tab = "overview") =>
         set({ view: "dashboard", dashboardTab: tab }),
       openReviewerForm: (reviewId) =>
