@@ -58,6 +58,7 @@ export type DashboardTab =
   | "benchmarking"
   | "boardIntelligence"
   | "reputationIntelligence"
+  | "reviewerMarketplace"
   | "narration"
   | "researchIntegrity"
   | "admin"
