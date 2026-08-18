@@ -140,3 +140,6 @@ export const ReputationIntelligenceTab = dynamic(() => import("./reputation-inte
 export const ReviewerMarketplaceTab = dynamic(() => import("./reviewer-marketplace-tab").then((m) => m.ReviewerMarketplaceTab), {
   loading: () => <TabLoadingFallback />,
 });
+export const ResearchBoardTab = dynamic(() => import("./research-board-tab").then((m) => m.ResearchBoardTab), {
+  loading: () => <TabLoadingFallback />,
+});

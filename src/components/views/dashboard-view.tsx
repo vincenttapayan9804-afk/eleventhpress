@@ -49,6 +49,7 @@ import {
   Scale,
   Presentation,
   Users2,
+  ClipboardCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -92,6 +93,7 @@ import {
   BoardIntelligenceTab,
   ReputationIntelligenceTab,
   ReviewerMarketplaceTab,
+  ResearchBoardTab,
 } from "@/components/dashboard/lazy";
 import { useLiveDashboard } from "@/hooks/use-live-dashboard";
 
@@ -230,9 +232,8 @@ export function DashboardView() {
 
     // --- Executive Command Intelligence ---
     // A single module with each phase as a sub-section under this one group
-    // header, not a separate top-level module per phase. Phases 1-4 today;
-    // Phase 5 (Research Board) joins this same group as an additional
-    // entry once it ships.
+    // header, not a separate top-level module per phase. Phases 1-5, the
+    // full set, all live here now.
     { key: "benchmarking", label: "Research benchmarking", icon: Scale, roles: ["SUPER_ADMIN", "TENANT_ADMIN"], group: "Executive Command Intelligence" },
     {
       key: "boardIntelligence",
@@ -252,6 +253,13 @@ export function DashboardView() {
       key: "reviewerMarketplace",
       label: "Reviewer marketplace",
       icon: Users2,
+      roles: ["SUPER_ADMIN", "TENANT_ADMIN"],
+      group: "Executive Command Intelligence",
+    },
+    {
+      key: "researchBoard",
+      label: "Research board",
+      icon: ClipboardCheck,
       roles: ["SUPER_ADMIN", "TENANT_ADMIN"],
       group: "Executive Command Intelligence",
     },
@@ -455,6 +463,7 @@ export function DashboardView() {
           {dashboardTab === "boardIntelligence" && <BoardIntelligenceTab role={user.role} />}
           {dashboardTab === "reputationIntelligence" && <ReputationIntelligenceTab role={user.role} />}
           {dashboardTab === "reviewerMarketplace" && <ReviewerMarketplaceTab role={user.role} />}
+          {dashboardTab === "researchBoard" && <ResearchBoardTab role={user.role} />}
           {dashboardTab === "reader" && <ReaderTab subscription={data.subscription} onRefresh={loadDashboard} />}
           {dashboardTab === "certificates" && <CertificatesTab />}
           {dashboardTab === "researchLab" && <ResearchLabTab />}
