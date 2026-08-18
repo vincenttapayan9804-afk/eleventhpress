@@ -150,6 +150,7 @@ model User {
   narrationJobsCreated           NarrationJob[]
   ethicsSubmissionsFiled         EthicsSubmission[]     @relation("EthicsSubmittedBy")
   ethicsSubmissionsReviewed      EthicsSubmission[]     @relation("EthicsReviewedBy")
+  grantsAsPrincipalInvestigator  Grant[]                @relation("GrantPrincipalInvestigator")
 
   @@index([tenantId])
   @@index([departmentId])
@@ -541,6 +542,7 @@ model Article {
   downloadStamps             ArticleDownload[]
   independentReviews         IndependentReview[]
   ethicsSubmissions          EthicsSubmission[]
+  grants                     Grant[]
 
   // Composite indexes mirror the actual query shapes used across the app:
   // public/browse listing and the dashboard queue both filter by status
@@ -1630,6 +1632,9 @@ model Tenant {
   departments       Department[]
   // EP University OS Phase 3
   ethicsSubmissions EthicsSubmission[]
+  // EP University OS Phase 4
+  funders           Funder[]
+  grants            Grant[]
 
   @@index([status])
 }
@@ -1696,6 +1701,7 @@ model Department {
   children          Department[]       @relation("DepartmentHierarchy")
   members           User[]             @relation("DepartmentMembers")
   ethicsSubmissions EthicsSubmission[]
+  grants            Grant[]
 
   @@unique([tenantId, slug])
   @@index([tenantId])
@@ -1758,6 +1764,94 @@ model EthicsSubmission {
   @@index([departmentId])
   @@index([articleId])
   @@index([submittedByUserId])
+  @@index([status])
+}
+
+// ---------------------------------------------------------------------------
+// EP University OS Phase 4 — Grant / funder intelligence
+// ---------------------------------------------------------------------------
+// Funder is a tenant-scoped registry of known funding bodies (structured,
+// admin-curated), distinct from Article.funders — the free-text JSON blob
+// captured at submission time for Crossref FundRef deposit (see
+// src/lib/crossref.ts), which Phase 4 leaves untouched: it's a per-article
+// deposit detail, not an institutional grants-office record, and rewriting
+// an already-working Crossref deposit path is out of scope here. Grant is
+// the structured record a research/grants office actually wants to track:
+// who holds it, which funder, how much, over what period, and optionally
+// which department or published article it produced. Both get a direct
+// tenantId column so they drop straight into prisma/rls.sql's tenant-scoped
+// FOREACH loop, the same reasoning Department and EthicsSubmission used.
+// ---------------------------------------------------------------------------
+model Funder {
+  id         String  @id @default(cuid())
+  tenantId   String
+  name       String
+  // Crossref Open Funder Registry ID / ROR URI, where known — the same
+  // identifier shape Article.funders' JSON already carries per-entry, so a
+  // Grant's funder can eventually be cross-referenced against a deposited
+  // article's FundRef assertion without inventing a second ID scheme.
+  externalId String?
+  country    String?
+  website    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id])
+  grants Grant[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model Grant {
+  id       String @id @default(cuid())
+  // Denormalized at creation, same posture as Department/EthicsSubmission.
+  tenantId String
+
+  title              String
+  awardNumber        String?
+  // Free-text fallback for a funder not yet in the Funder registry — a
+  // grants office can record a grant before curating its funder. Prefer
+  // funderId once the funder exists; both may be set (funderId wins for
+  // display) so nothing is lost if the funder is registered later.
+  funderId           String?
+  funderNameFreeText String?
+
+  amount   Float?
+  currency String? // ISO 4217, e.g. "USD" — no default; null means unset, not zero
+
+  // ACTIVE | COMPLETED | CLOSED
+  status String @default("ACTIVE")
+
+  startDate DateTime?
+  endDate   DateTime?
+
+  // Display/attribution pointer only, same posture as Department.headUserId
+  // — no GRANT_ADMIN role gates it (see roles.ts). Optional: a grant may be
+  // recorded before a PI is assigned.
+  principalInvestigatorUserId String?
+  departmentId                String?
+  // Optional link to the resulting publication — a grant may predate any
+  // output, or fund research that was never (yet) published here.
+  articleId                   String?
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant                Tenant      @relation(fields: [tenantId], references: [id])
+  funder                Funder?     @relation(fields: [funderId], references: [id])
+  department            Department? @relation(fields: [departmentId], references: [id])
+  article               Article?    @relation(fields: [articleId], references: [id])
+  principalInvestigator User?       @relation("GrantPrincipalInvestigator", fields: [principalInvestigatorUserId], references: [id])
+
+  @@index([tenantId])
+  @@index([funderId])
+  @@index([departmentId])
+  @@index([articleId])
+  @@index([principalInvestigatorUserId])
   @@index([status])
 }
 

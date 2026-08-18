@@ -113,3 +113,9 @@ export const EthicsTab = dynamic(() => import("./ethics-tab").then((m) => m.Ethi
 export const EthicsReviewTab = dynamic(() => import("./ethics-review-tab").then((m) => m.EthicsReviewTab), {
   loading: () => <TabLoadingFallback />,
 });
+export const GrantsTab = dynamic(() => import("./grants-tab").then((m) => m.GrantsTab), {
+  loading: () => <TabLoadingFallback />,
+});
+export const MyGrantsTab = dynamic(() => import("./my-grants-tab").then((m) => m.MyGrantsTab), {
+  loading: () => <TabLoadingFallback />,
+});
