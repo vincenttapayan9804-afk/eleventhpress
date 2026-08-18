@@ -222,7 +222,13 @@ export function DashboardView() {
       group: "Analytics & Reporting",
     },
     { key: "rankings", label: "Institutional rankings", icon: Trophy, roles: ["SUPER_ADMIN"], group: "Analytics & Reporting" },
-    { key: "benchmarking", label: "Research benchmarking", icon: Scale, roles: ["SUPER_ADMIN", "TENANT_ADMIN"], group: "Analytics & Reporting" },
+
+    // --- Executive Command Intelligence ---
+    // A single module with each phase as a sub-section under this one group
+    // header, not a separate top-level module per phase. Phase 1 today;
+    // Phases 2-5 (Board-Level, Reputation, Marketplace, Research Board) join
+    // this same group as additional entries as each ships.
+    { key: "benchmarking", label: "Research benchmarking", icon: Scale, roles: ["SUPER_ADMIN", "TENANT_ADMIN"], group: "Executive Command Intelligence" },
 
     // --- Institution Administration ---
     { key: "departments", label: "Departments", icon: GraduationCap, roles: ["SUPER_ADMIN", "TENANT_ADMIN"], group: "Institution Administration" },
