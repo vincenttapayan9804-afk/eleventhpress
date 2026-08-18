@@ -31,6 +31,8 @@ import {
   PodcastsView,
   MediaView,
   MediaPostView,
+  DepartmentsView,
+  DepartmentView,
 } from "@/components/views/lazy";
 import { AuthSheet } from "@/components/auth-sheet";
 import { Toaster } from "@/components/ui/sonner";
@@ -134,6 +136,8 @@ export default function Page() {
               {view === "podcasts" && <PodcastsView />}
               {view === "media" && <MediaView />}
               {view === "mediaPost" && <MediaPostView />}
+              {view === "departments" && <DepartmentsView />}
+              {view === "department" && <DepartmentView />}
             </motion.div>
           </AnimatePresence>
         </main>

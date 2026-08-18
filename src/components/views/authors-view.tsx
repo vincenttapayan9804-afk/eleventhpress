@@ -84,6 +84,11 @@ interface AuthorEntry {
   githubUrl: string | null;
   contactEmail: string | null;
   contactPhone: string | null;
+  // EP University OS Phase 2 — only ever populated for a matched
+  // registered account (see hasAccount above); most co-authors never
+  // register and so have neither.
+  academicStatus: string | null;
+  department: { id: string; name: string; slug: string } | null;
 }
 
 interface AuthorDistribution {
@@ -91,6 +96,12 @@ interface AuthorDistribution {
   accountsWithCountry: number;
   countries: { country: string; count: number }[];
 }
+
+const ACADEMIC_STATUS_LABEL: Record<string, string> = {
+  FACULTY: "Faculty",
+  STUDENT: "Student",
+  STAFF: "Staff",
+};
 
 function initialsOf(name: string) {
   return name
@@ -105,6 +116,8 @@ function initialsOf(name: string) {
 
 export function AuthorsView() {
   const openArticle = useApp((s) => s.openArticle);
+  const openDepartment = useApp((s) => s.openDepartment);
+  const openDepartments = useApp((s) => s.openDepartments);
   const t = useTranslations("authors");
   const [authors, setAuthors] = useState<AuthorEntry[] | null>(null);
   const [distribution, setDistribution] = useState<AuthorDistribution | null>(null);
@@ -127,6 +140,12 @@ export function AuthorsView() {
       })
       .catch(() => setAuthors([]));
   }, []);
+
+  // Only surface a "Browse departments" entry point once this directory
+  // actually has at least one author with a department on file — invisible
+  // for every non-university tenant and any university tenant that hasn't
+  // adopted departments yet, same posture as the rest of University OS.
+  const hasDepartments = useMemo(() => (authors || []).some((a) => a.department), [authors]);
 
   const disciplines = useMemo(() => {
     const set = new Set<string>();
@@ -294,6 +313,15 @@ export function AuthorsView() {
         </div>
       )}
 
+      {hasDepartments && (
+        <button
+          onClick={openDepartments}
+          className="mt-8 inline-flex items-center gap-1.5 text-sm font-medium text-[oklch(0.42_0.18_295)] hover:underline"
+        >
+          Browse departments <ChevronRight className="h-3.5 w-3.5" />
+        </button>
+      )}
+
       <div className="mt-10 flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -376,9 +404,31 @@ export function AuthorsView() {
                   </AvatarFallback>
                 </Avatar>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-display text-base font-semibold">{a.name}</p>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <p className="truncate font-display text-base font-semibold">{a.name}</p>
+                    {a.academicStatus && ACADEMIC_STATUS_LABEL[a.academicStatus] && (
+                      <Badge variant="outline" className="text-[0.55rem]">
+                        {ACADEMIC_STATUS_LABEL[a.academicStatus]}
+                      </Badge>
+                    )}
+                  </div>
                   <p className="truncate text-xs text-muted-foreground">
                     {a.profession || a.affiliation || t("noAffiliation")}
+                    {a.department && (
+                      <>
+                        {" · "}
+                        <span
+                          role="link"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openDepartment(a.department!.slug);
+                          }}
+                          className="text-[oklch(0.42_0.18_295)] hover:underline"
+                        >
+                          {a.department.name}
+                        </span>
+                      </>
+                    )}
                   </p>
                   <div className="mt-1 flex flex-wrap gap-1 sm:hidden">
                     {a.disciplines.slice(0, 2).map((d) => (
@@ -420,12 +470,30 @@ export function AuthorsView() {
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <DialogTitle className="font-display text-lg">{selected.name}</DialogTitle>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <DialogTitle className="font-display text-lg">{selected.name}</DialogTitle>
+                      {selected.academicStatus && ACADEMIC_STATUS_LABEL[selected.academicStatus] && (
+                        <Badge variant="outline" className="text-[0.55rem]">
+                          {ACADEMIC_STATUS_LABEL[selected.academicStatus]}
+                        </Badge>
+                      )}
+                    </div>
                     <DialogDescription>
                       {selected.profession || selected.affiliation || t("noAffiliation")}
                     </DialogDescription>
                     {selected.profession && selected.affiliation && (
                       <p className="text-xs text-muted-foreground">{selected.affiliation}</p>
+                    )}
+                    {selected.department && (
+                      <button
+                        onClick={() => {
+                          openDepartment(selected.department!.slug);
+                          setSelected(null);
+                        }}
+                        className="mt-0.5 text-xs font-medium text-[oklch(0.42_0.18_295)] hover:underline"
+                      >
+                        {selected.department.name}
+                      </button>
                     )}
                   </div>
                 </div>
