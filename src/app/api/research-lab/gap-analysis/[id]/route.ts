@@ -66,5 +66,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     },
   });
 
+  await db.auditLog.create({
+    data: {
+      userId: session.userId,
+      action: "RESEARCH_LAB_DOCUMENT_EDITED",
+      entityType: "RESEARCH_LAB_DOCUMENT",
+      entityId: id,
+      metadata: JSON.stringify({ kind: "GAP_ANALYSIS" }),
+    },
+  });
+
   return NextResponse.json({ ...saved, result: JSON.parse(saved.resultJson) });
 }

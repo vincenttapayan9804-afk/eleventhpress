@@ -92,6 +92,9 @@ export const DepartmentsTab = dynamic(() => import("./departments-tab").then((m)
 export const ResearchLabTab = dynamic(() => import("./research-lab-tab").then((m) => m.ResearchLabTab), {
   loading: () => <TabLoadingFallback />,
 });
+export const ResearchLabAuditTab = dynamic(() => import("./research-lab-audit-tab").then((m) => m.ResearchLabAuditTab), {
+  loading: () => <TabLoadingFallback />,
+});
 export const MagazinesTab = dynamic(() => import("./magazines-tab").then((m) => m.MagazinesTab), {
   loading: () => <TabLoadingFallback />,
 });
