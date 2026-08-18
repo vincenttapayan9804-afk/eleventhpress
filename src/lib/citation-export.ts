@@ -61,6 +61,54 @@ DO  - ${article.doi ?? ""}
 ER  - `;
 }
 
+export interface ExportableExternalSource {
+  title?: string;
+  authors?: string;
+  year?: number | null;
+  venue?: string | null;
+  url: string;
+}
+
+/** Stable-ish BibTeX cite key from a URL — external sources (Research Lab
+ * Gap Finder/PRISMA drafting tool) have no DOI to key off, so this hashes
+ * the tail of the URL instead. Not guaranteed globally unique, but good
+ * enough for a single exported .bib file covering one run's sources. */
+function extKey(url: string): string {
+  const cleaned = url.replace(/[^a-z0-9]/gi, "");
+  return "ext" + (cleaned.slice(-24) || "source");
+}
+
+/**
+ * Best-effort BibTeX/RIS for an external Research Lab source (Gap Finder/
+ * PRISMA drafting tool) — these carry only whatever bibliographic metadata
+ * the researcher pasted or the open-data discovery search returned
+ * (title/authors/year/venue/url), never a full structured record the way
+ * this platform's own articles do, so the entry is real but intentionally
+ * sparser (@misc/ELEC type, an explicit "external source" note) rather
+ * than padded out with invented fields to look like a full @article.
+ */
+export function buildBibTeXExternal(source: ExportableExternalSource): string {
+  const title = source.title || source.url;
+  return `@misc{${extKey(source.url)},
+  title        = {${title}},
+  author       = {${source.authors ?? ""}},
+  year         = {${source.year ?? "n.d."}},
+  howpublished = {${source.venue ? `${source.venue}. ` : ""}${source.url}},
+  note         = {External source — not indexed by this platform},
+}`;
+}
+
+export function buildRisExternal(source: ExportableExternalSource): string {
+  const title = source.title || source.url;
+  return `TY  - ELEC
+TI  - ${title}
+AU  - ${source.authors ?? ""}
+PY  - ${source.year ?? ""}
+PB  - ${source.venue ?? ""}
+UR  - ${source.url}
+ER  - `;
+}
+
 /**
  * Wikidata QuickStatements V1 batch — the real, documented input format
  * (https://quickstatements.toolforge.org/) editors and WikiProject

@@ -29,6 +29,12 @@ import {
   ShieldAlert,
   Clock,
   Plus,
+  History,
+  Pencil,
+  Save,
+  XCircle,
+  FileDown,
+  Quote,
 } from "lucide-react";
 
 interface ArticleHit {
@@ -70,6 +76,47 @@ function unavailableDescription(reason: string | undefined): string {
     default:
       return "Try again in a moment.";
   }
+}
+
+function formatRelativeTime(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.round(diffMs / 60_000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString();
+}
+
+/** Download links for a saved ResearchLabDocument — hidden entirely when
+ * there's no documentId (an "unavailable" run was never persisted, so
+ * there's nothing to export). Plain anchors (not client-side fetch/blob)
+ * since the route already sets Content-Disposition: attachment and the
+ * session cookie rides along on a same-origin navigation. */
+function ExportButtons({ documentId }: { documentId: string | undefined }) {
+  if (!documentId) return null;
+  const formats: { format: string; label: string }[] = [
+    { format: "md", label: "Markdown" },
+    { format: "pdf", label: "PDF" },
+    { format: "bibtex", label: "BibTeX" },
+    { format: "ris", label: "RIS" },
+  ];
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      <FileDown className="h-3 w-3 text-muted-foreground" />
+      {formats.map((f) => (
+        <a
+          key={f.format}
+          href={`/api/research-lab/export/${documentId}?format=${f.format}`}
+          className="rounded border border-border px-1.5 py-0.5 text-[0.6rem] text-muted-foreground hover:border-primary/40 hover:text-foreground"
+        >
+          {f.label}
+        </a>
+      ))}
+    </div>
+  );
 }
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -440,6 +487,15 @@ interface GapAnalysisResult {
   mode: "llm" | "unavailable";
   reason?: string;
   model?: string;
+  documentId?: string;
+}
+
+interface GapAnalysisHistoryDoc {
+  id: string;
+  title: string;
+  createdAt: string;
+  editedAt: string | null;
+  result: GapAnalysisResult;
 }
 
 function GapFinderPanel() {
@@ -447,6 +503,55 @@ function GapFinderPanel() {
   const [externalSources, setExternalSources] = useState<ExternalSource[]>([]);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<GapAnalysisResult | null>(null);
+  const [history, setHistory] = useState<GapAnalysisHistoryDoc[] | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editOverview, setEditOverview] = useState("");
+  const [editGaps, setEditGaps] = useState<ResearchGap[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  async function loadHistory() {
+    setShowHistory((prev) => !prev);
+    if (history) return;
+    try {
+      const r = await apiFetch<{ documents: GapAnalysisHistoryDoc[] }>("/api/research-lab/gap-analysis");
+      setHistory(r.documents);
+    } catch {
+      setHistory([]);
+    }
+  }
+
+  function openHistoryDoc(doc: GapAnalysisHistoryDoc) {
+    setResult({ ...doc.result, documentId: doc.id, mode: "llm" });
+    setEditing(false);
+    setShowHistory(false);
+  }
+
+  function startEdit() {
+    if (!result) return;
+    setEditOverview(result.overview);
+    setEditGaps(result.gaps.map((g) => ({ ...g })));
+    setEditing(true);
+  }
+
+  async function saveEdit() {
+    if (!result?.documentId) return;
+    setSaving(true);
+    try {
+      const r = await apiFetch<GapAnalysisHistoryDoc>(`/api/research-lab/gap-analysis/${result.documentId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ overview: editOverview, gaps: editGaps }),
+      });
+      setResult({ ...r.result, documentId: result.documentId, mode: "llm" });
+      setHistory(null);
+      setEditing(false);
+      toast.success("Edits saved");
+    } catch (e: any) {
+      toast.error("Save failed", { description: e.message });
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function run() {
     if (selectedArticles.length + externalSources.length < 2) {
@@ -454,6 +559,7 @@ function GapFinderPanel() {
       return;
     }
     setLoading(true);
+    setEditing(false);
     try {
       const r = await apiFetch<GapAnalysisResult>("/api/research-lab/gap-analysis", {
         method: "POST",
@@ -463,6 +569,7 @@ function GapFinderPanel() {
         }),
       });
       setResult(r);
+      setHistory(null);
       if (r.mode === "llm") {
         toast.success(`Identified ${r.gaps.length} potential gap(s)`);
       } else {
@@ -478,12 +585,45 @@ function GapFinderPanel() {
   return (
     <Card className="paper-card">
       <CardHeader className="pb-3">
-        <p className="eyebrow flex items-center gap-1.5"><Search className="h-3 w-3" /> Research Gap Finder</p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Pick internal articles and/or find external sources across Crossref, OpenAlex, Semantic Scholar, and more — then get a structured gap analysis grounded in what you provide.
-        </p>
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <p className="eyebrow flex items-center gap-1.5"><Search className="h-3 w-3" /> Research Gap Finder</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Pick internal articles and/or find external sources across Crossref, OpenAlex, Semantic Scholar, and more — then get a structured gap analysis grounded in what you provide.
+            </p>
+          </div>
+          <Button size="sm" variant="outline" className="h-7 shrink-0 gap-1 px-2 text-xs" onClick={loadHistory}>
+            <History className="h-3 w-3" /> History
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-3">
+        {showHistory && (
+          <div className="rounded-md border border-border p-2">
+            {history === null ? (
+              <p className="flex items-center gap-1.5 p-1 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" /> Loading history...</p>
+            ) : history.length === 0 ? (
+              <p className="p-1 text-xs text-muted-foreground">No saved runs yet.</p>
+            ) : (
+              <div className="space-y-1">
+                {history.map((doc) => (
+                  <button
+                    key={doc.id}
+                    type="button"
+                    onClick={() => openHistoryDoc(doc)}
+                    className="flex w-full items-center justify-between gap-2 rounded px-1.5 py-1 text-left text-xs hover:bg-accent"
+                  >
+                    <span className="min-w-0 flex-1 truncate">{doc.title}</span>
+                    <span className="flex shrink-0 items-center gap-1 text-[0.6rem] text-muted-foreground">
+                      {doc.editedAt && <Badge variant="outline" className="text-[0.55rem]">edited</Badge>}
+                      {formatRelativeTime(doc.createdAt)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         <div>
           <p className="mb-1 text-xs font-medium">Internal articles</p>
           <ArticlePicker selected={selectedArticles} onChange={setSelectedArticles} maxSelected={8} />
@@ -515,23 +655,64 @@ function GapFinderPanel() {
               </p>
             ) : (
               <div className="space-y-3">
-                {result.overview && (
-                  <p className="rounded-md border border-border bg-accent/40 p-2 text-xs text-foreground/85">{result.overview}</p>
-                )}
-                <SourceMatrixTable sources={result.sources} />
-                {result.gaps.length === 0 ? (
-                  <p className="flex items-center gap-1 text-xs text-emerald-700">
-                    <CheckCircle2 className="h-3 w-3" /> No clear gaps identified from these sources.
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {result.gaps.map((g, i) => (
-                      <div key={i} className="rounded-md border border-border p-2 text-xs">
-                        <p className="font-medium">{g.gap}</p>
-                        <p className="mt-0.5 text-muted-foreground">{g.explanation}</p>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <ExportButtons documentId={result.documentId} />
+                  {result.documentId && !editing && (
+                    <Button size="sm" variant="ghost" className="h-6 gap-1 px-2 text-[0.65rem]" onClick={startEdit}>
+                      <Pencil className="h-3 w-3" /> Edit
+                    </Button>
+                  )}
+                </div>
+                {editing ? (
+                  <div className="space-y-2 rounded-md border border-primary/30 bg-accent/20 p-2">
+                    <div>
+                      <p className="mb-1 text-xs font-medium">Overview</p>
+                      <Textarea value={editOverview} onChange={(e) => setEditOverview(e.target.value)} className="min-h-20 text-xs" />
+                    </div>
+                    {editGaps.map((g, i) => (
+                      <div key={i} className="space-y-1 rounded border border-border p-1.5">
+                        <Input
+                          value={g.gap}
+                          onChange={(e) => setEditGaps((prev) => prev.map((x, idx) => (idx === i ? { ...x, gap: e.target.value } : x)))}
+                          className="h-7 text-xs font-medium"
+                        />
+                        <Textarea
+                          value={g.explanation}
+                          onChange={(e) => setEditGaps((prev) => prev.map((x, idx) => (idx === i ? { ...x, explanation: e.target.value } : x)))}
+                          className="min-h-14 text-xs"
+                        />
                       </div>
                     ))}
+                    <div className="flex gap-1.5">
+                      <Button size="sm" className="h-7 gap-1 px-2 text-xs" disabled={saving} onClick={saveEdit}>
+                        {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />} Save edits
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-7 gap-1 px-2 text-xs" onClick={() => setEditing(false)}>
+                        <XCircle className="h-3 w-3" /> Cancel
+                      </Button>
+                    </div>
                   </div>
+                ) : (
+                  <>
+                    {result.overview && (
+                      <p className="rounded-md border border-border bg-accent/40 p-2 text-xs text-foreground/85">{result.overview}</p>
+                    )}
+                    <SourceMatrixTable sources={result.sources} />
+                    {result.gaps.length === 0 ? (
+                      <p className="flex items-center gap-1 text-xs text-emerald-700">
+                        <CheckCircle2 className="h-3 w-3" /> No clear gaps identified from these sources.
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {result.gaps.map((g, i) => (
+                          <div key={i} className="rounded-md border border-border p-2 text-xs">
+                            <p className="font-medium">{g.gap}</p>
+                            <p className="mt-0.5 text-muted-foreground">{g.explanation}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
                 )}
                 {result.model && <p className="text-[0.65rem] text-muted-foreground">Generated by {result.model}</p>}
               </div>
@@ -564,6 +745,15 @@ interface PrismaDraftResult {
   mode: "llm" | "unavailable";
   reason?: string;
   model?: string;
+  documentId?: string;
+}
+
+interface PrismaDraftHistoryDoc {
+  id: string;
+  title: string;
+  createdAt: string;
+  editedAt: string | null;
+  result: PrismaDraftResult;
 }
 
 interface ExcludedSourceInput {
@@ -581,6 +771,53 @@ function PrismaDraftPanel() {
   const [excludedReason, setExcludedReason] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<PrismaDraftResult | null>(null);
+  const [history, setHistory] = useState<PrismaDraftHistoryDoc[] | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editDraft, setEditDraft] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function loadHistory() {
+    setShowHistory((prev) => !prev);
+    if (history) return;
+    try {
+      const r = await apiFetch<{ documents: PrismaDraftHistoryDoc[] }>("/api/research-lab/prisma-draft");
+      setHistory(r.documents);
+    } catch {
+      setHistory([]);
+    }
+  }
+
+  function openHistoryDoc(doc: PrismaDraftHistoryDoc) {
+    setResult({ ...doc.result, documentId: doc.id, mode: "llm" });
+    setEditing(false);
+    setShowHistory(false);
+  }
+
+  function startEdit() {
+    if (!result) return;
+    setEditDraft(result.draft);
+    setEditing(true);
+  }
+
+  async function saveEdit() {
+    if (!result?.documentId) return;
+    setSaving(true);
+    try {
+      const r = await apiFetch<PrismaDraftHistoryDoc>(`/api/research-lab/prisma-draft/${result.documentId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ draft: editDraft }),
+      });
+      setResult({ ...r.result, documentId: result.documentId, mode: "llm" });
+      setHistory(null);
+      setEditing(false);
+      toast.success("Edits saved");
+    } catch (e: any) {
+      toast.error("Save failed", { description: e.message });
+    } finally {
+      setSaving(false);
+    }
+  }
 
   function addExcluded() {
     if (!excludedLabel.trim()) return;
@@ -595,6 +832,7 @@ function PrismaDraftPanel() {
       return;
     }
     setLoading(true);
+    setEditing(false);
     try {
       const r = await apiFetch<PrismaDraftResult>("/api/research-lab/prisma-draft", {
         method: "POST",
@@ -607,6 +845,7 @@ function PrismaDraftPanel() {
         }),
       });
       setResult(r);
+      setHistory(null);
       if (r.mode === "llm") {
         toast.success("Review scaffold drafted");
       } else {
@@ -628,12 +867,45 @@ function PrismaDraftPanel() {
   return (
     <Card className="paper-card">
       <CardHeader className="pb-3">
-        <p className="eyebrow flex items-center gap-1.5"><FileText className="h-3 w-3" /> Systematic Review / PRISMA Drafting Tool</p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Record your own eligibility criteria and search strategy, select included studies and any candidates excluded at screening, and get a reproducible PRISMA flow diagram, screening log, and literature-matrix draft — every extracted claim is checked against the source&apos;s own text before it&apos;s shown. A first draft to revise, not a finished review.
-        </p>
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <p className="eyebrow flex items-center gap-1.5"><FileText className="h-3 w-3" /> Systematic Review / PRISMA Drafting Tool</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Record your own eligibility criteria and search strategy, select included studies and any candidates excluded at screening, and get a reproducible PRISMA flow diagram, screening log, and literature-matrix draft — every extracted claim is checked against the source&apos;s own text before it&apos;s shown. A first draft to revise, not a finished review.
+            </p>
+          </div>
+          <Button size="sm" variant="outline" className="h-7 shrink-0 gap-1 px-2 text-xs" onClick={loadHistory}>
+            <History className="h-3 w-3" /> History
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-3">
+        {showHistory && (
+          <div className="rounded-md border border-border p-2">
+            {history === null ? (
+              <p className="flex items-center gap-1.5 p-1 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" /> Loading history...</p>
+            ) : history.length === 0 ? (
+              <p className="p-1 text-xs text-muted-foreground">No saved drafts yet.</p>
+            ) : (
+              <div className="space-y-1">
+                {history.map((doc) => (
+                  <button
+                    key={doc.id}
+                    type="button"
+                    onClick={() => openHistoryDoc(doc)}
+                    className="flex w-full items-center justify-between gap-2 rounded px-1.5 py-1 text-left text-xs hover:bg-accent"
+                  >
+                    <span className="min-w-0 flex-1 truncate">{doc.title}</span>
+                    <span className="flex shrink-0 items-center gap-1 text-[0.6rem] text-muted-foreground">
+                      {doc.editedAt && <Badge variant="outline" className="text-[0.55rem]">edited</Badge>}
+                      {formatRelativeTime(doc.createdAt)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         <div>
           <p className="mb-1 text-xs font-medium">Internal articles</p>
           <ArticlePicker selected={selectedArticles} onChange={setSelectedArticles} maxSelected={20} />
@@ -723,12 +995,34 @@ function PrismaDraftPanel() {
                     <Badge variant="outline" className="text-[0.6rem]">{result.flowCounts.reportsNotRetrieved} not retrieved</Badge>
                     <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-[0.6rem] text-emerald-700">{result.flowCounts.studiesIncluded} included</Badge>
                   </div>
-                  <Button size="sm" variant="ghost" className="h-6 gap-1 px-2 text-[0.65rem]" onClick={copyDraft}>
-                    <Copy className="h-3 w-3" /> Copy
-                  </Button>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <ExportButtons documentId={result.documentId} />
+                    {result.documentId && !editing && (
+                      <Button size="sm" variant="ghost" className="h-6 gap-1 px-2 text-[0.65rem]" onClick={startEdit}>
+                        <Pencil className="h-3 w-3" /> Edit
+                      </Button>
+                    )}
+                    <Button size="sm" variant="ghost" className="h-6 gap-1 px-2 text-[0.65rem]" onClick={copyDraft}>
+                      <Copy className="h-3 w-3" /> Copy
+                    </Button>
+                  </div>
                 </div>
                 {result.model && <p className="mb-1.5 text-[0.65rem] text-muted-foreground">Narrative sections generated by {result.model}</p>}
-                <pre className="max-h-96 overflow-auto whitespace-pre-wrap font-sans text-foreground/85">{result.draft}</pre>
+                {editing ? (
+                  <div className="space-y-2">
+                    <Textarea value={editDraft} onChange={(e) => setEditDraft(e.target.value)} className="min-h-96 font-sans text-xs" />
+                    <div className="flex gap-1.5">
+                      <Button size="sm" className="h-7 gap-1 px-2 text-xs" disabled={saving} onClick={saveEdit}>
+                        {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />} Save edits
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-7 gap-1 px-2 text-xs" onClick={() => setEditing(false)}>
+                        <XCircle className="h-3 w-3" /> Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <pre className="max-h-96 overflow-auto whitespace-pre-wrap font-sans text-foreground/85">{result.draft}</pre>
+                )}
               </div>
             )}
           </>
@@ -738,14 +1032,70 @@ function PrismaDraftPanel() {
   );
 }
 
+interface TranscriptSegment {
+  text: string;
+  start: number | null;
+  end: number | null;
+}
+
 interface TranscriptionJob {
   id: string;
   fileName: string;
   status: "QUEUED" | "PROCESSING" | "COMPLETED" | "FAILED";
   transcript: string | null;
+  segmentsJson: string | null;
   model: string | null;
   errorMessage: string | null;
   createdAt: string;
+}
+
+/** MM:SS (or H:MM:SS past an hour) — Whisper's own chunk timestamps are
+ * fractional seconds from the start of the recording. */
+function formatTimestamp(seconds: number | null): string {
+  if (seconds === null) return "--:--";
+  const total = Math.max(0, Math.round(seconds));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  const mm = String(m).padStart(h > 0 ? 2 : 1, "0");
+  const ss = String(s).padStart(2, "0");
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
+/** Timestamp-linked transcript view — one row per Whisper chunk with its
+ * own real start/end offset, and a per-row "cite" button that copies a
+ * ready-to-paste quote (e.g. for a qualitative-methods write-up) with its
+ * timestamp attached, so a researcher doesn't have to hand-count minutes
+ * into a 45-minute interview to attribute a quote. Falls back to the flat
+ * transcript text when no chunk timestamps were captured (older jobs, or
+ * a model run that didn't return them). */
+function TranscriptSegments({ job }: { job: TranscriptionJob }) {
+  const segments: TranscriptSegment[] = job.segmentsJson ? JSON.parse(job.segmentsJson) : [];
+  if (segments.length === 0) {
+    return <p className="whitespace-pre-wrap text-foreground/85">{job.transcript}</p>;
+  }
+  function citeSegment(seg: TranscriptSegment) {
+    navigator.clipboard.writeText(`"${seg.text}" (${job.fileName} @ ${formatTimestamp(seg.start)})`);
+    toast.success("Timestamped quote copied");
+  }
+  return (
+    <div className="space-y-1">
+      {segments.map((seg, i) => (
+        <div key={i} className="flex items-start gap-1.5 rounded px-1 py-0.5 hover:bg-accent/40">
+          <span className="mt-0.5 shrink-0 font-mono text-[0.6rem] text-muted-foreground">{formatTimestamp(seg.start)}</span>
+          <p className="min-w-0 flex-1 text-foreground/85">{seg.text}</p>
+          <button
+            type="button"
+            onClick={() => citeSegment(seg)}
+            title="Copy this segment as a timestamped citation"
+            className="mt-0.5 shrink-0 text-muted-foreground hover:text-foreground"
+          >
+            <Quote className="h-3 w-3" />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function TranscriptionPanel() {
@@ -880,8 +1230,8 @@ function TranscriptionPanel() {
                 </div>
                 {j.transcript && (
                   <>
-                    <ScrollArea className="mt-1.5 max-h-32 epip-scroll">
-                      <p className="whitespace-pre-wrap text-foreground/85">{j.transcript}</p>
+                    <ScrollArea className="mt-1.5 max-h-48 epip-scroll">
+                      <TranscriptSegments job={j} />
                     </ScrollArea>
                     <div className="mt-1.5 flex gap-1.5">
                       <Button size="sm" variant="ghost" className="h-6 gap-1 px-2 text-[0.65rem]" onClick={() => copyTranscript(j.transcript!)}>
