@@ -1663,6 +1663,8 @@ model Tenant {
   // EP University OS Phase 4
   funders           Funder[]
   grants            Grant[]
+  // Executive Command Intelligence Phase 1
+  patents           Patent[]
 
   @@index([status])
 }
@@ -1880,6 +1882,37 @@ model Grant {
   @@index([departmentId])
   @@index([articleId])
   @@index([principalInvestigatorUserId])
+  @@index([status])
+}
+
+// Executive Command Intelligence Phase 1 (Research Benchmarking) — minimal
+// commercialization signal. Deliberately not a full IP-management system
+// (no assignee/inventor/jurisdiction tracking, no filing-office
+// integration): just enough real, countable data to feed the
+// commercialization metric in research-benchmark.ts. Denormalized
+// tenantId at creation, same posture as Grant/EthicsSubmission.
+model Patent {
+  id       String @id @default(cuid())
+  tenantId String
+
+  title         String
+  applicationNo String?
+  // FILED | GRANTED | ABANDONED
+  status        String    @default("FILED")
+  filedDate     DateTime?
+  grantedDate   DateTime?
+  // Optional link to the originating research output — a patent may
+  // predate any publication here, or protect work never published on
+  // this platform.
+  articleId     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([articleId])
   @@index([status])
 }
 

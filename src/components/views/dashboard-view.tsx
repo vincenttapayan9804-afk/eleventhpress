@@ -46,6 +46,7 @@ import {
   Landmark,
   Trophy,
   LineChart,
+  Scale,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -85,6 +86,7 @@ import {
   MyGrantsTab,
   RankingsTab,
   ResearchDashboardTab,
+  BenchmarkingTab,
 } from "@/components/dashboard/lazy";
 import { useLiveDashboard } from "@/hooks/use-live-dashboard";
 
@@ -220,6 +222,7 @@ export function DashboardView() {
       group: "Analytics & Reporting",
     },
     { key: "rankings", label: "Institutional rankings", icon: Trophy, roles: ["SUPER_ADMIN"], group: "Analytics & Reporting" },
+    { key: "benchmarking", label: "Research benchmarking", icon: Scale, roles: ["SUPER_ADMIN", "TENANT_ADMIN"], group: "Analytics & Reporting" },
 
     // --- Institution Administration ---
     { key: "departments", label: "Departments", icon: GraduationCap, roles: ["SUPER_ADMIN", "TENANT_ADMIN"], group: "Institution Administration" },
@@ -416,6 +419,7 @@ export function DashboardView() {
           {dashboardTab === "grants" && <GrantsTab />}
           {dashboardTab === "researchDashboard" && <ResearchDashboardTab />}
           {dashboardTab === "rankings" && <RankingsTab />}
+          {dashboardTab === "benchmarking" && <BenchmarkingTab />}
           {dashboardTab === "reader" && <ReaderTab subscription={data.subscription} onRefresh={loadDashboard} />}
           {dashboardTab === "certificates" && <CertificatesTab />}
           {dashboardTab === "researchLab" && <ResearchLabTab />}

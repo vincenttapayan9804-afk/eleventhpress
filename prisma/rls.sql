@@ -134,7 +134,8 @@ BEGIN
   -- instead of being retrofitted later, the way Book/Magazine/etc. were.
   -- Phase 3 — EthicsSubmission joins the same way, for the same reason.
   -- Phase 4 — Funder and Grant join the same way, for the same reason.
-  FOREACH t IN ARRAY ARRAY['Book', 'Magazine', 'Podcast', 'MediaPost', 'Collection', 'Journal', 'Department', 'EthicsSubmission', 'Funder', 'Grant']
+  -- Executive Command Intelligence Phase 1 — Patent joins the same way.
+  FOREACH t IN ARRAY ARRAY['Book', 'Magazine', 'Podcast', 'MediaPost', 'Collection', 'Journal', 'Department', 'EthicsSubmission', 'Funder', 'Grant', 'Patent']
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
     EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', t);
