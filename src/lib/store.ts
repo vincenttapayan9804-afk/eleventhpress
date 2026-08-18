@@ -61,7 +61,9 @@ export type DashboardTab =
   | "tenants"
   | "departments"
   | "ethics"
-  | "ethicsReview";
+  | "ethicsReview"
+  | "grants"
+  | "myGrants";
 
 interface SessionUser {
   id: string;

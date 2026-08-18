@@ -81,3 +81,16 @@ export const ETHICS_SUBMISSION_STATUSES: readonly string[] = ["SUBMITTED", "UNDE
  * delegated review (e.g. a department-scoped IRB chair) that shouldn't
  * also get full TENANT_ADMIN's other powers (branding, domains, quotas).
  */
+
+/** Grant.status workflow values (EP University OS Phase 4). */
+export const GRANT_STATUS_OPTIONS: readonly string[] = ["ACTIVE", "COMPLETED", "CLOSED"];
+
+/**
+ * No new role for grant/funder management, same reasoning as ethics review
+ * above: Funder/Grant CRUD rides on TENANT_SCOPED_ADMIN_ROLES (a
+ * university's own research/grants office is presumed to be run by its
+ * TENANT_ADMIN until a narrower "grants office" identity exists to gate
+ * against). Grant.principalInvestigatorUserId is a display/attribution
+ * pointer only — same posture as Department.headUserId — and grants no
+ * permission of its own.
+ */
