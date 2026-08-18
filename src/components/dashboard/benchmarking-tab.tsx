@@ -75,7 +75,8 @@ function Row({ label, own, peer, ownFmt, peerFmt }: { label: string; own: number
 }
 
 /**
- * Executive Command Intelligence Phase 1 — Research Benchmarking.
+ * Executive Command Intelligence — the "Research benchmarking" sub-section
+ * (Phase 1 of 5, in the sidebar's "Executive Command Intelligence" group).
  * "How does our research ecosystem compare with institutions of similar
  * size?" Every number is a live count from GET /api/admin/benchmarking;
  * peer figures are a band median/aggregate only, never another tenant's
@@ -107,7 +108,10 @@ export function BenchmarkingTab() {
   return (
     <div className="space-y-4">
       <div>
-        <p className="eyebrow flex items-center gap-1.5">
+        <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
+          Executive Command Intelligence · Phase 1 of 5
+        </p>
+        <p className="eyebrow mt-1 flex items-center gap-1.5">
           <Scale className="h-3 w-3" /> Research Benchmarking
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
