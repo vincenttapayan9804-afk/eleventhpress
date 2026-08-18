@@ -119,3 +119,9 @@ export const GrantsTab = dynamic(() => import("./grants-tab").then((m) => m.Gran
 export const MyGrantsTab = dynamic(() => import("./my-grants-tab").then((m) => m.MyGrantsTab), {
   loading: () => <TabLoadingFallback />,
 });
+export const RankingsTab = dynamic(() => import("./rankings-tab").then((m) => m.RankingsTab), {
+  loading: () => <TabLoadingFallback />,
+});
+export const ResearchDashboardTab = dynamic(() => import("./research-dashboard-tab").then((m) => m.ResearchDashboardTab), {
+  loading: () => <TabLoadingFallback />,
+});

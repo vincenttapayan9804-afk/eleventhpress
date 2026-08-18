@@ -44,6 +44,8 @@ import {
   Gavel,
   Coins,
   Landmark,
+  Trophy,
+  LineChart,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -80,6 +82,8 @@ import {
   EthicsReviewTab,
   GrantsTab,
   MyGrantsTab,
+  RankingsTab,
+  ResearchDashboardTab,
 } from "@/components/dashboard/lazy";
 import { useLiveDashboard } from "@/hooks/use-live-dashboard";
 
@@ -177,6 +181,13 @@ export function DashboardView() {
       roles: ["AUTHOR", "EXPERT", "REVIEWER", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN", "TENANT_ADMIN"],
     },
     { key: "grants", label: "Grants", icon: Landmark, roles: ["SUPER_ADMIN", "TENANT_ADMIN"] },
+    {
+      key: "researchDashboard",
+      label: "Research dashboard",
+      icon: LineChart,
+      roles: ["SUPER_ADMIN", "TENANT_ADMIN"],
+    },
+    { key: "rankings", label: "Institutional rankings", icon: Trophy, roles: ["SUPER_ADMIN"] },
     { key: "reader", label: "Subscription", icon: Library, roles: ["READER", "AUTHOR", "REVIEWER", "SUPER_ADMIN"] },
     { key: "certificates", label: "Certificates", icon: Award, roles: ["AUTHOR", "REVIEWER", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"] },
     {
@@ -359,6 +370,8 @@ export function DashboardView() {
           {dashboardTab === "ethicsReview" && <EthicsReviewTab />}
           {dashboardTab === "myGrants" && <MyGrantsTab />}
           {dashboardTab === "grants" && <GrantsTab />}
+          {dashboardTab === "researchDashboard" && <ResearchDashboardTab />}
+          {dashboardTab === "rankings" && <RankingsTab />}
           {dashboardTab === "reader" && <ReaderTab subscription={data.subscription} onRefresh={loadDashboard} />}
           {dashboardTab === "certificates" && <CertificatesTab />}
           {dashboardTab === "researchLab" && <ResearchLabTab />}
