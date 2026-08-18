@@ -128,3 +128,6 @@ export const RankingsTab = dynamic(() => import("./rankings-tab").then((m) => m.
 export const ResearchDashboardTab = dynamic(() => import("./research-dashboard-tab").then((m) => m.ResearchDashboardTab), {
   loading: () => <TabLoadingFallback />,
 });
+export const BenchmarkingTab = dynamic(() => import("./benchmarking-tab").then((m) => m.BenchmarkingTab), {
+  loading: () => <TabLoadingFallback />,
+});

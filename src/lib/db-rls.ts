@@ -5,7 +5,7 @@ import type { SessionPayload } from "@/lib/auth";
 // base `Prisma.TransactionClient` type — `db` is a $extends()-wrapped
 // client (src/lib/db.ts's field-encryption extension), whose transaction
 // client type isn't structurally identical to the unextended one.
-type ExtendedTransactionClient = Parameters<Parameters<typeof db.$transaction>[0]>[0];
+export type ExtendedTransactionClient = Parameters<Parameters<typeof db.$transaction>[0]>[0];
 
 /**
  * Runs `fn` inside a transaction with `app.user_id`/`app.role`/`app.tenant_id`
