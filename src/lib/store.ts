@@ -54,6 +54,7 @@ export type DashboardTab =
   | "media"
   | "certificates"
   | "researchLab"
+  | "researchLabActivity"
   | "narration"
   | "researchIntegrity"
   | "admin"

@@ -35,7 +35,13 @@ import {
   XCircle,
   FileDown,
   Quote,
+  Share2,
+  UserPlus,
+  Trash2,
+  FileUp,
+  ArrowRightCircle,
 } from "lucide-react";
+import { parseBibTeX } from "@/lib/citation-import";
 
 interface ArticleHit {
   id: string;
@@ -115,6 +121,160 @@ function ExportButtons({ documentId }: { documentId: string | undefined }) {
           {f.label}
         </a>
       ))}
+    </div>
+  );
+}
+
+interface ShareEntry {
+  id: string;
+  createdAt: string;
+  user: { id: string; email: string; fullName: string } | null;
+}
+
+/** Tier 3 team-workspace sharing: grants a collaborator (by their own
+ * account email) read-only access to a saved document — its history entry
+ * and exports, never edit rights (see research-lab-access.ts). Hidden
+ * entirely for unsaved/"unavailable" runs, same posture as ExportButtons. */
+function ShareControl({ documentId }: { documentId: string | undefined }) {
+  const [open, setOpen] = useState(false);
+  const [shares, setShares] = useState<ShareEntry[] | null>(null);
+  const [email, setEmail] = useState("");
+  const [sharing, setSharing] = useState(false);
+
+  async function load() {
+    if (!documentId) return;
+    try {
+      const r = await apiFetch<{ shares: ShareEntry[] }>(`/api/research-lab/documents/${documentId}/share`);
+      setShares(r.shares);
+    } catch {
+      setShares([]);
+    }
+  }
+
+  function toggle() {
+    setOpen((prev) => !prev);
+    if (!shares) load();
+  }
+
+  async function addShare() {
+    if (!documentId || !email.trim()) return;
+    setSharing(true);
+    try {
+      await apiFetch(`/api/research-lab/documents/${documentId}/share`, {
+        method: "POST",
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      setEmail("");
+      toast.success("Shared");
+      load();
+    } catch (e: any) {
+      toast.error("Couldn't share", { description: e.message });
+    } finally {
+      setSharing(false);
+    }
+  }
+
+  async function removeShare(shareId: string) {
+    if (!documentId) return;
+    try {
+      await apiFetch(`/api/research-lab/documents/${documentId}/share?shareId=${shareId}`, { method: "DELETE" });
+      setShares((prev) => (prev ? prev.filter((s) => s.id !== shareId) : prev));
+    } catch (e: any) {
+      toast.error("Couldn't remove access", { description: e.message });
+    }
+  }
+
+  if (!documentId) return null;
+  return (
+    <div className="relative">
+      <Button size="sm" variant="ghost" className="h-6 gap-1 px-2 text-[0.65rem]" onClick={toggle}>
+        <Share2 className="h-3 w-3" /> Share
+      </Button>
+      {open && (
+        <div className="absolute right-0 top-7 z-10 w-64 space-y-1.5 rounded-md border border-border bg-popover p-2 shadow-md">
+          <p className="text-[0.65rem] font-medium">Share with a collaborator</p>
+          <div className="flex gap-1">
+            <Input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="colleague@university.edu"
+              className="h-6 text-[0.65rem]"
+            />
+            <Button size="sm" className="h-6 shrink-0 px-1.5" disabled={sharing || !email.trim()} onClick={addShare}>
+              {sharing ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserPlus className="h-3 w-3" />}
+            </Button>
+          </div>
+          {shares === null ? (
+            <p className="text-[0.6rem] text-muted-foreground">Loading...</p>
+          ) : shares.length === 0 ? (
+            <p className="text-[0.6rem] text-muted-foreground">Not shared with anyone yet.</p>
+          ) : (
+            <div className="space-y-1">
+              {shares.map((s) => (
+                <div key={s.id} className="flex items-center justify-between gap-1 text-[0.6rem]">
+                  <span className="min-w-0 truncate">{s.user?.fullName || s.user?.email || "Unknown user"}</span>
+                  <button type="button" onClick={() => removeShare(s.id)} aria-label="Remove access">
+                    <Trash2 className="h-3 w-3 text-muted-foreground hover:text-rose-600" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <p className="text-[0.55rem] text-muted-foreground">They must already have an account on this platform. View-only access — they can&apos;t edit your saved draft.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Reference-manager interop (Tier 3): paste a .bib file exported from
+ * Zotero/Mendeley/EndNote and add every entry that carries a real url/doi
+ * straight into the external-sources list — the inverse of the BibTeX
+ * export button. Entries with neither are reported, never silently
+ * dropped or given a made-up URL (see citation-import.ts). */
+function ImportBibTeXButton({ onImport }: { onImport: (entries: { url: string; title: string; authors?: string; year?: number | null; venue?: string | null }[]) => void }) {
+  const [open, setOpen] = useState(false);
+  const [raw, setRaw] = useState("");
+
+  function doImport() {
+    const { entries, skipped } = parseBibTeX(raw);
+    if (entries.length > 0) {
+      onImport(entries.map((e) => ({ url: e.url, title: e.title || e.url, authors: e.authors, year: e.year, venue: e.venue })));
+    }
+    if (entries.length > 0 && skipped.length === 0) {
+      toast.success(`Imported ${entries.length} source(s)`);
+    } else if (entries.length > 0) {
+      toast.success(`Imported ${entries.length} source(s)`, { description: `${skipped.length} skipped — no url/doi field.` });
+    } else {
+      toast.error("Nothing importable found", { description: skipped[0]?.reason ?? "Paste a valid .bib file." });
+    }
+    setRaw("");
+    setOpen(false);
+  }
+
+  return (
+    <div>
+      <Button size="sm" variant="outline" className="h-7 gap-1 px-2 text-xs" onClick={() => setOpen((p) => !p)}>
+        <FileUp className="h-3 w-3" /> Import BibTeX
+      </Button>
+      {open && (
+        <div className="mt-1.5 space-y-1.5 rounded-md border border-border p-2">
+          <Textarea
+            value={raw}
+            onChange={(e) => setRaw(e.target.value)}
+            placeholder="Paste .bib entries exported from Zotero, Mendeley, EndNote, etc."
+            className="min-h-24 font-mono text-[0.65rem]"
+          />
+          <div className="flex gap-1.5">
+            <Button size="sm" className="h-6 px-2 text-[0.65rem]" disabled={!raw.trim()} onClick={doImport}>
+              Add sources
+            </Button>
+            <Button size="sm" variant="ghost" className="h-6 px-2 text-[0.65rem]" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -249,6 +409,14 @@ function ExternalSourceSearch({
         >
           Add
         </Button>
+      </div>
+      <div className="mt-1.5">
+        <ImportBibTeXButton
+          onImport={(entries) => {
+            const additions = entries.filter((e) => !selectedUrls.has(e.url)).slice(0, Math.max(0, maxSelected - selected.length));
+            if (additions.length > 0) onChange([...selected, ...additions]);
+          }}
+        />
       </div>
       {selected.length > 0 && (
         <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -498,12 +666,19 @@ interface GapAnalysisHistoryDoc {
   result: GapAnalysisResult;
 }
 
-function GapFinderPanel() {
+interface PrismaSeed {
+  articles: ArticleHit[];
+  externalSources: ExternalSource[];
+  searchStrategy: string;
+}
+
+function GapFinderPanel({ onChainToPrisma }: { onChainToPrisma: (seed: PrismaSeed) => void }) {
   const [selectedArticles, setSelectedArticles] = useState<ArticleHit[]>([]);
   const [externalSources, setExternalSources] = useState<ExternalSource[]>([]);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<GapAnalysisResult | null>(null);
   const [history, setHistory] = useState<GapAnalysisHistoryDoc[] | null>(null);
+  const [sharedHistory, setSharedHistory] = useState<(GapAnalysisHistoryDoc & { owner: { fullName: string; email: string } | null })[] | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editOverview, setEditOverview] = useState("");
@@ -514,10 +689,14 @@ function GapFinderPanel() {
     setShowHistory((prev) => !prev);
     if (history) return;
     try {
-      const r = await apiFetch<{ documents: GapAnalysisHistoryDoc[] }>("/api/research-lab/gap-analysis");
+      const r = await apiFetch<{ documents: GapAnalysisHistoryDoc[]; sharedDocuments: (GapAnalysisHistoryDoc & { owner: { fullName: string; email: string } | null })[] }>(
+        "/api/research-lab/gap-analysis"
+      );
       setHistory(r.documents);
+      setSharedHistory(r.sharedDocuments);
     } catch {
       setHistory([]);
+      setSharedHistory([]);
     }
   }
 
@@ -525,6 +704,25 @@ function GapFinderPanel() {
     setResult({ ...doc.result, documentId: doc.id, mode: "llm" });
     setEditing(false);
     setShowHistory(false);
+  }
+
+  function chainToPrisma() {
+    if (!result) return;
+    const searchStrategy = [
+      "Continuing from a Gap Finder analysis run in Eleventh Research Lab:",
+      result.overview,
+      "",
+      "Gaps identified:",
+      ...result.gaps.map((g) => `- ${g.gap}: ${g.explanation}`),
+    ]
+      .filter(Boolean)
+      .join("\n");
+    onChainToPrisma({
+      articles: result.sources.filter((s) => s.kind === "internal").map((s) => ({ id: s.id, title: s.title })),
+      externalSources: result.sources.filter((s) => s.kind === "external").map((s) => ({ url: s.id, title: s.title })),
+      searchStrategy,
+    });
+    toast.success("Sent to Systematic Review tool", { description: "Sources and gaps carried over — switch tabs to continue." });
   }
 
   function startEdit() {
@@ -622,6 +820,27 @@ function GapFinderPanel() {
                 ))}
               </div>
             )}
+            {sharedHistory && sharedHistory.length > 0 && (
+              <>
+                <p className="mb-1 mt-2 text-[0.6rem] font-medium text-muted-foreground">Shared with me</p>
+                <div className="space-y-1">
+                  {sharedHistory.map((doc) => (
+                    <button
+                      key={doc.id}
+                      type="button"
+                      onClick={() => openHistoryDoc(doc)}
+                      className="flex w-full items-center justify-between gap-2 rounded px-1.5 py-1 text-left text-xs hover:bg-accent"
+                    >
+                      <span className="min-w-0 flex-1 truncate">{doc.title}</span>
+                      <span className="flex shrink-0 items-center gap-1 text-[0.6rem] text-muted-foreground">
+                        {doc.owner && <Badge variant="outline" className="text-[0.55rem]">{doc.owner.fullName}</Badge>}
+                        {formatRelativeTime(doc.createdAt)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         )}
         <div>
@@ -657,11 +876,19 @@ function GapFinderPanel() {
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <ExportButtons documentId={result.documentId} />
-                  {result.documentId && !editing && (
-                    <Button size="sm" variant="ghost" className="h-6 gap-1 px-2 text-[0.65rem]" onClick={startEdit}>
-                      <Pencil className="h-3 w-3" /> Edit
-                    </Button>
-                  )}
+                  <div className="flex items-center gap-1">
+                    {result.mode === "llm" && (
+                      <Button size="sm" variant="ghost" className="h-6 gap-1 px-2 text-[0.65rem]" onClick={chainToPrisma}>
+                        <ArrowRightCircle className="h-3 w-3" /> Draft PRISMA review from this
+                      </Button>
+                    )}
+                    <ShareControl documentId={result.documentId} />
+                    {result.documentId && !editing && (
+                      <Button size="sm" variant="ghost" className="h-6 gap-1 px-2 text-[0.65rem]" onClick={startEdit}>
+                        <Pencil className="h-3 w-3" /> Edit
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 {editing ? (
                   <div className="space-y-2 rounded-md border border-primary/30 bg-accent/20 p-2">
@@ -761,17 +988,23 @@ interface ExcludedSourceInput {
   reason: string;
 }
 
-function PrismaDraftPanel() {
-  const [selectedArticles, setSelectedArticles] = useState<ArticleHit[]>([]);
-  const [externalSources, setExternalSources] = useState<ExternalSource[]>([]);
+/** `seed` (when present) is only ever read as the initializer for this
+ * component's own state — the parent remounts this panel with a fresh
+ * `key` on every "Draft PRISMA review from this" hand-off (see
+ * ResearchLabTab), so a plain useState initializer picks it up correctly
+ * without an effect-driven setState-after-mount. */
+function PrismaDraftPanel({ seed }: { seed: PrismaSeed | null }) {
+  const [selectedArticles, setSelectedArticles] = useState<ArticleHit[]>(() => seed?.articles ?? []);
+  const [externalSources, setExternalSources] = useState<ExternalSource[]>(() => seed?.externalSources ?? []);
   const [eligibilityCriteria, setEligibilityCriteria] = useState("");
-  const [searchStrategy, setSearchStrategy] = useState("");
+  const [searchStrategy, setSearchStrategy] = useState(() => seed?.searchStrategy ?? "");
   const [excludedSources, setExcludedSources] = useState<ExcludedSourceInput[]>([]);
   const [excludedLabel, setExcludedLabel] = useState("");
   const [excludedReason, setExcludedReason] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<PrismaDraftResult | null>(null);
   const [history, setHistory] = useState<PrismaDraftHistoryDoc[] | null>(null);
+  const [sharedHistory, setSharedHistory] = useState<(PrismaDraftHistoryDoc & { owner: { fullName: string; email: string } | null })[] | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editDraft, setEditDraft] = useState("");
@@ -781,10 +1014,14 @@ function PrismaDraftPanel() {
     setShowHistory((prev) => !prev);
     if (history) return;
     try {
-      const r = await apiFetch<{ documents: PrismaDraftHistoryDoc[] }>("/api/research-lab/prisma-draft");
+      const r = await apiFetch<{ documents: PrismaDraftHistoryDoc[]; sharedDocuments: (PrismaDraftHistoryDoc & { owner: { fullName: string; email: string } | null })[] }>(
+        "/api/research-lab/prisma-draft"
+      );
       setHistory(r.documents);
+      setSharedHistory(r.sharedDocuments);
     } catch {
       setHistory([]);
+      setSharedHistory([]);
     }
   }
 
@@ -904,6 +1141,27 @@ function PrismaDraftPanel() {
                 ))}
               </div>
             )}
+            {sharedHistory && sharedHistory.length > 0 && (
+              <>
+                <p className="mb-1 mt-2 text-[0.6rem] font-medium text-muted-foreground">Shared with me</p>
+                <div className="space-y-1">
+                  {sharedHistory.map((doc) => (
+                    <button
+                      key={doc.id}
+                      type="button"
+                      onClick={() => openHistoryDoc(doc)}
+                      className="flex w-full items-center justify-between gap-2 rounded px-1.5 py-1 text-left text-xs hover:bg-accent"
+                    >
+                      <span className="min-w-0 flex-1 truncate">{doc.title}</span>
+                      <span className="flex shrink-0 items-center gap-1 text-[0.6rem] text-muted-foreground">
+                        {doc.owner && <Badge variant="outline" className="text-[0.55rem]">{doc.owner.fullName}</Badge>}
+                        {formatRelativeTime(doc.createdAt)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         )}
         <div>
@@ -997,6 +1255,7 @@ function PrismaDraftPanel() {
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5">
                     <ExportButtons documentId={result.documentId} />
+                    <ShareControl documentId={result.documentId} />
                     {result.documentId && !editing && (
                       <Button size="sm" variant="ghost" className="h-6 gap-1 px-2 text-[0.65rem]" onClick={startEdit}>
                         <Pencil className="h-3 w-3" /> Edit
@@ -1265,6 +1524,10 @@ function TranscriptionPanel() {
 }
 
 export function ResearchLabTab() {
+  const [activeTab, setActiveTab] = useState("gap-finder");
+  const [prismaSeed, setPrismaSeed] = useState<PrismaSeed | null>(null);
+  const [prismaSeedKey, setPrismaSeedKey] = useState(0);
+
   return (
     <div className="space-y-4">
       <div>
@@ -1273,17 +1536,23 @@ export function ResearchLabTab() {
           Enterprise-grade research tools, powered by free open-source LLMs run locally or via the free tier — same honesty contract as every other AI feature on this platform: a real result or a clear "unavailable," never a guess.
         </p>
       </div>
-      <Tabs defaultValue="gap-finder">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="gap-finder">Gap Finder</TabsTrigger>
           <TabsTrigger value="prisma-draft">Systematic Review</TabsTrigger>
           <TabsTrigger value="transcription">Transcription</TabsTrigger>
         </TabsList>
         <TabsContent value="gap-finder" className="mt-4">
-          <GapFinderPanel />
+          <GapFinderPanel
+            onChainToPrisma={(seed) => {
+              setPrismaSeed(seed);
+              setPrismaSeedKey((k) => k + 1);
+              setActiveTab("prisma-draft");
+            }}
+          />
         </TabsContent>
         <TabsContent value="prisma-draft" className="mt-4">
-          <PrismaDraftPanel />
+          <PrismaDraftPanel key={prismaSeedKey} seed={prismaSeed} />
         </TabsContent>
         <TabsContent value="transcription" className="mt-4">
           <TranscriptionPanel />

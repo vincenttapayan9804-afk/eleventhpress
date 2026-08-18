@@ -49,6 +49,15 @@ export async function POST(req: NextRequest) {
       },
     });
     documentId = doc.id;
+    await db.auditLog.create({
+      data: {
+        userId: session.userId,
+        action: "RESEARCH_LAB_DOCUMENT_CREATED",
+        entityType: "RESEARCH_LAB_DOCUMENT",
+        entityId: doc.id,
+        metadata: JSON.stringify({ kind: "GAP_ANALYSIS", sourceCount: result.sources.length }),
+      },
+    });
   }
 
   return NextResponse.json({ ...result, documentId });
@@ -72,7 +81,26 @@ export async function GET(req: NextRequest) {
     orderBy: { createdAt: "desc" },
     take: 10,
   });
+
+  // Tier 3: also surface documents a collaborator shared with this user —
+  // read-only team access, see research-lab-access.ts.
+  const shares = await db.researchLabDocumentShare.findMany({
+    where: { sharedWithUserId: session.userId },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+  });
+  const sharedDocs = shares.length
+    ? await db.researchLabDocument.findMany({
+        where: { id: { in: shares.map((s) => s.documentId) }, kind: "GAP_ANALYSIS" },
+        orderBy: { createdAt: "desc" },
+      })
+    : [];
+  const ownerIds = [...new Set(sharedDocs.map((d) => d.userId))];
+  const owners = ownerIds.length ? await db.user.findMany({ where: { id: { in: ownerIds } }, select: { id: true, fullName: true, email: true } }) : [];
+  const ownerById = new Map(owners.map((u) => [u.id, u]));
+
   return NextResponse.json({
     documents: docs.map((d) => ({ ...d, result: JSON.parse(d.resultJson) })),
+    sharedDocuments: sharedDocs.map((d) => ({ ...d, result: JSON.parse(d.resultJson), owner: ownerById.get(d.userId) ?? null })),
   });
 }

@@ -70,6 +70,7 @@ import {
   BookAcquisitionsTab,
   CertificatesTab,
   ResearchLabTab,
+  ResearchLabAuditTab,
   MagazinesTab,
   PodcastsTab,
   MediaTab,
@@ -166,6 +167,13 @@ export function DashboardView() {
       icon: FlaskConical,
       roles: ["AUTHOR", "EXPERT", "REVIEWER", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"],
       group: "Publishing — My Work",
+    },
+    {
+      key: "researchLabActivity",
+      label: "Research Lab activity",
+      icon: FlaskConical,
+      roles: ["SUPER_ADMIN", "EDITOR", "ASSOCIATE_EDITOR"],
+      group: "Analytics & Reporting",
     },
 
     // --- Account & Access ---
@@ -411,6 +419,7 @@ export function DashboardView() {
           {dashboardTab === "reader" && <ReaderTab subscription={data.subscription} onRefresh={loadDashboard} />}
           {dashboardTab === "certificates" && <CertificatesTab />}
           {dashboardTab === "researchLab" && <ResearchLabTab />}
+          {dashboardTab === "researchLabActivity" && <ResearchLabAuditTab />}
           {dashboardTab === "admin" && <AdminTab audit={data.recentAudit || []} stats={data.stats} />}
         </div>
       </div>

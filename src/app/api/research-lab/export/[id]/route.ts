@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { buildExportMarkdown, buildExportPdf, buildExportBibliography } from "@/lib/research-lab-export";
+import { canViewResearchLabDocument } from "@/lib/research-lab-access";
 
 const RESEARCH_LAB_ROLES = ["AUTHOR", "EXPERT", "REVIEWER", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"];
 
@@ -28,7 +29,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { id } = await params;
   const doc = await db.researchLabDocument.findUnique({ where: { id } });
-  if (!doc || doc.userId !== session.userId) {
+  if (!doc) {
+    return NextResponse.json({ error: "Document not found" }, { status: 404 });
+  }
+  if (doc.userId !== session.userId && !(await canViewResearchLabDocument(id, session.userId))) {
     return NextResponse.json({ error: "Document not found" }, { status: 404 });
   }
 

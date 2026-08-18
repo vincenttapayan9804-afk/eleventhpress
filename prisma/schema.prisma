@@ -1053,6 +1053,23 @@ model ResearchLabDocument {
   @@index([userId, kind, createdAt])
 }
 
+// Tier 3 — a lightweight "team workspace" grant: the owner of a
+// ResearchLabDocument shares read access with one collaborator by user id.
+// Deliberately view-only (no co-editing) — there is no conflict-resolution
+// story for two people editing originalResultJson at once, so this stays a
+// real, honest sharing primitive rather than a fake "real-time collab" one.
+model ResearchLabDocumentShare {
+  id               String   @id @default(cuid())
+  documentId       String
+  ownerUserId      String // denormalized from the document at share time, for a cheap "shared by me" query
+  sharedWithUserId String
+  createdAt        DateTime @default(now())
+
+  @@unique([documentId, sharedWithUserId])
+  @@index([sharedWithUserId])
+  @@index([ownerUserId])
+}
+
 // Qualitative-data transcription job (src/lib/transcription.ts) — runs a
 // real, free, open-source Whisper model locally via @xenova/transformers
 // over a researcher-uploaded WAV file. No heuristic fallback exists for
