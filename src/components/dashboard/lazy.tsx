@@ -134,3 +134,6 @@ export const BenchmarkingTab = dynamic(() => import("./benchmarking-tab").then((
 export const BoardIntelligenceTab = dynamic(() => import("./board-intelligence-tab").then((m) => m.BoardIntelligenceTab), {
   loading: () => <TabLoadingFallback />,
 });
+export const ReputationIntelligenceTab = dynamic(() => import("./reputation-intelligence-tab").then((m) => m.ReputationIntelligenceTab), {
+  loading: () => <TabLoadingFallback />,
+});

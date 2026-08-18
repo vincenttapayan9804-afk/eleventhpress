@@ -57,6 +57,7 @@ export type DashboardTab =
   | "researchLabActivity"
   | "benchmarking"
   | "boardIntelligence"
+  | "reputationIntelligence"
   | "narration"
   | "researchIntegrity"
   | "admin"
