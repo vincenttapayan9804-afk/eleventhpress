@@ -25,6 +25,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { TENANT_PLANS, TENANT_PLAN_KEYS, ALL_MODULE_KEYS, MODULE_LABELS } from "@/lib/tenant-plans";
+import { RESEARCHER_PLANS } from "@/lib/researcher-plans";
 
 interface TenantDomain {
   id: string;
@@ -591,11 +592,22 @@ export function TenantsTab() {
                       {(() => {
                         const selectedPlan = planInput[t.id] ?? t.plan ?? "";
                         const catalogPlan = selectedPlan ? TENANT_PLANS[selectedPlan] : null;
-                        return catalogPlan ? (
-                          <p className="text-xs text-muted-foreground">
-                            Catalog range: ${catalogPlan.priceRangeUsd[0].toLocaleString()}–${catalogPlan.priceRangeUsd[1].toLocaleString()}/yr
-                          </p>
-                        ) : null;
+                        if (!catalogPlan) return null;
+                        const bundled = catalogPlan.bundledResearcherPlan
+                          ? RESEARCHER_PLANS[catalogPlan.bundledResearcherPlan]
+                          : null;
+                        return (
+                          <div className="text-xs text-muted-foreground">
+                            <p>
+                              Catalog range: ${catalogPlan.priceRangeUsd[0].toLocaleString()}–${catalogPlan.priceRangeUsd[1].toLocaleString()}/yr
+                            </p>
+                            <p>
+                              {bundled
+                                ? `Bundles "${bundled.label}" (${bundled.priceRange}) for every member without their own researcher plan.`
+                                : "Bundles no per-seat researcher plan — members without their own researcher plan stay unlimited on Research Lab tools."}
+                            </p>
+                          </div>
+                        );
                       })()}
                       <Button size="sm" variant="outline" disabled={savingPlanFor === t.id} onClick={() => savePlan(t)}>
                         {savingPlanFor === t.id && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}

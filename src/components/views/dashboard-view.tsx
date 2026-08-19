@@ -468,7 +468,7 @@ export function DashboardView() {
           {dashboardTab === "certificates" && <CertificatesTab />}
           {dashboardTab === "researchLab" && <ResearchLabTab />}
           {dashboardTab === "researchLabActivity" && <ResearchLabAuditTab />}
-          {dashboardTab === "admin" && <AdminTab audit={data.recentAudit || []} stats={data.stats} />}
+          {dashboardTab === "admin" && <AdminTab audit={data.recentAudit || []} stats={data.stats} currentRole={user.role} />}
         </div>
       </div>
 
