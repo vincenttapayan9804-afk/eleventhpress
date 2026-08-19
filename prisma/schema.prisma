@@ -129,6 +129,7 @@ model User {
   tenant                         Tenant?                @relation(fields: [tenantId], references: [id])
   department                     Department?            @relation("DepartmentMembers", fields: [departmentId], references: [id])
   departmentsHeaded              Department[]           @relation("DepartmentHead")
+  tenantsBillingOwned            Tenant[]               @relation("TenantBillingOwner")
   correctionsIssued              Correction[]
   roleApplications               RoleApplication[]      @relation("ApplicantApplications")
   reviewedApplications           RoleApplication[]      @relation("ReviewerApplications")
@@ -1653,7 +1654,33 @@ model Tenant {
   // creation, so that path doesn't need a second check.
   maxUsers Int?
 
-  institution       Institution?       @relation(fields: [institutionId], references: [id])
+  // --- Commercial Layer Phase 0: pricing/entitlements on top of the
+  // existing tenancy foundation. All three fields are null for every
+  // tenant created before this phase (and stay null for any tenant an
+  // operator never assigns a commercial plan to) — null is a permanent
+  // valid state, not a migration-pending one, matching maxUsers above.
+  // Nothing reads these to gate behavior except entitlements explicitly
+  // synced from `plan` (see src/lib/tenant-entitlements.ts): a null plan
+  // means "fully entitled, ungated," so introducing this field changes
+  // zero behavior for any tenant until an operator opts it into a plan.
+  //
+  // `plan` is a catalog key from src/lib/tenant-plans.ts (not a Prisma
+  // enum — same reasoning as `status` above: an operator can negotiate a
+  // custom/legacy plan key without a schema migration). `pricePerYear` is
+  // the actual contracted annual price, which may differ from the plan's
+  // catalog list price for a negotiated enterprise deal — it does not
+  // drive any billing charge yet (see docs/commercial-layer-phase0.md's
+  // non-goals: no Invoice/Subscription linkage in this phase).
+  // `billingOwnerId` is a display/attribution pointer to the User
+  // responsible for this tenant's commercial relationship, same posture
+  // as Department.headUserId and Grant.principalInvestigatorUserId — it
+  // grants no permission of its own.
+  plan           String?
+  pricePerYear   Decimal? @db.Decimal(12, 2)
+  billingOwnerId String?
+  billingOwner   User?    @relation("TenantBillingOwner", fields: [billingOwnerId], references: [id])
+
+  institution       Institution?        @relation(fields: [institutionId], references: [id])
   domains           TenantDomain[]
   users             User[]
   // EP University OS Phase 1
@@ -1665,8 +1692,33 @@ model Tenant {
   grants            Grant[]
   // Executive Command Intelligence Phase 1
   patents           Patent[]
+  // Commercial Layer Phase 0
+  entitlements      TenantEntitlement[]
 
   @@index([status])
+  @@index([plan])
+}
+
+// Commercial Layer Phase 0 — per-tenant module toggle. A tenant with zero
+// rows here (every tenant today) is treated as fully entitled to every
+// module — see src/lib/tenant-entitlements.ts's hasModuleEntitlement. Rows
+// only start restricting access once a plan is explicitly assigned via
+// PATCH /api/admin/tenants/[id], which upserts the plan's default module
+// set from src/lib/tenant-plans.ts. `moduleKey` is a string (not an enum)
+// for the same reason Tenant.plan is: new modules ship in code before any
+// schema migration would exist to add an enum value for them.
+model TenantEntitlement {
+  id        String   @id @default(cuid())
+  tenantId  String
+  moduleKey String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, moduleKey])
+  @@index([tenantId])
 }
 
 // A hostname routed to a Tenant. One tenant can own several (its

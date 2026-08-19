@@ -3,6 +3,8 @@ import { requireRole } from "@/lib/auth";
 import { TENANT_SCOPED_ADMIN_ROLES } from "@/lib/roles";
 import { withRlsContext } from "@/lib/db-rls";
 import { computeReviewerMarketplace } from "@/lib/reviewer-marketplace";
+import { hasModuleEntitlement } from "@/lib/tenant-entitlements";
+import { MODULE_KEYS } from "@/lib/tenant-plans";
 
 /**
  * GET /api/admin/reviewer-marketplace
@@ -24,6 +26,13 @@ export async function GET(req: NextRequest) {
   }
   if (!tenantId) {
     return NextResponse.json({ error: "tenantId is required" }, { status: 400 });
+  }
+
+  // Commercial Layer Phase 0 — gated only once a tenant is on an explicit
+  // plan; a tenant with no plan set (every tenant before this phase) is
+  // never blocked. See src/lib/tenant-entitlements.ts.
+  if (!(await hasModuleEntitlement(tenantId, MODULE_KEYS.REVIEWER_MARKETPLACE))) {
+    return NextResponse.json({ error: "Reviewer marketplace intelligence is not included in this tenant's plan" }, { status: 403 });
   }
 
   try {

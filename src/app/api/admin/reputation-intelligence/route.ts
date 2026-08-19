@@ -3,6 +3,8 @@ import { requireRole } from "@/lib/auth";
 import { TENANT_SCOPED_ADMIN_ROLES } from "@/lib/roles";
 import { withRlsContext } from "@/lib/db-rls";
 import { computeReputationIntelligence } from "@/lib/reputation-intelligence";
+import { hasModuleEntitlement } from "@/lib/tenant-entitlements";
+import { MODULE_KEYS } from "@/lib/tenant-plans";
 
 /**
  * GET /api/admin/reputation-intelligence
@@ -25,6 +27,13 @@ export async function GET(req: NextRequest) {
   }
   if (!tenantId) {
     return NextResponse.json({ error: "tenantId is required" }, { status: 400 });
+  }
+
+  // Commercial Layer Phase 0 — gated only once a tenant is on an explicit
+  // plan; a tenant with no plan set (every tenant before this phase) is
+  // never blocked. See src/lib/tenant-entitlements.ts.
+  if (!(await hasModuleEntitlement(tenantId, MODULE_KEYS.REPUTATION_INTELLIGENCE))) {
+    return NextResponse.json({ error: "Institutional reputation intelligence is not included in this tenant's plan" }, { status: 403 });
   }
 
   try {
