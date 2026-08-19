@@ -111,6 +111,13 @@ model User {
   // (DOI-bearing articles, citable peer-review reports) is exempt from
   // erasure as archiving in the public interest. Login is rejected once set.
   deletedAt             DateTime?
+  // Researcher SaaS Phase 1 — nullable, same permissive-default convention
+  // as Tenant.plan (Commercial Layer Phase 0): null means "no plan set,"
+  // which every pre-existing account has today, and stays fully unlimited
+  // on the three quota-checked Research Lab tools (gap analysis, PRISMA
+  // draft, transcription). Only an account explicitly moved onto a plan
+  // (see src/lib/researcher-plans.ts) is ever subject to a monthly cap.
+  researchPlan          String?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
