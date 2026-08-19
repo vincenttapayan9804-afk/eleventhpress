@@ -53,6 +53,16 @@ export interface TenantPlanDefinition {
   engine: "UNIVERSITY_SAAS" | "PUBLISHER_CLOUD";
   priceRangeUsd: readonly [number, number];
   defaultModules: readonly ModuleKey[];
+  // Researcher SaaS Phase 2 — a University SaaS plan bundles this
+  // per-seat researcher plan (a key from src/lib/researcher-plans.ts) for
+  // every member of the tenant who has no explicit User.researchPlan of
+  // their own (see resolveEffectiveResearchPlan in researcher-quota.ts).
+  // Only takes effect while the tenant is also entitled to the
+  // RESEARCH_LAB module — a tenant with that module toggled off bundles
+  // nothing, same as if the field were absent. Publisher Cloud has no
+  // researcher seats to bundle, so it's omitted (undefined) rather than
+  // set to a plan that doesn't apply to that engine.
+  bundledResearcherPlan?: string;
 }
 
 export const TENANT_PLANS: Record<string, TenantPlanDefinition> = {
@@ -62,6 +72,7 @@ export const TENANT_PLANS: Record<string, TenantPlanDefinition> = {
     engine: "UNIVERSITY_SAAS",
     priceRangeUsd: [15_000, 40_000],
     defaultModules: [MODULE_KEYS.DEPARTMENTS, MODULE_KEYS.RESEARCH_LAB],
+    bundledResearcherPlan: "RESEARCHER_PRO",
   },
   UNIVERSITY_MID: {
     key: "UNIVERSITY_MID",
@@ -75,6 +86,7 @@ export const TENANT_PLANS: Record<string, TenantPlanDefinition> = {
       MODULE_KEYS.ETHICS_TRACKING,
       MODULE_KEYS.GRANTS_INTELLIGENCE,
     ],
+    bundledResearcherPlan: "RESEARCHER_TEAM",
   },
   UNIVERSITY_LARGE: {
     key: "UNIVERSITY_LARGE",
@@ -82,6 +94,7 @@ export const TENANT_PLANS: Record<string, TenantPlanDefinition> = {
     engine: "UNIVERSITY_SAAS",
     priceRangeUsd: [200_000, 750_000],
     defaultModules: ALL_MODULE_KEYS,
+    bundledResearcherPlan: "RESEARCHER_TEAM",
   },
   PUBLISHER_CLOUD: {
     key: "PUBLISHER_CLOUD",

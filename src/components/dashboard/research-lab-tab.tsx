@@ -1530,18 +1530,25 @@ interface QuotaModule {
   limit: number | null;
 }
 
-// Researcher SaaS Phase 1 — only renders once the account has an explicit
-// researchPlan (planLabel non-null); every pre-existing account has no
-// plan set, so this stays invisible for them, matching zero-behavior-change.
+// Researcher SaaS Phase 1/2 — only renders once the account has an
+// effective researchPlan (planLabel non-null), whether purchased directly
+// ("EXPLICIT") or bundled in via the account's tenant being on a
+// University SaaS plan ("BUNDLED", Phase 2). Every pre-existing account
+// and every tenant never assigned a plan resolves to no plan, so this
+// stays invisible for them, matching zero-behavior-change.
 function ResearcherUsageBanner() {
   const [planLabel, setPlanLabel] = useState<string | null>(null);
+  const [planSource, setPlanSource] = useState<"EXPLICIT" | "BUNDLED" | null>(null);
   const [modules, setModules] = useState<QuotaModule[]>([]);
 
   useEffect(() => {
     (async () => {
       try {
-        const r = await apiFetch<{ planLabel: string | null; modules: QuotaModule[] }>("/api/research-lab/quota");
+        const r = await apiFetch<{ planLabel: string | null; planSource: "EXPLICIT" | "BUNDLED" | null; modules: QuotaModule[] }>(
+          "/api/research-lab/quota"
+        );
         setPlanLabel(r.planLabel);
+        setPlanSource(r.planSource);
         setModules(r.modules);
       } catch {
         // Silent — a display-only convenience, never blocks the tools themselves.
@@ -1553,7 +1560,8 @@ function ResearcherUsageBanner() {
 
   return (
     <div className="rounded-md border bg-muted/40 px-3 py-2 text-xs">
-      <span className="font-medium">{planLabel}</span> — monthly usage:{" "}
+      <span className="font-medium">{planLabel}</span>
+      {planSource === "BUNDLED" && <span className="text-muted-foreground"> (via your institution)</span>} — monthly usage:{" "}
       {modules
         .filter((m) => m.limit != null)
         .map((m) => `${m.label} ${m.used}/${m.limit}`)

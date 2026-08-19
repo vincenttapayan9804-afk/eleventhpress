@@ -1,14 +1,25 @@
 /// <reference types="bun-types" />
 import { describe, test, expect, mock } from "bun:test";
 
-let users: Record<string, { researchPlan: string | null }> = {};
+let users: Record<string, { researchPlan: string | null; tenantId?: string | null }> = {};
 let docCounts: Record<string, number> = {}; // key: `${userId}:${kind}`
 let jobCounts: Record<string, number> = {}; // key: userId
+let tenants: Record<string, { plan: string | null }> = {};
+let entitlements: Record<string, { enabled: boolean }> = {}; // key: `${tenantId}:${moduleKey}`
 
 mock.module("@/lib/db", () => ({
   db: {
     user: {
       findUnique: mock(async ({ where: { id } }: any) => users[id] ?? null),
+    },
+    tenant: {
+      findUnique: mock(async ({ where: { id } }: any) => tenants[id] ?? null),
+    },
+    tenantEntitlement: {
+      findUnique: mock(async ({ where: { tenantId_moduleKey } }: any) => {
+        const key = `${tenantId_moduleKey.tenantId}:${tenantId_moduleKey.moduleKey}`;
+        return entitlements[key] ?? null;
+      }),
     },
     researchLabDocument: {
       count: mock(async ({ where }: any) => docCounts[`${where.userId}:${where.kind}`] ?? 0),
@@ -100,8 +111,68 @@ describe("getResearcherUsage", () => {
     jobCounts = { "u1": 4 };
     const usage = await getResearcherUsage("u1");
     expect(usage.plan).toBe("RESEARCHER_PRO");
+    expect(usage.planSource).toBe("EXPLICIT");
     expect(usage.modules.GAP_ANALYSIS).toEqual({ used: 5, limit: 30 });
     expect(usage.modules.PRISMA_DRAFT).toEqual({ used: 1, limit: 10 });
     expect(usage.modules.TRANSCRIPTION).toEqual({ used: 4, limit: 20 });
+  });
+});
+
+describe("Phase 2 — bundled tenant plan fallback", () => {
+  test("a user with no explicit plan on a University-tier tenant inherits the bundled plan", async () => {
+    users = { "u1": { researchPlan: null, tenantId: "t1" } };
+    tenants = { "t1": { plan: "UNIVERSITY_SMALL" } };
+    entitlements = { "t1:research_lab": { enabled: true } };
+    docCounts = { "u1:GAP_ANALYSIS": 2 };
+    const r = await checkResearcherQuota("u1", RESEARCH_MODULE_KEYS.GAP_ANALYSIS);
+    expect(r.allowed).toBe(true);
+    expect(r.limit).toBe(30); // RESEARCHER_PRO, bundled by UNIVERSITY_SMALL
+    const usage = await getResearcherUsage("u1");
+    expect(usage.plan).toBe("RESEARCHER_PRO");
+    expect(usage.planSource).toBe("BUNDLED");
+  });
+
+  test("an explicit User.researchPlan overrides the tenant's bundled plan", async () => {
+    users = { "u1": { researchPlan: "RESEARCHER_FREE", tenantId: "t1" } };
+    tenants = { "t1": { plan: "UNIVERSITY_LARGE" } };
+    entitlements = { "t1:research_lab": { enabled: true } };
+    const usage = await getResearcherUsage("u1");
+    expect(usage.plan).toBe("RESEARCHER_FREE");
+    expect(usage.planSource).toBe("EXPLICIT");
+  });
+
+  test("a tenant with RESEARCH_LAB entitlement revoked bundles nothing", async () => {
+    users = { "u1": { researchPlan: null, tenantId: "t1" } };
+    tenants = { "t1": { plan: "UNIVERSITY_SMALL" } };
+    entitlements = { "t1:research_lab": { enabled: false } };
+    const usage = await getResearcherUsage("u1");
+    expect(usage.plan).toBeNull();
+    expect(usage.planSource).toBeNull();
+    for (const key of ALL_RESEARCH_MODULE_KEYS) expect(usage.modules[key].limit).toBeNull();
+  });
+
+  test("a tenant with no plan assigned bundles nothing", async () => {
+    users = { "u1": { researchPlan: null, tenantId: "t1" } };
+    tenants = { "t1": { plan: null } };
+    entitlements = {};
+    const usage = await getResearcherUsage("u1");
+    expect(usage.plan).toBeNull();
+    expect(usage.planSource).toBeNull();
+  });
+
+  test("Publisher Cloud tenants have no bundled researcher plan", async () => {
+    users = { "u1": { researchPlan: null, tenantId: "t1" } };
+    tenants = { "t1": { plan: "PUBLISHER_CLOUD" } };
+    entitlements = { "t1:research_lab": { enabled: true } };
+    const usage = await getResearcherUsage("u1");
+    expect(usage.plan).toBeNull();
+    expect(usage.planSource).toBeNull();
+  });
+
+  test("a user with no tenant never falls back to a bundled plan", async () => {
+    users = { "u1": { researchPlan: null, tenantId: null } };
+    const usage = await getResearcherUsage("u1");
+    expect(usage.plan).toBeNull();
+    expect(usage.planSource).toBeNull();
   });
 });
