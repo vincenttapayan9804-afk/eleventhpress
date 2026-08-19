@@ -27,6 +27,7 @@ export async function GET(req: NextRequest) {
       affiliation: true,
       country: true,
       createdAt: true,
+      researchPlan: true,
     },
   });
 

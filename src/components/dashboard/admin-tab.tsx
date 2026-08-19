@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ALL_ROLES as ASSIGNABLE_ROLES } from "@/lib/roles";
+import { RESEARCHER_PLAN_KEYS, RESEARCHER_PLANS } from "@/lib/researcher-plans";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -32,6 +33,7 @@ import { toast } from "sonner";
 interface Props {
   audit: any[];
   stats?: { published: number; inReview: number; accepted: number; submitted: number };
+  currentRole?: string;
 }
 
 interface AdminUser {
@@ -42,12 +44,15 @@ interface AdminUser {
   affiliation: string | null;
   country: string | null;
   createdAt: string;
+  researchPlan: string | null;
 }
 
-function UserManagementCard() {
+function UserManagementCard({ currentRole }: { currentRole?: string }) {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [savingPlanId, setSavingPlanId] = useState<string | null>(null);
+  const canEditResearchPlan = currentRole === "SUPER_ADMIN";
 
   async function load() {
     setLoading(true);
@@ -81,6 +86,24 @@ function UserManagementCard() {
     }
   }
 
+  async function changeResearchPlan(userId: string, researchPlan: string) {
+    setSavingPlanId(userId);
+    try {
+      await apiFetch(`/api/admin/users/${userId}/research-plan`, {
+        method: "PATCH",
+        body: JSON.stringify({ researchPlan: researchPlan === "" ? null : researchPlan }),
+      });
+      setUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, researchPlan: researchPlan === "" ? null : researchPlan } : u))
+      );
+      toast.success("Researcher plan updated");
+    } catch (e: any) {
+      toast.error("Failed to update researcher plan", { description: e.message });
+    } finally {
+      setSavingPlanId(null);
+    }
+  }
+
   return (
     <Card className="paper-card">
       <CardHeader className="pb-3">
@@ -91,6 +114,9 @@ function UserManagementCard() {
         <p className="text-xs text-muted-foreground">
           Registration can only ever create Reader or Author accounts. Reviewer, editor, and admin
           access is granted here — the only place a privileged role can be assigned.
+          {canEditResearchPlan
+            ? " SUPER_ADMIN may also assign an individual Researcher SaaS plan, which overrides any plan bundled from the account's institution."
+            : ""}
         </p>
       </CardHeader>
       <CardContent>
@@ -111,22 +137,43 @@ function UserManagementCard() {
                       {u.affiliation ? ` · ${u.affiliation}` : ""}
                     </p>
                   </div>
-                  <Select
-                    value={u.role}
-                    onValueChange={(v) => changeRole(u.id, v)}
-                    disabled={savingId === u.id}
-                  >
-                    <SelectTrigger className="h-9 w-44">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ASSIGNABLE_ROLES.map((r) => (
-                        <SelectItem key={r} value={r}>
-                          {r}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex items-center gap-2">
+                    <Select
+                      value={u.role}
+                      onValueChange={(v) => changeRole(u.id, v)}
+                      disabled={savingId === u.id}
+                    >
+                      <SelectTrigger className="h-9 w-44">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ASSIGNABLE_ROLES.map((r) => (
+                          <SelectItem key={r} value={r}>
+                            {r}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {canEditResearchPlan && (
+                      <Select
+                        value={u.researchPlan ?? ""}
+                        onValueChange={(v) => changeResearchPlan(u.id, v)}
+                        disabled={savingPlanId === u.id}
+                      >
+                        <SelectTrigger className="h-9 w-48" title="Researcher SaaS plan (overrides any bundled institutional plan)">
+                          <SelectValue placeholder="No researcher plan" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">No researcher plan</SelectItem>
+                          {RESEARCHER_PLAN_KEYS.map((key) => (
+                            <SelectItem key={key} value={key}>
+                              {RESEARCHER_PLANS[key].label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -149,7 +196,7 @@ const ACTION_ICONS: Record<string, any> = {
   PAYMENT_RECEIVED: CreditCard,
 };
 
-export function AdminTab({ audit, stats }: Props) {
+export function AdminTab({ audit, stats, currentRole }: Props) {
   return (
     <div className="space-y-5">
       {/* Stats */}
@@ -162,7 +209,7 @@ export function AdminTab({ audit, stats }: Props) {
         </div>
       )}
 
-      <UserManagementCard />
+      <UserManagementCard currentRole={currentRole} />
 
       {/* Audit log */}
       <Card className="paper-card">

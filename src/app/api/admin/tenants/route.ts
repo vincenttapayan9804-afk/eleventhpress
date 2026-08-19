@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { parseBody } from "@/lib/validate";
 import { getOrCreateTenantJournal } from "@/lib/tenant";
+import { getTenantEntitlements } from "@/lib/tenant-entitlements";
 
 /**
  * GET/POST /api/admin/tenants
@@ -30,14 +31,24 @@ export async function GET(req: NextRequest) {
     },
   });
 
+  // Commercial Layer Phase 0 — entitlements are cheap enough (at most
+  // ALL_MODULE_KEYS.length rows per tenant, and most tenants have zero)
+  // to fetch per-tenant here rather than adding a second round trip from
+  // the admin UI for each row it expands.
+  const entitlementsByTenant = await Promise.all(tenants.map((t) => getTenantEntitlements(t.id)));
+
   return NextResponse.json({
-    tenants: tenants.map((t) => ({
+    tenants: tenants.map((t, i) => ({
       id: t.id,
       slug: t.slug,
       name: t.name,
       status: t.status,
       isPlatform: t.isPlatform,
       maxUsers: t.maxUsers,
+      plan: t.plan,
+      pricePerYear: t.pricePerYear ? Number(t.pricePerYear) : null,
+      billingOwnerId: t.billingOwnerId,
+      entitlements: entitlementsByTenant[i],
       createdAt: t.createdAt,
       domainCount: t._count.domains,
       userCount: t._count.users,

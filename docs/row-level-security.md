@@ -69,6 +69,13 @@ codebase's LiveMode pattern exists to avoid.
   `tenantId` column). Their read paths (`GET /api/admin/funders`,
   `GET /api/admin/grants`, `GET /api/grants`) were wired into
   `withRlsContext`/`withTenantRlsContext` from each route's first commit.
+- **Commercial Layer Phase 0 — `TenantEntitlement`** joined the same
+  `FOREACH` loop the same way (direct `tenantId` column). Its only read
+  path (`GET /api/admin/tenants`, via `getTenantEntitlements` in
+  `src/lib/tenant-entitlements.ts`) is already confined to SUPER_ADMIN by
+  `requireRole`, so it wasn't also wired into `withRlsContext` — same
+  posture as other SUPER_ADMIN-only reads elsewhere in this codebase that
+  predate RLS.
 - **Whitelabel Phase 8 — the tenant-table policies are `FOR SELECT` only**
   (like `auditlog_read_privileged_only` above), not the original blanket
   `USING`/`WITH CHECK` that covered every command. `INSERT`/`UPDATE`/

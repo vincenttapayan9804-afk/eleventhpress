@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { draftSystematicReview } from "@/lib/prisma-draft";
 import { parseExternalSources } from "@/lib/research-gap-finder";
+import { checkResearcherQuota } from "@/lib/researcher-quota";
+import { RESEARCH_MODULE_KEYS } from "@/lib/researcher-plans";
 
 const RESEARCH_LAB_ROLES = ["AUTHOR", "EXPERT", "REVIEWER", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"];
 const MAX_ARTICLES_PER_REQUEST = 20;
@@ -39,6 +41,16 @@ export async function POST(req: NextRequest) {
   }
   if (!RESEARCH_LAB_ROLES.includes(session.role)) {
     return NextResponse.json({ error: "Not available for this role" }, { status: 403 });
+  }
+
+  // Researcher SaaS Phase 1 — gated only once an account has an explicit
+  // researchPlan; every pre-existing account (null plan) stays unlimited.
+  const quota = await checkResearcherQuota(session.userId, RESEARCH_MODULE_KEYS.PRISMA_DRAFT);
+  if (!quota.allowed) {
+    return NextResponse.json(
+      { error: `Monthly PRISMA-draft limit reached for your plan (${quota.used}/${quota.limit}). Upgrade or wait for next month.` },
+      { status: 429 }
+    );
   }
 
   const body = (await req.json().catch(() => ({}))) as {

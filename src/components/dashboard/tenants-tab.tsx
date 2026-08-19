@@ -22,7 +22,10 @@ import {
   Copy,
   Activity,
   AlertTriangle,
+  Wallet,
 } from "lucide-react";
+import { TENANT_PLANS, TENANT_PLAN_KEYS, ALL_MODULE_KEYS, MODULE_LABELS } from "@/lib/tenant-plans";
+import { RESEARCHER_PLANS } from "@/lib/researcher-plans";
 
 interface TenantDomain {
   id: string;
@@ -41,6 +44,10 @@ interface Tenant {
   status: string;
   isPlatform: boolean;
   maxUsers: number | null;
+  plan: string | null;
+  pricePerYear: number | null;
+  billingOwnerId: string | null;
+  entitlements: Record<string, boolean>;
   domainCount: number;
   userCount: number;
   domains: TenantDomain[];
@@ -79,6 +86,11 @@ export function TenantsTab() {
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [maxUsersInput, setMaxUsersInput] = useState<Record<string, string>>({});
   const [savingQuotaFor, setSavingQuotaFor] = useState<string | null>(null);
+  const [planInput, setPlanInput] = useState<Record<string, string>>({});
+  const [priceInput, setPriceInput] = useState<Record<string, string>>({});
+  const [billingOwnerInput, setBillingOwnerInput] = useState<Record<string, string>>({});
+  const [savingPlanFor, setSavingPlanFor] = useState<string | null>(null);
+  const [togglingModuleFor, setTogglingModuleFor] = useState<string | null>(null);
   const [health, setHealth] = useState<Record<string, TenantHealth>>({});
   const [loadingHealthFor, setLoadingHealthFor] = useState<string | null>(null);
   const [purgeConfirm, setPurgeConfirm] = useState<Record<string, string>>({});
@@ -202,6 +214,48 @@ export function TenantsTab() {
       toast.error(e.message || "Failed to update seat limit");
     } finally {
       setSavingQuotaFor(null);
+    }
+  }
+
+  async function savePlan(tenant: Tenant) {
+    const plan = planInput[tenant.id] ?? tenant.plan ?? "";
+    const priceRaw = (priceInput[tenant.id] ?? (tenant.pricePerYear != null ? String(tenant.pricePerYear) : "")).trim();
+    const billingOwnerRaw = (billingOwnerInput[tenant.id] ?? tenant.billingOwnerId ?? "").trim();
+    if (priceRaw !== "" && (!/^\d+(\.\d{1,2})?$/.test(priceRaw) || Number(priceRaw) < 0)) {
+      toast.error("Price per year must be a non-negative number");
+      return;
+    }
+    setSavingPlanFor(tenant.id);
+    try {
+      await apiFetch(`/api/admin/tenants/${tenant.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          plan: plan === "" ? null : plan,
+          pricePerYear: priceRaw === "" ? null : Number(priceRaw),
+          billingOwnerId: billingOwnerRaw === "" ? null : billingOwnerRaw,
+        }),
+      });
+      toast.success(plan === "" ? "Plan cleared — every module ungated" : `Plan set to ${TENANT_PLANS[plan]?.label ?? plan}`);
+      await load();
+    } catch (e: any) {
+      toast.error(e.message || "Failed to update plan");
+    } finally {
+      setSavingPlanFor(null);
+    }
+  }
+
+  async function toggleModule(tenantId: string, moduleKey: string, enabled: boolean) {
+    setTogglingModuleFor(`${tenantId}:${moduleKey}`);
+    try {
+      await apiFetch(`/api/admin/tenants/${tenantId}/entitlements`, {
+        method: "PATCH",
+        body: JSON.stringify({ moduleKey, enabled }),
+      });
+      await load();
+    } catch (e: any) {
+      toast.error(e.message || "Failed to update entitlement");
+    } finally {
+      setTogglingModuleFor(null);
     }
   }
 
@@ -481,6 +535,107 @@ export function TenantsTab() {
                           Currently {t.userCount} user{t.userCount === 1 ? "" : "s"}
                           {t.maxUsers != null ? ` of ${t.maxUsers}` : " (no cap)"}.
                         </p>
+                      </div>
+                    </div>
+
+                    <Separator className="my-3" />
+
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <Wallet className="h-3.5 w-3.5 text-primary" />
+                        <p className="eyebrow">Plan &amp; billing</p>
+                      </div>
+                      <div className="grid gap-2 sm:grid-cols-3">
+                        <div className="space-y-1.5">
+                          <Label htmlFor={`plan-${t.id}`} className="text-xs">
+                            Plan
+                          </Label>
+                          <select
+                            id={`plan-${t.id}`}
+                            className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                            value={planInput[t.id] ?? t.plan ?? ""}
+                            onChange={(e) => setPlanInput((prev) => ({ ...prev, [t.id]: e.target.value }))}
+                          >
+                            <option value="">No plan (ungated)</option>
+                            {TENANT_PLAN_KEYS.map((key) => (
+                              <option key={key} value={key}>
+                                {TENANT_PLANS[key].label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor={`price-${t.id}`} className="text-xs">
+                            Price / year (USD)
+                          </Label>
+                          <Input
+                            id={`price-${t.id}`}
+                            type="number"
+                            min={0}
+                            placeholder={t.pricePerYear != null ? String(t.pricePerYear) : "—"}
+                            value={priceInput[t.id] ?? (t.pricePerYear != null ? String(t.pricePerYear) : "")}
+                            onChange={(e) => setPriceInput((prev) => ({ ...prev, [t.id]: e.target.value }))}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor={`billing-owner-${t.id}`} className="text-xs">
+                            Billing owner user ID
+                          </Label>
+                          <Input
+                            id={`billing-owner-${t.id}`}
+                            placeholder={t.billingOwnerId || "—"}
+                            value={billingOwnerInput[t.id] ?? (t.billingOwnerId || "")}
+                            onChange={(e) => setBillingOwnerInput((prev) => ({ ...prev, [t.id]: e.target.value }))}
+                          />
+                        </div>
+                      </div>
+                      {(() => {
+                        const selectedPlan = planInput[t.id] ?? t.plan ?? "";
+                        const catalogPlan = selectedPlan ? TENANT_PLANS[selectedPlan] : null;
+                        if (!catalogPlan) return null;
+                        const bundled = catalogPlan.bundledResearcherPlan
+                          ? RESEARCHER_PLANS[catalogPlan.bundledResearcherPlan]
+                          : null;
+                        return (
+                          <div className="text-xs text-muted-foreground">
+                            <p>
+                              Catalog range: ${catalogPlan.priceRangeUsd[0].toLocaleString()}–${catalogPlan.priceRangeUsd[1].toLocaleString()}/yr
+                            </p>
+                            <p>
+                              {bundled
+                                ? `Bundles "${bundled.label}" (${bundled.priceRange}) for every member without their own researcher plan.`
+                                : "Bundles no per-seat researcher plan — members without their own researcher plan stay unlimited on Research Lab tools."}
+                            </p>
+                          </div>
+                        );
+                      })()}
+                      <Button size="sm" variant="outline" disabled={savingPlanFor === t.id} onClick={() => savePlan(t)}>
+                        {savingPlanFor === t.id && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                        Save plan
+                      </Button>
+
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {ALL_MODULE_KEYS.map((moduleKey) => {
+                          const enabled = t.entitlements[moduleKey] !== false;
+                          const busy = togglingModuleFor === `${t.id}:${moduleKey}`;
+                          return (
+                            <button
+                              key={moduleKey}
+                              type="button"
+                              disabled={busy}
+                              onClick={() => toggleModule(t.id, moduleKey, !enabled)}
+                              className={`rounded-full border px-2.5 py-1 text-[0.65rem] transition-colors ${
+                                enabled
+                                  ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                                  : "border-stone-300 bg-stone-100 text-stone-500"
+                              }`}
+                              title={enabled ? "Click to revoke" : "Click to grant"}
+                            >
+                              {busy && <Loader2 className="mr-1 inline h-2.5 w-2.5 animate-spin" />}
+                              {MODULE_LABELS[moduleKey]}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
 
