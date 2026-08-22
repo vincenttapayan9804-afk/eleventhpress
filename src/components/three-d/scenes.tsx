@@ -733,8 +733,11 @@ export function DisciplineTowers({ stats, className = "", allowMotion = true }: 
           to that ancestor" and send the tooltip flying off-screen. */}
       {hovered && typeof document !== "undefined" && createPortal(
         <div
-          className="pointer-events-none fixed z-50 min-w-[172px] rounded-lg border border-border bg-popover px-3 py-2.5 text-popover-foreground shadow-lg"
-          style={{ left: pointer.x + 16, top: pointer.y + 16 }}
+          className="pointer-events-none fixed z-50 min-w-[172px] max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-popover px-3 py-2.5 text-popover-foreground shadow-lg"
+          style={{
+            left: Math.min(pointer.x + 16, (typeof window !== "undefined" ? window.innerWidth : Infinity) - 188),
+            top: Math.min(pointer.y + 16, (typeof window !== "undefined" ? window.innerHeight : Infinity) - 120),
+          }}
         >
           <p className="font-display text-sm font-semibold">{hovered.discipline}</p>
           <div className="mt-1.5 space-y-0.5 font-mono text-[0.7rem] tabular-nums text-muted-foreground">
