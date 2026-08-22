@@ -536,7 +536,7 @@ export function AuthorsView() {
                 )}
               </div>
 
-              <div className="mt-3 grid grid-cols-4 gap-2 rounded-md border border-border bg-muted/30 p-3 text-center">
+              <div className="mt-3 grid grid-cols-2 gap-2 rounded-md border border-border bg-muted/30 p-3 text-center sm:grid-cols-4">
                 <Stat icon={FileText} value={selected.articleCount} label={t("statArticles")} />
                 <Stat icon={Quote} value={selected.citationMetrics.citedByCount} label={t("statCitations")} />
                 <Stat icon={Download} value={selected.totalDownloads} label={t("statDownloads")} />

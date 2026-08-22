@@ -73,7 +73,7 @@ export function TideView({
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_260px]">
       <div className="overflow-x-auto rounded-xl border border-primary/15 bg-[linear-gradient(180deg,rgba(139,124,246,0.05),transparent_40%)] p-2">
-        <svg viewBox={`0 0 ${WIDTH} ${height}`} width={WIDTH} height={height} role="img" aria-label="Tide view of your notes over time">
+        <svg viewBox={`0 0 ${WIDTH} ${height}`} className="w-full min-w-[480px]" role="img" aria-label="Tide view of your notes over time">
           <path d={wavePath.join(" ")} fill="none" stroke={accentColor} strokeOpacity={0.25} strokeWidth={2} />
           {days.map((group, i) => {
             const y = 40 + i * ROW_HEIGHT;

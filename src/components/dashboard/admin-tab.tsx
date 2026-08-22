@@ -137,13 +137,13 @@ function UserManagementCard({ currentRole }: { currentRole?: string }) {
                       {u.affiliation ? ` · ${u.affiliation}` : ""}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <Select
                       value={u.role}
                       onValueChange={(v) => changeRole(u.id, v)}
                       disabled={savingId === u.id}
                     >
-                      <SelectTrigger className="h-9 w-44">
+                      <SelectTrigger className="h-9 w-full min-w-0 sm:w-44">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -160,7 +160,7 @@ function UserManagementCard({ currentRole }: { currentRole?: string }) {
                         onValueChange={(v) => changeResearchPlan(u.id, v)}
                         disabled={savingPlanId === u.id}
                       >
-                        <SelectTrigger className="h-9 w-48" title="Researcher SaaS plan (overrides any bundled institutional plan)">
+                        <SelectTrigger className="h-9 w-full min-w-0 sm:w-48" title="Researcher SaaS plan (overrides any bundled institutional plan)">
                           <SelectValue placeholder="No researcher plan" />
                         </SelectTrigger>
                         <SelectContent>

@@ -237,9 +237,9 @@ export function ReputationIntelligenceTab({ role }: { role: string }) {
             </p>
             <div className="space-y-1.5">
               {indexing.directories.map((d) => (
-                <div key={d.directory} className="flex items-center justify-between text-xs">
-                  <span className="font-medium">{d.directory}</span>
-                  <div className="flex gap-1.5">
+                <div key={d.directory} className="flex flex-wrap items-center justify-between gap-1.5 text-xs">
+                  <span className="min-w-0 truncate font-medium">{d.directory}</span>
+                  <div className="flex flex-wrap gap-1.5">
                     {d.indexed > 0 && (
                       <Badge variant="outline" className="text-[0.6rem] text-emerald-600">
                         {d.indexed} indexed
