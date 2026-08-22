@@ -82,7 +82,7 @@ export function MagazinesView() {
         </div>
         {magazines.length > 1 && (
           <Select value={magazine} onValueChange={setMagazine}>
-            <SelectTrigger className="h-10 w-[220px]"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-10 w-full sm:w-[220px]"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">{t("allMagazines")}</SelectItem>
               {magazines.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}

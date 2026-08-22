@@ -90,7 +90,7 @@ export function FunnelChart({ stages }: { stages: FunnelStage[] }) {
       {stages.map((s, i) => {
         const pct = Math.max(6, (s.value / max) * 100);
         return (
-          <div key={s.label} className="grid grid-cols-[92px_1fr_60px] items-center gap-2.5 py-1.5 text-sm">
+          <div key={s.label} className="grid grid-cols-[64px_1fr_44px] items-center gap-2 py-1.5 text-sm sm:grid-cols-[92px_1fr_60px] sm:gap-2.5">
             <span className="truncate text-xs font-medium">{s.label}</span>
             <span className="h-[18px] overflow-hidden rounded-md bg-muted/50">
               <span
@@ -121,7 +121,7 @@ export function RankBarList({ items }: { items: RankItem[] }) {
       {items.map((it, i) => {
         const pct = Math.max(6, (it.value / max) * 100);
         return (
-          <div key={it.label} className="grid grid-cols-[120px_1fr_28px] items-center gap-2.5 py-1.5 text-sm">
+          <div key={it.label} className="grid grid-cols-[72px_1fr_24px] items-center gap-2 py-1.5 text-sm sm:grid-cols-[120px_1fr_28px] sm:gap-2.5">
             <span className="truncate text-xs font-medium">{it.label}</span>
             <span className="h-2 overflow-hidden rounded-full bg-muted/50">
               <span

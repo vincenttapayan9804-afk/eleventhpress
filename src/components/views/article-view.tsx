@@ -799,7 +799,7 @@ export function ArticleView() {
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <p className="eyebrow">Cite this article</p>
                     <Select value={citationFormat} onValueChange={(v) => setCitationFormat(v as CitationStyleId | "bibtex" | "ris" | "wikidata")}>
-                      <SelectTrigger className="h-8 w-[15rem] text-xs" size="sm">
+                      <SelectTrigger className="h-8 w-full text-xs sm:w-[15rem]" size="sm">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
