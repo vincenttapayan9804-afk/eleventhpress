@@ -333,26 +333,30 @@ export function DashboardView() {
         <aside className="lg:sticky lg:top-20 lg:self-start">
           {/* Edge fade hints that more tabs exist off-screen when this
               scrolls horizontally on mobile/tablet (below lg it's not a
-              vertical list yet); no-op on lg+ where it's a static column. */}
-          <nav className="flex flex-row gap-1 overflow-x-auto [mask-image:linear-gradient(to_right,transparent,black_16px,black_calc(100%-16px),transparent)] lg:flex-col lg:[mask-image:none]">
+              vertical list yet); no-op on lg+ where it's a static column.
+              Below lg, group boundaries render as compact vertical-divider
+              labels inline in the scroll row (rather than being hidden
+              entirely) so a thumb scrolling through ~30+ tabs still has
+              landmarks to orient by. */}
+          <nav className="flex flex-row items-stretch gap-1 overflow-x-auto pb-1 [mask-image:linear-gradient(to_right,transparent,black_16px,black_calc(100%-16px),transparent)] lg:flex-col lg:items-stretch lg:pb-0 lg:[mask-image:none]">
             {visibleTabs.map((t, i) => {
               const Icon = t.icon;
               const active = dashboardTab === t.key;
-              // Section headers are lg-only: below lg the sidebar is a
-              // horizontally-scrolling flat row (unchanged from before this
-              // grouping was added), where an inline label would break the
-              // scroll rhythm rather than help it.
               const isNewGroup = i === 0 || visibleTabs[i - 1].group !== t.group;
               return (
                 <Fragment key={t.key}>
                   {isNewGroup && (
-                    <p className={`hidden px-3 pb-1 font-sans text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground lg:block ${i === 0 ? "pt-1" : "pt-4"}`}>
+                    <p
+                      className={`flex shrink-0 items-center whitespace-nowrap border-l border-border pl-2 pr-1 font-sans text-[0.6rem] font-semibold uppercase tracking-wide text-muted-foreground lg:block lg:border-l-0 lg:px-3 lg:pb-1 ${
+                        i === 0 ? "border-l-0 pl-0 lg:pt-1" : "ml-1 lg:ml-0 lg:pt-4"
+                      }`}
+                    >
                       {t.group}
                     </p>
                   )}
                   <button
                     onClick={() => openDashboard(t.key as any)}
-                    className={`flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-left font-sans text-sm font-medium transition-colors ${
+                    className={`flex min-h-[44px] shrink-0 items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-left font-sans text-sm font-medium transition-colors ${
                       active
                         ? "bg-primary text-primary-foreground"
                         : "text-foreground/80 hover:bg-accent"
