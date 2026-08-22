@@ -50,6 +50,7 @@ import {
   Presentation,
   Users2,
   ClipboardCheck,
+  Brain,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -94,6 +95,7 @@ import {
   ReputationIntelligenceTab,
   ReviewerMarketplaceTab,
   ResearchBoardTab,
+  SecondBrainTab,
 } from "@/components/dashboard/lazy";
 import { useLiveDashboard } from "@/hooks/use-live-dashboard";
 
@@ -160,6 +162,7 @@ export function DashboardView() {
   const TABS: { key: string; label: string; icon: any; roles: string[]; group: string }[] = [
     // --- Home ---
     { key: "overview", label: "Overview", icon: LayoutDashboard, roles: ["*"], group: "Home" },
+    { key: "secondBrain", label: "Second Brain", icon: Brain, roles: ["*"], group: "Home" },
     { key: "profile", label: "Profile", icon: UserCircle, roles: ["*"], group: "Home" },
     { key: "expertDashboard", label: "Professional Dashboard", icon: Crown, roles: ["EXPERT", "SUPER_ADMIN"], group: "Home" },
 
@@ -430,6 +433,7 @@ export function DashboardView() {
         {/* Main panel */}
         <div className="min-w-0">
           {dashboardTab === "overview" && <OverviewTab data={data} />}
+          {dashboardTab === "secondBrain" && <SecondBrainTab />}
           {dashboardTab === "expertDashboard" && <ExpertDashboardTab />}
           {dashboardTab === "profile" && <ProfileTab />}
           {dashboardTab === "submit" && <AuthorSubmitTab onSubmitted={loadDashboard} />}

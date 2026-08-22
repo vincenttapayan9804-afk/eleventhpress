@@ -26,6 +26,9 @@ function TabLoadingFallback() {
 export const OverviewTab = dynamic(() => import("./overview-tab").then((m) => m.OverviewTab), {
   loading: () => <TabLoadingFallback />,
 });
+export const SecondBrainTab = dynamic(() => import("./second-brain-tab").then((m) => m.SecondBrainTab), {
+  loading: () => <TabLoadingFallback />,
+});
 export const ExpertDashboardTab = dynamic(() => import("./expert-dashboard-tab").then((m) => m.ExpertDashboardTab), {
   loading: () => <TabLoadingFallback />,
 });

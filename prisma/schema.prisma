@@ -1143,6 +1143,45 @@ model NarrationJob {
 }
 
 // ---------------------------------------------------------------------------
+// Second Brain — a personal knowledge graph living in the dashboard next to
+// Overview. Every note belongs to exactly one user; there is no tenant-wide
+// visibility and no sharing in this phase (a deliberately smaller surface
+// than ResearchLabDocumentShare's team workspace above). Links between notes
+// are computed live from shared tags (src/lib/second-brain-links.ts) rather
+// than persisted as a separate edge table — with a per-user note count in
+// the dozens/low-hundreds, an O(n^2) tag-overlap pass on every read is cheap
+// and never risks drifting from the notes it's describing.
+model SecondBrainNote {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  content   String
+  tags      String[] @default([])
+  // Optional per-note accent override (hex, e.g. "#8b7cf6"); null falls
+  // back to the note's tag-derived color in the UI.
+  color     String?
+  pinned    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([userId, pinned])
+}
+
+// One row per user — the Second Brain's "seamless toggle customization"
+// (accent color, font pairing, default view). Upserted on first change; a
+// missing row means "defaults", same permissive-default convention as
+// Tenant.plan / User.researchPlan elsewhere in this schema.
+model SecondBrainPreference {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  accentColor String   @default("#8b7cf6")
+  fontPairing String   @default("fraunces-manrope") // see src/lib/second-brain-fonts.ts
+  defaultView String   @default("constellation") // constellation | atrium | tide
+  updatedAt   DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
 // Retraction Watch Database — a local mirror of Crossref's real, free,
 // publicly-hosted CSV of the Retraction Watch database
 // (https://gitlab.com/crossref/retraction-watch-data, no API key required)
