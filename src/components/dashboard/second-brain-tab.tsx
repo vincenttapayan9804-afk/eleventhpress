@@ -8,8 +8,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Brain, Loader2, Plus, Sparkles, Building2, Waves } from "lucide-react";
-import { SECOND_BRAIN_VIEWS, type SecondBrainLink, type SecondBrainView } from "@/lib/second-brain";
+import { Brain, Loader2, Plus, Sparkles, Building2, Waves, Palette, Check } from "lucide-react";
+import {
+  SECOND_BRAIN_VIEWS,
+  ACCENT_PRESETS,
+  FONT_PAIRINGS,
+  isValidHexColor,
+  type SecondBrainLink,
+  type SecondBrainView,
+  type FontPairingId,
+} from "@/lib/second-brain";
 import type { SecondBrainNote } from "./second-brain/note-card";
 import { AtriumView } from "./second-brain/atrium-view";
 import { ConstellationView } from "./second-brain/constellation-view";
@@ -21,13 +29,16 @@ const VIEW_META: Record<SecondBrainView, { label: string; icon: typeof Sparkles 
   tide: { label: "Tide", icon: Waves },
 };
 
+const DEFAULT_FONT_PAIRING: FontPairingId = "fraunces-manrope";
+
 /**
- * Second Brain — Phase 2 adds the Constellation / Atrium / Tide view
+ * Second Brain — Phase 2 added the Constellation / Atrium / Tide view
  * switcher on top of the Phase 1 data layer (create/pin/delete notes,
- * tag-overlap links). Each view is a different presentation of the same
- * notes/links; the selected view is remembered per-user via
- * SecondBrainPreference.defaultView. Color/font customization lands in
- * Phase 3.
+ * tag-overlap links). Phase 3 adds the customization toggle here: accent
+ * color and font pairing, applied live across all three views via CSS
+ * custom properties scoped to `.second-brain-tab`, persisted per-user
+ * through SecondBrainPreference (same GET/PUT route Phase 2 already used
+ * for defaultView).
  */
 export function SecondBrainTab() {
   const [notes, setNotes] = useState<SecondBrainNote[]>([]);
@@ -35,6 +46,9 @@ export function SecondBrainTab() {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<SecondBrainView>("constellation");
   const [accentColor, setAccentColor] = useState("#8b7cf6");
+  const [customHex, setCustomHex] = useState("#8b7cf6");
+  const [fontPairingId, setFontPairingId] = useState<FontPairingId>(DEFAULT_FONT_PAIRING);
+  const [customizeOpen, setCustomizeOpen] = useState(false);
 
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -54,6 +68,10 @@ export function SecondBrainTab() {
       setLinks(notesRes.links);
       setView(prefsRes.preferences.defaultView);
       setAccentColor(prefsRes.preferences.accentColor);
+      setCustomHex(prefsRes.preferences.accentColor);
+      if (FONT_PAIRINGS.some((f) => f.id === prefsRes.preferences.fontPairing)) {
+        setFontPairingId(prefsRes.preferences.fontPairing as FontPairingId);
+      }
     } catch (e: any) {
       toast.error(e.message || "Failed to load your Second Brain");
     } finally {
@@ -75,6 +93,40 @@ export function SecondBrainTab() {
     } catch {
       // Non-critical — the view still switches locally even if the
       // preference fails to save; it'll just default back next visit.
+    }
+  }
+
+  async function changeAccent(next: string) {
+    setAccentColor(next);
+    setCustomHex(next);
+    try {
+      await apiFetch("/api/second-brain/preferences", {
+        method: "PUT",
+        body: JSON.stringify({ accentColor: next }),
+      });
+    } catch {
+      // Non-critical — mirrors changeView's fire-and-forget posture.
+    }
+  }
+
+  function applyCustomHex() {
+    const next = customHex.trim();
+    if (!isValidHexColor(next)) {
+      toast.error("Enter a hex color like #8b7cf6");
+      return;
+    }
+    changeAccent(next);
+  }
+
+  async function changeFontPairing(next: FontPairingId) {
+    setFontPairingId(next);
+    try {
+      await apiFetch("/api/second-brain/preferences", {
+        method: "PUT",
+        body: JSON.stringify({ fontPairing: next }),
+      });
+    } catch {
+      // Non-critical — mirrors changeView's fire-and-forget posture.
     }
   }
 
@@ -147,8 +199,22 @@ export function SecondBrainTab() {
     );
   }
 
+  const activePairing = FONT_PAIRINGS.find((f) => f.id === fontPairingId) ?? FONT_PAIRINGS[0];
+
   return (
-    <div className="space-y-5">
+    <div
+      className="second-brain-tab space-y-5"
+      style={{ ["--sb-font-display" as any]: activePairing.display, ["--sb-font-body" as any]: activePairing.body }}
+    >
+      <link rel="stylesheet" href={`https://fonts.googleapis.com/css2?family=${activePairing.googleFonts}&display=swap`} />
+      <style>{`
+        .second-brain-tab { font-family: var(--sb-font-body); }
+        .second-brain-tab .font-display,
+        .second-brain-tab h1,
+        .second-brain-tab h2,
+        .second-brain-tab h3 { font-family: var(--sb-font-display); }
+      `}</style>
+
       <div className="relative overflow-hidden rounded-xl border border-primary/15 bg-gradient-to-br from-primary/[0.06] via-transparent to-transparent p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -160,26 +226,97 @@ export function SecondBrainTab() {
               {notes.length} note{notes.length === 1 ? "" : "s"} · {links.length} connection{links.length === 1 ? "" : "s"}
             </p>
           </div>
-          <div className="flex rounded-lg border border-border bg-background p-1">
-            {SECOND_BRAIN_VIEWS.map((v) => {
-              const meta = VIEW_META[v];
-              const Icon = meta.icon;
-              const active = view === v;
-              return (
-                <button
-                  key={v}
-                  onClick={() => changeView(v)}
-                  className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                    active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground"
-                  }`}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  {meta.label}
-                </button>
-              );
-            })}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex rounded-lg border border-border bg-background p-1">
+              {SECOND_BRAIN_VIEWS.map((v) => {
+                const meta = VIEW_META[v];
+                const Icon = meta.icon;
+                const active = view === v;
+                return (
+                  <button
+                    key={v}
+                    onClick={() => changeView(v)}
+                    className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                      active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                    }`}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {meta.label}
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              onClick={() => setCustomizeOpen((o) => !o)}
+              aria-pressed={customizeOpen}
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                customizeOpen
+                  ? "border-primary/40 bg-primary/10 text-primary"
+                  : "border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground"
+              }`}
+            >
+              <Palette className="h-3.5 w-3.5" />
+              Customize
+            </button>
           </div>
         </div>
+
+        {customizeOpen && (
+          <div className="mt-4 grid gap-4 rounded-lg border border-border bg-background/60 p-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <p className="text-[0.65rem] font-medium uppercase tracking-wide text-muted-foreground">Accent color</p>
+              <div className="flex flex-wrap items-center gap-2">
+                {ACCENT_PRESETS.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => changeAccent(c)}
+                    aria-label={`Use accent ${c}`}
+                    className="flex h-7 w-7 items-center justify-center rounded-full ring-1 ring-border transition-transform hover:scale-110"
+                    style={{ backgroundColor: c }}
+                  >
+                    {accentColor.toLowerCase() === c.toLowerCase() && <Check className="h-3.5 w-3.5 text-white drop-shadow" />}
+                  </button>
+                ))}
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    value={customHex}
+                    onChange={(e) => setCustomHex(e.target.value)}
+                    onBlur={applyCustomHex}
+                    onKeyDown={(e) => e.key === "Enter" && applyCustomHex()}
+                    className="h-7 w-24 text-xs"
+                    placeholder="#8b7cf6"
+                  />
+                  <span
+                    className="h-7 w-7 flex-shrink-0 rounded-full ring-1 ring-border"
+                    style={{ backgroundColor: isValidHexColor(customHex) ? customHex : "transparent" }}
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <p className="text-[0.65rem] font-medium uppercase tracking-wide text-muted-foreground">Font pairing</p>
+              <div className="flex flex-wrap gap-1.5">
+                {FONT_PAIRINGS.map((f) => {
+                  const active = fontPairingId === f.id;
+                  return (
+                    <button
+                      key={f.id}
+                      onClick={() => changeFontPairing(f.id)}
+                      className={`rounded-md border px-2.5 py-1.5 text-left text-xs transition-colors ${
+                        active
+                          ? "border-primary/40 bg-primary/10 text-primary"
+                          : "border-border text-muted-foreground hover:bg-accent hover:text-foreground"
+                      }`}
+                      style={{ fontFamily: f.display }}
+                    >
+                      {f.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <Card className="paper-card">
