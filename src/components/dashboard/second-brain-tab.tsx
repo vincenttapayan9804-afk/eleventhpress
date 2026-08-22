@@ -7,34 +7,34 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Brain, Loader2, Plus, Pin, PinOff, Trash2, Tag, Link2 } from "lucide-react";
-import type { SecondBrainLink } from "@/lib/second-brain";
+import { Brain, Loader2, Plus, Sparkles, Building2, Waves } from "lucide-react";
+import { SECOND_BRAIN_VIEWS, type SecondBrainLink, type SecondBrainView } from "@/lib/second-brain";
+import type { SecondBrainNote } from "./second-brain/note-card";
+import { AtriumView } from "./second-brain/atrium-view";
+import { ConstellationView } from "./second-brain/constellation-view";
+import { TideView } from "./second-brain/tide-view";
 
-interface SecondBrainNote {
-  id: string;
-  title: string;
-  content: string;
-  tags: string[];
-  color: string | null;
-  pinned: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
+const VIEW_META: Record<SecondBrainView, { label: string; icon: typeof Sparkles }> = {
+  constellation: { label: "Constellation", icon: Sparkles },
+  atrium: { label: "Atrium", icon: Building2 },
+  tide: { label: "Tide", icon: Waves },
+};
 
 /**
- * Second Brain — Phase 1 (backend + a functional note workspace). Lives in
- * the dashboard right next to Overview (src/components/views/dashboard-view.tsx).
- * This phase ships the real data layer end-to-end: create/pin/delete notes,
- * tag-overlap links surfaced per note. Later phases add the Constellation
- * (Globe) / Atrium / Tide view switcher and the color/font customization
- * toggle on top of this same data — nothing here is throwaway.
+ * Second Brain — Phase 2 adds the Constellation / Atrium / Tide view
+ * switcher on top of the Phase 1 data layer (create/pin/delete notes,
+ * tag-overlap links). Each view is a different presentation of the same
+ * notes/links; the selected view is remembered per-user via
+ * SecondBrainPreference.defaultView. Color/font customization lands in
+ * Phase 3.
  */
 export function SecondBrainTab() {
   const [notes, setNotes] = useState<SecondBrainNote[]>([]);
   const [links, setLinks] = useState<SecondBrainLink[]>([]);
   const [loading, setLoading] = useState(true);
+  const [view, setView] = useState<SecondBrainView>("constellation");
+  const [accentColor, setAccentColor] = useState("#8b7cf6");
 
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -44,9 +44,16 @@ export function SecondBrainTab() {
   async function load() {
     setLoading(true);
     try {
-      const res = await apiFetch<{ notes: SecondBrainNote[]; links: SecondBrainLink[] }>("/api/second-brain/notes");
-      setNotes(res.notes);
-      setLinks(res.links);
+      const [notesRes, prefsRes] = await Promise.all([
+        apiFetch<{ notes: SecondBrainNote[]; links: SecondBrainLink[] }>("/api/second-brain/notes"),
+        apiFetch<{ preferences: { accentColor: string; fontPairing: string; defaultView: SecondBrainView } }>(
+          "/api/second-brain/preferences"
+        ),
+      ]);
+      setNotes(notesRes.notes);
+      setLinks(notesRes.links);
+      setView(prefsRes.preferences.defaultView);
+      setAccentColor(prefsRes.preferences.accentColor);
     } catch (e: any) {
       toast.error(e.message || "Failed to load your Second Brain");
     } finally {
@@ -57,6 +64,19 @@ export function SecondBrainTab() {
   useEffect(() => {
     load();
   }, []);
+
+  async function changeView(next: SecondBrainView) {
+    setView(next);
+    try {
+      await apiFetch("/api/second-brain/preferences", {
+        method: "PUT",
+        body: JSON.stringify({ defaultView: next }),
+      });
+    } catch {
+      // Non-critical — the view still switches locally even if the
+      // preference fails to save; it'll just default back next visit.
+    }
+  }
 
   const linkCountByNote = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -127,20 +147,39 @@ export function SecondBrainTab() {
     );
   }
 
-  const pinned = notes.filter((n) => n.pinned);
-  const rest = notes.filter((n) => !n.pinned);
-
   return (
     <div className="space-y-5">
       <div className="relative overflow-hidden rounded-xl border border-primary/15 bg-gradient-to-br from-primary/[0.06] via-transparent to-transparent p-5">
-        <div className="flex items-center gap-2">
-          <Brain className="h-4 w-4 text-primary" />
-          <p className="eyebrow">Your personal knowledge graph</p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <Brain className="h-4 w-4 text-primary" />
+              <p className="eyebrow">Your personal knowledge graph</p>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {notes.length} note{notes.length === 1 ? "" : "s"} · {links.length} connection{links.length === 1 ? "" : "s"}
+            </p>
+          </div>
+          <div className="flex rounded-lg border border-border bg-background p-1">
+            {SECOND_BRAIN_VIEWS.map((v) => {
+              const meta = VIEW_META[v];
+              const Icon = meta.icon;
+              const active = view === v;
+              return (
+                <button
+                  key={v}
+                  onClick={() => changeView(v)}
+                  className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                    active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                  }`}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  {meta.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Capture a thought, tag it, and Second Brain quietly links it to everything else you've captured that shares
-          a tag. {notes.length} note{notes.length === 1 ? "" : "s"} · {links.length} connection{links.length === 1 ? "" : "s"}.
-        </p>
       </div>
 
       <Card className="paper-card">
@@ -184,86 +223,22 @@ export function SecondBrainTab() {
         </CardContent>
       </Card>
 
-      {notes.length === 0 ? (
-        <Card className="paper-card">
-          <CardContent className="py-12 text-center text-xs text-muted-foreground">
-            Nothing captured yet — your first note starts the graph.
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-5">
-          {pinned.length > 0 && (
-            <div className="space-y-2">
-              <p className="eyebrow">Pinned</p>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {pinned.map((n) => (
-                  <NoteCard key={n.id} note={n} linkCount={linkCountByNote[n.id] || 0} onTogglePin={togglePin} onDelete={deleteNote} />
-                ))}
-              </div>
-            </div>
-          )}
-          <div className="space-y-2">
-            {pinned.length > 0 && <p className="eyebrow">All notes</p>}
-            <div className="grid gap-3 sm:grid-cols-2">
-              {rest.map((n) => (
-                <NoteCard key={n.id} note={n} linkCount={linkCountByNote[n.id] || 0} onTogglePin={togglePin} onDelete={deleteNote} />
-              ))}
-            </div>
-          </div>
-        </div>
+      {view === "constellation" && (
+        <ConstellationView
+          notes={notes}
+          links={links}
+          linkCountByNote={linkCountByNote}
+          onTogglePin={togglePin}
+          onDelete={deleteNote}
+          accentColor={accentColor}
+        />
       )}
-    </div>
-  );
-}
-
-function NoteCard({
-  note,
-  linkCount,
-  onTogglePin,
-  onDelete,
-}: {
-  note: SecondBrainNote;
-  linkCount: number;
-  onTogglePin: (n: SecondBrainNote) => void;
-  onDelete: (id: string) => void;
-}) {
-  return (
-    <div
-      className="rounded-lg border border-border p-4 transition-colors hover:border-primary/30"
-      style={note.color ? { borderLeftWidth: "3px", borderLeftColor: note.color } : undefined}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <h3 className="font-display text-sm font-semibold leading-snug">{note.title}</h3>
-        <div className="flex flex-shrink-0 items-center gap-1">
-          <button
-            onClick={() => onTogglePin(note)}
-            className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-            title={note.pinned ? "Unpin" : "Pin"}
-          >
-            {note.pinned ? <Pin className="h-3.5 w-3.5 fill-current" /> : <PinOff className="h-3.5 w-3.5" />}
-          </button>
-          <button
-            onClick={() => onDelete(note.id)}
-            className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-            title="Delete"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      </div>
-      <p className="mt-1.5 line-clamp-3 text-xs text-foreground/80">{note.content}</p>
-      <div className="mt-3 flex flex-wrap items-center gap-1.5">
-        {note.tags.map((t) => (
-          <Badge key={t} variant="outline" className="gap-1 text-[0.6rem]">
-            <Tag className="h-2.5 w-2.5" /> {t}
-          </Badge>
-        ))}
-        {linkCount > 0 && (
-          <Badge variant="secondary" className="ml-auto gap-1 text-[0.6rem]">
-            <Link2 className="h-2.5 w-2.5" /> {linkCount} link{linkCount === 1 ? "" : "s"}
-          </Badge>
-        )}
-      </div>
+      {view === "atrium" && (
+        <AtriumView notes={notes} linkCountByNote={linkCountByNote} onTogglePin={togglePin} onDelete={deleteNote} accentColor={accentColor} />
+      )}
+      {view === "tide" && (
+        <TideView notes={notes} linkCountByNote={linkCountByNote} onTogglePin={togglePin} onDelete={deleteNote} accentColor={accentColor} />
+      )}
     </div>
   );
 }
