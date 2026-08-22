@@ -227,7 +227,7 @@ export function SecondBrainTab() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex rounded-lg border border-border bg-background p-1">
+            <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-lg border border-border bg-background p-1">
               {SECOND_BRAIN_VIEWS.map((v) => {
                 const meta = VIEW_META[v];
                 const Icon = meta.icon;
@@ -236,7 +236,7 @@ export function SecondBrainTab() {
                   <button
                     key={v}
                     onClick={() => changeView(v)}
-                    className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                    className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                       active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground"
                     }`}
                   >

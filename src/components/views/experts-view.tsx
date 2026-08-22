@@ -483,7 +483,7 @@ export function ExpertsView() {
                 {following.has(selected.key) ? t("followingCta") : t("followCta")}
               </Button>
 
-              <div className="mt-3 grid grid-cols-4 gap-2 rounded-md border border-border bg-muted/30 p-3 text-center">
+              <div className="mt-3 grid grid-cols-2 gap-2 rounded-md border border-border bg-muted/30 p-3 text-center sm:grid-cols-4">
                 <Stat icon={FileText} value={selected.insightCount} label={t("statInsights")} />
                 <Stat icon={Eye} value={selected.totalViews} label={t("statViews")} />
                 <Stat icon={Share2} value={selected.totalShares} label={t("statShares")} />

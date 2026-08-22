@@ -124,7 +124,7 @@ export function MagazineIssueView() {
             {issue.theme && ` · ${issue.theme}`}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {issue.pdfUrl && (
             <Button asChild variant="outline" size="sm">
               <a href={issue.pdfUrl} target="_blank" rel="noopener noreferrer"><FileText className="mr-1.5 h-3.5 w-3.5" /> {t("pdf")}</a>

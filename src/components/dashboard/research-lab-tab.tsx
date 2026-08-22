@@ -1585,7 +1585,7 @@ export function ResearchLabTab() {
       </div>
       <ResearcherUsageBanner />
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
+        <TabsList className="flex w-full max-w-md items-center gap-1 overflow-x-auto [&>*]:shrink-0">
           <TabsTrigger value="gap-finder">Gap Finder</TabsTrigger>
           <TabsTrigger value="prisma-draft">Systematic Review</TabsTrigger>
           <TabsTrigger value="transcription">Transcription</TabsTrigger>
