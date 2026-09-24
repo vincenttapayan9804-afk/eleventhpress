@@ -54,27 +54,37 @@ function normalizeHost(host: string): string {
  * Resolves a hostname to its Tenant, falling back to the platform tenant
  * (the original eleventhpress.org site) for anything unrecognized —
  * localhost, preview deployment URLs, or a host that hasn't been mapped to
- * a TenantDomain yet. Never throws and never returns null in a healthy
- * database: the platform tenant is guaranteed to exist by
- * scripts/backfill-platform-tenant.ts, which runs on every build.
+ * a TenantDomain yet. Never throws: in a healthy database, never returns
+ * null either, since the platform tenant is guaranteed to exist by
+ * scripts/backfill-platform-tenant.ts, which runs on every build; if the
+ * database itself is unreachable, fails open to null rather than taking
+ * every request down with it — every caller already treats a null tenant
+ * as "use the hardcoded default branding" (see layout.tsx's
+ * generateMetadata/RootLayout), so this is a real fallback, not a silently
+ * broken one.
  */
 export async function resolveTenantFromHost(hostHeader: string | null | undefined): Promise<TenantContext | null> {
   const host = hostHeader ? normalizeHost(hostHeader) : null;
 
-  if (host) {
-    // Only a *verified* domain may resolve traffic to its tenant — an
-    // unverified row (added by an admin who hasn't proven DNS control yet,
-    // or whose control has never actually been checked) must never route
-    // real requests, or anyone could claim a hostname they don't own.
-    const domain = await db.tenantDomain.findFirst({
-      where: { hostname: host, verified: true },
-      include: { tenant: true },
-    });
-    if (domain) return toTenantContext(domain.tenant);
-  }
+  try {
+    if (host) {
+      // Only a *verified* domain may resolve traffic to its tenant — an
+      // unverified row (added by an admin who hasn't proven DNS control yet,
+      // or whose control has never actually been checked) must never route
+      // real requests, or anyone could claim a hostname they don't own.
+      const domain = await db.tenantDomain.findFirst({
+        where: { hostname: host, verified: true },
+        include: { tenant: true },
+      });
+      if (domain) return toTenantContext(domain.tenant);
+    }
 
-  const platform = await db.tenant.findFirst({ where: { isPlatform: true } });
-  return platform ? toTenantContext(platform) : null;
+    const platform = await db.tenant.findFirst({ where: { isPlatform: true } });
+    return platform ? toTenantContext(platform) : null;
+  } catch (err) {
+    console.error("[tenant] resolveTenantFromHost failed, falling back to default branding:", err);
+    return null;
+  }
 }
 
 interface TenantRow {
