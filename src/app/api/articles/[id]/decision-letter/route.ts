@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { notify } from "@/lib/notify";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { withRlsContext } from "@/lib/db-rls";
 
@@ -80,14 +81,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   });
 
   if (publish && article.correspondingAuthorId) {
-    await db.notification.create({
-      data: {
-        userId: article.correspondingAuthorId,
-        type: "INFO",
-        title: "Decision letter published",
-        message: `The editor's decision letter for "${article.title}" is now visible on the article's Review History tab.`,
-        articleId,
-      },
+    await notify({
+      userId: article.correspondingAuthorId,
+      type: "INFO",
+      title: "Decision letter published",
+      message: `The editor's decision letter for "${article.title}" is now visible on the article's Review History tab.`,
+      articleId,
     });
   }
 

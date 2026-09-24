@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs/config";
 
 // A nonce-based script-src (no 'unsafe-inline') was attempted and
 // reverted — see src/proxy.ts's comment and docs/csp.md for why: nonces
@@ -89,4 +90,15 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Sourcemap upload only activates when SENTRY_AUTH_TOKEN is set (a CI/CD
+// secret, never committed) — without it this wrapper still applies error
+// monitoring's build-time instrumentation but silently skips the upload
+// step rather than failing the build, matching this repo's LiveMode
+// convention of degrading, not erroring, when a credential is absent.
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  silent: true,
+  widenClientFileUpload: true,
+});

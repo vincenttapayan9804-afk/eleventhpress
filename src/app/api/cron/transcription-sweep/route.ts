@@ -4,15 +4,11 @@ import { sweepStuckTranscriptionJobs } from "@/lib/transcription";
 /**
  * GET /api/cron/transcription-sweep
  * Mirrors /api/cron/galley-sweep exactly, including the fail-closed
- * CRON_SECRET gate. Deliberately NOT registered in vercel.json yet,
- * matching /api/cron/book-sweep, /api/cron/ithenticate-sweep, and
- * /api/cron/alt-text-sweep, pending confirmation of Hobby-tier
- * cron-job count headroom — see docs/university-os-research-lab-tier1.md.
- * Until then, sweepStuckTranscriptionJobs() is reachable manually (an
- * admin curling this route with the right CRON_SECRET) or once headroom
- * allows, by adding this path to vercel.json's crons array — the sweep
- * logic itself has been ready since the transcription tool shipped, this
- * closes the "route to call it" gap.
+ * CRON_SECRET gate. Not independently registered in vercel.json — folded
+ * into the consolidated /api/cron/sweep-all dispatcher instead, so this
+ * job still runs on schedule without adding a second per-sweep cron
+ * entry. This route stays reachable directly too, for manual/targeted
+ * admin retries.
  */
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET;

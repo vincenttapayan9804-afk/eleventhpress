@@ -24,6 +24,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { apiFetch } from "@/lib/api-client";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { useTenantBranding } from "@/lib/tenant-branding-context";
 
 export function SiteHeader() {
@@ -132,6 +133,7 @@ export function SiteHeader() {
                 key={item.view}
                 onClick={() => setView(item.view)}
                 data-active={view === item.view}
+                data-testid={`nav-${item.view}`}
                 className="nav-underline flex-shrink-0 whitespace-nowrap font-sans text-[0.83rem] font-medium text-foreground/80 hover:text-foreground transition-colors 2xl:text-sm"
               >
                 {item.label}
@@ -210,6 +212,7 @@ export function SiteHeader() {
               </Button>
             )}
 
+            <ThemeToggle className="size-11 sm:size-9" />
             <LanguageSwitcher />
 
             {/* Mobile nav */}

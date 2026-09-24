@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { notifyMany } from "@/lib/notify";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { resolveTenantFromHeaders } from "@/lib/tenant";
 import { withRlsContext, withTenantRlsContext } from "@/lib/db-rls";
@@ -71,15 +72,15 @@ export async function POST(req: NextRequest) {
   // Notify reviewers whose reviews are now public
   if (openReview) {
     const completedReviews = article.reviews.filter((r) => r.status === "COMPLETED");
-    await db.notification.createMany({
-      data: completedReviews.map((r) => ({
+    await notifyMany(
+      completedReviews.map((r) => ({
         userId: r.reviewerId,
-        type: "INFO",
+        type: "INFO" as const,
         title: "Your review is now public",
         message: `The editor has enabled Open Peer Review for "${article.title}". Your name, recommendation, and review comments are now visible on the public article page.`,
         articleId,
-      })),
-    });
+      }))
+    );
   }
 
   return NextResponse.json({

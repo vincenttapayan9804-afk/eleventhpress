@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { notify } from "@/lib/notify";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { computeAuthorPayout } from "@/lib/royalties";
 import { PRIVILEGED_ROLES_LIST as PRIVILEGED_ROLES } from "@/lib/roles";
@@ -118,13 +119,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   });
 
   if (book.correspondingAuthorId) {
-    await db.notification.create({
-      data: {
-        userId: book.correspondingAuthorId,
-        type: "INFO",
-        title: "Royalty Statement Recorded",
-        message: `A royalty statement for "${book.title}" (${body.platform.replace(/_/g, " ")}) was recorded: ${unitsSold} unit(s), USD ${grossRevenue.toFixed(2)} gross, USD ${authorPayout.toFixed(2)} payable to you.`,
-      },
+    await notify({
+      userId: book.correspondingAuthorId,
+      type: "INFO",
+      title: "Royalty Statement Recorded",
+      message: `A royalty statement for "${book.title}" (${body.platform.replace(/_/g, " ")}) was recorded: ${unitsSold} unit(s), USD ${grossRevenue.toFixed(2)} gross, USD ${authorPayout.toFixed(2)} payable to you.`,
     });
   }
 

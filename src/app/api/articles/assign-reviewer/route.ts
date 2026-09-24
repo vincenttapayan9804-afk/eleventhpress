@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { notify } from "@/lib/notify";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { isSameEditorialTenant } from "@/lib/tenant-auth";
 import { generateEmbedding } from "@/lib/embeddings";
@@ -135,14 +136,12 @@ export async function POST(req: NextRequest) {
   });
 
   // Notify reviewer
-  await db.notification.create({
-    data: {
-      userId: reviewerId,
-      type: "INFO",
-      title: "Review Invitation",
-      message: `You have been invited to review "${targetArticle.title}". The review model is ${targetArticle.reviewModel ?? "DOUBLE_BLIND"} and the due date is ${review.dueDate?.toDateString()}.`,
-      articleId,
-    },
+  await notify({
+    userId: reviewerId,
+    type: "INFO",
+    title: "Review Invitation",
+    message: `You have been invited to review "${targetArticle.title}". The review model is ${targetArticle.reviewModel ?? "DOUBLE_BLIND"} and the due date is ${review.dueDate?.toDateString()}.`,
+    articleId,
   });
 
   // Audit

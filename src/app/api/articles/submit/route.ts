@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { notifyMany } from "@/lib/notify";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { resolveTenantFromHeaders, getOrCreateTenantJournal } from "@/lib/tenant";
 import { checkSimilarity } from "@/lib/manuscript-checks";
@@ -158,17 +159,17 @@ export async function POST(req: NextRequest) {
     const editors = await db.user.findMany({
       where: { role: { in: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"] } },
     });
-    await db.notification.createMany({
-      data: editors.map((e) => ({
+    await notifyMany(
+      editors.map((e) => ({
         userId: e.id,
-        type: "INFO",
+        type: "INFO" as const,
         title: isExpert ? "New Expert Insight Submission" : "New Submission",
         message: isExpert
           ? `New "${effectiveDiscipline}" Expert Insight submitted: "${title}" (DOI ${draftDoi}).`
           : `New ${effectiveDiscipline} manuscript submitted: "${title}" (DOI ${draftDoi}). Plagiarism score: ${plagiarismScore}%.`,
         articleId: article.id,
-      })),
-    });
+      }))
+    );
 
     // --- PREMIUM: Fire async triage + indexing + WS notification ---
     // Run in background (non-blocking) so the submission response is immediate.
