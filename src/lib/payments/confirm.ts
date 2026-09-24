@@ -8,6 +8,7 @@
  * — set when the checkout session is created in /api/billing/checkout.
  */
 import { db } from "@/lib/db";
+import { notify } from "@/lib/notify";
 import { SUBSCRIPTION_PLAN_DURATIONS, type SubscriptionPlan } from "@/lib/pricing";
 import type { PaymentProviderId } from "./types";
 
@@ -48,14 +49,12 @@ export async function confirmPayment({ referenceId, provider, providerRef }: Con
 
   if (kind === "apc" && invoice.articleId) {
     await db.article.update({ where: { id: invoice.articleId }, data: { status: "IN_PRODUCTION" } });
-    await db.notification.create({
-      data: {
-        userId: invoice.userId,
-        type: "SUCCESS",
-        title: "APC Payment Confirmed",
-        message: `Your payment of USD ${invoice.amount.toFixed(2)} has been received. Article "${invoice.article?.title}" is now in production. The Production Service will generate HTML, PDF, and XML galleys and the article will be published automatically once galleys are ready.`,
-        articleId: invoice.articleId,
-      },
+    await notify({
+      userId: invoice.userId,
+      type: "SUCCESS",
+      title: "APC Payment Confirmed",
+      message: `Your payment of USD ${invoice.amount.toFixed(2)} has been received. Article "${invoice.article?.title}" is now in production. The Production Service will generate HTML, PDF, and XML galleys and the article will be published automatically once galleys are ready.`,
+      articleId: invoice.articleId,
     });
     return;
   }
@@ -84,13 +83,11 @@ export async function confirmPayment({ referenceId, provider, providerRef }: Con
       },
     });
 
-    await db.notification.create({
-      data: {
-        userId: invoice.userId,
-        type: "SUCCESS",
-        title: "Subscription Active",
-        message: `Your ${plan.replace(/_/g, " ").toLowerCase()} subscription is now active. Payment of USD ${invoice.amount.toFixed(2)} received via ${provider}.`,
-      },
+    await notify({
+      userId: invoice.userId,
+      type: "SUCCESS",
+      title: "Subscription Active",
+      message: `Your ${plan.replace(/_/g, " ").toLowerCase()} subscription is now active. Payment of USD ${invoice.amount.toFixed(2)} received via ${provider}.`,
     });
     return;
   }
@@ -98,24 +95,20 @@ export async function confirmPayment({ referenceId, provider, providerRef }: Con
   if (kind === "dist") {
     if (invoice.articleId) {
       await db.article.update({ where: { id: invoice.articleId }, data: { distributionPackagePaidAt: new Date() } });
-      await db.notification.create({
-        data: {
-          userId: invoice.userId,
-          type: "SUCCESS",
-          title: "Distribution Package Unlocked",
-          message: `Preprint distribution (arXiv/SSRN) is now unlocked for "${invoice.article?.title}". Payment of USD ${invoice.amount.toFixed(2)} received via ${provider}.`,
-          articleId: invoice.articleId,
-        },
+      await notify({
+        userId: invoice.userId,
+        type: "SUCCESS",
+        title: "Distribution Package Unlocked",
+        message: `Preprint distribution (arXiv/SSRN) is now unlocked for "${invoice.article?.title}". Payment of USD ${invoice.amount.toFixed(2)} received via ${provider}.`,
+        articleId: invoice.articleId,
       });
     } else if (invoice.bookId) {
       await db.book.update({ where: { id: invoice.bookId }, data: { distributionPackagePaidAt: new Date() } });
-      await db.notification.create({
-        data: {
-          userId: invoice.userId,
-          type: "SUCCESS",
-          title: "Distribution Package Unlocked",
-          message: `Wide book distribution (Draft2Digital/IngramSpark) is now unlocked for "${invoice.book?.title}". Payment of USD ${invoice.amount.toFixed(2)} received via ${provider}.`,
-        },
+      await notify({
+        userId: invoice.userId,
+        type: "SUCCESS",
+        title: "Distribution Package Unlocked",
+        message: `Wide book distribution (Draft2Digital/IngramSpark) is now unlocked for "${invoice.book?.title}". Payment of USD ${invoice.amount.toFixed(2)} received via ${provider}.`,
       });
     } else {
       throw new Error(`Distribution Package invoice ${invoiceId} has neither an articleId nor a bookId`);

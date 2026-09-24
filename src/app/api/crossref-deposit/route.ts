@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { notify } from "@/lib/notify";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { buildDoiBatchXml, depositToCrossref } from "@/lib/crossref";
 import { resolveTenantFromHeaders } from "@/lib/tenant";
@@ -83,16 +84,14 @@ export async function POST(req: NextRequest) {
   });
 
   // Notify editor of result
-  await db.notification.create({
-    data: {
-      userId: session.userId,
-      type: result.success ? "SUCCESS" : "ERROR",
-      title: result.success ? "Crossref deposit accepted" : "Crossref deposit failed",
-      message: result.success
-        ? `Deposit for "${article.title}" accepted by the Crossref sandbox. Batch ID: ${result.batchId}. DOI ${article.doi} is now in REGISTERED state.`
-        : `Deposit for "${article.title}" failed: ${result.message}`,
-      articleId,
-    },
+  await notify({
+    userId: session.userId,
+    type: result.success ? "SUCCESS" : "ERROR",
+    title: result.success ? "Crossref deposit accepted" : "Crossref deposit failed",
+    message: result.success
+      ? `Deposit for "${article.title}" accepted by the Crossref sandbox. Batch ID: ${result.batchId}. DOI ${article.doi} is now in REGISTERED state.`
+      : `Deposit for "${article.title}" failed: ${result.message}`,
+    articleId,
   });
 
   return NextResponse.json({

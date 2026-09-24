@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { notify } from "@/lib/notify";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { isSameEditorialTenant } from "@/lib/tenant-auth";
 import type { ArticleStatus } from "@/lib/article";
@@ -399,14 +400,12 @@ export async function POST(req: NextRequest) {
       });
 
       if (article.correspondingAuthorId) {
-        await db.notification.create({
-          data: {
-            userId: article.correspondingAuthorId,
-            type: "SUCCESS",
-            title: "Article Published",
-            message: `"${article.title}" is now live. DOI: ${finalDoi}. Production events: ${publishEvents.join(" · ")}`,
-            articleId,
-          },
+        await notify({
+          userId: article.correspondingAuthorId,
+          type: "SUCCESS",
+          title: "Article Published",
+          message: `"${article.title}" is now live. DOI: ${finalDoi}. Production events: ${publishEvents.join(" · ")}`,
+          articleId,
         });
       }
 
@@ -506,14 +505,12 @@ export async function POST(req: NextRequest) {
           status: "OPEN",
         },
       });
-      await db.notification.create({
-        data: {
-          userId: article.correspondingAuthorId,
-          type: "INFO",
-          title: "Article Accepted — APC Invoice Issued",
-          message: `Your article "${article.title}" has been accepted. An Article Processing Charge invoice for USD ${APC_USD.toFixed(2)} has been issued. Production will commence upon payment confirmation.`,
-          articleId,
-        },
+      await notify({
+        userId: article.correspondingAuthorId,
+        type: "INFO",
+        title: "Article Accepted — APC Invoice Issued",
+        message: `Your article "${article.title}" has been accepted. An Article Processing Charge invoice for USD ${APC_USD.toFixed(2)} has been issued. Production will commence upon payment confirmation.`,
+        articleId,
       });
     }
 

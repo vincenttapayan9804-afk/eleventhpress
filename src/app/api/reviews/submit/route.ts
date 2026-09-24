@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { notifyMany } from "@/lib/notify";
 import { getSessionFromHeaders } from "@/lib/auth";
 
 /**
@@ -77,17 +78,17 @@ export async function POST(req: NextRequest) {
   const editors = await db.user.findMany({
     where: { role: { in: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"] } },
   });
-  await db.notification.createMany({
-    data: editors.map((e) => ({
+  await notifyMany(
+    editors.map((e) => ({
       userId: e.id,
-      type: body.status === "COMPLETED" ? "SUCCESS" : "INFO",
+      type: body.status === "COMPLETED" ? ("SUCCESS" as const) : ("INFO" as const),
       title: body.status === "COMPLETED" ? "Review Completed" : `Review ${body.status}`,
       message: `A reviewer has ${body.status.toLowerCase()} review for "${review.article.title}"${
         body.recommendation ? ` — recommendation: ${body.recommendation}` : ""
       }.`,
       articleId: review.articleId,
-    })),
-  });
+    }))
+  );
 
   return NextResponse.json({ review: updated });
 }

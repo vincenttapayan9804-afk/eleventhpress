@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { notify } from "@/lib/notify";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { depositToZenodo } from "@/lib/zenodo";
 import { parseAuthors } from "@/lib/article";
@@ -75,16 +76,14 @@ export async function POST(req: NextRequest) {
 
   // Notify author
   if (article.correspondingAuthorId) {
-    await db.notification.create({
-      data: {
-        userId: article.correspondingAuthorId,
-        type: result.ok ? "SUCCESS" : "ERROR",
-        title: result.ok ? "Dataset deposited on Zenodo" : "Dataset deposit failed",
-        message: result.ok
-          ? `Dataset "${body.title}" for "${article.title}" is now available at ${result.datasetUrl} (DOI: ${result.datasetDoi}). The dataset will be linked on the article page and the Crossref relation will be deposited on next publication.`
-          : `Dataset deposit failed: ${result.message}`,
-        articleId: body.articleId,
-      },
+    await notify({
+      userId: article.correspondingAuthorId,
+      type: result.ok ? "SUCCESS" : "ERROR",
+      title: result.ok ? "Dataset deposited on Zenodo" : "Dataset deposit failed",
+      message: result.ok
+        ? `Dataset "${body.title}" for "${article.title}" is now available at ${result.datasetUrl} (DOI: ${result.datasetDoi}). The dataset will be linked on the article page and the Crossref relation will be deposited on next publication.`
+        : `Dataset deposit failed: ${result.message}`,
+      articleId: body.articleId,
     });
   }
 

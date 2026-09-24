@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { DOI_REGISTRAR } from "@/lib/site";
 import { getCurrentTenant } from "@/lib/tenant";
 import { TenantBrandingProvider } from "@/lib/tenant-branding-context";
+import { ThemeProvider } from "@/components/theme-provider";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -116,10 +117,12 @@ export default async function RootLayout({
         {/* Ambient pearlescent background with royal purple tint */}
         <div className="ambient-bg" />
         <div className="ambient-mesh" />
-        <TenantBrandingProvider branding={branding}>
-          {children}
-          <Toaster />
-        </TenantBrandingProvider>
+        <ThemeProvider>
+          <TenantBrandingProvider branding={branding}>
+            {children}
+            <Toaster />
+          </TenantBrandingProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

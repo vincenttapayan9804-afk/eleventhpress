@@ -4,13 +4,15 @@ import { defineConfig } from "@playwright/test";
  * Config for the automated accessibility scan (tests/a11y.spec.ts) only —
  * this project has no other Playwright suite. Most of this app has no
  * distinct URL per view — it's a client-side SPA switching zustand state
- * under "/" (see src/app/page.tsx) — so there's no separate route to visit
- * for Policies/Privacy/FAQs/etc. The only other real, independently
- * routable public URLs are /article/[id] and a few one-off pages, all of
- * which need real database rows CI's Postgres doesn't have (see ci.yml —
- * no schema push or seed there) to render anything other than a 404/error
- * state, which wouldn't be a meaningful scan. Scanning "/" is genuinely
- * this app's whole real scope for a database-free automated check.
+ * under "/" (see src/app/page.tsx) — so tests/a11y.spec.ts reaches the
+ * static public views (Home, About, FAQs, Policies, Privacy, Terms,
+ * Accessibility) by clicking their nav triggers from "/" rather than
+ * visiting a separate URL for each. The only real, independently
+ * routable public URLs beyond that are /article/[id] and a few one-off
+ * pages, all of which need real database rows CI's Postgres doesn't have
+ * (see ci.yml — no schema push or seed there) to render anything other
+ * than a 404/error state, which wouldn't be a meaningful scan — those
+ * stay out of scope for this database-free automated check.
  */
 export default defineConfig({
   testDir: "./tests",

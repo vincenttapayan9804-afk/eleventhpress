@@ -7,10 +7,11 @@ import { sweepStuckIntegrityChecks } from "@/lib/ithenticate";
  * Safety net for integrity-check submissions that never made it to the
  * vendor (the invocation that owned them crashed before submitting) —
  * mirrors /api/cron/galley-sweep exactly, including the fail-closed
- * CRON_SECRET gate. Deliberately NOT registered in vercel.json yet,
- * matching how /api/cron/book-sweep is also left unregistered pending
- * confirmation of Hobby-tier cron-job count headroom; manual admin retry
- * (POST /api/admin/integrity-jobs/[id]/retry) covers recovery until then.
+ * CRON_SECRET gate. Not independently registered in vercel.json — folded
+ * into the consolidated /api/cron/sweep-all dispatcher instead, so this
+ * job still runs on schedule without adding a second per-sweep cron
+ * entry. This route stays reachable directly too, both for manual/
+ * targeted admin retries and via POST /api/admin/integrity-jobs/[id]/retry.
  */
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET;

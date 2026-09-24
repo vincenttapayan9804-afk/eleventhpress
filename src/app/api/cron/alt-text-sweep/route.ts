@@ -4,9 +4,10 @@ import { sweepStuckAltTextJobs } from "@/lib/alt-text";
 /**
  * GET /api/cron/alt-text-sweep
  * Mirrors /api/cron/galley-sweep exactly, including the fail-closed
- * CRON_SECRET gate. Deliberately NOT registered in vercel.json yet,
- * matching /api/cron/book-sweep and /api/cron/ithenticate-sweep, pending
- * confirmation of Hobby-tier cron-job count headroom.
+ * CRON_SECRET gate. Not independently registered in vercel.json — folded
+ * into the consolidated /api/cron/sweep-all dispatcher instead, so this
+ * job still runs on schedule without adding a second per-sweep cron
+ * entry. This route stays for manual/targeted admin retries.
  */
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET;

@@ -66,6 +66,7 @@ export function SiteFooter() {
                 <li>
                   <button
                     onClick={() => setView("privacy")}
+                    data-testid="footer-nav-privacy"
                     className="text-left underline-offset-2 hover:text-[oklch(0.42_0.18_295)] hover:underline transition-colors"
                   >
                     {t("policyGdpr")}
@@ -75,6 +76,7 @@ export function SiteFooter() {
                 <li>
                   <button
                     onClick={() => setView("terms")}
+                    data-testid="footer-nav-terms"
                     className="text-left underline-offset-2 hover:text-[oklch(0.42_0.18_295)] hover:underline transition-colors"
                   >
                     {t("termsOfService")}
@@ -83,6 +85,7 @@ export function SiteFooter() {
                 <li>
                   <button
                     onClick={() => setView("accessibility")}
+                    data-testid="footer-nav-accessibility"
                     className="text-left underline-offset-2 hover:text-[oklch(0.42_0.18_295)] hover:underline transition-colors"
                   >
                     {t("accessibilityStatement")}

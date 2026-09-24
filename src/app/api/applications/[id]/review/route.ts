@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { notify } from "@/lib/notify";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { EXPERT_APPLICATION_TIERS } from "@/lib/roles";
 import { renderAndPersistCertificate } from "@/lib/certificates-server";
@@ -92,19 +93,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const roleLabel = APPLICATION_ROLE_LABELS[application.requestedRole] || application.requestedRole.toLowerCase();
 
-  await db.notification.create({
-    data: {
-      userId: application.userId,
-      type: action === "APPROVE" ? "SUCCESS" : "INFO",
-      title: action === "APPROVE"
-        ? `Your ${roleLabel} application has been approved`
-        : `Your ${roleLabel} application was not approved`,
-      message: action === "APPROVE"
-        ? `Congratulations! You now have ${roleLabel} access. Please sign out and sign back in to see your new dashboard.`
-        : note
-          ? `Reason: ${note}. You may reapply with updated qualifications.`
-          : "You may reapply with updated qualifications.",
-    },
+  await notify({
+    userId: application.userId,
+    type: action === "APPROVE" ? "SUCCESS" : "INFO",
+    title: action === "APPROVE"
+      ? `Your ${roleLabel} application has been approved`
+      : `Your ${roleLabel} application was not approved`,
+    message: action === "APPROVE"
+      ? `Congratulations! You now have ${roleLabel} access. Please sign out and sign back in to see your new dashboard.`
+      : note
+        ? `Reason: ${note}. You may reapply with updated qualifications.`
+        : "You may reapply with updated qualifications.",
   });
 
   return NextResponse.json({ ok: true, status: newStatus });

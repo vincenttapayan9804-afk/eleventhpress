@@ -75,15 +75,17 @@ jobs:
 
   a11y:
     runs-on: ubuntu-latest
-    # Informational only for now, same posture this workflow already uses
-    # for type-check/lint/test above — see tests/a11y.spec.ts and
-    # docs/accessibility.md. The current findings are axe-core's own
-    # documented limitation on gradient/glassmorphic backgrounds (it
-    # resolves contrast against the wrong composited color), verified by
-    # screenshot to not be real rendering bugs — but that verification is
-    # a manual, human step, not something this job can assert on its own,
-    # so it stays informational rather than blocking on a false positive.
-    continue-on-error: true
+    # Blocking. Previously continue-on-error because axe-core's known
+    # gradient-background false positive (docs/accessibility.md) couldn't
+    # be told apart from a real regression without a manual screenshot
+    # check — tests/a11y.spec.ts now excludes exactly that DOM region
+    # (data-testid="hero-gradient-section") by selector rather than
+    # disabling color-contrast wholesale, so a genuine violation there or
+    # anywhere else on any scanned view still fails this job. Coverage
+    # also widened past "/" alone to every static, database-free public
+    # view (About, FAQs, Policies, Privacy, Terms, Accessibility) reached
+    # via in-page navigation — see playwright.config.ts's comment for why
+    # database-backed routes still aren't covered.
     env:
       POSTGRES_PRISMA_URL: postgresql://ci:ci@localhost:5432/ci
       POSTGRES_URL_NON_POOLING: postgresql://ci:ci@localhost:5432/ci

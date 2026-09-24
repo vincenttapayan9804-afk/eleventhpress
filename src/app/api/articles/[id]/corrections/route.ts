@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { notify } from "@/lib/notify";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { correctionTypeToIntegrityStatus, CorrectionType, CORRECTION_TYPE_LABELS } from "@/lib/article";
 import { depositToCrossref, depositCrossmarkUpdate } from "@/lib/crossref";
@@ -130,14 +131,12 @@ export async function POST(
   });
 
   if (article.correspondingAuthorId) {
-    await db.notification.create({
-      data: {
-        userId: article.correspondingAuthorId,
-        type: type === "RETRACTION" ? "ERROR" : "WARNING",
-        title: `${CORRECTION_TYPE_LABELS[type]} issued`,
-        message: `A ${CORRECTION_TYPE_LABELS[type].toLowerCase()} has been issued for "${article.title}": ${title}`,
-        articleId: article.id,
-      },
+    await notify({
+      userId: article.correspondingAuthorId,
+      type: type === "RETRACTION" ? "ERROR" : "WARNING",
+      title: `${CORRECTION_TYPE_LABELS[type]} issued`,
+      message: `A ${CORRECTION_TYPE_LABELS[type].toLowerCase()} has been issued for "${article.title}": ${title}`,
+      articleId: article.id,
     });
   }
 

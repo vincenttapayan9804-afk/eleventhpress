@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/galley-sweep",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/sweep-all",
+      "schedule": "0 4 * * *"
     }
   ]
 }

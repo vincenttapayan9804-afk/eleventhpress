@@ -106,7 +106,7 @@ export function HomeView() {
       {/* ════════════════════════════════════════════════════════════════
           HERO — studio-grade 4D image background
           ════════════════════════════════════════════════════════════════ */}
-      <section className="relative overflow-hidden">
+      <section className="relative overflow-hidden" data-testid="hero-gradient-section">
         {/* Studio-grade 4D hero image background */}
         <div className="absolute inset-0 -z-10">
           <img
