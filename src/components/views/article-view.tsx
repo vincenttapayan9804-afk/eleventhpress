@@ -377,7 +377,7 @@ export function ArticleView() {
       <HeadMetas article={article} authors={authors} />
 
       {/* Back */}
-      <Button variant="ghost" size="sm" onClick={() => setView("browse")} className="mb-6 text-muted-foreground hover:text-[oklch(0.42_0.18_295)]">
+      <Button variant="ghost" size="sm" onClick={() => setView("browse")} className="mb-6 text-muted-foreground hover:text-primary">
         <ArrowLeft className="mr-1.5 h-4 w-4" /> Back to browse
       </Button>
 
@@ -400,12 +400,12 @@ export function ArticleView() {
       )}
 
       {/* Premium Header */}
-      <header className="@container border-b border-[oklch(0.76_0.11_294/0.15)] pb-8">
+      <header className="@container border-b border-[var(--royal-300)]/15 pb-8">
         <div className="flex flex-wrap items-center gap-2 text-xs">
-          <Badge variant="outline" className="border-[oklch(0.76_0.11_294/0.3)] bg-[oklch(0.93_0.04_290)] text-[oklch(0.42_0.18_295)]">
+          <Badge variant="outline" className="border-[var(--royal-300)]/30 bg-[var(--royal-100)] text-primary">
             {article.discipline}
           </Badge>
-          <Badge variant="outline" className="border-[oklch(0.76_0.11_294/0.2)] bg-[oklch(0.96_0.01_285)] text-muted-foreground">
+          <Badge variant="outline" className="border-[var(--royal-300)]/20 bg-muted text-muted-foreground">
             {article.reviewModel.replace("_", "-")}
           </Badge>
           {openReviewStatus?.openReview && (

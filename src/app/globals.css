@@ -177,6 +177,33 @@ body[data-tenant-font="system"] {
   --sidebar-accent-foreground: oklch(0.96 0.006 285);
   --sidebar-border: oklch(0.34 0.02 285 / 0.4);
   --sidebar-ring: oklch(0.62 0.16 296);
+
+  /* Royal purple gradient stops — dark-mode counterparts of :root's ramp.
+     Lightness is roughly inverted around the same pivot --primary/--ring
+     already use (0.38/0.42 -> 0.72), so --royal-600 here is identical to
+     dark --primary/--ring on purpose: it was the same literal value in
+     light mode. Without this block, every component that reached for a
+     literal royal-* oklch() value instead of var(--royal-*) (72 for
+     royal-600 text alone) stayed a dark, low-chroma purple no matter the
+     theme — invisible against the dark background these tokens exist to
+     support. */
+  --royal-50: oklch(0.22 0.05 290);
+  --royal-100: oklch(0.26 0.07 291);
+  --royal-200: oklch(0.32 0.09 292);
+  --royal-300: oklch(0.42 0.12 294);
+  --royal-400: oklch(0.58 0.16 296);
+  --royal-500: oklch(0.66 0.17 296);
+  --royal-600: oklch(0.72 0.16 296);
+  --royal-700: oklch(0.78 0.14 295);
+  --royal-800: oklch(0.84 0.11 293);
+  --royal-900: oklch(0.90 0.08 291);
+
+  /* Pearlescent gradient stops — dark counterparts (near-black instead of
+     near-white, same low-chroma pearl tint). */
+  --pearl-50: oklch(0.20 0.015 285);
+  --pearl-100: oklch(0.22 0.02 285);
+  --pearl-200: oklch(0.26 0.02 285);
+  --pearl-300: oklch(0.30 0.02 285);
 }
 
 @layer base {
@@ -315,6 +342,59 @@ body[data-tenant-font="system"] {
     90deg,
     transparent,
     oklch(0.76 0.11 294 / 0.4),
+    transparent
+  );
+}
+
+/* Dark-mode glassmorphism — none of .glass/.glass-strong/.glass-royal/
+   .glass-panel/.pearl-card had a .dark counterpart, so every frosted
+   surface across the site (including the sticky header, which is
+   .glass-strong) stayed near-white regardless of theme. Mirrors
+   .dark .paper-card's established pattern: dark translucent fill,
+   dim white border instead of a bright one, black-based shadows instead
+   of purple-based ones for depth. */
+.dark .glass {
+  background: oklch(0.22 0.025 285 / 0.6);
+  border-color: oklch(1 0 0 / 0.08);
+}
+
+.dark .glass-strong {
+  background: oklch(0.20 0.025 285 / 0.85);
+  border-color: oklch(1 0 0 / 0.1);
+}
+
+.dark .glass-royal {
+  background: linear-gradient(
+    135deg,
+    oklch(0.22 0.03 295 / 0.75),
+    oklch(0.19 0.035 290 / 0.6)
+  );
+  border-color: oklch(0.5 0.14 294 / 0.35);
+}
+
+.dark .glass-panel {
+  background: oklch(0.20 0.02 285 / 0.5);
+  border-color: oklch(0.5 0.14 294 / 0.22);
+}
+
+.dark .pearl-card {
+  background: linear-gradient(
+    180deg,
+    oklch(0.19 0.02 285),
+    oklch(0.16 0.02 285)
+  );
+  border-color: oklch(0.34 0.02 285 / 0.5);
+  box-shadow:
+    0 1px 0 oklch(1 0 0 / 0.06) inset,
+    0 12px 40px oklch(0 0 0 / 0.3),
+    0 4px 12px oklch(0 0 0 / 0.2);
+}
+
+.dark .pearl-card::before {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    oklch(0.5 0.14 294 / 0.4),
     transparent
   );
 }
@@ -506,6 +586,18 @@ body[data-tenant-font="system"] {
     radial-gradient(circle at 50% 50%, oklch(0.99 0.004 285), oklch(0.97 0.008 285));
 }
 
+/* Rendered once in the root layout behind every page (position: fixed,
+   inset: 0), so an un-themed .ambient-bg means the entire site shows a
+   near-white wash behind all content no matter what .dark sets
+   --background to — the single largest contributor to content "not
+   blending" in dark mode, since this sits behind literally everything. */
+.dark .ambient-bg {
+  background:
+    radial-gradient(ellipse 80% 50% at 20% 0%, oklch(0.3 0.06 290 / 0.4), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 100%, oklch(0.28 0.07 295 / 0.3), transparent),
+    radial-gradient(circle at 50% 50%, oklch(0.14 0.02 285), oklch(0.12 0.018 285));
+}
+
 .ambient-mesh {
   position: fixed;
   inset: 0;
@@ -551,6 +643,16 @@ body[data-tenant-font="system"] {
     transparent
   );
 }
+.dark .royal-divider {
+  background: linear-gradient(
+    to right,
+    transparent,
+    oklch(0.66 0.17 296 / 0.3),
+    oklch(0.42 0.12 294 / 0.5),
+    oklch(0.66 0.17 296 / 0.3),
+    transparent
+  );
+}
 
 .royal-accent-bar {
   width: 3px;
@@ -592,12 +694,18 @@ body[data-tenant-font="system"] {
   height: 2.75rem;
   flex-shrink: 0;
   border-radius: 9999px;
+  /* Fixed light-mode royal values, deliberately not var(--royal-*): this
+     is the "EP" brand medallion, and --royal-* now has a dark-mode
+     inversion (so the UI's purple accents stay legible on a dark
+     background) that would otherwise flatten or reverse this gradient's
+     light-to-dark direction — a brand mark should render identically in
+     both themes, not reinterpret itself along with the rest of the UI. */
   background: radial-gradient(
     circle at 32% 26%,
-    var(--royal-300) 0%,
-    var(--royal-500) 46%,
-    var(--royal-700) 80%,
-    var(--royal-900) 100%
+    oklch(0.76 0.11 294) 0%,
+    oklch(0.50 0.18 296) 46%,
+    oklch(0.36 0.16 294) 80%,
+    oklch(0.24 0.10 292) 100%
   );
   box-shadow:
     0 0 0 1.5px var(--gold-300),
@@ -650,6 +758,12 @@ body[data-tenant-font="system"] {
   color: oklch(0.22 0.02 285);
   letter-spacing: -0.003em;
 }
+/* Article/book full-text body copy — hardcoded near-black with no dark
+   counterpart, so published text itself (not just chrome around it) went
+   near-invisible on a dark background. */
+.dark .reading-body {
+  color: oklch(0.88 0.01 285);
+}
 .reading-body p { margin-bottom: 1.25em; }
 .reading-body h2 {
   font-size: 1.5rem;
@@ -686,6 +800,15 @@ body[data-tenant-font="system"] {
   );
   background-size: 200% 100%;
   animation: shimmer-pearl 1.5s infinite;
+}
+.dark .shimmer {
+  background: linear-gradient(
+    90deg,
+    oklch(0.24 0.015 285) 0%,
+    oklch(0.30 0.02 285) 50%,
+    oklch(0.24 0.015 285) 100%
+  );
+  background-size: 200% 100%;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -889,6 +1012,18 @@ body[data-tenant-font="system"] {
   }
   .dark .paper-card {
     background: linear-gradient(165deg, oklch(0.23 0.03 285 / 0.98), oklch(0.17 0.025 285 / 0.95));
+  }
+  .dark .glass {
+    background: oklch(0.20 0.025 285 / 0.97);
+  }
+  .dark .glass-strong {
+    background: oklch(0.18 0.025 285 / 0.98);
+  }
+  .dark .glass-royal {
+    background: linear-gradient(135deg, oklch(0.22 0.03 295 / 0.97), oklch(0.19 0.035 290 / 0.94));
+  }
+  .dark .glass-panel {
+    background: oklch(0.19 0.02 285 / 0.96);
   }
   .aurora-card {
     backdrop-filter: none;

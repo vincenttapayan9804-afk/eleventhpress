@@ -438,7 +438,7 @@ function DatasetsTabPanel() {
               <Card key={d.id} className="paper-card">
                 <CardContent className="p-5">
                   <div className="flex items-center gap-2 text-xs">
-                    <Badge variant="outline" className="border-[oklch(0.76_0.11_294/0.3)] bg-[oklch(0.93_0.04_290)] text-[oklch(0.42_0.18_295)]">
+                    <Badge variant="outline" className="border-[var(--royal-300)]/30 bg-[var(--royal-100)] text-primary">
                       {d.repository}
                     </Badge>
                     <Badge variant="secondary" className="text-[0.65rem]">

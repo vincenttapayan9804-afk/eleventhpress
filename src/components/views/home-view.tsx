@@ -42,14 +42,14 @@ const DISCIPLINE_SLUGS: Record<string, string> = {
 };
 
 const DISCIPLINE_COLORS: Record<string, string> = {
-  Physics: "bg-[oklch(0.93_0.04_290)] text-[oklch(0.42_0.18_295)] border-[oklch(0.76_0.11_294/0.3)]",
-  Biology: "bg-[oklch(0.93_0.04_290)] text-[oklch(0.42_0.18_295)] border-[oklch(0.76_0.11_294/0.3)]",
-  "Computer Science": "bg-[oklch(0.93_0.04_290)] text-[oklch(0.42_0.18_295)] border-[oklch(0.76_0.11_294/0.3)]",
-  Sociology: "bg-[oklch(0.93_0.04_290)] text-[oklch(0.42_0.18_295)] border-[oklch(0.76_0.11_294/0.3)]",
-  Economics: "bg-[oklch(0.93_0.04_290)] text-[oklch(0.42_0.18_295)] border-[oklch(0.76_0.11_294/0.3)]",
-  Psychology: "bg-[oklch(0.93_0.04_290)] text-[oklch(0.42_0.18_295)] border-[oklch(0.76_0.11_294/0.3)]",
-  "Environmental Science": "bg-[oklch(0.93_0.04_290)] text-[oklch(0.42_0.18_295)] border-[oklch(0.76_0.11_294/0.3)]",
-  Mathematics: "bg-[oklch(0.93_0.04_290)] text-[oklch(0.42_0.18_295)] border-[oklch(0.76_0.11_294/0.3)]",
+  Physics: "bg-[var(--royal-100)] text-primary border-[var(--royal-300)]/30",
+  Biology: "bg-[var(--royal-100)] text-primary border-[var(--royal-300)]/30",
+  "Computer Science": "bg-[var(--royal-100)] text-primary border-[var(--royal-300)]/30",
+  Sociology: "bg-[var(--royal-100)] text-primary border-[var(--royal-300)]/30",
+  Economics: "bg-[var(--royal-100)] text-primary border-[var(--royal-300)]/30",
+  Psychology: "bg-[var(--royal-100)] text-primary border-[var(--royal-300)]/30",
+  "Environmental Science": "bg-[var(--royal-100)] text-primary border-[var(--royal-300)]/30",
+  Mathematics: "bg-[var(--royal-100)] text-primary border-[var(--royal-300)]/30",
 };
 
 interface RecommendedArticle {
@@ -120,7 +120,7 @@ export function HomeView() {
           {/* Dark vignette on the left for text contrast */}
           <div className="absolute inset-0 bg-gradient-to-r from-[oklch(0.14_0.02_285/0.88)] via-[oklch(0.14_0.02_285/0.45)] to-transparent" />
           {/* Bottom fade to pearlescent */}
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[oklch(0.992_0.004_285)]" />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />
           {/* Top subtle darkening */}
           <div className="absolute inset-0 bg-gradient-to-b from-[oklch(0.14_0.02_285/0.5)] via-transparent to-transparent" />
         </div>
@@ -180,7 +180,7 @@ export function HomeView() {
                     </div>
                     <div className="h-12 w-12"><ImpactSphere /></div>
                   </div>
-                  <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-[oklch(0.88_0.015_285/0.4)]">
+                  <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-border">
                     <StatTile label={t("publishedArticles")} value={stats.articles} icon={FileText} />
                     <StatTile label={t("totalCitations")} value={stats.citations} icon={Quote} />
                     <StatTile label={t("pdfDownloads")} value={stats.downloads} icon={TrendingUp} />
@@ -193,10 +193,10 @@ export function HomeView() {
                     <MiniStat icon={Cog} value="9" label="Microservices platform architecture" />
                     <MiniStat className="col-span-2" icon={Link2} value="6" label="Integrated independent review platforms" />
                   </div>
-                  <div className="mt-4 rounded-xl bg-[oklch(0.93_0.04_290/0.5)] px-4 py-3 text-xs text-muted-foreground">
+                  <div className="mt-4 rounded-xl bg-[var(--royal-100)]/50 px-4 py-3 text-xs text-muted-foreground">
                     {t("indexedIn")} <strong className="text-foreground">Google Scholar</strong> · <strong className="text-foreground">{DOI_REGISTRAR}</strong> · <strong className="text-foreground">OAI-PMH 2.0</strong> · <strong className="text-foreground">BASE</strong> · <strong className="text-foreground">CORE</strong> · <strong className="text-foreground">OpenAIRE</strong>
                   </div>
-                  <div className="mt-2 rounded-xl bg-[oklch(0.93_0.04_290/0.5)] px-4 py-3 text-xs text-muted-foreground">
+                  <div className="mt-2 rounded-xl bg-[var(--royal-100)]/50 px-4 py-3 text-xs text-muted-foreground">
                     Benchmarked standards: <strong className="text-foreground">SCOPUS</strong> · <strong className="text-foreground">Web of Science (WoS)</strong> · <strong className="text-foreground">COPE</strong> · <strong className="text-foreground">WAME</strong> · <strong className="text-foreground">CONSORT</strong> · <strong className="text-foreground">ICMJE</strong> · <strong className="text-foreground">STM</strong>
                   </div>
                 </div>
@@ -209,7 +209,7 @@ export function HomeView() {
       {/* ════════════════════════════════════════════════════════════════
           SYNDICATION NETWORK — motion wordmark carousel
           ════════════════════════════════════════════════════════════════ */}
-      <section className="border-y border-[oklch(0.76_0.11_294/0.1)] bg-[oklch(0.97_0.006_285)] py-14">
+      <section className="border-y border-[var(--royal-300)]/10 bg-[var(--pearl-200)] py-14">
         <div className="mx-auto max-w-7xl px-4 text-center sm:px-6 lg:px-8">
           <p className="eyebrow">Where your work travels</p>
           <h2 className="mt-2 font-display text-2xl font-semibold sm:text-3xl">
@@ -222,15 +222,15 @@ export function HomeView() {
         </div>
         <div className="relative mt-10 overflow-hidden">
           {/* Edge fades so the marquee reads as continuous, not cropped */}
-          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-16 bg-gradient-to-r from-[oklch(0.97_0.006_285)] to-transparent sm:w-32" />
-          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16 bg-gradient-to-l from-[oklch(0.97_0.006_285)] to-transparent sm:w-32" />
+          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-16 bg-gradient-to-r from-[var(--pearl-200)] to-transparent sm:w-32" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16 bg-gradient-to-l from-[var(--pearl-200)] to-transparent sm:w-32" />
           <div className="flex w-max animate-marquee">
             {[0, 1].map((copy) => (
               <div key={copy} className="flex shrink-0 items-center" aria-hidden={copy === 1}>
                 {SYNDICATION_PARTNERS.map((name) => (
                   <span
                     key={`${copy}-${name}`}
-                    className="mx-8 whitespace-nowrap font-display text-xl font-semibold text-foreground/60 transition-colors hover:text-[oklch(0.42_0.18_295)] sm:text-2xl"
+                    className="mx-8 whitespace-nowrap font-display text-xl font-semibold text-foreground/60 transition-colors hover:text-primary sm:text-2xl"
                   >
                     {name}
                   </span>
@@ -244,7 +244,7 @@ export function HomeView() {
       {/* ════════════════════════════════════════════════════════════════
           DISCIPLINES — 3D realistic visual backgrounds per discipline
           ════════════════════════════════════════════════════════════════ */}
-      <section className="border-y border-[oklch(0.76_0.11_294/0.1)]">
+      <section className="border-y border-[var(--royal-300)]/10">
         <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
           <div ref={disciplinesReveal.observe} className={`reveal stagger ${disciplinesReveal.inView ? "in-view" : ""}`}>
             <div className="mb-10 flex items-end justify-between">
@@ -252,7 +252,7 @@ export function HomeView() {
                 <p className="eyebrow">{t("disciplinesEyebrow")}</p>
                 <h2 className="mt-2 font-display text-3xl font-semibold">{t("disciplinesTitle")}</h2>
               </div>
-              <Button variant="ghost" onClick={() => setView("browse")} className="text-[oklch(0.42_0.18_295)]">
+              <Button variant="ghost" onClick={() => setView("browse")} className="text-primary">
                 {t("seeAll")} <ArrowRight className="ml-1 h-4 w-4" />
               </Button>
             </div>
@@ -275,8 +275,12 @@ export function HomeView() {
                       className="absolute inset-0 h-full w-full object-cover opacity-60 transition-opacity duration-500 group-hover:opacity-85 group-hover:scale-105"
                       style={{ transitionTimingFunction: "var(--ease-luxury)" }}
                     />
-                    {/* Gradient overlay for text contrast */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-[oklch(0.992_0.004_285/0.95)] via-[oklch(0.992_0.004_285/0.4)] to-[oklch(0.992_0.004_285/0.15)]" />
+                    {/* Gradient overlay for text contrast — the label below
+                        uses text-foreground, so the scrim it sits on has to
+                        track --background too: dark: variants swap it dark,
+                        otherwise light-mode's near-white scrim stayed fixed
+                        and dark mode's now-light text vanished into it. */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-[oklch(0.992_0.004_285/0.95)] via-[oklch(0.992_0.004_285/0.4)] to-[oklch(0.992_0.004_285/0.15)] dark:from-background dark:via-background/40 dark:to-background/15" />
                     {/* Content */}
                     <div className="relative z-10 flex h-full flex-col justify-end p-5">
                       <div className="flex items-center gap-2 mb-2">
@@ -298,7 +302,7 @@ export function HomeView() {
           FEATURED — glass cards with scroll reveal
           ════════════════════════════════════════════════════════════════ */}
       {user && recommended.length > 0 && (
-        <section className="border-b border-[oklch(0.76_0.11_294/0.1)] bg-[oklch(0.97_0.006_285)]">
+        <section className="border-b border-[var(--royal-300)]/10 bg-[var(--pearl-200)]">
           <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
             <div ref={recommendedReveal.observe} className={`reveal ${recommendedReveal.inView ? "in-view" : ""}`}>
               <p className="eyebrow">Just for you</p>
@@ -366,7 +370,7 @@ export function HomeView() {
                         {authors.slice(0, 3).map((au) => au.name).join(", ")}{authors.length > 3 ? " et al." : ""}
                       </p>
                       <p className="mt-4 line-clamp-3 text-sm leading-relaxed text-muted-foreground">{a.abstract}</p>
-                      <div className="mt-5 flex items-center justify-between border-t border-[oklch(0.76_0.11_294/0.1)] pt-4 text-xs text-muted-foreground">
+                      <div className="mt-5 flex items-center justify-between border-t border-[var(--royal-300)]/10 pt-4 text-xs text-muted-foreground">
                         <span>Vol. {a.volume}, Iss. {a.issueNumber} ({a.year})</span>
                         <span className="flex items-center gap-3">
                           <span className="flex items-center gap-1"><Quote className="h-3 w-3" /> {a.citations}</span>
@@ -385,7 +389,7 @@ export function HomeView() {
       {/* ════════════════════════════════════════════════════════════════
           PIPELINE — editorial workflow visualized
           ════════════════════════════════════════════════════════════════ */}
-      <section className="border-y border-[oklch(0.76_0.11_294/0.1)]">
+      <section className="border-y border-[var(--royal-300)]/10">
         <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
           <div ref={pipelineReveal.observe} className={`reveal ${pipelineReveal.inView ? "in-view" : ""}`}>
             <div className="mb-12 text-center">
@@ -401,7 +405,7 @@ export function HomeView() {
               {PIPELINE_STEPS.map((step, i) => (
                 <div key={step.title} className="glass-panel p-6 transition-all duration-500 hover:scale-[1.03]" style={{ transitionTimingFunction: "var(--ease-luxury)" }}>
                   <div className="flex items-center justify-between">
-                    <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[oklch(0.93_0.04_290)] text-[oklch(0.42_0.18_295)]">
+                    <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--royal-100)] text-primary">
                       <step.icon className="h-5 w-5" />
                     </span>
                     <span className="font-mono text-xs text-muted-foreground">0{i + 1}</span>
@@ -418,7 +422,7 @@ export function HomeView() {
       {/* ════════════════════════════════════════════════════════════════
           FULL-STACK REACH — the syndication network + book publishing
           ════════════════════════════════════════════════════════════════ */}
-      <section className="border-b border-[oklch(0.76_0.11_294/0.1)]">
+      <section className="border-b border-[var(--royal-300)]/10">
         <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
           <div className="mb-12 text-center">
             <p className="eyebrow">Beyond the journal</p>
@@ -432,7 +436,7 @@ export function HomeView() {
           <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
             {REACH_FEATURES.map((f) => (
               <div key={f.title} className="glass-panel p-6 transition-all duration-500 hover:scale-[1.03]" style={{ transitionTimingFunction: "var(--ease-luxury)" }}>
-                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[oklch(0.93_0.04_290)] text-[oklch(0.42_0.18_295)]">
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--royal-100)] text-primary">
                   <f.icon className="h-5 w-5" />
                 </span>
                 <p className="mt-4 font-display text-base font-semibold">{f.title}</p>
@@ -516,8 +520,8 @@ const PIPELINE_STEPS = [
 
 function StatTile({ label, value, icon: Icon }: { label: string; value: number; icon: any }) {
   return (
-    <div className="bg-[oklch(0.99_0.004_285/0.8)] p-5">
-      <Icon className="h-5 w-5 text-[oklch(0.42_0.18_295)]" />
+    <div className="bg-[var(--pearl-100)]/80 p-5">
+      <Icon className="h-5 w-5 text-primary" />
       <p className="mt-2 font-display text-2xl font-semibold">{value.toLocaleString()}</p>
       <p className="text-xs text-muted-foreground">{label}</p>
     </div>
@@ -526,8 +530,8 @@ function StatTile({ label, value, icon: Icon }: { label: string; value: number; 
 
 function MiniStat({ label, value, icon: Icon, className }: { label: string; value: string; icon: any; className?: string }) {
   return (
-    <div className={`flex items-start gap-2 rounded-lg bg-[oklch(0.99_0.004_285/0.8)] p-3 ${className ?? ""}`}>
-      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-[oklch(0.42_0.18_295)]" />
+    <div className={`flex items-start gap-2 rounded-lg bg-[var(--pearl-100)]/80 p-3 ${className ?? ""}`}>
+      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
       <div>
         <p className="font-display text-sm font-semibold leading-none">{value}</p>
         <p className="mt-1 text-[0.65rem] leading-tight text-muted-foreground">{label}</p>

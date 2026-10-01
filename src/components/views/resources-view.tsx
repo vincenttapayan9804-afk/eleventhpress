@@ -224,7 +224,7 @@ export function ResourcesView() {
                   <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <Clock className="h-3 w-3" /> {b.meta}
                   </span>
-                  <span className="flex items-center gap-1 text-xs font-medium text-[oklch(0.42_0.18_295)]">
+                  <span className="flex items-center gap-1 text-xs font-medium text-primary">
                     {t("readMore")} <ArrowRight className="h-3 w-3" />
                   </span>
                 </div>
@@ -481,7 +481,7 @@ function SourceInfo({ name, desc, href }: { name: string; desc: string; href?: s
           href={href}
           target="_blank"
           rel="noreferrer"
-          className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-[oklch(0.42_0.18_295)]"
+          className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-primary"
         >
           Search directly <ExternalLink className="h-3 w-3" />
         </a>

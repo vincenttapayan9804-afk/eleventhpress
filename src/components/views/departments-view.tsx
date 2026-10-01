@@ -59,8 +59,8 @@ export function DepartmentsView() {
             <button key={d.id} onClick={() => openDepartment(d.slug)} className="text-left">
               <Card className="paper-card h-full transition-colors hover:border-primary/40">
                 <CardContent className="flex items-center gap-4 p-5">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[oklch(0.93_0.04_290)]">
-                    <GraduationCap className="h-5 w-5 text-[oklch(0.42_0.18_295)]" />
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--royal-100)]">
+                    <GraduationCap className="h-5 w-5 text-primary" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-display text-base font-semibold">{d.name}</p>

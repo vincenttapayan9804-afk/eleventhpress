@@ -54,7 +54,7 @@ export function PresenceBadgeImpl({ articleId }: { articleId: string }) {
   if (!count || count < 2) return null;
 
   return (
-    <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-[oklch(0.76_0.11_294/0.3)] bg-[oklch(0.93_0.04_290)] px-3 py-1 text-xs font-medium text-[oklch(0.42_0.18_295)]">
+    <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-[var(--royal-300)]/30 bg-[var(--royal-100)] px-3 py-1 text-xs font-medium text-primary">
       <Users className="h-3 w-3" />
       {count} reading now
     </div>

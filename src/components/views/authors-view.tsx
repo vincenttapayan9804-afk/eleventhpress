@@ -261,7 +261,7 @@ export function AuthorsView() {
               <button
                 key={a.key}
                 onClick={() => setSelected(a)}
-                className="group relative h-64 w-44 shrink-0 snap-start overflow-hidden rounded-xl border border-[oklch(0.76_0.11_294/0.25)] sm:h-72 sm:w-52"
+                className="group relative h-64 w-44 shrink-0 snap-start overflow-hidden rounded-xl border border-[var(--royal-300)]/25 sm:h-72 sm:w-52"
               >
                 {a.avatarUrl && !brokenAvatars.has(a.key) ? (
                   <img
@@ -273,8 +273,8 @@ export function AuthorsView() {
                     className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-110"
                   />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center bg-[oklch(0.93_0.04_290)]">
-                    <span className="font-display text-4xl font-semibold text-[oklch(0.42_0.18_295)]">
+                  <div className="flex h-full w-full items-center justify-center bg-[var(--royal-100)]">
+                    <span className="font-display text-4xl font-semibold text-primary">
                       {initialsOf(a.name)}
                     </span>
                   </div>
@@ -316,7 +316,7 @@ export function AuthorsView() {
       {hasDepartments && (
         <button
           onClick={openDepartments}
-          className="mt-8 inline-flex items-center gap-1.5 text-sm font-medium text-[oklch(0.42_0.18_295)] hover:underline"
+          className="mt-8 inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
         >
           Browse departments <ChevronRight className="h-3.5 w-3.5" />
         </button>
@@ -392,14 +392,14 @@ export function AuthorsView() {
               <button
                 key={a.key}
                 onClick={() => setSelected(a)}
-                className="group flex w-full items-center gap-4 py-4 text-left transition-colors hover:bg-[oklch(0.97_0.012_290/0.6)]"
+                className="group flex w-full items-center gap-4 py-4 text-left transition-colors hover:bg-accent"
               >
-                <span className="w-8 shrink-0 text-right font-mono text-sm text-muted-foreground/70 transition-colors group-hover:text-[oklch(0.42_0.18_295)]">
+                <span className="w-8 shrink-0 text-right font-mono text-sm text-muted-foreground/70 transition-colors group-hover:text-primary">
                   {String(i + 1).padStart(2, "0")}
                 </span>
-                <Avatar className="h-11 w-11 shrink-0 border border-[oklch(0.76_0.11_294/0.3)]">
+                <Avatar className="h-11 w-11 shrink-0 border border-[var(--royal-300)]/30">
                   {a.avatarUrl && <AvatarImage src={a.avatarUrl} alt={a.name} className="object-cover" />}
-                  <AvatarFallback className="bg-[oklch(0.93_0.04_290)] text-sm font-medium text-[oklch(0.42_0.18_295)]">
+                  <AvatarFallback className="bg-[var(--royal-100)] text-sm font-medium text-primary">
                     {initialsOf(a.name)}
                   </AvatarFallback>
                 </Avatar>
@@ -423,7 +423,7 @@ export function AuthorsView() {
                             e.stopPropagation();
                             openDepartment(a.department!.slug);
                           }}
-                          className="text-[oklch(0.42_0.18_295)] hover:underline"
+                          className="text-primary hover:underline"
                         >
                           {a.department.name}
                         </span>
@@ -450,7 +450,7 @@ export function AuthorsView() {
                   <Stat icon={Quote} value={a.citationMetrics.citedByCount} label={t("statCitations")} />
                   <Stat icon={Eye} value={a.totalViews} label={t("statViews")} />
                 </div>
-                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5 group-hover:text-[oklch(0.42_0.18_295)]" />
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
               </button>
             ))}
           </div>
@@ -463,9 +463,9 @@ export function AuthorsView() {
             <>
               <DialogHeader>
                 <div className="flex items-center gap-3">
-                  <Avatar className="h-12 w-12 border border-[oklch(0.76_0.11_294/0.3)]">
+                  <Avatar className="h-12 w-12 border border-[var(--royal-300)]/30">
                     {selected.avatarUrl && <AvatarImage src={selected.avatarUrl} alt={selected.name} className="object-cover" />}
-                    <AvatarFallback className="bg-[oklch(0.93_0.04_290)] text-sm font-medium text-[oklch(0.42_0.18_295)]">
+                    <AvatarFallback className="bg-[var(--royal-100)] text-sm font-medium text-primary">
                       {initialsOf(selected.name)}
                     </AvatarFallback>
                   </Avatar>
@@ -490,7 +490,7 @@ export function AuthorsView() {
                           openDepartment(selected.department!.slug);
                           setSelected(null);
                         }}
-                        className="mt-0.5 text-xs font-medium text-[oklch(0.42_0.18_295)] hover:underline"
+                        className="mt-0.5 text-xs font-medium text-primary hover:underline"
                       >
                         {selected.department.name}
                       </button>
@@ -509,7 +509,7 @@ export function AuthorsView() {
                     href={`https://orcid.org/${selected.orcid}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex w-fit items-center gap-1.5 rounded-md border border-[oklch(0.76_0.11_294/0.3)] px-2.5 py-1 text-xs font-medium text-[oklch(0.42_0.18_295)] hover:bg-[oklch(0.93_0.04_290)]"
+                    className="inline-flex w-fit items-center gap-1.5 rounded-md border border-[var(--royal-300)]/30 px-2.5 py-1 text-xs font-medium text-primary hover:bg-[var(--royal-100)]"
                   >
                     <BadgeCheck className="h-3.5 w-3.5" /> {selected.orcid}
                   </a>
@@ -616,7 +616,7 @@ function HeroStat({ icon: Icon, value, label }: { icon: any; value: number; labe
 function TickerStat({ label, value }: { label: string; value: number }) {
   return (
     <div className="mx-6 flex items-center gap-2 whitespace-nowrap">
-      <span className="font-mono text-lg font-semibold text-[oklch(0.42_0.18_295)]">{value.toLocaleString()}</span>
+      <span className="font-mono text-lg font-semibold text-primary">{value.toLocaleString()}</span>
       <span className="text-[0.65rem] uppercase tracking-wide text-muted-foreground">{label}</span>
     </div>
   );

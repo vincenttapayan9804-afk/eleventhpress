@@ -524,9 +524,9 @@ export function AboutView() {
               <Card key={m.id} className="paper-card">
                 <CardContent className="p-5">
                   <div className="flex items-center gap-3">
-                    <Avatar className="h-11 w-11 border border-[oklch(0.76_0.11_294/0.3)]">
+                    <Avatar className="h-11 w-11 border border-[var(--royal-300)]/30">
                       {m.avatarUrl && <AvatarImage src={m.avatarUrl} alt={m.fullName} className="object-cover" />}
-                      <AvatarFallback className="bg-[oklch(0.93_0.04_290)] text-sm font-medium text-[oklch(0.42_0.18_295)]">
+                      <AvatarFallback className="bg-[var(--royal-100)] text-sm font-medium text-primary">
                         {initialsOf(m.fullName)}
                       </AvatarFallback>
                     </Avatar>

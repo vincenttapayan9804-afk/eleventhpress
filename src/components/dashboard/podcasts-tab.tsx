@@ -379,7 +379,7 @@ export function PodcastsTab() {
               <button
                 key={p.id}
                 onClick={() => setSelectedId(p.id)}
-                className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm ${selectedId === p.id ? "bg-[oklch(0.93_0.04_290)] font-medium" : "hover:bg-muted"}`}
+                className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm ${selectedId === p.id ? "bg-[var(--royal-100)] font-medium" : "hover:bg-muted"}`}
               >
                 <Mic className="h-4 w-4 shrink-0" /> {p.title}
                 <span className="ml-auto text-xs text-muted-foreground">{p.episodeCount}</span>
