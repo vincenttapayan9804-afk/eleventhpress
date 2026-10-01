@@ -5,6 +5,7 @@ import { presignGet } from "@/lib/storage";
 import { getSessionFromHeaders, requireRole } from "@/lib/auth";
 import { PRIVILEGED_ROLES_LIST as PRIVILEGED_ROLES } from "@/lib/roles";
 import { checkAndRecordMeterAccess, hasActiveSubscription, teaserHtml, READER_KEY_COOKIE } from "@/lib/paywall-meter";
+import { COOKIE_CONSENT_COOKIE_NAME } from "@/lib/cookie-consent";
 
 /**
  * GET /api/magazine-issues/[id]
@@ -39,20 +40,36 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   let pieces = issue.pieces.map((p, i) => ({ ...p, heroImageUrl: heroUrls[i], metered: false as boolean }));
 
   if (!isPrivileged) {
-    readerKey = session ? `user:${session.userId}` : req.cookies.get(READER_KEY_COOKIE)?.value || null;
-    if (!readerKey) {
-      readerKey = `anon:${randomUUID()}`;
-      setReaderKeyCookie = readerKey;
+    // A signed-in reader's identity rides their existing (strictly
+    // necessary) session cookie, so metering always applies to them — no
+    // new cookie is being set. An anonymous reader only gets the
+    // reader_key tracking cookie, and is only metered at all, once they've
+    // accepted it via the cookie consent banner (src/components/
+    // cookie-consent-banner.tsx). Declining or not yet deciding means
+    // anonymous magazine reading stays unmetered — there's nothing to
+    // count without a stable identifier, and this never sets a cookie
+    // without consent.
+    if (session) {
+      readerKey = `user:${session.userId}`;
+    } else if (req.cookies.get(COOKIE_CONSENT_COOKIE_NAME)?.value === "all") {
+      readerKey = req.cookies.get(READER_KEY_COOKIE)?.value || null;
+      if (!readerKey) {
+        readerKey = `anon:${randomUUID()}`;
+        setReaderKeyCookie = readerKey;
+      }
     }
-    const subscribed = await hasActiveSubscription(session?.userId ?? null);
-    pieces = await Promise.all(
-      issue.pieces.map(async (p, i) => {
-        const meter = await checkAndRecordMeterAccess(readerKey!, p.id, subscribed);
-        return meter.allowed
-          ? { ...p, heroImageUrl: heroUrls[i], metered: false }
-          : { ...p, heroImageUrl: heroUrls[i], metered: true, bodyHtml: teaserHtml(p.bodyHtml) };
-      })
-    );
+
+    if (readerKey) {
+      const subscribed = await hasActiveSubscription(session?.userId ?? null);
+      pieces = await Promise.all(
+        issue.pieces.map(async (p, i) => {
+          const meter = await checkAndRecordMeterAccess(readerKey!, p.id, subscribed);
+          return meter.allowed
+            ? { ...p, heroImageUrl: heroUrls[i], metered: false }
+            : { ...p, heroImageUrl: heroUrls[i], metered: true, bodyHtml: teaserHtml(p.bodyHtml) };
+        })
+      );
+    }
   }
 
   const res = NextResponse.json({
