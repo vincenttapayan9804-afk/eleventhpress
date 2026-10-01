@@ -93,23 +93,32 @@ export function PrivacyView() {
         <Card className="paper-card mt-4">
           <CardContent className="p-6 space-y-3">
             <p className="text-sm text-muted-foreground text-justify">
-              We set exactly two cookies, and both are strictly necessary — nothing here requires a
-              consent banner under GDPR/ePrivacy, but we'd rather tell you plainly than say nothing:
+              We set three strictly necessary cookies, which require no consent under GDPR/ePrivacy,
+              plus one optional cookie that does — covered by the consent banner shown on your first
+              visit, and here plainly either way:
             </p>
             <div className="grid gap-4 sm:grid-cols-2">
               <PrivacyItem
                 title="epip_session"
-                desc="Your signed login session. HttpOnly (invisible to page JavaScript), sent only to our own server, expires after 7 days or on sign-out."
+                desc="Your signed login session. HttpOnly (invisible to page JavaScript), sent only to our own server, expires after 7 days or on sign-out. Strictly necessary."
               />
               <PrivacyItem
                 title="epip_csrf"
-                desc="A random token your browser echoes back on every action that changes data, so a malicious site can't submit forms on your behalf. Not a tracking identifier — it carries no personal data."
+                desc="A random token your browser echoes back on every action that changes data, so a malicious site can't submit forms on your behalf. Not a tracking identifier — it carries no personal data. Strictly necessary."
+              />
+              <PrivacyItem
+                title="cookie_consent"
+                desc="Remembers the choice you made in the cookie banner, so we don't ask again every visit. Strictly necessary — its entire purpose is honoring a privacy choice you already made."
+              />
+              <PrivacyItem
+                title="reader_key"
+                desc="Optional. A random identifier for an anonymous (not signed-in) reader, used only to apply the free-article limit on magazine content. Set only if you accept it in the cookie banner; signed-in readers are metered via their existing session instead, so this never applies to them. Decline it and anonymous magazine reading stays unmetered — not blocked, just uncounted."
               />
             </div>
             <p className="text-sm text-muted-foreground text-justify">
               We do not run analytics, advertising, or third-party tracking scripts of any kind on
               this platform, so there are no other cookies to disclose. If that ever changes, this
-              page — and a real consent banner for anything non-essential — will change first.
+              page — and the consent banner's choices — will change first.
             </p>
           </CardContent>
         </Card>

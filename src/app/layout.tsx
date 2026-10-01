@@ -6,6 +6,7 @@ import { DOI_REGISTRAR } from "@/lib/site";
 import { getCurrentTenant } from "@/lib/tenant";
 import { TenantBrandingProvider } from "@/lib/tenant-branding-context";
 import { ThemeProvider } from "@/components/theme-provider";
+import { CookieConsentBanner } from "@/components/cookie-consent-banner";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -124,6 +125,7 @@ export default async function RootLayout({
           <TenantBrandingProvider branding={branding}>
             {children}
             <Toaster />
+            <CookieConsentBanner />
           </TenantBrandingProvider>
         </ThemeProvider>
       </body>
