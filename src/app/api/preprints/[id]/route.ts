@@ -25,6 +25,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const authorAvatars = await resolveAuthorAvatars(parseAuthors(article.authors));
 
+  // Preprint-to-VOR version chain — every other version sharing the same
+  // chain root (versionOfId ?? id), oldest first, so a reader can jump
+  // between a preprint's independently-citable versions.
+  const chainRootId = article.versionOfId ?? article.id;
+  const versions = await withTenantRlsContext(tenant?.id ?? null, (tx) =>
+    tx.article.findMany({
+      where: { OR: [{ id: chainRootId }, { versionOfId: chainRootId }] },
+      select: { id: true, versionNumber: true, doi: true, preprintPostedAt: true },
+      orderBy: { versionNumber: "asc" },
+    })
+  );
+
   return NextResponse.json({
     id: article.id,
     title: article.title,
@@ -36,5 +48,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     status: article.status,
     preprintPostedAt: article.preprintPostedAt,
     hasManuscript: !!article.manuscriptKey,
+    versionNumber: article.versionNumber,
+    doi: article.doi,
+    versions,
   });
 }

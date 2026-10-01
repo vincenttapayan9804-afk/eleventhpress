@@ -533,6 +533,78 @@ export async function depositPublishedArticleToZenodo(
 }
 
 // ---------------------------------------------------------------------------
+// Preprint version deposit — mints a real, independently-citable DOI for
+// one version in a preprint's version chain (Article.versionNumber/
+// versionOfId — a distinct Article row per version, created by POST
+// /api/articles/[id]/preprint/new-version), reusing depositArticleToZenodo
+// exactly like depositPublishedArticleToZenodo above. Unlike that
+// function, this is never gated on article.status being PUBLISHED — a
+// preprint version is citable the moment it's posted, well before (if
+// ever) formal peer review and a VOR exist for it.
+// ---------------------------------------------------------------------------
+
+/** Same file-resolution and metadata-building shape as
+ * depositPublishedArticleToZenodo, applied to a preprint version instead
+ * of a published article — deliberately NOT deduplicated into one shared
+ * helper, since the two already diverge (no galley/issue expectations
+ * here) and are likely to diverge further. */
+export async function depositPreprintVersionToZenodo(articleId: string): Promise<ZenodoArticleDepositOutput> {
+  const article = await db.article.findUnique({
+    where: { id: articleId },
+    include: { journal: true },
+  });
+  if (!article) {
+    return {
+      ok: false,
+      mode: "live",
+      doi: null,
+      recordUrl: "",
+      zenodoRecordId: null,
+      message: "Article not found",
+      rawLog: JSON.stringify({ step: "lookup" }),
+    };
+  }
+
+  let fileBuffer: Buffer | null = article.manuscriptKey ? await getObject(article.manuscriptKey) : null;
+  let fileName = article.manuscriptKey?.split("/").pop() || `${article.id}.md`;
+  let fileContentType = "text/markdown";
+  if (!fileBuffer) {
+    fileBuffer = Buffer.from(
+      `${article.title}\n\n${article.abstract}\n\nPreprint version ${article.versionNumber}, posted by ${article.journal?.name || "Eleventh Press International Publishing"}.`,
+      "utf-8"
+    );
+    fileName = `${article.id}.txt`;
+    fileContentType = "text/plain";
+  }
+
+  const authors = parseAuthors(article.authors);
+  const deposit = await depositArticleToZenodo({
+    articleId: article.id,
+    title: `${article.title} (preprint v${article.versionNumber})`,
+    abstract: article.abstract,
+    creators: authors.map((a) => ({ name: a.name, affiliation: a.affiliation, orcid: a.orcid })),
+    keywords: article.keywords.split(",").map((k) => k.trim()).filter(Boolean),
+    license: "CC-BY-4.0",
+    journalTitle: article.journal?.name || "Eleventh Press International Publishing",
+    publicationDate: (article.preprintPostedAt || new Date()).toISOString().slice(0, 10),
+    fileBuffer,
+    fileName,
+    fileContentType,
+  });
+
+  await db.article.update({
+    where: { id: articleId },
+    data: {
+      ...(deposit.ok && deposit.doi ? { doi: deposit.doi, doiStatus: "PUBLISHED" } : {}),
+      zenodoRecordId: deposit.zenodoRecordId,
+      zenodoDepositLog: deposit.rawLog,
+    },
+  });
+
+  return deposit;
+}
+
+// ---------------------------------------------------------------------------
 // Review report deposit — mints a real, citable DOI for a published
 // article's compiled peer-review report (Review History tab), reusing
 // depositArticleToZenodo above rather than duplicating the create/upload/

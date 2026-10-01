@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useApp } from "@/lib/store";
 import { apiFetch } from "@/lib/api-client";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,6 +34,7 @@ import {
   GraduationCap,
   Copy,
   Users,
+  Trophy,
 } from "lucide-react";
 
 interface Profile {
@@ -97,7 +99,13 @@ export function ProfileTab() {
   const [twoFactorBusy, setTwoFactorBusy] = useState(false);
 
   // Referral program
-  const [referral, setReferral] = useState<{ referralLink: string; totalReferred: number } | null>(null);
+  const [referral, setReferral] = useState<{
+    referralLink: string;
+    totalReferred: number;
+    milestone: string | null;
+    rank: number | null;
+    leaderboard: { fullName: string; totalReferred: number }[];
+  } | null>(null);
 
   // GDPR/CCPA data rights: export + account deletion
   const [exporting, setExporting] = useState(false);
@@ -144,7 +152,13 @@ export function ProfileTab() {
     apiFetch<{ departments: DepartmentOption[] }>("/api/departments")
       .then((res) => setDepartmentOptions(res.departments))
       .catch(() => setDepartmentOptions([]));
-    apiFetch<{ referralLink: string; totalReferred: number }>("/api/account/referrals")
+    apiFetch<{
+      referralLink: string;
+      totalReferred: number;
+      milestone: string | null;
+      rank: number | null;
+      leaderboard: { fullName: string; totalReferred: number }[];
+    }>("/api/account/referrals")
       .then((res) => setReferral(res))
       .catch(() => {});
   }, []);
@@ -656,9 +670,16 @@ export function ProfileTab() {
       {referral && (
         <Card className="paper-card">
           <CardHeader>
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-primary" />
-              <p className="eyebrow">Invite colleagues</p>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-primary" />
+                <p className="eyebrow">Invite colleagues</p>
+              </div>
+              {referral.milestone && (
+                <Badge variant="outline" className="gap-1 border-primary/30 bg-primary/5 text-primary">
+                  <Trophy className="h-3 w-3" /> {referral.milestone}
+                </Badge>
+              )}
             </div>
             <p className="text-xs text-muted-foreground">
               Share your link — anyone who signs up through it is credited to you here.
@@ -674,7 +695,23 @@ export function ProfileTab() {
             <p className="mt-3 text-sm text-muted-foreground">
               <span className="font-semibold text-foreground">{referral.totalReferred}</span>{" "}
               {referral.totalReferred === 1 ? "person has" : "people have"} joined using your link.
+              {referral.rank && (
+                <> You're <span className="font-semibold text-foreground">#{referral.rank}</span> platform-wide.</>
+              )}
             </p>
+            {referral.leaderboard.length > 0 && (
+              <div className="mt-4 border-t border-border pt-3">
+                <p className="text-xs font-medium text-foreground/80">Top referrers</p>
+                <ol className="mt-1.5 space-y-1 text-xs text-muted-foreground">
+                  {referral.leaderboard.map((r, i) => (
+                    <li key={i} className="flex items-center justify-between">
+                      <span>{i + 1}. {r.fullName}</span>
+                      <span className="font-mono">{r.totalReferred}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

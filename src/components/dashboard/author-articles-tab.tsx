@@ -36,6 +36,7 @@ export function AuthorArticlesTab({ submissions, onRefresh }: Props) {
   const [responseText, setResponseText] = useState("");
   const [submittingResponse, setSubmittingResponse] = useState(false);
   const [togglingPreprintId, setTogglingPreprintId] = useState<string | null>(null);
+  const [postingVersionId, setPostingVersionId] = useState<string | null>(null);
 
   async function togglePreprint(articleId: string, enable: boolean) {
     setTogglingPreprintId(articleId);
@@ -50,6 +51,24 @@ export function AuthorArticlesTab({ submissions, onRefresh }: Props) {
       toast.error(e.message);
     } finally {
       setTogglingPreprintId(null);
+    }
+  }
+
+  async function postNewVersion(articleId: string) {
+    setPostingVersionId(articleId);
+    try {
+      const res = await apiFetch<{ article: { versionNumber: number; doi: string | null } }>(
+        `/api/articles/${articleId}/preprint/new-version`,
+        { method: "POST", body: JSON.stringify({}) }
+      );
+      toast.success(`Posted preprint v${res.article.versionNumber}`, {
+        description: res.article.doi ? `DOI: ${res.article.doi}` : undefined,
+      });
+      onRefresh();
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setPostingVersionId(null);
     }
   }
 
@@ -250,16 +269,28 @@ export function AuthorArticlesTab({ submissions, onRefresh }: Props) {
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-xs text-muted-foreground">
                         <Globe2 className="mr-1 inline h-3 w-3" /> Publicly readable as a preprint
+                        {s.versionNumber > 1 && ` · v${s.versionNumber}`}
                       </p>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={togglingPreprintId === s.id}
-                        onClick={() => togglePreprint(s.id, false)}
-                      >
-                        {togglingPreprintId === s.id && <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />}
-                        Take down preprint
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={postingVersionId === s.id}
+                          onClick={() => postNewVersion(s.id)}
+                        >
+                          {postingVersionId === s.id && <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />}
+                          Post new version
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={togglingPreprintId === s.id}
+                          onClick={() => togglePreprint(s.id, false)}
+                        >
+                          {togglingPreprintId === s.id && <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />}
+                          Take down preprint
+                        </Button>
+                      </div>
                     </div>
                   ) : (
                     <Button
