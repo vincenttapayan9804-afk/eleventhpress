@@ -172,7 +172,12 @@ export function DashboardView() {
     { key: "myBooks", label: "My books", icon: BookOpen, roles: ["AUTHOR", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"], group: "Publishing — My Work" },
     { key: "distribution", label: "Article distribution", icon: Share2, roles: ["AUTHOR", "SUPER_ADMIN"], group: "Publishing — My Work" },
     { key: "reviewerQueue", label: "My reviews", icon: PenSquare, roles: ["REVIEWER", "SUPER_ADMIN"], group: "Publishing — My Work" },
-    { key: "certificates", label: "Certificates", icon: Award, roles: ["AUTHOR", "REVIEWER", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"], group: "Publishing — My Work" },
+    // EXPERT was missing here despite computeEligibility (src/lib/
+    // certificates-server.ts) and the Prestige Application approval flow
+    // (src/app/api/applications/[id]/review/route.ts) both already
+    // assuming a Council of Experts member can reach this tab — the only
+    // path they had was a narrower widget buried in Professional Dashboard.
+    { key: "certificates", label: "Certificates", icon: Award, roles: ["AUTHOR", "REVIEWER", "EDITOR", "ASSOCIATE_EDITOR", "EXPERT", "SUPER_ADMIN"], group: "Publishing — My Work" },
     {
       key: "researchLab",
       label: "Eleventh Research Lab",
