@@ -36,6 +36,8 @@ import {
   CloudUpload,
   Globe2,
   Landmark,
+  Database,
+  Scale,
 } from "lucide-react";
 import { DISCIPLINES, CREDIT_ROLES, INSIGHT_CATEGORIES, INSIGHT_CATEGORY_LABELS, KEY_TAKEAWAYS_COUNT, type InsightCategory } from "@/lib/article";
 
@@ -90,6 +92,8 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
     apcWaiverRequested: false,
     apcWaiverReason: "",
     rightsRetentionConfirmed: false,
+    dataAvailabilityStatement: "",
+    authorConflictOfInterest: "",
   });
   // The Publication Charter's mandatory "Key Takeaways" box — exactly 5
   // bullets, required for every Expert Insight, unused for RESEARCH.
@@ -173,6 +177,8 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
       }
       if (!form.reviewModel) return "Please select a review model.";
       if (!form.rightsRetentionConfirmed) return "Please confirm the rights-retention statement.";
+      if (!form.dataAvailabilityStatement.trim()) return "Please provide a data availability statement (or state that this is not applicable).";
+      if (!form.authorConflictOfInterest.trim()) return "Please disclose any author conflicts of interest (or state that there are none).";
       return null;
     }
     return null;
@@ -329,12 +335,14 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
             <Row label="Review model" value={form.reviewModel.replace("_", " ")} />
             <Row label="Open peer review" value={form.openReview ? "Enabled — reviews will be public" : "Disabled"} />
             <Row label="Rights-retention statement" value={form.rightsRetentionConfirmed ? "Confirmed" : "Not confirmed"} />
+            <Row label="Data availability" value={form.dataAvailabilityStatement} />
+            <Row label="Conflicts of interest" value={form.authorConflictOfInterest} />
             {uploadedFile && (
               <Row label="Manuscript" value={<code className="font-mono text-xs">{uploadedFile.filename}</code>} />
             )}
           </div>
           <div className="mt-6 flex justify-center gap-3">
-            <Button onClick={() => { setResult(null); setStep(1); setForm({ title: "", abstract: "", keywords: "", discipline: "Physics", insightCategory: "", reviewModel: "DOUBLE_BLIND", openReview: false, apcWaiverRequested: false, apcWaiverReason: "", rightsRetentionConfirmed: false }); setUploadedFile(null); setFunders([]); setReferences(""); setKeyTakeaways(Array(KEY_TAKEAWAYS_COUNT).fill("")); }}>
+            <Button onClick={() => { setResult(null); setStep(1); setForm({ title: "", abstract: "", keywords: "", discipline: "Physics", insightCategory: "", reviewModel: "DOUBLE_BLIND", openReview: false, apcWaiverRequested: false, apcWaiverReason: "", rightsRetentionConfirmed: false, dataAvailabilityStatement: "", authorConflictOfInterest: "" }); setUploadedFile(null); setFunders([]); setReferences(""); setKeyTakeaways(Array(KEY_TAKEAWAYS_COUNT).fill("")); }}>
               Submit another
             </Button>
             <Button variant="outline" onClick={() => { onSubmitted(); openDashboard("myArticles"); }}>
@@ -778,6 +786,37 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
                     </span>
                   </span>
                 </label>
+              </div>
+
+              {/* Data availability & author conflict-of-interest disclosures
+                  — ICMJE/COPE-standard asks for every submission, captured
+                  alongside the rights-retention statement above. "Not
+                  applicable" / "None declared" are valid, deliberate
+                  answers; what's required is giving one. */}
+              <div className="space-y-1.5 rounded-md border border-border p-4">
+                <Label htmlFor="dataAvailability" className="flex items-center gap-2 font-display text-sm font-semibold">
+                  <Database className="h-4 w-4 text-primary" /> Data availability statement
+                </Label>
+                <Textarea
+                  id="dataAvailability"
+                  rows={3}
+                  placeholder="Describe where the underlying data can be accessed (repository, DOI, upon request), or state that this is not applicable…"
+                  value={form.dataAvailabilityStatement}
+                  onChange={(e) => setForm({ ...form, dataAvailabilityStatement: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-1.5 rounded-md border border-border p-4">
+                <Label htmlFor="conflictOfInterest" className="flex items-center gap-2 font-display text-sm font-semibold">
+                  <Scale className="h-4 w-4 text-primary" /> Conflict of interest disclosure
+                </Label>
+                <Textarea
+                  id="conflictOfInterest"
+                  rows={3}
+                  placeholder="Disclose any financial, personal, or professional conflicts of interest among the authors, or state that there are none…"
+                  value={form.authorConflictOfInterest}
+                  onChange={(e) => setForm({ ...form, authorConflictOfInterest: e.target.value })}
+                />
               </div>
 
               <Separator className="my-4" />

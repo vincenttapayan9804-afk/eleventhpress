@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
 
   const review = await db.review.findUnique({
     where: { id: body.reviewId },
-    include: { article: true },
+    include: { article: { include: { journal: true } } },
   });
   if (!review) {
     return NextResponse.json({ error: "Review not found" }, { status: 404 });
@@ -73,6 +73,30 @@ export async function POST(req: NextRequest) {
       metadata: JSON.stringify({ status: body.status, recommendation: body.recommendation }),
     },
   });
+
+  // ORCID peer-review credit — fire-and-forget, same non-blocking contract
+  // as the orcid-works push at publish time (src/app/api/articles/workflow/
+  // route.ts). Only on a genuine completion, never on ACCEPTED/DECLINED/
+  // IN_PROGRESS transitions.
+  if (body.status === "COMPLETED" && updated.completedAt) {
+    import("@/lib/orcid-peer-review")
+      .then(({ pushPeerReviewToOrcid }) =>
+        pushPeerReviewToOrcid(session.userId, {
+          articleId: review.articleId,
+          articleTitle: review.article.title,
+          articleDoi: review.article.doi,
+          journalName: review.article.journal?.name,
+          journalIssn: review.article.journal?.issn,
+          publisher: review.article.journal?.publisher,
+          completedAt: updated.completedAt!,
+        }).then((result) => {
+          if (result.mode === "failed") {
+            console.error(`[orcid-peer-review] push failed for review ${body.reviewId}:`, result.reason);
+          }
+        })
+      )
+      .catch(() => {});
+  }
 
   // Notify editors
   const editors = await db.user.findMany({

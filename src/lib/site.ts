@@ -46,3 +46,14 @@ export const DOI_REGISTRAR = "Zenodo";
  * from one place instead of five separately hardcoded "en" strings.
  */
 export const ARTICLE_LANGUAGE = "en";
+
+/**
+ * This journal's "convening organization" address for the ORCID Peer
+ * Review API (src/lib/orcid-peer-review.ts) — ORCID's schema requires a
+ * city/country on every peer-review record pushed to a reviewer's
+ * profile. Deliberately generic placeholders, same override-before-a-real-
+ * registration discipline as DOI_REGISTRAR above: set JOURNAL_ORG_CITY /
+ * JOURNAL_ORG_COUNTRY once a real registered office exists.
+ */
+export const JOURNAL_ORG_CITY = process.env.JOURNAL_ORG_CITY || "Remote";
+export const JOURNAL_ORG_COUNTRY = process.env.JOURNAL_ORG_COUNTRY || "US";

@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     const {
       title, abstract, keywords, discipline, authors, reviewModel, manuscriptKey, manuscriptName, openReview,
       funders, apcWaiverRequested, apcWaiverReason, references, insightCategory, keyTakeaways,
-      rightsRetentionConfirmed,
+      rightsRetentionConfirmed, dataAvailabilityStatement, authorConflictOfInterest,
     } = body as {
       title: string;
       abstract: string;
@@ -48,6 +48,8 @@ export async function POST(req: NextRequest) {
       insightCategory?: string;
       keyTakeaways?: string[];
       rightsRetentionConfirmed?: boolean;
+      dataAvailabilityStatement?: string;
+      authorConflictOfInterest?: string;
     };
 
     // Experts submit Expert Insight pieces, never ordinary RESEARCH
@@ -69,6 +71,22 @@ export async function POST(req: NextRequest) {
     // treated as confirmed (see Article.rightsRetentionConfirmed).
     if (!rightsRetentionConfirmed) {
       return NextResponse.json({ error: "Please confirm the rights-retention statement before submitting" }, { status: 400 });
+    }
+    // ICMJE/COPE-standard disclosures — required for every submission,
+    // same posture as rights-retention above. "Not applicable" / "The
+    // authors declare no competing interests" are valid, deliberate
+    // answers; what's not allowed is submitting with no answer at all.
+    if (!dataAvailabilityStatement?.trim()) {
+      return NextResponse.json(
+        { error: "Please provide a data availability statement (or state that this is not applicable)" },
+        { status: 400 }
+      );
+    }
+    if (!authorConflictOfInterest?.trim()) {
+      return NextResponse.json(
+        { error: "Please disclose any author conflicts of interest (or state that there are none)" },
+        { status: 400 }
+      );
     }
 
     if (isExpert) {
@@ -142,6 +160,8 @@ export async function POST(req: NextRequest) {
         apcWaiverStatus: apcWaiverRequested ? "REQUESTED" : "NONE",
         rightsRetentionConfirmed: true,
         rightsRetentionConfirmedAt: new Date(),
+        dataAvailabilityStatement: dataAvailabilityStatement.trim(),
+        authorConflictOfInterest: authorConflictOfInterest.trim(),
         submittedAt: new Date(),
       },
     });
