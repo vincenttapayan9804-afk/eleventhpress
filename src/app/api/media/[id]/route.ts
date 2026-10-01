@@ -5,6 +5,7 @@ import { getSessionFromHeaders, requireRole } from "@/lib/auth";
 import { resolveTenantFromHeaders } from "@/lib/tenant";
 import { withRlsContext, withTenantRlsContext } from "@/lib/db-rls";
 import { PRIVILEGED_ROLES_LIST as PRIVILEGED_ROLES } from "@/lib/roles";
+import { sanitizeEditorialHtml } from "@/lib/html-sanitize";
 
 /**
  * GET /api/media/[id] — public for PUBLISHED posts, editorial-only otherwise.
@@ -56,7 +57,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       title: body.title ?? existing.title,
       dek: body.dek ?? existing.dek,
       authorName: body.authorName ?? existing.authorName,
-      bodyHtml: body.bodyHtml ?? existing.bodyHtml,
+      bodyHtml: body.bodyHtml ? sanitizeEditorialHtml(body.bodyHtml) : existing.bodyHtml,
       category: body.category ?? existing.category,
       tags: body.tags ?? existing.tags,
       heroImageKey: body.heroImageKey ?? existing.heroImageKey,

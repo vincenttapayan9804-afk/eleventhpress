@@ -98,6 +98,7 @@ import {
   SecondBrainTab,
 } from "@/components/dashboard/lazy";
 import { useLiveDashboard } from "@/hooks/use-live-dashboard";
+import { MfaGate } from "@/components/mfa-gate";
 
 interface DashboardData {
   role: string;
@@ -298,6 +299,7 @@ export function DashboardView() {
   // Live WebSocket updates (already called above before early returns)
 
   return (
+    <MfaGate>
     <div className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       {/* Soft ambient glow behind the floating glass dashboard panels */}
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
@@ -511,6 +513,7 @@ export function DashboardView() {
         </CardContent>
       </Card>
     </div>
+    </MfaGate>
   );
 }
 

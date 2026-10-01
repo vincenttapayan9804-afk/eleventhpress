@@ -5,6 +5,7 @@ import { getSessionFromHeaders, requireRole } from "@/lib/auth";
 import { resolveTenantFromHeaders } from "@/lib/tenant";
 import { withTenantRlsContext } from "@/lib/db-rls";
 import { PRIVILEGED_ROLES_LIST as PRIVILEGED_ROLES } from "@/lib/roles";
+import { sanitizeEditorialHtml } from "@/lib/html-sanitize";
 
 const TYPES = new Set(["NEWS", "BLOG"]);
 
@@ -74,7 +75,7 @@ export async function POST(req: NextRequest) {
       title: body.title,
       dek: body.dek,
       authorName: body.authorName,
-      bodyHtml: body.bodyHtml,
+      bodyHtml: sanitizeEditorialHtml(body.bodyHtml),
       category: body.category,
       tags: body.tags,
       heroImageKey: body.heroImageKey,

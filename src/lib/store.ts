@@ -88,6 +88,12 @@ interface SessionUser {
   orcid?: string | null;
   bio?: string | null;
   avatarUrl?: string | null;
+  // Both populated by GET /api/auth/me's rehydration-on-mount call
+  // (src/app/page.tsx) — undefined only in the brief window before that
+  // first fetch resolves. src/components/mfa-gate.tsx and profile-tab.tsx's
+  // 2FA confirm/disable handlers both read/write twoFactorEnabled here.
+  twoFactorEnabled?: boolean;
+  emailVerifiedAt?: string | null;
 }
 
 export type Locale = "en" | "es" | "fr" | "fil" | "zh-Hans";
