@@ -89,6 +89,7 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
     openReview: false,
     apcWaiverRequested: false,
     apcWaiverReason: "",
+    rightsRetentionConfirmed: false,
   });
   // The Publication Charter's mandatory "Key Takeaways" box — exactly 5
   // bullets, required for every Expert Insight, unused for RESEARCH.
@@ -171,6 +172,7 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
         return "Please select a discipline.";
       }
       if (!form.reviewModel) return "Please select a review model.";
+      if (!form.rightsRetentionConfirmed) return "Please confirm the rights-retention statement.";
       return null;
     }
     return null;
@@ -326,12 +328,13 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
             <Row label="Workflow status" value={<Badge variant="outline" className="font-mono text-[0.6rem]">{result.status}</Badge>} />
             <Row label="Review model" value={form.reviewModel.replace("_", " ")} />
             <Row label="Open peer review" value={form.openReview ? "Enabled — reviews will be public" : "Disabled"} />
+            <Row label="Rights-retention statement" value={form.rightsRetentionConfirmed ? "Confirmed" : "Not confirmed"} />
             {uploadedFile && (
               <Row label="Manuscript" value={<code className="font-mono text-xs">{uploadedFile.filename}</code>} />
             )}
           </div>
           <div className="mt-6 flex justify-center gap-3">
-            <Button onClick={() => { setResult(null); setStep(1); setForm({ title: "", abstract: "", keywords: "", discipline: "Physics", insightCategory: "", reviewModel: "DOUBLE_BLIND", openReview: false, apcWaiverRequested: false, apcWaiverReason: "" }); setUploadedFile(null); setFunders([]); setReferences(""); setKeyTakeaways(Array(KEY_TAKEAWAYS_COUNT).fill("")); }}>
+            <Button onClick={() => { setResult(null); setStep(1); setForm({ title: "", abstract: "", keywords: "", discipline: "Physics", insightCategory: "", reviewModel: "DOUBLE_BLIND", openReview: false, apcWaiverRequested: false, apcWaiverReason: "", rightsRetentionConfirmed: false }); setUploadedFile(null); setFunders([]); setReferences(""); setKeyTakeaways(Array(KEY_TAKEAWAYS_COUNT).fill("")); }}>
               Submit another
             </Button>
             <Button variant="outline" onClick={() => { onSubmitted(); openDashboard("myArticles"); }}>
@@ -746,6 +749,36 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
                   )}
                 </div>
               )}
+
+              {/* Plan S / cOAlition S rights-retention statement — required,
+                  unlike the toggles above. Every article already publishes
+                  under a blanket CC BY 4.0 license; this is the author's
+                  own attestation that they retain the right to deposit the
+                  accepted manuscript under that license regardless of any
+                  separate publisher agreement, which is the actual
+                  substance funders check for at intake. */}
+              <div className="rounded-md border border-border p-4">
+                <label className="flex items-start gap-3">
+                  <Checkbox
+                    checked={form.rightsRetentionConfirmed}
+                    onCheckedChange={(v) => setForm({ ...form, rightsRetentionConfirmed: !!v })}
+                    className="mt-0.5"
+                  />
+                  <span className="flex-1">
+                    <span className="flex items-center gap-2">
+                      <FileCheck2 className="h-4 w-4 text-primary" />
+                      <span className="font-display text-sm font-semibold">Rights-retention statement</span>
+                    </span>
+                    <span className="mt-1 block text-xs text-muted-foreground">
+                      I confirm that I retain the right to make the accepted manuscript publicly
+                      available under a CC BY 4.0 license — the license this journal already
+                      publishes under by default — regardless of any other agreement I may enter
+                      into with a publisher, as required by Plan S / cOAlition S and similar
+                      funder open-access mandates.
+                    </span>
+                  </span>
+                </label>
+              </div>
 
               <Separator className="my-4" />
               <div className="rounded-md border border-primary/30 bg-primary/5 p-4">

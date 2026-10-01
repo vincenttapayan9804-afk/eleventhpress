@@ -31,6 +31,8 @@ import {
   Download,
   AlertOctagon,
   GraduationCap,
+  Copy,
+  Users,
 } from "lucide-react";
 
 interface Profile {
@@ -94,6 +96,9 @@ export function ProfileTab() {
   const [showDisableForm, setShowDisableForm] = useState(false);
   const [twoFactorBusy, setTwoFactorBusy] = useState(false);
 
+  // Referral program
+  const [referral, setReferral] = useState<{ referralLink: string; totalReferred: number } | null>(null);
+
   // GDPR/CCPA data rights: export + account deletion
   const [exporting, setExporting] = useState(false);
   const [showDeleteForm, setShowDeleteForm] = useState(false);
@@ -139,7 +144,18 @@ export function ProfileTab() {
     apiFetch<{ departments: DepartmentOption[] }>("/api/departments")
       .then((res) => setDepartmentOptions(res.departments))
       .catch(() => setDepartmentOptions([]));
+    apiFetch<{ referralLink: string; totalReferred: number }>("/api/account/referrals")
+      .then((res) => setReferral(res))
+      .catch(() => {});
   }, []);
+
+  function copyReferralLink() {
+    if (!referral) return;
+    navigator.clipboard.writeText(referral.referralLink).then(
+      () => toast.success("Referral link copied"),
+      () => toast.error("Couldn't copy the link — select and copy it manually")
+    );
+  }
 
   async function saveUniversityInfo() {
     setSavingUniversity(true);
@@ -635,6 +651,33 @@ export function ProfileTab() {
           Save changes
         </Button>
       </form>
+
+      {/* Referral program */}
+      {referral && (
+        <Card className="paper-card">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-primary" />
+              <p className="eyebrow">Invite colleagues</p>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Share your link — anyone who signs up through it is credited to you here.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <Input readOnly value={referral.referralLink} className="h-10 font-mono text-xs" onFocus={(e) => e.target.select()} />
+              <Button type="button" variant="outline" onClick={copyReferralLink} className="shrink-0">
+                <Copy className="mr-1.5 h-3.5 w-3.5" /> Copy link
+              </Button>
+            </div>
+            <p className="mt-3 text-sm text-muted-foreground">
+              <span className="font-semibold text-foreground">{referral.totalReferred}</span>{" "}
+              {referral.totalReferred === 1 ? "person has" : "people have"} joined using your link.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Two-factor authentication */}
       <Card className="paper-card">

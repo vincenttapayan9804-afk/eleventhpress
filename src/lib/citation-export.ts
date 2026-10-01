@@ -18,6 +18,14 @@ export interface ExportableArticle {
   volume?: number | null;
   issueNumber?: number | null;
   year?: number | null;
+  // Only used by buildMarcXml below — optional so the three export formats
+  // above never need to pass them.
+  id?: string;
+  abstract?: string | null;
+  keywords?: string | null; // comma-separated, as stored on Article
+  discipline?: string | null;
+  publisher?: string | null;
+  articleUrl?: string | null;
 }
 
 function resolvedYear(article: ExportableArticle): number | string {
@@ -59,6 +67,78 @@ IS  - ${article.issueNumber ?? ""}
 SN  - ${article.journalIssn ?? ""}
 DO  - ${article.doi ?? ""}
 ER  - `;
+}
+
+function xmlEsc(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function marcControlfield(tag: string, value: string): string {
+  return `    <controlfield tag="${tag}">${xmlEsc(value)}</controlfield>`;
+}
+
+function marcDatafield(tag: string, ind1: string, ind2: string, subfields: [string, string][]): string {
+  const present = subfields.filter(([, v]) => !!v);
+  if (!present.length) return "";
+  const body = present.map(([code, v]) => `      <subfield code="${code}">${xmlEsc(v)}</subfield>`).join("\n");
+  return `    <datafield tag="${tag}" ind1="${ind1}" ind2="${ind2}">\n${body}\n    </datafield>`;
+}
+
+/**
+ * MARCXML (MARC21 slim schema, loc.gov/standards/marcxml) — the standard
+ * library-catalog interchange format integrated library systems (Ex Libris
+ * Alma/Primo, Koha, Evergreen) ingest directly, distinct from the JATS XML
+ * already generated for PMC/Scopus indexing (src/lib/galley.ts): that's a
+ * full-text archival format, this is catalog/discovery metadata only.
+ * Generates MARCXML rather than binary ISO 2709 MARC — every modern ILS
+ * accepts MARCXML on import, and MARCXML's self-delimiting structure
+ * avoids ISO 2709's fixed-width byte-offset failure modes entirely.
+ */
+export function buildMarcXml(article: ExportableArticle): string {
+  const authors = authorsOf(article);
+  const [firstAuthor, ...restAuthors] = authors;
+  const year = String(resolvedYear(article));
+  const dateStamp = article.publishedAt ? new Date(article.publishedAt).toISOString().slice(2, 10).replace(/-/g, "") : "000000";
+
+  // Leader: a serial component part (bibliographic level 'b'), language
+  // material (type 'a'), Unicode (char coding 'a'). The record-length and
+  // base-address positions are placeholders — only meaningful for
+  // byte-counted binary MARC, not this self-delimiting XML; every
+  // MARCXML-consuming ILS reads around them.
+  const leader = "00000naa a2200000 a 4500";
+
+  const keywordFields = (article.keywords ?? "")
+    .split(",")
+    .map((k) => k.trim())
+    .filter(Boolean)
+    .map((k) => marcDatafield("653", " ", " ", [["a", k]]))
+    .filter(Boolean);
+
+  const addedAuthorFields = restAuthors
+    .map((a) => marcDatafield("700", "1", " ", [["a", a.name], ["u", a.affiliation || ""]]))
+    .filter(Boolean);
+
+  const record = [
+    `  <record>`,
+    `    <leader>${leader}</leader>`,
+    marcControlfield("001", article.id ?? ""),
+    marcControlfield("008", `${dateStamp}s${year}    xx            000 0 eng d`),
+    marcDatafield("022", " ", " ", [["a", article.journalIssn ?? ""]]),
+    article.doi ? marcDatafield("024", "7", " ", [["a", article.doi], ["2", "doi"]]) : "",
+    firstAuthor ? marcDatafield("100", "1", " ", [["a", firstAuthor.name], ["u", firstAuthor.affiliation || ""]]) : "",
+    marcDatafield("245", "1", "0", [["a", article.title]]),
+    marcDatafield("264", " ", "1", [["b", article.publisher ?? ""], ["c", year]]),
+    marcDatafield("500", " ", " ", [["a", [article.journalName, article.discipline].filter(Boolean).join(" — ")]]),
+    article.abstract ? marcDatafield("520", " ", " ", [["a", article.abstract]]) : "",
+    ...keywordFields,
+    ...addedAuthorFields,
+    article.articleUrl ? marcDatafield("856", "4", "0", [["u", article.articleUrl], ["z", "Full text"]]) : "",
+    `  </record>`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<collection xmlns="http://www.loc.gov/MARC21/slim">\n${record}\n</collection>\n`;
 }
 
 export interface ExportableExternalSource {

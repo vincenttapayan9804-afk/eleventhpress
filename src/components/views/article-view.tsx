@@ -838,6 +838,11 @@ export function ArticleView() {
                         <Download className="mr-1.5 h-3.5 w-3.5" /> Download Wikidata batch
                       </a>
                     </Button>
+                    <Button size="sm" variant="outline" asChild>
+                      <a href={`/api/articles/${article.id}/export?format=marc`} download>
+                        <Download className="mr-1.5 h-3.5 w-3.5" /> Download MARC (library catalog)
+                      </a>
+                    </Button>
                     {citationFormat === "wikidata" && (
                       <Button size="sm" variant="outline" asChild>
                         <a href="https://quickstatements.toolforge.org/" target="_blank" rel="noopener noreferrer">
@@ -1077,6 +1082,11 @@ export function ArticleView() {
                 <Button variant="outline" size="sm" className="w-full justify-start" asChild>
                   <a href={`/api/articles/${article.id}/export?format=wikidata`} download>
                     <IconChip icon={Download} size="sm" /> Wikidata (QuickStatements)
+                  </a>
+                </Button>
+                <Button variant="outline" size="sm" className="w-full justify-start" asChild>
+                  <a href={`/api/articles/${article.id}/export?format=marc`} download>
+                    <IconChip icon={Download} size="sm" /> MARC (library catalog)
                   </a>
                 </Button>
               </div>

@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
     const {
       title, abstract, keywords, discipline, authors, reviewModel, manuscriptKey, manuscriptName, openReview,
       funders, apcWaiverRequested, apcWaiverReason, references, insightCategory, keyTakeaways,
+      rightsRetentionConfirmed,
     } = body as {
       title: string;
       abstract: string;
@@ -46,6 +47,7 @@ export async function POST(req: NextRequest) {
       references?: string[];
       insightCategory?: string;
       keyTakeaways?: string[];
+      rightsRetentionConfirmed?: boolean;
     };
 
     // Experts submit Expert Insight pieces, never ordinary RESEARCH
@@ -60,6 +62,13 @@ export async function POST(req: NextRequest) {
     }
     if (!isExpert && !discipline) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+    // Plan S / cOAlition S Rights Retention Strategy — the author must
+    // affirmatively confirm this at submission, same posture as the other
+    // required-step checks above; a missing/false value is never silently
+    // treated as confirmed (see Article.rightsRetentionConfirmed).
+    if (!rightsRetentionConfirmed) {
+      return NextResponse.json({ error: "Please confirm the rights-retention statement before submitting" }, { status: 400 });
     }
 
     if (isExpert) {
@@ -131,6 +140,8 @@ export async function POST(req: NextRequest) {
         apcWaiverRequested: apcWaiverRequested ?? false,
         apcWaiverReason: apcWaiverRequested ? apcWaiverReason || null : null,
         apcWaiverStatus: apcWaiverRequested ? "REQUESTED" : "NONE",
+        rightsRetentionConfirmed: true,
+        rightsRetentionConfirmedAt: new Date(),
         submittedAt: new Date(),
       },
     });
