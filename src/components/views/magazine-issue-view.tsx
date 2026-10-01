@@ -6,7 +6,7 @@ import { apiFetch } from "@/lib/api-client";
 import { useApp } from "@/lib/store";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Newspaper, Loader2, Download, FileText, Printer } from "lucide-react";
+import { ArrowLeft, Newspaper, Loader2, Download, FileText, Printer, Lock } from "lucide-react";
 import { MagazinePieceListenCard } from "@/components/narration/magazine-piece-listen-card";
 import { ContentDataTables } from "@/components/data-tables/content-data-tables";
 
@@ -20,6 +20,10 @@ interface Piece {
   heroImageUrl: string | null;
   isCoverStory: boolean;
   order: number;
+  // True once this reader has used their free monthly piece quota — see
+  // src/lib/paywall-meter.ts. bodyHtml is already a short teaser in that
+  // case, never the full piece.
+  metered: boolean;
 }
 
 interface IssueDetail {
@@ -51,6 +55,7 @@ function issueLabel(i: Pick<IssueDetail, "title" | "volume" | "issueNumber" | "y
 
 function PieceReader({ piece, onBack }: { piece: Piece; onBack: () => void }) {
   const t = useTranslations("magazines");
+  const { openDashboard } = useApp();
   return (
     <div className="page-enter mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
       <button onClick={onBack} className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground">
@@ -65,13 +70,28 @@ function PieceReader({ piece, onBack }: { piece: Piece; onBack: () => void }) {
       )}
       <div className="prose prose-stone mt-8 max-w-none font-serif text-lg leading-relaxed" dangerouslySetInnerHTML={{ __html: piece.bodyHtml }} />
 
-      <div className="mt-8">
-        <ContentDataTables apiPath={`/api/magazine-pieces/${piece.id}/data-tables`} filenamePrefix={piece.title.slice(0, 60)} />
-      </div>
+      {piece.metered ? (
+        <div className="mt-8 rounded-xl border border-border bg-muted/30 p-6 text-center">
+          <Lock className="mx-auto h-6 w-6 text-primary" />
+          <p className="mt-3 font-display text-lg font-semibold">You've read your free pieces this month</p>
+          <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+            Subscribe for unlimited access to every issue and piece.
+          </p>
+          <Button className="mt-4" onClick={() => openDashboard("reader")}>
+            Subscribe
+          </Button>
+        </div>
+      ) : (
+        <>
+          <div className="mt-8">
+            <ContentDataTables apiPath={`/api/magazine-pieces/${piece.id}/data-tables`} filenamePrefix={piece.title.slice(0, 60)} />
+          </div>
 
-      <div className="mt-8">
-        <MagazinePieceListenCard pieceId={piece.id} title={piece.title} dek={piece.dek} bodyHtml={piece.bodyHtml} />
-      </div>
+          <div className="mt-8">
+            <MagazinePieceListenCard pieceId={piece.id} title={piece.title} dek={piece.dek} bodyHtml={piece.bodyHtml} />
+          </div>
+        </>
+      )}
     </div>
   );
 }

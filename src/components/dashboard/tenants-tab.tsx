@@ -66,6 +66,16 @@ interface PurgeBlockers {
   journals: { id: string; name: string; reason: string }[];
 }
 
+interface PoInvoice {
+  id: string;
+  amount: number;
+  currency: string;
+  status: string;
+  poNumber: string | null;
+  createdAt: string;
+  paidAt: string | null;
+}
+
 /**
  * SUPER_ADMIN-only tenant + custom domain management (Whitelabel Phase 3).
  * Creates tenants, adds custom domains, runs the DNS TXT verification
@@ -97,6 +107,11 @@ export function TenantsTab() {
   const [purgingId, setPurgingId] = useState<string | null>(null);
   const [purgeBlockers, setPurgeBlockers] = useState<Record<string, PurgeBlockers>>({});
   const [forceCascade, setForceCascade] = useState<Record<string, boolean>>({});
+  const [poInvoices, setPoInvoices] = useState<Record<string, PoInvoice[]>>({});
+  const [loadingPoInvoicesFor, setLoadingPoInvoicesFor] = useState<string | null>(null);
+  const [poNumberInput, setPoNumberInput] = useState<Record<string, string>>({});
+  const [generatingPoInvoiceFor, setGeneratingPoInvoiceFor] = useState<string | null>(null);
+  const [updatingPoInvoiceId, setUpdatingPoInvoiceId] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -268,6 +283,59 @@ export function TenantsTab() {
       toast.error(e.message || "Failed to load tenant health");
     } finally {
       setLoadingHealthFor(null);
+    }
+  }
+
+  async function loadPoInvoices(tenantId: string) {
+    setLoadingPoInvoicesFor(tenantId);
+    try {
+      const res = await apiFetch<{ invoices: PoInvoice[] }>(`/api/admin/tenants/${tenantId}/po-invoices`);
+      setPoInvoices((prev) => ({ ...prev, [tenantId]: res.invoices }));
+    } catch (e: any) {
+      toast.error(e.message || "Failed to load PO invoices");
+    } finally {
+      setLoadingPoInvoicesFor(null);
+    }
+  }
+
+  async function generatePoInvoice(tenant: Tenant) {
+    const poNumber = (poNumberInput[tenant.id] ?? "").trim();
+    if (!poNumber) {
+      toast.error("Enter the institution's PO number");
+      return;
+    }
+    if (tenant.pricePerYear == null || !tenant.billingOwnerId) {
+      toast.error("Set a price per year and billing owner above first");
+      return;
+    }
+    setGeneratingPoInvoiceFor(tenant.id);
+    try {
+      await apiFetch(`/api/admin/tenants/${tenant.id}/po-invoices`, {
+        method: "POST",
+        body: JSON.stringify({ poNumber }),
+      });
+      toast.success(`PO invoice generated for $${tenant.pricePerYear.toLocaleString()}`);
+      setPoNumberInput((prev) => ({ ...prev, [tenant.id]: "" }));
+      await loadPoInvoices(tenant.id);
+    } catch (e: any) {
+      toast.error(e.message || "Failed to generate PO invoice");
+    } finally {
+      setGeneratingPoInvoiceFor(null);
+    }
+  }
+
+  async function updatePoInvoiceStatus(tenantId: string, invoiceId: string, status: "PAID" | "VOID") {
+    setUpdatingPoInvoiceId(invoiceId);
+    try {
+      await apiFetch(`/api/admin/tenants/${tenantId}/po-invoices/${invoiceId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      });
+      await loadPoInvoices(tenantId);
+    } catch (e: any) {
+      toast.error(e.message || "Failed to update PO invoice");
+    } finally {
+      setUpdatingPoInvoiceId(null);
     }
   }
 
@@ -637,6 +705,100 @@ export function TenantsTab() {
                           );
                         })}
                       </div>
+                    </div>
+
+                    <Separator className="my-3" />
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Wallet className="h-3.5 w-3.5 text-primary" />
+                          <p className="eyebrow">PO invoices</p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={loadingPoInvoicesFor === t.id}
+                          onClick={() => loadPoInvoices(t.id)}
+                        >
+                          {loadingPoInvoicesFor === t.id && <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />}
+                          {poInvoices[t.id] ? "Refresh" : "Load"}
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Settles this tenant's contracted price per year by purchase order instead of a card charge —
+                        attributed to the billing owner above, marked PAID manually once the institution's payment clears.
+                      </p>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Institution's PO number"
+                          value={poNumberInput[t.id] ?? ""}
+                          onChange={(e) => setPoNumberInput((prev) => ({ ...prev, [t.id]: e.target.value }))}
+                          className="h-9"
+                        />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={generatingPoInvoiceFor === t.id}
+                          onClick={() => generatePoInvoice(t)}
+                          className="shrink-0"
+                        >
+                          {generatingPoInvoiceFor === t.id && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                          Generate invoice
+                        </Button>
+                      </div>
+                      {poInvoices[t.id] && (
+                        poInvoices[t.id].length === 0 ? (
+                          <p className="text-xs text-muted-foreground">No PO invoices yet.</p>
+                        ) : (
+                          <div className="space-y-1.5">
+                            {poInvoices[t.id].map((inv) => (
+                              <div key={inv.id} className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-xs">
+                                <div>
+                                  <span className="font-mono">{inv.poNumber}</span>{" "}
+                                  <span className="text-muted-foreground">
+                                    · ${inv.amount.toLocaleString()} {inv.currency} · {new Date(inv.createdAt).toLocaleDateString()}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Badge
+                                    variant="outline"
+                                    className={
+                                      inv.status === "PAID"
+                                        ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                                        : inv.status === "VOID"
+                                        ? "border-stone-300 bg-stone-100 text-stone-500"
+                                        : "border-amber-300 bg-amber-50 text-amber-700"
+                                    }
+                                  >
+                                    {inv.status}
+                                  </Badge>
+                                  {inv.status === "OPEN" && (
+                                    <>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        disabled={updatingPoInvoiceId === inv.id}
+                                        onClick={() => updatePoInvoiceStatus(t.id, inv.id, "PAID")}
+                                      >
+                                        Mark paid
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        disabled={updatingPoInvoiceId === inv.id}
+                                        onClick={() => updatePoInvoiceStatus(t.id, inv.id, "VOID")}
+                                      >
+                                        Void
+                                      </Button>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )
+                      )}
                     </div>
 
                     <Separator className="my-3" />

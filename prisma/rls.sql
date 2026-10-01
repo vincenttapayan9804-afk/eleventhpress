@@ -47,15 +47,29 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO ap
 ALTER TABLE "Invoice" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Invoice" FORCE ROW LEVEL SECURITY;
 
+-- PO-based billing (billingMethod = "PO") attributes the invoice to the
+-- paying institution's tenantId, not just the billing-owner userId — a
+-- TENANT_ADMIN reviewing their own institution's PO invoices needs to see
+-- every such row, not only ones created under their own user id.
 DROP POLICY IF EXISTS invoice_owner_or_privileged ON "Invoice";
 CREATE POLICY invoice_owner_or_privileged ON "Invoice"
   USING (
     "userId" = current_setting('app.user_id', true)
     OR current_setting('app.role', true) IN ('SUPER_ADMIN', 'EDITOR', 'ASSOCIATE_EDITOR')
+    OR (
+      current_setting('app.role', true) = 'TENANT_ADMIN'
+      AND "tenantId" IS NOT NULL
+      AND "tenantId" = current_setting('app.tenant_id', true)
+    )
   )
   WITH CHECK (
     "userId" = current_setting('app.user_id', true)
     OR current_setting('app.role', true) IN ('SUPER_ADMIN', 'EDITOR', 'ASSOCIATE_EDITOR')
+    OR (
+      current_setting('app.role', true) = 'TENANT_ADMIN'
+      AND "tenantId" IS NOT NULL
+      AND "tenantId" = current_setting('app.tenant_id', true)
+    )
   );
 
 -- ---------------------------------------------------------------------------

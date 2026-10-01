@@ -9,3 +9,21 @@ import { randomBytes } from "crypto";
 export function generateReferralCode(): string {
   return randomBytes(6).toString("hex");
 }
+
+/** Referral milestones, ascending — a referral count earns every badge
+ * at or below it, but GET /api/account/referrals surfaces only the
+ * highest one reached. Thresholds are deliberately low: the point of a
+ * referral badge is a fast, visible first win, not a hard-to-reach goal. */
+export const REFERRAL_MILESTONES = [
+  { threshold: 3, label: "Advocate" },
+  { threshold: 10, label: "Ambassador" },
+  { threshold: 25, label: "Champion" },
+] as const;
+
+export function highestReferralMilestone(totalReferred: number): string | null {
+  let label: string | null = null;
+  for (const m of REFERRAL_MILESTONES) {
+    if (totalReferred >= m.threshold) label = m.label;
+  }
+  return label;
+}

@@ -616,6 +616,24 @@ export function ArticleView() {
                               unverified
                             </Badge>
                           )}
+                          {ref.classification && (
+                            <Badge
+                              variant="outline"
+                              className={`ml-1.5 align-middle text-[0.55rem] ${
+                                ref.classification === "SUPPORTING"
+                                  ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                                  : ref.classification === "CONTRASTING"
+                                  ? "border-rose-300 bg-rose-50 text-rose-700"
+                                  : "border-border bg-muted/40 text-muted-foreground"
+                              }`}
+                            >
+                              {ref.classification === "SUPPORTING"
+                                ? "supporting"
+                                : ref.classification === "CONTRASTING"
+                                ? "contrasting"
+                                : "mentioning"}
+                            </Badge>
+                          )}
                         </li>
                       ))}
                     </ol>

@@ -385,6 +385,17 @@ model Article {
   // any of the role-based visibility logic keyed on it.
   isPreprint       Boolean   @default(false)
   preprintPostedAt DateTime?
+  // Preprint-to-VOR persistent version chain — a new Article row is
+  // created per revised preprint version (POST /api/articles/[id]/
+  // preprint/new-version), each carrying its own independently-citable
+  // DOI (minted via the same Zenodo deposit path PUBLISHED articles use).
+  // versionOfId is null on the v1 row and points at it from every later
+  // version, so "the whole chain" = versionOfId ?? id. Deliberately a
+  // constant default (1), not a per-row unique value, so it's safe to add
+  // to a populated table — see User.referralCode's schema comment for why
+  // that distinction matters for `prisma db push`.
+  versionNumber    Int       @default(1)
+  versionOfId      String?
   reviewModel      String    @default("DOUBLE_BLIND") // SINGLE_BLIND | DOUBLE_BLIND | OPEN
   openReview       Boolean   @default(false) // If true, completed reviews are made public (with real reviewer identities) when article is published — signed open review
 
@@ -595,6 +606,8 @@ model Article {
   independentReviews         IndependentReview[]
   ethicsSubmissions          EthicsSubmission[]
   grants                     Grant[]
+  versionOf                  Article?                        @relation("ArticleVersionChain", fields: [versionOfId], references: [id])
+  versions                   Article[]                       @relation("ArticleVersionChain")
 
   // Composite indexes mirror the actual query shapes used across the app:
   // public/browse listing and the dashboard queue both filter by status
@@ -607,6 +620,7 @@ model Article {
   @@index([issueId])
   @@index([correspondingAuthorId])
   @@index([doi])
+  @@index([versionOfId])
 }
 
 // ---------------------------------------------------------------------------
@@ -654,6 +668,12 @@ model Reference {
   resolvedTitle String? // title OpenAlex matched it to
   openAlexId    String?
   checkedAt     DateTime?
+  // Smart/qualitative citation — how this citing article uses the resolved
+  // reference (Scite.ai-style), set by an LLM classification pass run
+  // alongside OpenAlex validation above. Null means "not classified yet"
+  // (reference still PENDING, LLM unavailable, or classification failed) —
+  // never asserted as a fact when the model didn't actually answer.
+  classification String? // SUPPORTING | CONTRASTING | MENTIONING
   createdAt     DateTime  @default(now())
 
   article Article @relation(fields: [articleId], references: [id])
@@ -833,11 +853,24 @@ model Invoice {
   paidAt          DateTime?
   createdAt       DateTime  @default(now())
 
+  // PO-based billing — an enterprise/institutional contract settled by
+  // purchase order rather than a card charge. billingMethod null means an
+  // ordinary gateway-collected invoice (every pre-existing row); "PO"
+  // means provider/stripeInvoiceId stay null and this is marked PAID by
+  // an admin once the institution's payment actually clears, same manual-
+  // reconciliation posture Tenant.pricePerYear's own schema comment
+  // already describes for the commercial layer it belongs to.
+  billingMethod String? // PO — null for an ordinary card/gateway invoice
+  poNumber      String? // the institution's own purchase-order reference, when billingMethod = PO
+  tenantId      String? // the institutional tenant this PO invoice bills, when billingMethod = PO
+
   user    User     @relation(fields: [userId], references: [id])
   article Article? @relation(fields: [articleId], references: [id])
   book    Book?    @relation(fields: [bookId], references: [id])
+  tenant  Tenant?  @relation(fields: [tenantId], references: [id])
 
   @@index([userId])
+  @@index([tenantId])
   @@index([articleId])
   @@index([bookId])
 }
@@ -1758,9 +1791,12 @@ model Tenant {
   // enum — same reasoning as `status` above: an operator can negotiate a
   // custom/legacy plan key without a schema migration). `pricePerYear` is
   // the actual contracted annual price, which may differ from the plan's
-  // catalog list price for a negotiated enterprise deal — it does not
-  // drive any billing charge yet (see docs/commercial-layer-phase0.md's
-  // non-goals: no Invoice/Subscription linkage in this phase).
+  // catalog list price for a negotiated enterprise deal. Commercial Layer
+  // Phase 0 left this unlinked to real billing by design (see
+  // docs/commercial-layer-phase0.md's non-goals); PO-based billing (the
+  // `invoices` relation below) is that linkage's first real use — an
+  // admin-generated Invoice with billingMethod "PO", settled outside the
+  // card/gateway flow, same amount and cadence pricePerYear describes.
   // `billingOwnerId` is a display/attribution pointer to the User
   // responsible for this tenant's commercial relationship, same posture
   // as Department.headUserId and Grant.principalInvestigatorUserId — it
@@ -1769,6 +1805,7 @@ model Tenant {
   pricePerYear   Decimal? @db.Decimal(12, 2)
   billingOwnerId String?
   billingOwner   User?    @relation("TenantBillingOwner", fields: [billingOwnerId], references: [id])
+  invoices       Invoice[]
 
   institution       Institution?        @relation(fields: [institutionId], references: [id])
   domains           TenantDomain[]
@@ -2366,6 +2403,26 @@ model MagazinePiece {
   issue MagazineIssue @relation(fields: [issueId], references: [id], onDelete: Cascade)
 
   @@index([issueId, order])
+}
+
+// Paywall metering for magazine/media content only — never the scholarly
+// Article pipeline, which is blanket CC BY 4.0 / Gold OA by design (an
+// APC-funded article that got metered would be a serious breach of the
+// license readers are promised, on top of what the author already paid
+// for). readerKey is "user:<id>" for a signed-in reader or an anonymous
+// per-browser cookie UUID (src/lib/paywall-meter.ts); period is "YYYY-MM"
+// so a reader's free count resets every calendar month. The unique
+// constraint also doubles as idempotency: re-reading the same piece
+// within the month never consumes a second slot.
+model MagazineMeterEvent {
+  id        String   @id @default(cuid())
+  readerKey String
+  pieceId   String
+  period    String
+  viewedAt  DateTime @default(now())
+
+  @@unique([readerKey, pieceId, period])
+  @@index([readerKey, period])
 }
 
 // Durable production queue for compiling an issue's pieces into EPUB/PDF —

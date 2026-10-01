@@ -1,13 +1,20 @@
+import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { presignGet } from "@/lib/storage";
 import { getSessionFromHeaders, requireRole } from "@/lib/auth";
 import { PRIVILEGED_ROLES_LIST as PRIVILEGED_ROLES } from "@/lib/roles";
+import { checkAndRecordMeterAccess, hasActiveSubscription, teaserHtml, READER_KEY_COOKIE } from "@/lib/paywall-meter";
 
 /**
  * GET /api/magazine-issues/[id]
  * Public callers may only fetch a PUBLISHED issue; editorial staff can
  * fetch any status (management dashboard). Includes pieces in reader order.
+ *
+ * Paywall metering (src/lib/paywall-meter.ts) applies here, to this
+ * magazine/media content line only — never to the scholarly Article
+ * pipeline, which stays unconditionally free under its CC BY 4.0 license.
+ * Editorial staff previewing/managing an issue are never metered.
  */
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -27,15 +34,48 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     issue.pieces.map(async (p) => (p.heroImageKey ? await presignGet(p.heroImageKey) : null))
   );
 
-  return NextResponse.json({
+  let readerKey: string | null = null;
+  let setReaderKeyCookie: string | null = null;
+  let pieces = issue.pieces.map((p, i) => ({ ...p, heroImageUrl: heroUrls[i], metered: false as boolean }));
+
+  if (!isPrivileged) {
+    readerKey = session ? `user:${session.userId}` : req.cookies.get(READER_KEY_COOKIE)?.value || null;
+    if (!readerKey) {
+      readerKey = `anon:${randomUUID()}`;
+      setReaderKeyCookie = readerKey;
+    }
+    const subscribed = await hasActiveSubscription(session?.userId ?? null);
+    pieces = await Promise.all(
+      issue.pieces.map(async (p, i) => {
+        const meter = await checkAndRecordMeterAccess(readerKey!, p.id, subscribed);
+        return meter.allowed
+          ? { ...p, heroImageUrl: heroUrls[i], metered: false }
+          : { ...p, heroImageUrl: heroUrls[i], metered: true, bodyHtml: teaserHtml(p.bodyHtml) };
+      })
+    );
+  }
+
+  const res = NextResponse.json({
     issue: {
       ...issue,
       coverImageUrl: issue.coverImageKey ? await presignGet(issue.coverImageKey) : null,
       epubUrl: issue.epubKey ? await presignGet(issue.epubKey, `issue-${issue.volume}-${issue.issueNumber}.epub`) : null,
       pdfUrl: issue.pdfKey ? await presignGet(issue.pdfKey, `issue-${issue.volume}-${issue.issueNumber}.pdf`) : null,
-      pieces: issue.pieces.map((p, i) => ({ ...p, heroImageUrl: heroUrls[i] })),
+      pieces,
     },
   });
+
+  if (setReaderKeyCookie) {
+    res.cookies.set(READER_KEY_COOKIE, setReaderKeyCookie, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 365,
+      path: "/",
+    });
+  }
+
+  return res;
 }
 
 /** PATCH /api/magazine-issues/[id] { title?, theme?, coverImageKey?, volume?, issueNumber?, year? } — editorial-only, DRAFT issues only. */

@@ -11,12 +11,19 @@ interface DepartmentRanking {
   name: string;
   slug: string;
   tenantId: string | null;
+  parentDepartmentId: string | null;
   articleCount: number;
   totalViews: number;
   totalDownloads: number;
   totalShares: number;
   totalCitations: number;
   avgCitationsPerArticle: number;
+  hasChildren: boolean;
+  rollupArticleCount: number;
+  rollupTotalViews: number;
+  rollupTotalDownloads: number;
+  rollupTotalShares: number;
+  rollupTotalCitations: number;
 }
 
 /**
@@ -27,6 +34,9 @@ interface DepartmentRanking {
  * grouping when browsing this tab, since GET /api/admin/rankings/departments
  * omits tenantId in that case). No new schema — reuses Phase 1's
  * Department model and the same published-article counters as RankingsTab.
+ * A department with children also shows rollup totals (its own numbers
+ * plus every descendant's, recursively) — the first live use of Phase 1's
+ * parentDepartmentId hierarchy.
  */
 export function ResearchDashboardTab() {
   const [rows, setRows] = useState<DepartmentRanking[]>([]);
@@ -84,6 +94,8 @@ export function ResearchDashboardTab() {
                     <th className="py-2 pr-4 text-right">Shares</th>
                     <th className="py-2 pr-4 text-right">Citations</th>
                     <th className="py-2 pr-4 text-right">Avg cites/article</th>
+                    <th className="py-2 pr-4 text-right">Rollup articles</th>
+                    <th className="py-2 pr-4 text-right">Rollup citations</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -91,10 +103,18 @@ export function ResearchDashboardTab() {
                     <tr key={r.departmentId ?? "unassigned"} className="border-b border-border/50">
                       <td className="py-2 pr-4 text-muted-foreground">{i + 1}</td>
                       <td className="py-2 pr-4">
-                        <span className="font-medium">{r.name}</span>
+                        <span className="font-medium">
+                          {r.parentDepartmentId && <span className="mr-1 text-muted-foreground">↳</span>}
+                          {r.name}
+                        </span>
                         {r.departmentId === null && (
                           <Badge variant="outline" className="ml-2 text-[0.6rem]">
                             No department on file
+                          </Badge>
+                        )}
+                        {r.hasChildren && (
+                          <Badge variant="outline" className="ml-2 text-[0.6rem]">
+                            Parent department
                           </Badge>
                         )}
                       </td>
@@ -104,6 +124,12 @@ export function ResearchDashboardTab() {
                       <td className="py-2 pr-4 text-right">{r.totalShares.toLocaleString()}</td>
                       <td className="py-2 pr-4 text-right font-semibold">{r.totalCitations.toLocaleString()}</td>
                       <td className="py-2 pr-4 text-right">{r.avgCitationsPerArticle}</td>
+                      <td className="py-2 pr-4 text-right text-muted-foreground">
+                        {r.hasChildren ? r.rollupArticleCount : "—"}
+                      </td>
+                      <td className="py-2 pr-4 text-right text-muted-foreground">
+                        {r.hasChildren ? r.rollupTotalCitations.toLocaleString() : "—"}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
