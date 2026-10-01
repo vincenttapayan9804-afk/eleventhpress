@@ -10,6 +10,7 @@ import { parseBody } from "@/lib/validate";
 import { resolveTenantFromHeaders } from "@/lib/tenant";
 import { tenantHasUserCapacity } from "@/lib/tenant-quota";
 import { notify } from "@/lib/notify";
+import { generateReferralCode } from "@/lib/referrals";
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -95,6 +96,7 @@ export async function POST(req: NextRequest) {
         country: country || null,
         tenantId: tenant?.id ?? null,
         referredByUserId: referrer?.id ?? null,
+        referralCode: generateReferralCode(),
       },
     });
 
