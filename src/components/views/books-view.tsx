@@ -72,7 +72,7 @@ export function BooksView() {
   return (
     <div className="page-enter mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
       {/* Header */}
-      <div ref={headerReveal.observe} className={`reveal ${headerReveal.inView ? "in-view" : ""} border-b border-[oklch(0.76_0.11_294/0.1)] pb-8`}>
+      <div ref={headerReveal.observe} className={`reveal ${headerReveal.inView ? "in-view" : ""} border-b border-[var(--royal-300)]/10 pb-8`}>
         <p className="eyebrow">{t("eyebrow")}</p>
         <h1 className="mt-2 font-display text-4xl font-semibold">{t("title")}</h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{t("description")}</p>
@@ -86,13 +86,13 @@ export function BooksView() {
               <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder={t("searchPlaceholder")}
-                className="glass-panel h-11 pl-11 border-[oklch(0.76_0.11_294/0.2)]"
+                className="glass-panel h-11 pl-11 border-[var(--royal-300)]/20"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
               />
             </div>
             <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger className="glass-panel h-11 w-full border-[oklch(0.76_0.11_294/0.2)] sm:w-[200px]">
+              <SelectTrigger className="glass-panel h-11 w-full border-[var(--royal-300)]/20 sm:w-[200px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="glass-strong">
@@ -137,13 +137,13 @@ export function BooksView() {
                     className="h-40 w-full object-cover"
                   />
                 ) : (
-                  <div className="flex h-40 w-full items-center justify-center bg-[oklch(0.93_0.04_290)]">
-                    <BookMarked className="h-10 w-10 text-[oklch(0.42_0.18_295)]" />
+                  <div className="flex h-40 w-full items-center justify-center bg-[var(--royal-100)]">
+                    <BookMarked className="h-10 w-10 text-primary" />
                   </div>
                 )}
                 <div className="flex flex-1 flex-col p-6">
                   <div className="flex items-start justify-between gap-2">
-                    <Badge variant="outline" className="border-[oklch(0.76_0.11_294/0.3)] bg-[oklch(0.93_0.04_290/0.5)] text-[oklch(0.42_0.18_295)]">
+                    <Badge variant="outline" className="border-[var(--royal-300)]/30 bg-[var(--royal-100)]/50 text-primary">
                       {b.category}
                     </Badge>
                     <span className="font-mono text-[0.6rem] text-muted-foreground">{FORMAT_LABELS[b.format] || b.format}</span>
@@ -152,7 +152,7 @@ export function BooksView() {
                   {b.subtitle && <p className="mt-0.5 line-clamp-1 text-xs italic text-muted-foreground">{b.subtitle}</p>}
                   <p className="mt-1.5 line-clamp-1 text-xs text-muted-foreground">{authors.map((au: any) => au.name).join(", ")}</p>
                   <p className="mt-3 line-clamp-3 flex-1 text-xs leading-relaxed text-muted-foreground">{b.description}</p>
-                  <div className="mt-4 flex items-center gap-2 border-t border-[oklch(0.76_0.11_294/0.1)] pt-3">
+                  <div className="mt-4 flex items-center gap-2 border-t border-[var(--royal-300)]/10 pt-3">
                     {b.pdfUrl && (
                       <Button asChild variant="outline" size="sm" className="h-8 flex-1 text-xs">
                         <a href={b.pdfUrl} target="_blank" rel="noopener noreferrer">

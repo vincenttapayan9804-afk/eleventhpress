@@ -98,8 +98,8 @@ export function DepartmentView() {
       </button>
 
       <div className="mt-6 flex items-center gap-4 border-b border-border pb-8">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[oklch(0.93_0.04_290)]">
-          <GraduationCap className="h-7 w-7 text-[oklch(0.42_0.18_295)]" />
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[var(--royal-100)]">
+          <GraduationCap className="h-7 w-7 text-primary" />
         </div>
         <div>
           <p className="eyebrow">Department</p>
@@ -125,9 +125,9 @@ export function DepartmentView() {
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {department.members.map((m) => (
               <div key={m.id} className="paper-card flex gap-3 rounded-xl border border-border p-4">
-                <Avatar className="h-11 w-11 shrink-0 border border-[oklch(0.76_0.11_294/0.3)]">
+                <Avatar className="h-11 w-11 shrink-0 border border-[var(--royal-300)]/30">
                   {m.avatarUrl && <AvatarImage src={m.avatarUrl} alt={m.fullName} className="object-cover" />}
-                  <AvatarFallback className="bg-[oklch(0.93_0.04_290)] text-sm font-medium text-[oklch(0.42_0.18_295)]">
+                  <AvatarFallback className="bg-[var(--royal-100)] text-sm font-medium text-primary">
                     {initialsOf(m.fullName)}
                   </AvatarFallback>
                 </Avatar>
@@ -144,7 +144,7 @@ export function DepartmentView() {
                   {m.bio && <p className="mt-1 line-clamp-2 text-xs text-foreground/80">{m.bio}</p>}
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
                     {m.orcid && (
-                      <a href={`https://orcid.org/${m.orcid}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[0.65rem] font-medium text-[oklch(0.42_0.18_295)] hover:underline">
+                      <a href={`https://orcid.org/${m.orcid}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[0.65rem] font-medium text-primary hover:underline">
                         <BadgeCheck className="h-3 w-3" /> ORCID
                       </a>
                     )}

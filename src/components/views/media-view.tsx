@@ -124,15 +124,15 @@ export function MediaView() {
                   className="group flex flex-col text-left"
                   style={{ animationDelay: `${i * 60}ms` }}
                 >
-                  <div className="mb-4 aspect-[16/10] overflow-hidden rounded-lg bg-[oklch(0.93_0.04_290)]">
+                  <div className="mb-4 aspect-[16/10] overflow-hidden rounded-lg bg-[var(--royal-100)]">
                     {post.heroImageUrl ? (
                       <img src={post.heroImageUrl} alt={post.title} loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center"><FileText className="h-8 w-8 text-[oklch(0.42_0.18_295)]" /></div>
+                      <div className="flex h-full w-full items-center justify-center"><FileText className="h-8 w-8 text-primary" /></div>
                     )}
                   </div>
-                  <Badge variant="outline" className="w-fit border-[oklch(0.76_0.11_294/0.3)] bg-[oklch(0.93_0.04_290/0.5)] text-[0.65rem] text-[oklch(0.42_0.18_295)]">{post.type} · {post.category}</Badge>
-                  <h3 className="mt-2 font-display text-xl font-semibold leading-snug transition-colors group-hover:text-[oklch(0.42_0.18_295)]">{post.title}</h3>
+                  <Badge variant="outline" className="w-fit border-[var(--royal-300)]/30 bg-[var(--royal-100)]/50 text-[0.65rem] text-primary">{post.type} · {post.category}</Badge>
+                  <h3 className="mt-2 font-display text-xl font-semibold leading-snug transition-colors group-hover:text-primary">{post.title}</h3>
                   {post.dek && <p className="mt-1.5 line-clamp-2 text-sm text-muted-foreground">{post.dek}</p>}
                   <p className="mt-3 text-xs font-medium text-muted-foreground">{t("byAuthorDate", { author: post.authorName, date: postDate(post.publishedAt) })}</p>
                 </button>

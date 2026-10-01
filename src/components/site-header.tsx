@@ -70,7 +70,7 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 w-full">
       {/* Glassmorphic header */}
-      <div className="glass-strong border-b border-[oklch(0.76_0.11_294/0.15)]">
+      <div className="glass-strong border-b border-[var(--royal-300)]/15">
         <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between px-4 py-2 sm:px-6 lg:px-8">
           {/* Brand — was `hidden ... sm:flex`, so the name/tagline never
               rendered below 640px and only the logo mark showed on phones.
@@ -164,24 +164,24 @@ export function SiteHeader() {
                   >
                     <Bell className="h-4 w-4" />
                     <span className="absolute right-1 top-1 flex h-2 w-2">
-                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[oklch(0.50_0.18_296)] opacity-75" />
-                      <span className="relative inline-flex h-2 w-2 rounded-full bg-[oklch(0.50_0.18_296)]" />
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--royal-500)] opacity-75" />
+                      <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--royal-500)]" />
                     </span>
                   </Button>
                 )}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="flex items-center gap-2 pl-2 pr-3">
-                      <Avatar className="h-7 w-7 border border-[oklch(0.76_0.11_294/0.3)]">
+                      <Avatar className="h-7 w-7 border border-[var(--royal-300)]/30">
                         {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.fullName} className="object-cover" />}
-                        <AvatarFallback className="bg-[oklch(0.93_0.04_290)] text-[oklch(0.42_0.18_295)] text-xs font-medium">
+                        <AvatarFallback className="bg-[var(--royal-100)] text-primary text-xs font-medium">
                           {initials}
                         </AvatarFallback>
                       </Avatar>
                       <span className="hidden text-sm font-medium sm:inline">
                         {user.fullName.split(" ").slice(-1)}
                       </span>
-                      <Badge variant="outline" className="hidden text-[0.6rem] font-mono lg:inline border-[oklch(0.76_0.11_294/0.3)]">
+                      <Badge variant="outline" className="hidden text-[0.6rem] font-mono lg:inline border-[var(--royal-300)]/30">
                         {user.role.replace("_", " ")}
                       </Badge>
                     </Button>
@@ -231,7 +231,7 @@ export function SiteHeader() {
                 <nav className="mt-6 flex flex-col gap-1">
                   <button
                     onClick={() => { setView("home"); setMobileNavOpen(false); }}
-                    className="rounded-md px-3 py-2 text-left font-sans text-sm font-medium hover:bg-[oklch(0.93_0.04_290)] transition-colors"
+                    className="rounded-md px-3 py-2 text-left font-sans text-sm font-medium hover:bg-[var(--royal-100)] transition-colors"
                   >
                     {t("home")}
                   </button>
@@ -244,7 +244,7 @@ export function SiteHeader() {
                     <button
                       key={item.view}
                       onClick={() => { setView(item.view); setMobileNavOpen(false); }}
-                      className="rounded-md px-3 py-2 pl-5 text-left font-sans text-sm font-medium hover:bg-[oklch(0.93_0.04_290)] transition-colors"
+                      className="rounded-md px-3 py-2 pl-5 text-left font-sans text-sm font-medium hover:bg-[var(--royal-100)] transition-colors"
                     >
                       {item.label}
                     </button>
@@ -254,7 +254,7 @@ export function SiteHeader() {
                     <button
                       key={item.view}
                       onClick={() => { setView(item.view); setMobileNavOpen(false); }}
-                      className="rounded-md px-3 py-2 text-left font-sans text-sm font-medium hover:bg-[oklch(0.93_0.04_290)] transition-colors"
+                      className="rounded-md px-3 py-2 text-left font-sans text-sm font-medium hover:bg-[var(--royal-100)] transition-colors"
                     >
                       {item.label}
                     </button>
@@ -262,7 +262,7 @@ export function SiteHeader() {
                   {user && (
                     <button
                       onClick={() => { openDashboard("overview"); setMobileNavOpen(false); }}
-                      className="rounded-md px-3 py-2 text-left font-sans text-sm font-medium hover:bg-[oklch(0.93_0.04_290)] transition-colors"
+                      className="rounded-md px-3 py-2 text-left font-sans text-sm font-medium hover:bg-[var(--royal-100)] transition-colors"
                     >
                       {t("dashboard")}
                     </button>
@@ -270,7 +270,7 @@ export function SiteHeader() {
                   {!user && (
                     <button
                       onClick={() => { setView("login"); setMobileNavOpen(false); }}
-                      className="mt-2 rounded-md bg-[oklch(0.42_0.18_295)] px-3 py-2 text-left font-sans text-sm font-medium text-white"
+                      className="mt-2 rounded-md bg-primary px-3 py-2 text-left font-sans text-sm font-medium text-primary-foreground"
                     >
                       {t("signIn")}
                     </button>

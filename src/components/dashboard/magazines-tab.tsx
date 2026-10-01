@@ -377,7 +377,7 @@ export function MagazinesTab() {
               <button
                 key={m.id}
                 onClick={() => { setSelectedMagazineId(m.id); setSelectedIssueId(null); }}
-                className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm ${selectedMagazineId === m.id ? "bg-[oklch(0.93_0.04_290)] font-medium" : "hover:bg-muted"}`}
+                className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm ${selectedMagazineId === m.id ? "bg-[var(--royal-100)] font-medium" : "hover:bg-muted"}`}
               >
                 <Newspaper className="h-4 w-4 shrink-0" /> {m.name}
                 <span className="ml-auto text-xs text-muted-foreground">{m.issueCount}</span>

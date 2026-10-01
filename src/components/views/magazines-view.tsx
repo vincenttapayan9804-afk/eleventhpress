@@ -144,15 +144,15 @@ export function MagazinesView() {
                     className="cover-click-glow pearl-card group flex flex-col overflow-hidden p-0 text-left transition-all duration-500 hover:scale-[1.02]"
                     style={{ transitionTimingFunction: "var(--ease-luxury)", animationDelay: `${i * 60}ms` }}
                   >
-                    <div className="relative aspect-[16/10] overflow-hidden bg-[oklch(0.93_0.04_290)]">
+                    <div className="relative aspect-[16/10] overflow-hidden bg-[var(--royal-100)]">
                       {issue.coverImageUrl ? (
                         <img src={issue.coverImageUrl} alt={issueLabel(issue)} loading="lazy" decoding="async" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
                       ) : (
-                        <div className="flex h-full w-full items-center justify-center"><Newspaper className="h-10 w-10 text-[oklch(0.42_0.18_295)]" /></div>
+                        <div className="flex h-full w-full items-center justify-center"><Newspaper className="h-10 w-10 text-primary" /></div>
                       )}
                     </div>
                     <div className="flex flex-1 flex-col p-5">
-                      <Badge variant="outline" className="w-fit border-[oklch(0.76_0.11_294/0.3)] bg-[oklch(0.93_0.04_290/0.5)] text-[0.65rem] text-[oklch(0.42_0.18_295)]">
+                      <Badge variant="outline" className="w-fit border-[var(--royal-300)]/30 bg-[var(--royal-100)]/50 text-[0.65rem] text-primary">
                         {issue.magazineName}
                       </Badge>
                       <h3 className="mt-3 line-clamp-2 font-display text-lg font-semibold leading-snug">

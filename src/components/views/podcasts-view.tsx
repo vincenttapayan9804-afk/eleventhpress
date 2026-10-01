@@ -63,11 +63,11 @@ function ShowDetail({ podcast, onBack }: { podcast: PodcastItem; onBack: () => v
       </button>
 
       <div className="mt-6 flex flex-col gap-6 border-b-2 border-foreground/90 pb-8 sm:flex-row sm:items-end">
-        <div className="h-40 w-40 shrink-0 overflow-hidden rounded-xl bg-[oklch(0.93_0.04_290)] shadow-[0_16px_40px_oklch(0.38_0.18_295/0.15)]">
+        <div className="h-40 w-40 shrink-0 overflow-hidden rounded-xl bg-[var(--royal-100)] shadow-[0_16px_40px_oklch(0.38_0.18_295/0.15)]">
           {podcast.coverImageUrl ? (
             <img src={podcast.coverImageUrl} alt={podcast.title} className="h-full w-full object-cover" />
           ) : (
-            <div className="flex h-full w-full items-center justify-center"><Mic className="h-12 w-12 text-[oklch(0.42_0.18_295)]" /></div>
+            <div className="flex h-full w-full items-center justify-center"><Mic className="h-12 w-12 text-primary" /></div>
           )}
         </div>
         <div>
@@ -93,7 +93,7 @@ function ShowDetail({ podcast, onBack }: { podcast: PodcastItem; onBack: () => v
             <div key={ep.id} className="pearl-card p-5">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="font-mono text-[0.65rem] uppercase tracking-[0.18em] text-[oklch(0.76_0.11_294)]">
+                  <p className="font-mono text-[0.65rem] uppercase tracking-[0.18em] text-[var(--royal-400)]">
                     {ep.seasonNumber ? `${t("seasonLabel", { number: ep.seasonNumber })} · ` : ""}{t("episodeLabel", { number: ep.episodeNumber })}
                   </p>
                   <h3 className="mt-1 font-display text-lg font-semibold leading-snug">{ep.title}</h3>
@@ -158,18 +158,18 @@ export function PodcastsView() {
               className="cover-click-glow pearl-card group flex flex-col overflow-hidden p-0 text-left transition-all duration-500 hover:scale-[1.02]"
               style={{ transitionTimingFunction: "var(--ease-luxury)", animationDelay: `${i * 60}ms` }}
             >
-              <div className="relative aspect-square overflow-hidden bg-[oklch(0.93_0.04_290)]">
+              <div className="relative aspect-square overflow-hidden bg-[var(--royal-100)]">
                 {p.coverImageUrl ? (
                   <img src={p.coverImageUrl} alt={p.title} loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center"><Mic className="h-12 w-12 text-[oklch(0.42_0.18_295)]" /></div>
+                  <div className="flex h-full w-full items-center justify-center"><Mic className="h-12 w-12 text-primary" /></div>
                 )}
                 <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all duration-300 group-hover:bg-black/30 group-hover:opacity-100">
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/90"><Play className="ml-0.5 h-5 w-5 text-black" /></div>
                 </div>
               </div>
               <div className="flex flex-1 flex-col p-5">
-                <Badge variant="outline" className="w-fit border-[oklch(0.76_0.11_294/0.3)] bg-[oklch(0.93_0.04_290/0.5)] text-[0.65rem] text-[oklch(0.42_0.18_295)]">{p.category}</Badge>
+                <Badge variant="outline" className="w-fit border-[var(--royal-300)]/30 bg-[var(--royal-100)]/50 text-[0.65rem] text-primary">{p.category}</Badge>
                 <h3 className="mt-3 font-display text-lg font-semibold leading-snug">{p.title}</h3>
                 <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">{p.description}</p>
                 <p className="mt-3 text-xs font-medium text-muted-foreground">{t("episodeCount", { count: p.episodeCount })}</p>

@@ -378,9 +378,9 @@ export function ProfileTab() {
         </CardHeader>
         <CardContent className="flex items-center gap-5">
           <div className="relative">
-            <Avatar className="h-20 w-20 border border-[oklch(0.76_0.11_294/0.3)]">
+            <Avatar className="h-20 w-20 border border-[var(--royal-300)]/30">
               {displayAvatar && <AvatarImage src={displayAvatar} alt={profile.fullName} className="object-cover" />}
-              <AvatarFallback className="bg-[oklch(0.93_0.04_290)] text-lg font-medium text-[oklch(0.42_0.18_295)]">
+              <AvatarFallback className="bg-[var(--royal-100)] text-lg font-medium text-primary">
                 {initialsOf(profile.fullName)}
               </AvatarFallback>
             </Avatar>

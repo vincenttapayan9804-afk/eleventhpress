@@ -180,12 +180,12 @@ export function MagazineIssueView() {
                 style={{ animationDelay: `${i * 60}ms` }}
               >
                 {piece.heroImageUrl && (
-                  <div className="mb-4 aspect-[16/10] overflow-hidden rounded-lg bg-[oklch(0.93_0.04_290)]">
+                  <div className="mb-4 aspect-[16/10] overflow-hidden rounded-lg bg-[var(--royal-100)]">
                     <img src={piece.heroImageUrl} alt={piece.title} loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
                   </div>
                 )}
-                <Badge variant="outline" className="w-fit border-[oklch(0.76_0.11_294/0.3)] bg-[oklch(0.93_0.04_290/0.5)] text-[0.65rem] text-[oklch(0.42_0.18_295)]">{piece.category}</Badge>
-                <h3 className="mt-2 font-display text-xl font-semibold leading-snug transition-colors group-hover:text-[oklch(0.42_0.18_295)]">{piece.title}</h3>
+                <Badge variant="outline" className="w-fit border-[var(--royal-300)]/30 bg-[var(--royal-100)]/50 text-[0.65rem] text-primary">{piece.category}</Badge>
+                <h3 className="mt-2 font-display text-xl font-semibold leading-snug transition-colors group-hover:text-primary">{piece.title}</h3>
                 {piece.dek && <p className="mt-1.5 line-clamp-2 text-sm text-muted-foreground">{piece.dek}</p>}
                 <p className="mt-3 text-xs font-medium text-muted-foreground">{t("byAuthor", { name: authorNames(piece.authors) })}</p>
               </button>
