@@ -130,6 +130,8 @@ export async function GET(
     glossary: article.glossary,
     glossaryMeta: article.glossaryMeta,
     funders: article.funders,
+    dataAvailabilityStatement: article.dataAvailabilityStatement,
+    authorConflictOfInterest: article.authorConflictOfInterest,
     laySummary: article.laySummary,
     submittedAt: article.submittedAt,
     acceptedAt: article.acceptedAt,

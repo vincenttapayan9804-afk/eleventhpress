@@ -507,6 +507,16 @@ model Article {
   rightsRetentionConfirmed   Boolean   @default(false)
   rightsRetentionConfirmedAt DateTime?
 
+  // Data-sharing & conflict-of-interest disclosures — ICMJE/COPE-standard
+  // asks captured alongside the rights-retention statement above rather
+  // than as a separate flow. Required at submission (enforced in the
+  // submit route, not here, same posture as rightsRetentionConfirmed) —
+  // "Not applicable" / "The authors declare no competing interests" are
+  // valid, deliberate values, so nullable with no default here means "an
+  // article that predates this field," never "declined to answer."
+  dataAvailabilityStatement String?
+  authorConflictOfInterest  String?
+
   // Crossref deposit tracking
   crossrefBatchId     String? // Crossref-assigned batch ID after successful deposit
   crossrefDepositedAt DateTime?

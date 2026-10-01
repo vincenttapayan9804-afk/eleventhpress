@@ -81,6 +81,7 @@ import {
   Sparkles,
   Printer,
   Users,
+  Scale,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -651,6 +652,31 @@ export function ArticleView() {
                       </li>
                     ))}
                   </ul>
+                </div>
+              )}
+
+              {/* Disclosures — ICMJE/COPE-standard data-availability and
+                  conflict-of-interest statements, captured at submission
+                  alongside Funding above. Null/empty means the article
+                  predates this field, not that nothing was disclosed. */}
+              {(article.dataAvailabilityStatement || article.authorConflictOfInterest) && (
+                <div className="mt-6 space-y-4 border-t border-border pt-5">
+                  {article.dataAvailabilityStatement && (
+                    <div>
+                      <p className="eyebrow mb-1 flex items-center gap-1.5">
+                        <Database className="h-3.5 w-3.5 text-primary" /> Data availability
+                      </p>
+                      <p className="text-sm text-foreground/85">{article.dataAvailabilityStatement}</p>
+                    </div>
+                  )}
+                  {article.authorConflictOfInterest && (
+                    <div>
+                      <p className="eyebrow mb-1 flex items-center gap-1.5">
+                        <Scale className="h-3.5 w-3.5 text-primary" /> Conflicts of interest
+                      </p>
+                      <p className="text-sm text-foreground/85">{article.authorConflictOfInterest}</p>
+                    </div>
+                  )}
                 </div>
               )}
             </TabsContent>

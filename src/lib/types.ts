@@ -50,6 +50,8 @@ export interface ArticleDetail extends ArticleListItem {
   integrityStatus?: string;
   abstractTranslations?: string | null;
   funders?: string | null;
+  dataAvailabilityStatement?: string | null;
+  authorConflictOfInterest?: string | null;
   laySummary?: string | null;
   submittedAt: string | null;
   acceptedAt: string | null;
