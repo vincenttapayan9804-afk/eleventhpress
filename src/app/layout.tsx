@@ -70,6 +70,9 @@ export async function generateMetadata(): Promise<Metadata> {
       title,
       description,
     },
+    alternates: {
+      types: { "application/rss+xml": "/api/feed/articles.xml" },
+    },
     ...(tenant?.faviconUrl ? { icons: { icon: tenant.faviconUrl } } : {}),
   };
 }

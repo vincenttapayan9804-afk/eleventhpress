@@ -9,6 +9,7 @@ import { checkRateLimit } from "@/lib/ratelimit";
 import { parseBody } from "@/lib/validate";
 import { resolveTenantFromHeaders } from "@/lib/tenant";
 import { tenantHasUserCapacity } from "@/lib/tenant-quota";
+import { notify } from "@/lib/notify";
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -25,6 +26,11 @@ const RegisterSchema = z.object({
   affiliation: z.string().max(300).optional(),
   expertise: z.string().max(500).optional(),
   country: z.string().max(100).optional(),
+  // Referral program — the referring account's referralCode, carried in a
+  // "?ref=" link (see src/components/views/auth-view.tsx). Optional and
+  // never required: an unresolvable or absent code just means a direct,
+  // unreferred signup, not a validation error.
+  ref: z.string().max(100).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -40,7 +46,7 @@ export async function POST(req: NextRequest) {
 
     const parsed = await parseBody(req, RegisterSchema);
     if (!parsed.ok) return parsed.response;
-    const { email, password, fullName, role, affiliation, expertise, country } = parsed.data;
+    const { email, password, fullName, role, affiliation, expertise, country, ref } = parsed.data;
 
     const existing = await db.user.findUnique({ where: { email } });
     if (existing) {
@@ -73,6 +79,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Referral program — resolve the code to its owning account, if any.
+    // A code that doesn't match anything (stale link, typo, tampering) is
+    // never an error: it just means this signup wasn't referred.
+    const referrer = ref ? await db.user.findUnique({ where: { referralCode: ref }, select: { id: true, fullName: true } }) : null;
+
     const user = await db.user.create({
       data: {
         email,
@@ -83,8 +94,22 @@ export async function POST(req: NextRequest) {
         expertise: expertise || null,
         country: country || null,
         tenantId: tenant?.id ?? null,
+        referredByUserId: referrer?.id ?? null,
       },
     });
+
+    if (referrer) {
+      // Best-effort: the account above is already created and committed,
+      // so a notification failure (a transient DB error, an email-provider
+      // hiccup) must never turn into a 500 that tells this visitor their
+      // signup failed when it actually succeeded.
+      await notify({
+        userId: referrer.id,
+        type: "SUCCESS",
+        title: "Your referral joined Eleventh Press",
+        message: `${fullName} signed up using your referral link.`,
+      }).catch(() => {});
+    }
 
     let pendingApplication = false;
     if (needsApplication) {

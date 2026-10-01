@@ -41,6 +41,14 @@ export function AuthView() {
   const [loading, setLoading] = useState(false);
   const t = useTranslations("auth");
 
+  // Referral program — a referral link is "<site>/?ref=<code>&view=register"
+  // (or just carries ?ref= into whatever URL leads here); read once on
+  // mount rather than on every render, since the query string is only
+  // meaningful at the moment this page was reached, not after a form edit.
+  const [referralCode] = useState<string | null>(() =>
+    typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("ref") : null
+  );
+
   // Login form
   const [loginEmail, setLoginEmail] = useState(SHOW_DEMO_ACCOUNTS ? "author@eleventhpress.org" : "");
   const [loginPassword, setLoginPassword] = useState(SHOW_DEMO_ACCOUNTS ? "author" : "");
@@ -109,7 +117,7 @@ export function AuthView() {
     try {
       const res = await apiFetch<{ user: any; pendingApplication?: boolean }>("/api/auth/register", {
         method: "POST",
-        body: JSON.stringify(reg),
+        body: JSON.stringify(referralCode ? { ...reg, ref: referralCode } : reg),
       });
       setAuth(res.user);
       if (res.pendingApplication) {
@@ -274,6 +282,11 @@ export function AuthView() {
             <p className="text-sm text-muted-foreground">
               Choose a role. You can request additional roles from the editorial office later.
             </p>
+            {referralCode && (
+              <p className="mt-2 text-xs font-medium text-primary">
+                You were invited by a member of the Eleventh Press community.
+              </p>
+            )}
           </CardHeader>
           <CardContent>
             <form onSubmit={submitRegister} className="space-y-3">
