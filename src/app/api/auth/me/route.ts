@@ -25,6 +25,7 @@ const PROFILE_SELECT = {
   bloggerBlogUrl: true,
   bloggerConnectedAt: true,
   twoFactorEnabled: true,
+  emailVerifiedAt: true,
   departmentId: true,
   academicStatus: true,
 } as const;

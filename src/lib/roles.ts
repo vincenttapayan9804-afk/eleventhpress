@@ -29,6 +29,18 @@ export const PRIVILEGED_ROLES = new Set<string>(PRIVILEGED_ROLES_LIST);
  */
 export const TENANT_SCOPED_ADMIN_ROLES: readonly string[] = ["SUPER_ADMIN", "TENANT_ADMIN"];
 
+/**
+ * Every role whose account has enough standing permission (platform-wide
+ * editorial control, or a tenant's own admin surface) that an enterprise
+ * security review expects MFA to be mandatory, not merely offered — the
+ * union of PRIVILEGED_ROLES_LIST and TENANT_SCOPED_ADMIN_ROLES.
+ * src/components/mfa-gate.tsx enforces this at the dashboard boundary: a
+ * signed-in account in this set without twoFactorEnabled sees a one-time
+ * setup screen (using the same self-service TOTP flow already in Profile
+ * → Security) before it can reach the normal dashboard.
+ */
+export const MFA_REQUIRED_ROLES: readonly string[] = ["SUPER_ADMIN", "EDITOR", "ASSOCIATE_EDITOR", "TENANT_ADMIN"];
+
 /** Roles a user may self-select at registration without an application/review. */
 export const SELF_SELECTABLE_ROLES: readonly string[] = ["READER", "AUTHOR"];
 

@@ -51,6 +51,7 @@ interface Profile {
   contactEmail: string | null;
   contactPhone: string | null;
   twoFactorEnabled: boolean;
+  emailVerifiedAt: string | null;
   departmentId: string | null;
   academicStatus: string | null;
 }
@@ -89,6 +90,10 @@ export function ProfileTab() {
   const [academicStatus, setAcademicStatus] = useState<string>("");
   const [departmentId, setDepartmentId] = useState<string>("");
   const [savingUniversity, setSavingUniversity] = useState(false);
+
+  // Email verification reminder
+  const [resendingVerification, setResendingVerification] = useState(false);
+  const [verificationResent, setVerificationResent] = useState(false);
 
   // Two-factor authentication (TOTP)
   const [twoFactorSetup, setTwoFactorSetup] = useState<{ secret: string; qrCode: string } | null>(null);
@@ -169,6 +174,19 @@ export function ProfileTab() {
       () => toast.success("Referral link copied"),
       () => toast.error("Couldn't copy the link — select and copy it manually")
     );
+  }
+
+  async function resendVerificationEmail() {
+    setResendingVerification(true);
+    try {
+      await apiFetch("/api/auth/resend-verification", { method: "POST" });
+      setVerificationResent(true);
+      toast.success("Verification email sent", { description: "Check your inbox for the link." });
+    } catch (e: any) {
+      toast.error("Couldn't send verification email", { description: e.message });
+    } finally {
+      setResendingVerification(false);
+    }
   }
 
   async function saveUniversityInfo() {
@@ -316,6 +334,11 @@ export function ProfileTab() {
       setTwoFactorSetup(null);
       setVerifyCode("");
       setProfile((p) => (p ? { ...p, twoFactorEnabled: true } : p));
+      // Also updates the global session user, not just this tab's own
+      // profile state — src/components/mfa-gate.tsx reads twoFactorEnabled
+      // off the global store to know when to stop blocking the dashboard,
+      // and shouldn't need a full page reload to notice this just happened.
+      if (user) setAuth({ ...user, twoFactorEnabled: true });
       toast.success("Two-factor authentication enabled");
     } catch (e: any) {
       toast.error("Invalid code", { description: e.message });
@@ -333,6 +356,7 @@ export function ProfileTab() {
         body: JSON.stringify({ password: disablePassword }),
       });
       setProfile((p) => (p ? { ...p, twoFactorEnabled: false } : p));
+      if (user) setAuth({ ...user, twoFactorEnabled: false });
       setShowDisableForm(false);
       setDisablePassword("");
       toast.success("Two-factor authentication disabled");
@@ -711,6 +735,36 @@ export function ProfileTab() {
                   ))}
                 </ol>
               </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Email verification — non-blocking reminder; nothing in the product
+          gates on this today, it's a seamless nudge toward a market-bar
+          enterprise-security control. Hidden entirely once verified, and
+          hidden for every pre-existing account, since the backfill script
+          (scripts/backfill-email-verified.ts) already grandfathered them. */}
+      {profile && !profile.emailVerifiedAt && (
+        <Card className="paper-card border-amber-300 bg-amber-50/40">
+          <CardHeader>
+            <p className="eyebrow">Security</p>
+            <h3 className="font-display text-lg font-semibold">Verify your email</h3>
+            <p className="text-xs text-muted-foreground">
+              We sent a verification link to <span className="font-medium">{profile.email}</span> when
+              you registered. Confirming it helps keep your account recoverable.
+            </p>
+          </CardHeader>
+          <CardContent>
+            {verificationResent ? (
+              <p className="flex items-center gap-1.5 text-sm font-medium text-emerald-700">
+                <Mail className="h-4 w-4" /> Verification email sent — check your inbox.
+              </p>
+            ) : (
+              <Button type="button" size="sm" disabled={resendingVerification} onClick={resendVerificationEmail}>
+                {resendingVerification && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+                Resend verification email
+              </Button>
             )}
           </CardContent>
         </Card>

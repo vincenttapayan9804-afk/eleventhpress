@@ -74,4 +74,10 @@ export interface SessionUser {
   country?: string | null;
   orcid?: string | null;
   bio?: string | null;
+  // Both populated by GET /api/auth/me's rehydration-on-mount call
+  // (src/app/page.tsx) — undefined only in the brief window before that
+  // first fetch resolves, or on the handful of call sites that still
+  // build a SessionUser from a login/register response's narrower shape.
+  twoFactorEnabled?: boolean;
+  emailVerifiedAt?: string | null;
 }

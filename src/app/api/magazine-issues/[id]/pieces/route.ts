@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { PRIVILEGED_ROLES_LIST as PRIVILEGED_ROLES } from "@/lib/roles";
+import { sanitizeEditorialHtml } from "@/lib/html-sanitize";
 
 /**
  * POST /api/magazine-issues/[id]/pieces
@@ -46,7 +47,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       dek: body.dek,
       authors: body.authors,
       category: body.category,
-      bodyHtml: body.bodyHtml,
+      bodyHtml: sanitizeEditorialHtml(body.bodyHtml),
       heroImageKey: body.heroImageKey,
       isCoverStory: !!body.isCoverStory,
       order: nextOrder,

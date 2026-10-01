@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { PRIVILEGED_ROLES_LIST as PRIVILEGED_ROLES } from "@/lib/roles";
+import { sanitizeEditorialHtml } from "@/lib/html-sanitize";
 
 /**
  * PATCH /api/magazine-pieces/[id]
@@ -43,7 +44,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       dek: body.dek ?? existing.dek,
       authors: body.authors ?? existing.authors,
       category: body.category ?? existing.category,
-      bodyHtml: body.bodyHtml ?? existing.bodyHtml,
+      bodyHtml: body.bodyHtml ? sanitizeEditorialHtml(body.bodyHtml) : existing.bodyHtml,
       heroImageKey: body.heroImageKey ?? existing.heroImageKey,
       isCoverStory: body.isCoverStory ?? existing.isCoverStory,
       order: body.order ?? existing.order,

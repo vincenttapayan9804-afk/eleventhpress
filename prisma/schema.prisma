@@ -55,6 +55,15 @@ model User {
   githubUrl             String?
   contactEmail          String? // public-facing contact address — deliberately separate from the login `email`
   contactPhone          String?
+  // Email verification — null means "not verified yet" for an account
+  // created after this field existed; every pre-existing account was
+  // grandfathered to emailVerifiedAt = its own createdAt by
+  // scripts/backfill-email-verified.ts rather than retroactively locked
+  // out of something it was never asked to do. emailVerificationToken is
+  // nullable with no default (same reasoning as User.referralCode's own
+  // schema comment — safe on a populated table), cleared once redeemed.
+  emailVerifiedAt         DateTime?
+  emailVerificationToken  String?   @unique
   // Two-factor authentication (TOTP) — twoFactorSecret is only set while
   // enabled; twoFactorBackupCodes is a comma-separated list of bcrypt
   // hashes (never plaintext), one-time use, consumed on redemption.

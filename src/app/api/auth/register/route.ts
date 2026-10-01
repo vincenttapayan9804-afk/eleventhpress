@@ -11,6 +11,9 @@ import { resolveTenantFromHeaders } from "@/lib/tenant";
 import { tenantHasUserCapacity } from "@/lib/tenant-quota";
 import { notify } from "@/lib/notify";
 import { generateReferralCode } from "@/lib/referrals";
+import { generateEmailVerificationToken } from "@/lib/email-verification";
+import { sendEmail, notificationEmailHtml } from "@/lib/email";
+import { APP_BASE_URL } from "@/lib/site";
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -85,6 +88,8 @@ export async function POST(req: NextRequest) {
     // never an error: it just means this signup wasn't referred.
     const referrer = ref ? await db.user.findUnique({ where: { referralCode: ref }, select: { id: true, fullName: true } }) : null;
 
+    const emailVerificationToken = generateEmailVerificationToken();
+
     const user = await db.user.create({
       data: {
         email,
@@ -97,8 +102,24 @@ export async function POST(req: NextRequest) {
         tenantId: tenant?.id ?? null,
         referredByUserId: referrer?.id ?? null,
         referralCode: generateReferralCode(),
+        emailVerificationToken,
       },
     });
+
+    // Best-effort, same posture as the referral notification below: the
+    // account is already created, so a send failure must never surface as
+    // a failed registration. Verification is informational, not a login
+    // gate — see User.emailVerifiedAt's schema comment.
+    sendEmail({
+      to: user.email,
+      subject: "Verify your email — Eleventh Press",
+      html: notificationEmailHtml({
+        title: "Verify your email",
+        message: `Welcome to Eleventh Press, ${fullName}. Confirm this is really your email address to finish securing your account.`,
+        ctaUrl: `${APP_BASE_URL}/api/auth/verify-email?token=${emailVerificationToken}`,
+        ctaLabel: "Verify email",
+      }),
+    }).catch(() => {});
 
     if (referrer) {
       // Best-effort: the account above is already created and committed,

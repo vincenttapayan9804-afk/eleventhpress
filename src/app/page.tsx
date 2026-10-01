@@ -36,6 +36,7 @@ import {
 } from "@/components/views/lazy";
 import { AuthSheet } from "@/components/auth-sheet";
 import { Toaster } from "@/components/ui/sonner";
+import { toast } from "sonner";
 import { I18nProvider } from "@/components/i18n-provider";
 
 // Floating "Ask the Corpus" launcher — off the critical path everywhere it's
@@ -88,6 +89,23 @@ export default function Page() {
       window.history.replaceState({}, "", "/");
     }
   }, [openDashboard]);
+
+  // Handle the email-verification link's redirect: GET /api/auth/verify-email
+  // sets the session cookie's underlying row and redirects here with
+  // ?email_verified=1 (or ?error=invalid_verification_token on a bad/
+  // already-used link) — no token in this URL, it was already redeemed
+  // server-side before the redirect happened.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("email_verified") === "1") {
+      toast.success("Email verified");
+      apiFetch<{ user: any }>("/api/auth/me").then(({ user }) => setAuth(user)).catch(() => {});
+      window.history.replaceState({}, "", "/");
+    } else if (params.get("error") === "invalid_verification_token") {
+      toast.error("That verification link is invalid or already used.");
+      window.history.replaceState({}, "", "/");
+    }
+  }, [setAuth]);
 
   // Scroll to top on view change
   useEffect(() => {
