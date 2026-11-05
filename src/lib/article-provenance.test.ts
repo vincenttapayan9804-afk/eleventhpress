@@ -133,4 +133,13 @@ describe("article provenance", () => {
     expect(await sealArticleProvenance("art_1", "publish")).toBeNull();
     expect(article.contentHash).toBeNull();
   });
+
+  test("per-check results pinpoint which sealed input broke", async () => {
+    await sealArticleProvenance("art_1", "publish");
+    expect((await verify()).checks).toEqual({ metadata: true, pdf: true, epub: "absent" });
+    storage["galleys/a.pdf"] = Buffer.from("pdf-tampered");
+    expect((await verify()).checks).toEqual({ metadata: true, pdf: false, epub: "absent" });
+    delete storage["galleys/a.pdf"];
+    expect((await verify()).checks.pdf).toBe("unavailable");
+  });
 });
