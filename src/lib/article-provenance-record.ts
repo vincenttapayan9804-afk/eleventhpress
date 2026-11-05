@@ -135,7 +135,7 @@ export async function loadProvenanceRecord(id: string): Promise<ProvenanceLookup
     },
   });
   if (!article || article.status !== "PUBLISHED") return { kind: "not-found" };
-  if (!article.contentHash) return { kind: "unsealed", id: article.id, title: article.title };
+  if (!article.contentHash) return { kind: "unsealed", id: article.id, title: article.title.trim() };
 
   const [{ verdict, unavailable, checks }, sealLogs] = await Promise.all([
     verifyArticleProvenance({ ...article, contentHash: article.contentHash }),
@@ -243,7 +243,8 @@ export async function loadProvenanceRecord(id: string): Promise<ProvenanceLookup
     unavailable,
     checks,
     checkedAt,
-    title: article.title,
+    // Display only — the hash is always computed over the raw stored title.
+    title: article.title.replace(/\s+/g, " ").trim(),
     abstract: article.abstract,
     authors,
     contentTypeLabel: article.contentType === "EXPERT_INSIGHT" ? "Expert Insight" : "Research article",
