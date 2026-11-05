@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
-import { computeArticleContentHash, sha256 } from "@/lib/article-provenance-server";
-import { getObject } from "@/lib/storage";
+import { verifyArticleProvenance } from "@/lib/article-provenance-server";
 import { parseAuthors } from "@/lib/article";
-import { CheckCircle2, XCircle, ShieldQuestion } from "lucide-react";
+import { CheckCircle2, XCircle, ShieldQuestion, CloudOff } from "lucide-react";
 
 /**
  * GET /verify/article/[id] — the same real, public, server-rendered
@@ -64,30 +63,14 @@ export default async function VerifyArticlePage(
     );
   }
 
-  const [pdfBytes, epubBytes] = await Promise.all([
-    article.galleyPdfKey ? getObject(article.galleyPdfKey) : Promise.resolve(null),
-    article.galleyEpubKey ? getObject(article.galleyEpubKey) : Promise.resolve(null),
-  ]);
-  const recomputedPdfHash = pdfBytes ? sha256(pdfBytes) : null;
-  const recomputedEpubHash = epubBytes ? sha256(epubBytes) : null;
-  const filesMatch =
-    recomputedPdfHash === article.galleyPdfHash && recomputedEpubHash === article.galleyEpubHash;
-
-  const recomputedContentHash = computeArticleContentHash({
-    id: article.id,
-    title: article.title,
-    authors: article.authors,
-    abstract: article.abstract,
-    doi: article.doi,
-    publishedAtIso: article.publishedAt ? article.publishedAt.toISOString() : null,
-    contentType: article.contentType,
-    discipline: article.discipline,
-    insightCategory: article.insightCategory,
-    keyTakeaways: article.keyTakeaways,
-    galleyPdfHash: article.galleyPdfHash,
-    galleyEpubHash: article.galleyEpubHash,
-  });
-  const valid = filesMatch && recomputedContentHash === article.contentHash;
+  const { verdict, unavailable } = await verifyArticleProvenance({ ...article, contentHash: article.contentHash });
+  const valid = verdict === "verified";
+  const tone =
+    verdict === "verified"
+      ? { box: "border-emerald-300 bg-emerald-50", icon: "text-emerald-600", head: "text-emerald-800", body: "text-emerald-700" }
+      : verdict === "unavailable"
+        ? { box: "border-amber-300 bg-amber-50", icon: "text-amber-600", head: "text-amber-800", body: "text-amber-700" }
+        : { box: "border-red-300 bg-red-50", icon: "text-red-600", head: "text-red-800", body: "text-red-700" };
   const authors = parseAuthors(article.authors).map((a) => a.name).filter(Boolean).join(", ");
 
   return (
@@ -96,21 +79,29 @@ export default async function VerifyArticlePage(
       <h1 className="mt-2 font-display text-3xl font-semibold">{article.title}</h1>
       {authors && <p className="mt-1 text-sm text-muted-foreground">{authors}</p>}
 
-      <section className={`mt-8 rounded-md border p-5 ${valid ? "border-emerald-300 bg-emerald-50" : "border-red-300 bg-red-50"}`}>
+      <section className={`mt-8 rounded-md border p-5 ${tone.box}`}>
         <div className="flex items-center gap-2">
           {valid ? (
-            <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+            <CheckCircle2 className={`h-5 w-5 ${tone.icon}`} />
+          ) : verdict === "unavailable" ? (
+            <CloudOff className={`h-5 w-5 ${tone.icon}`} />
           ) : (
-            <XCircle className="h-5 w-5 text-red-600" />
+            <XCircle className={`h-5 w-5 ${tone.icon}`} />
           )}
-          <p className={`font-display text-lg font-semibold ${valid ? "text-emerald-800" : "text-red-800"}`}>
-            {valid ? "Verified — this record is authentic" : "Verification failed — hash mismatch"}
+          <p className={`font-display text-lg font-semibold ${tone.head}`}>
+            {valid
+              ? "Verified — this record is authentic"
+              : verdict === "unavailable"
+                ? "Verification temporarily unavailable"
+                : "Verification failed — hash mismatch"}
           </p>
         </div>
-        <p className={`mt-1 text-sm ${valid ? "text-emerald-700" : "text-red-700"}`}>
+        <p className={`mt-1 text-sm ${tone.body}`}>
           {valid
-            ? "The content hash recomputed from our records, and the file hashes recomputed from the actual stored PDF/EPUB bytes, both match what was sealed at publish time."
-            : "The recomputed hash does not match the record on file. Do not treat this article's metadata or files as unaltered since publication."}
+            ? "The content hash recomputed from our records, and the file hashes recomputed from the actual stored PDF/EPUB bytes, both match the sealed record."
+            : verdict === "unavailable"
+              ? `The ${unavailable.join(" and ")} file couldn't be read from storage just now, so it couldn't be re-hashed. This is not evidence of tampering — please try again shortly.`
+              : "The recomputed hash does not match the record on file. Do not treat this article's metadata or files as unaltered since they were sealed."}
         </p>
       </section>
 
@@ -133,6 +124,14 @@ export default async function VerifyArticlePage(
             {article.publishedAt?.toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" }) ?? "—"}
           </dd>
         </div>
+        {article.provenanceSealedAt && (
+          <div className="flex justify-between gap-4">
+            <dt className="text-muted-foreground">Sealed</dt>
+            <dd className="font-medium">
+              {article.provenanceSealedAt.toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" })}
+            </dd>
+          </div>
+        )}
         <div className="flex justify-between gap-4">
           <dt className="text-muted-foreground">License</dt>
           <dd className="font-medium">CC BY 4.0</dd>
@@ -157,7 +156,9 @@ export default async function VerifyArticlePage(
 
       <p className="mt-6 text-xs text-muted-foreground">
         This record is cryptographically verifiable and tamper-evident: any alteration to the stored
-        metadata or to the downloaded PDF/EPUB files breaks the match above. Verification depends on
+        metadata or to the downloaded PDF/EPUB files breaks the match above. When the platform itself
+        updates a sealed field — assigning a DOI, or regenerating the galleys — the record is resealed
+        and the change is recorded in our audit log. Verification depends on
         Eleventh Press International Publishing&rsquo;s own records, not a decentralized blockchain ledger.
         This proves authenticity — it does not restrict reading, sharing, or reuse; this article is
         licensed CC BY 4.0 and redistribution with attribution is always permitted.

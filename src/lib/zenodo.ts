@@ -18,6 +18,7 @@
  */
 import { db } from "@/lib/db";
 import { getObject } from "@/lib/storage";
+import { resealArticleProvenanceSafely } from "@/lib/article-provenance-server";
 import { parseAuthors } from "@/lib/article";
 
 const ZENODO_API = "https://zenodo.org/api/deposit/depositions";
@@ -528,6 +529,11 @@ export async function depositPublishedArticleToZenodo(
       zenodoDepositLog: deposit.rawLog,
     },
   });
+  // The DOI is a sealed field — a newly assigned one would otherwise leave
+  // this article failing /verify/article/[id] with a hash mismatch.
+  if (deposit.ok && deposit.doi && deposit.doi !== article.doi) {
+    await resealArticleProvenanceSafely(articleId, "doi-assigned");
+  }
 
   return deposit;
 }

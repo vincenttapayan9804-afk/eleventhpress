@@ -11,6 +11,14 @@
  * browser bundle.
  */
 
+/**
+ * Bump when sealing rules change such that existing seals must be retaken.
+ * v1: seals are retaken whenever the platform itself changes a sealed input
+ * after publish (DOI assignment, galley regeneration) — before this, those
+ * legitimate updates left every affected article reporting "hash mismatch".
+ */
+export const PROVENANCE_SEAL_VERSION = 1;
+
 export interface ArticleProvenancePayload {
   id: string;
   title: string;

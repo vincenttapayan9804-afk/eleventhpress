@@ -6,9 +6,9 @@ import { isSameEditorialTenant } from "@/lib/tenant-auth";
 import type { ArticleStatus } from "@/lib/article";
 import { depositToCrossref } from "@/lib/crossref";
 import { depositPublishedArticleToZenodo, zenodoLiveMode } from "@/lib/zenodo";
-import { putObject, getObject } from "@/lib/storage";
+import { putObject } from "@/lib/storage";
 import { renderMinimalErrorPdf } from "@/lib/galley";
-import { computeArticleContentHash, sha256 } from "@/lib/article-provenance-server";
+import { sealArticleProvenance } from "@/lib/article-provenance-server";
 import { generateGlossary } from "@/lib/glossary";
 import { suggestKeywordsAndSummary } from "@/lib/manuscript-checks";
 import { generateGalleysForArticle } from "@/lib/galley-regenerate";
@@ -318,37 +318,13 @@ export async function POST(req: NextRequest) {
       // now that the galleys and DOI are both finalized. Hashes the actual
       // PDF/EPUB bytes just persisted to storage (not just their keys), so
       // any later alteration of either file — or of the locked-in metadata
-      // below — breaks the match at /verify/article/[id]. Best-effort: a
+      // — breaks the match at /verify/article/[id]. Best-effort: a
       // failure here never blocks publish, it just means this article
       // isn't verifiable yet (same honesty convention as the glossary/lay
       // summary generation above).
       try {
-        const current = await withRlsContext(session, (tx) => tx.article.findUniqueOrThrow({ where: { id: articleId } }));
-        const [pdfBytes, epubBytes] = await Promise.all([
-          current.galleyPdfKey ? getObject(current.galleyPdfKey) : Promise.resolve(null),
-          current.galleyEpubKey ? getObject(current.galleyEpubKey) : Promise.resolve(null),
-        ]);
-        const galleyPdfHash = pdfBytes ? sha256(pdfBytes) : null;
-        const galleyEpubHash = epubBytes ? sha256(epubBytes) : null;
-        const contentHash = computeArticleContentHash({
-          id: current.id,
-          title: current.title,
-          authors: current.authors,
-          abstract: current.abstract,
-          doi: finalDoi,
-          publishedAtIso: current.publishedAt ? current.publishedAt.toISOString() : null,
-          contentType: current.contentType,
-          discipline: current.discipline,
-          insightCategory: current.insightCategory,
-          keyTakeaways: current.keyTakeaways,
-          galleyPdfHash,
-          galleyEpubHash,
-        });
-        await db.article.update({
-          where: { id: articleId },
-          data: { contentHash, galleyPdfHash, galleyEpubHash },
-        });
-        publishEvents.push(`Digital provenance sealed (content hash ${contentHash.slice(0, 12)}…).`);
+        const sealed = await sealArticleProvenance(articleId, "publish");
+        if (sealed) publishEvents.push(`Digital provenance sealed (content hash ${sealed.contentHash.slice(0, 12)}…).`);
       } catch (e: any) {
         publishEvents.push(`Digital provenance sealing failed: ${e.message}`);
       }

@@ -66,6 +66,7 @@ import { getSimilarArticles } from "../src/lib/manuscript-checks";
 import { getOrGenerateRelationExplanation } from "../src/lib/related-explanation";
 import { runTableAccessibilityJob } from "../src/lib/table-accessibility";
 import { indexArticle, REAL_EMBEDDING_MODEL_ID } from "../src/lib/embeddings";
+import { resealArticleProvenanceSafely } from "../src/lib/article-provenance-server";
 
 const RELATED_ARTICLES_LIMIT = 3;
 
@@ -236,6 +237,9 @@ async function main() {
           });
           galleysDone++;
           console.log(`  [${article.id}] galleys regenerated (epub=${result.epubKey || "—"})`);
+          // New galley bytes change the sealed file hashes — reseal so
+          // /verify/article/[id] keeps matching.
+          await resealArticleProvenanceSafely(article.id, "galleys-regenerated");
         } else {
           console.warn(`  [${article.id}] galley regeneration returned no result (article vanished mid-run?)`);
         }

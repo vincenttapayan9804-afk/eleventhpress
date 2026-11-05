@@ -20,10 +20,9 @@
  *  - Purely decorative scenes (HeroGlobe/ImpactSphere) skip rendering
  *    entirely — falling back to the cheap static `SceneFallback` below —
  *    under `prefers-reduced-motion` OR a basic low-power/mobile capability
- *    check (any touch-primary device, or <=2 logical cores); DisciplineTowers
- *    (user-invoked, not ambient) only gates its internal animation on
- *    reduced-motion, never skips loading for it.
- *  - The two metrics charts never skip loading for `prefers-reduced-motion`
+ *    check (any touch-primary device, or <=2 logical cores).
+ *  - The data charts (the two metrics charts, and the browse page's
+ *    discipline analytics) never skip loading for `prefers-reduced-motion`
  *    alone — hiding real numbers behind a motion preference would remove
  *    information, not just motion — but DO skip the WebGL context on the
  *    low-power/mobile capability check specifically, substituting their
@@ -33,7 +32,7 @@
  */
 import dynamic from "next/dynamic";
 import { Component, useSyncExternalStore, type ComponentProps, type ReactNode } from "react";
-import type { DisciplineStat } from "./scenes";
+import type { DisciplineAnalyticsSceneProps } from "./discipline-analytics-scene";
 
 /** Cheap, dependency-free stand-in matching each scene's container footprint — used only for the purely decorative scenes, where losing the content isn't losing information. */
 function SceneFallback({ className = "" }: { className?: string }) {
@@ -240,10 +239,10 @@ const ImpactSphereImpl = dynamic(() => import("./scenes").then((m) => m.ImpactSp
   ssr: false,
   loading: () => <SceneFallback />,
 });
-const DisciplineTowersImpl = dynamic(() => import("./scenes").then((m) => m.DisciplineTowers), {
-  ssr: false,
-  loading: () => <SceneFallback />,
-});
+const DisciplineAnalyticsSceneImpl = dynamic(
+  () => import("./discipline-analytics-scene").then((m) => m.DisciplineAnalyticsScene),
+  { ssr: false, loading: () => <div className="h-full w-full shimmer rounded-xl" /> }
+);
 const MetricsBarChart3DImpl = dynamic(() => import("./scenes").then((m) => m.MetricsBarChart3D), {
   ssr: false,
   loading: () => null,
@@ -269,16 +268,21 @@ export function ImpactSphere(props: { className?: string }) {
     </SceneErrorBoundary>
   );
 }
-export function DisciplineTowers(props: { stats: DisciplineStat[]; className?: string }) {
-  // Explicitly user-invoked (the browse page's "3D Analytics" toggle), not
-  // ambient decoration like HeroGlobe/ImpactSphere — so this always
-  // attempts to render rather than substituting the fallback outright
-  // under prefers-reduced-motion. Only the animation inside the scene
-  // itself is gated; see DisciplineTowers in ./scenes.tsx.
-  const allow = useAllowMotion();
+/**
+ * The browse page's discipline analytics. Carries real numbers, so — like the
+ * metrics charts below — it never skips for reduced motion (the scene only
+ * stops animating), but low-power/touch devices and any WebGL failure get
+ * `fallback`: a plain-DOM chart of the same data, never a blank box.
+ */
+export function DisciplineAnalyticsScene({
+  fallback,
+  ...props
+}: DisciplineAnalyticsSceneProps & { fallback: ReactNode }) {
+  const lowPower = useLowPowerDevice();
+  if (lowPower) return <>{fallback}</>;
   return (
-    <SceneErrorBoundary fallback={<SceneFallback className={props.className} />}>
-      <DisciplineTowersImpl {...props} allowMotion={allow} />
+    <SceneErrorBoundary fallback={fallback}>
+      <DisciplineAnalyticsSceneImpl {...props} />
     </SceneErrorBoundary>
   );
 }
