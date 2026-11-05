@@ -3,6 +3,7 @@
 import { useApp } from "@/lib/store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { openCookiePreferences } from "@/lib/cookie-consent";
 import {
   ShieldCheck,
   Download,
@@ -120,6 +121,14 @@ export function PrivacyView() {
               this platform, so there are no other cookies to disclose. If that ever changes, this
               page — and the consent banner's choices — will change first.
             </p>
+            <div className="flex flex-wrap gap-2 pt-1">
+              <Button size="sm" onClick={openCookiePreferences}>
+                Manage cookie preferences
+              </Button>
+              <Button size="sm" variant="outline" asChild>
+                <a href="/cookie-policy">Read the full Cookie Policy</a>
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </section>

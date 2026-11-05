@@ -1055,3 +1055,59 @@ body[data-tenant-font="system"] {
     text-shadow: 0 1px 1px oklch(0.18 0.06 70 / 0.4);
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   UTILITIES
+   ═══════════════════════════════════════════════════════════════════ */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   3D HEADLINE EDGES
+   Every page/section headline (h1, h2) gets a short extruded edge plus a
+   soft cast shadow. Built from stacked drop-shadow() filters rather than
+   text-shadow: text-shadow paints over a background-clip:text gradient
+   (the royal-gradient headline words), while drop-shadow works on the
+   rendered glyphs either way. Offsets are in em so the edge scales with
+   the heading size. Long-form article bodies (.prose) and anything marked
+   .no-3d keep flat headings.
+   ═══════════════════════════════════════════════════════════════════ */
+:root {
+  --edge-hi: oklch(0.76 0.11 294 / 0.95);
+  --edge-mid: oklch(0.62 0.16 296 / 0.9);
+  --edge-lo: oklch(0.42 0.18 295 / 0.75);
+  --edge-cast: oklch(0.24 0.10 292 / 0.22);
+}
+.dark {
+  --edge-hi: oklch(0.42 0.12 294 / 0.95);
+  --edge-mid: oklch(0.30 0.10 293 / 0.95);
+  --edge-lo: oklch(0.16 0.05 290 / 0.95);
+  --edge-cast: oklch(0 0 0 / 0.55);
+}
+@layer base {
+  :where(h1, h2):not(.prose *, .no-3d, .no-3d *) {
+    filter:
+      drop-shadow(0.012em 0.018em 0 var(--edge-hi))
+      drop-shadow(0.012em 0.018em 0 var(--edge-mid))
+      drop-shadow(0.012em 0.018em 0 var(--edge-lo))
+      drop-shadow(0 0.09em 0.11em var(--edge-cast));
+  }
+}
+/* For headlines sitting on photography/dark imagery (the home hero):
+   deeper violet edge that reads on both the image and the pearl fade. */
+.headline-3d-on-image {
+  filter:
+    drop-shadow(0.014em 0.02em 0 oklch(0.62 0.16 296))
+    drop-shadow(0.014em 0.02em 0 oklch(0.42 0.18 295))
+    drop-shadow(0.014em 0.02em 0 oklch(0.24 0.10 292))
+    drop-shadow(0 0.1em 0.3em oklch(0.14 0.02 285 / 0.7));
+}
+@media (forced-colors: active) {
+  :where(h1, h2), .headline-3d-on-image {
+    filter: none !important;
+  }
+}

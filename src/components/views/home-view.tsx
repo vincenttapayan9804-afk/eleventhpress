@@ -125,13 +125,13 @@ export function HomeView() {
           <div className="absolute inset-0 bg-gradient-to-b from-[oklch(0.14_0.02_285/0.5)] via-transparent to-transparent" />
         </div>
 
-        <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-32">
-          <div className="grid items-center gap-12 lg:grid-cols-2">
+        <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8 lg:py-32">
+          <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-12">
             <div ref={heroReveal.observe} className={`reveal ${heroReveal.inView ? "in-view" : ""}`}>
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[oklch(0.86_0.07_292)] drop-shadow-lg">
                 {t("issueLine")}
               </p>
-              <h1 className="mt-4 font-display text-4xl font-semibold leading-[1.05] text-white drop-shadow-[0_4px_24px_oklch(0.14_0.02_285/0.6)] sm:text-5xl lg:text-6xl">
+              <h1 className="mt-4 font-display text-4xl font-semibold leading-[1.05] text-white headline-3d-on-image sm:text-5xl lg:text-6xl">
                 {t("headline1")}<br />
                 <span className="bg-gradient-to-r from-[oklch(0.86_0.07_292)] via-[oklch(0.76_0.11_294)] to-[oklch(0.62_0.16_296)] bg-clip-text text-transparent">{t("headline2")}</span>.
               </h1>
@@ -170,15 +170,15 @@ export function HomeView() {
             </div>
 
             {/* Right: Glass stat card overlapping the 3D globe */}
-            <div className="relative hidden lg:block">
+            <div className="relative">
               <div className="glass-royal p-1 rounded-[1.5rem]">
-                <div className="glass-strong rounded-[1.35rem] p-8">
-                  <div className="flex items-center justify-between mb-6">
+                <div className="glass-strong rounded-[1.35rem] p-4 sm:p-8">
+                  <div className="mb-5 flex items-center justify-between gap-3 sm:mb-6">
                     <div>
                       <p className="eyebrow">{t("journalAtGlance")}</p>
                       <p className="mt-1 font-display text-xl text-royal-gradient">{t("liveMetrics")}</p>
                     </div>
-                    <div className="h-12 w-12"><ImpactSphere /></div>
+                    <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full"><ImpactSphere /></div>
                   </div>
                   <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-border">
                     <StatTile label={t("publishedArticles")} value={stats.articles} icon={FileText} />
@@ -186,12 +186,12 @@ export function HomeView() {
                     <StatTile label={t("pdfDownloads")} value={stats.downloads} icon={TrendingUp} />
                     <StatTile label={t("indexingSources")} value={6} icon={Globe2} />
                   </div>
-                  <div className="mt-2 grid grid-cols-2 gap-2">
+                  <div className="mt-2 grid grid-cols-1 gap-2 min-[400px]:grid-cols-2">
                     <MiniStat icon={Database} value="9" label="Open access data sources · 400M+ combined records" />
                     <MiniStat icon={Share2} value="16" label="Syndication & publication networks" />
                     <MiniStat icon={ClipboardCheck} value="18" label="Multi-phase peer-review criteria" />
                     <MiniStat icon={Cog} value="9" label="Microservices platform architecture" />
-                    <MiniStat className="col-span-2" icon={Link2} value="6" label="Integrated independent review platforms" />
+                    <MiniStat className="min-[400px]:col-span-2" icon={Link2} value="6" label="Integrated independent review platforms" />
                   </div>
                   <div className="mt-4 rounded-xl bg-[var(--royal-100)]/50 px-4 py-3 text-xs text-muted-foreground">
                     {t("indexedIn")} <strong className="text-foreground">Google Scholar</strong> · <strong className="text-foreground">{DOI_REGISTRAR}</strong> · <strong className="text-foreground">OAI-PMH 2.0</strong> · <strong className="text-foreground">BASE</strong> · <strong className="text-foreground">CORE</strong> · <strong className="text-foreground">OpenAIRE</strong>
@@ -520,9 +520,9 @@ const PIPELINE_STEPS = [
 
 function StatTile({ label, value, icon: Icon }: { label: string; value: number; icon: any }) {
   return (
-    <div className="bg-[var(--pearl-100)]/80 p-5">
+    <div className="min-w-0 bg-[var(--pearl-100)]/80 p-4 sm:p-5">
       <Icon className="h-5 w-5 text-primary" />
-      <p className="mt-2 font-display text-2xl font-semibold">{value.toLocaleString()}</p>
+      <p className="mt-2 font-display text-xl font-semibold tabular-nums sm:text-2xl">{value.toLocaleString()}</p>
       <p className="text-xs text-muted-foreground">{label}</p>
     </div>
   );

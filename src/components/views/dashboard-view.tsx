@@ -335,9 +335,12 @@ export function DashboardView() {
         </div>
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[220px_1fr]">
+      {/* grid-cols-1 (minmax(0,1fr)) + min-w-0: without them the mobile
+          tab strip's full scroll width (~30 tabs) set the grid track's
+          minimum, stretching the whole dashboard far past the screen. */}
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
         {/* Sidebar */}
-        <aside className="lg:sticky lg:top-20 lg:self-start">
+        <aside className="min-w-0 lg:sticky lg:top-20 lg:self-start">
           {/* Edge fade hints that more tabs exist off-screen when this
               scrolls horizontally on mobile/tablet (below lg it's not a
               vertical list yet); no-op on lg+ where it's a static column.

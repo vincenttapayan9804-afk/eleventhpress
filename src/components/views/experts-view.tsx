@@ -43,7 +43,9 @@ import {
   ShieldCheck,
   MessageCircleQuestion,
   Send,
+  Filter,
 } from "lucide-react";
+import { INSIGHT_CATEGORIES, INSIGHT_CATEGORY_LABELS, type InsightCategory } from "@/lib/article";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -128,10 +130,14 @@ export function ExpertsView() {
       .catch(() => setExperts([]));
   }, []);
 
+  // Every insight category the platform publishes under — not just the ones
+  // a listed expert happens to have used yet — each with its expert count.
   const categories = useMemo(() => {
-    const set = new Set<string>();
-    (experts || []).forEach((e) => e.categories.forEach((c) => set.add(c)));
-    return [...set].sort();
+    const counts = new Map<string, number>();
+    (experts || []).forEach((e) => e.categories.forEach((c) => counts.set(c, (counts.get(c) ?? 0) + 1)));
+    const known: string[] = [...INSIGHT_CATEGORIES];
+    const extra = [...counts.keys()].filter((c) => !known.includes(c)).sort();
+    return [...known, ...extra].map((c) => ({ id: c, count: counts.get(c) ?? 0 }));
   }, [experts]);
 
   const filtered = useMemo(() => {
@@ -324,14 +330,18 @@ export function ExpertsView() {
           />
         </div>
         <Select value={category || "__all"} onValueChange={(v) => setCategory(v === "__all" ? "" : v)}>
-          <SelectTrigger className="h-10 w-full sm:w-64">
+          <SelectTrigger aria-label="Insight category" className="h-10 w-full sm:w-64">
+            <Filter className="mr-1 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="__all">{t("allCategories")}</SelectItem>
             {categories.map((c) => (
-              <SelectItem key={c} value={c}>
-                {t(`category.${c}` as any)}
+              <SelectItem key={c.id} value={c.id}>
+                {t.has(`category.${c.id}` as any)
+                  ? t(`category.${c.id}` as any)
+                  : INSIGHT_CATEGORY_LABELS[c.id as InsightCategory] ?? c.id}{" "}
+                <span className="text-xs tabular-nums text-muted-foreground">({c.count})</span>
               </SelectItem>
             ))}
           </SelectContent>

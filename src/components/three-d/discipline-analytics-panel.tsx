@@ -163,7 +163,7 @@ export function DisciplineAnalyticsPanel({
         {kpis.map((k) => (
           <div key={k.label} className="rounded-xl border border-border/60 bg-background/60 px-4 py-3">
             <dt className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">{k.label}</dt>
-            <dd className="mt-1 text-2xl font-semibold text-foreground">{k.value.toLocaleString()}</dd>
+            <dd className="mt-1 text-xl font-semibold tabular-nums text-foreground sm:text-2xl">{k.value.toLocaleString()}</dd>
           </div>
         ))}
       </dl>
@@ -173,6 +173,7 @@ export function DisciplineAnalyticsPanel({
           type="single"
           variant="outline"
           size="sm"
+          className="shrink-0"
           value={view}
           onValueChange={(v) => v && setView(v as AnalyticsView)}
           aria-label="Chart type"
@@ -186,24 +187,34 @@ export function DisciplineAnalyticsPanel({
         </ToggleGroup>
 
         {view === "bars" && (
-          <ToggleGroup
-            type="single"
-            variant="outline"
-            size="sm"
-            value={metric}
-            onValueChange={(v) => v && setMetric(v as AnalyticsMetric)}
-            aria-label="Metric"
-            className="flex-wrap"
-          >
-            {METRIC_ORDER.map((m) => (
-              <ToggleGroupItem key={m} value={m} className="px-3">
-                {METRICS[m].label}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
+          // Scrolls sideways on a narrow phone instead of squeezing the
+          // segments into each other.
+          <div className="no-scrollbar -mx-1 max-w-full overflow-x-auto px-1 py-0.5">
+            <ToggleGroup
+              type="single"
+              variant="outline"
+              size="sm"
+              value={metric}
+              onValueChange={(v) => v && setMetric(v as AnalyticsMetric)}
+              aria-label="Metric"
+            >
+              {METRIC_ORDER.map((m) => (
+                <ToggleGroupItem key={m} value={m} aria-label={METRICS[m].label} className="px-2.5 sm:px-3">
+                  {m === "citationsPerArticle" ? (
+                    <>
+                      <span className="sm:hidden">Cit./article</span>
+                      <span className="hidden sm:inline">{METRICS[m].label}</span>
+                    </>
+                  ) : (
+                    METRICS[m].label
+                  )}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          </div>
         )}
 
-        <div className="ml-auto flex items-center gap-1">
+        <div className="ml-auto flex shrink-0 items-center gap-1">
           <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Zoom out" onClick={() => cameraApi.current?.zoomBy(1.2)}>
             <ZoomOut className="h-4 w-4" />
           </Button>
@@ -211,7 +222,7 @@ export function DisciplineAnalyticsPanel({
             <ZoomIn className="h-4 w-4" />
           </Button>
           <Button variant="ghost" size="sm" className="h-8" onClick={() => cameraApi.current?.reset()}>
-            <RotateCcw className="mr-1.5 h-3.5 w-3.5" /> Reset view
+            <RotateCcw className="h-3.5 w-3.5 sm:mr-1.5" /> <span className="sr-only sm:not-sr-only">Reset view</span>
           </Button>
         </div>
       </div>
@@ -224,7 +235,7 @@ export function DisciplineAnalyticsPanel({
               ? `3D bar chart of ${METRICS[metric].axisTitle.toLowerCase()} per discipline. The table beside it lists every value.`
               : "3D scatter plot of published articles, citations and views per discipline. The table beside it lists every value."
           }
-          className="relative h-[440px] overflow-hidden rounded-xl border border-border/60 bg-gradient-to-b from-[var(--royal-50)] to-transparent"
+          className="relative h-[340px] overflow-hidden rounded-xl sm:h-[440px] border border-border/60 bg-gradient-to-b from-[var(--royal-50)] to-transparent"
         >
           <DisciplineAnalyticsScene
             stats={stats}
@@ -240,7 +251,7 @@ export function DisciplineAnalyticsPanel({
             fallback={fallback}
           />
 
-          <div className="pointer-events-none absolute left-3 top-3 flex flex-col gap-1 rounded-lg border border-border/60 bg-background/85 px-2.5 py-2 text-[11px] text-muted-foreground backdrop-blur-sm">
+          <div className="pointer-events-none absolute left-2 top-2 flex max-w-[calc(100%-1rem)] flex-col gap-1 rounded-lg border border-border/60 bg-background/85 px-2.5 py-2 text-[10px] sm:left-3 sm:top-3 sm:text-[11px] text-muted-foreground backdrop-blur-sm">
             <span className="flex items-center gap-1.5">
               {view === "bars" ? (
                 <span className="h-3 w-2 rounded-t-[2px]" style={{ background: theme.mark }} />
@@ -257,11 +268,11 @@ export function DisciplineAnalyticsPanel({
             </span>
           </div>
           <p className="pointer-events-none absolute bottom-3 right-3 flex items-center gap-1.5 rounded-md bg-background/80 px-2 py-1 text-[11px] text-muted-foreground backdrop-blur-sm">
-            <MousePointerClick className="h-3 w-3" /> Drag to orbit · click a discipline to filter
+            <MousePointerClick className="h-3 w-3" /> <span className="hidden sm:inline">Drag to orbit · click a discipline to filter</span><span className="sm:hidden">Swipe sideways to orbit · tap to filter</span>
           </p>
         </div>
 
-        <div className="max-h-[440px] overflow-auto rounded-xl border border-border/60 bg-background/60">
+        <div className="max-h-[360px] overflow-auto rounded-xl sm:max-h-[440px] border border-border/60 bg-background/60">
           <table className="w-full text-xs">
             <caption className="sr-only">
               Published articles, citations and views per discipline, sorted by {def.axisTitle.toLowerCase()}.
@@ -346,8 +357,8 @@ export function DisciplineAnalyticsPanel({
             role="tooltip"
             className="pointer-events-none fixed z-50 w-[220px] rounded-lg border border-border bg-popover px-3 py-2.5 text-popover-foreground shadow-lg"
             style={{
-              left: Math.min(chartHover.pointer.x + 16, window.innerWidth - 236),
-              top: Math.min(chartHover.pointer.y + 16, window.innerHeight - 170),
+              left: Math.max(8, Math.min(chartHover.pointer.x + 16, window.innerWidth - 228)),
+              top: Math.max(8, Math.min(chartHover.pointer.y + 16, window.innerHeight - 170)),
             }}
           >
             <p className="text-sm font-semibold">{tooltipStat.discipline}</p>
