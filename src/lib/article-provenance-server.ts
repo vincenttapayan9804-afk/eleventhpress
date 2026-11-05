@@ -140,6 +140,16 @@ export async function resealArticleProvenanceSafely(articleId: string, reason: s
 
 export type ProvenanceVerdict = "verified" | "mismatch" | "unavailable";
 
+/** Per-input outcome of one verification run: true = re-hash matches the
+ * seal, false = it doesn't, "unavailable" = bytes couldn't be read just now,
+ * "absent" = the article has no such galley (nothing to check). */
+export type ProvenanceCheckResult = boolean | "unavailable" | "absent";
+export interface ProvenanceChecks {
+  metadata: boolean;
+  pdf: ProvenanceCheckResult;
+  epub: ProvenanceCheckResult;
+}
+
 /** Recompute and compare — shared by /verify/article/[id] and its JSON API. */
 export async function verifyArticleProvenance(
   article: SealableArticle & {
@@ -147,11 +157,20 @@ export async function verifyArticleProvenance(
     galleyPdfHash: string | null;
     galleyEpubHash: string | null;
   }
-): Promise<{ verdict: ProvenanceVerdict; unavailable: string[] }> {
+): Promise<{ verdict: ProvenanceVerdict; unavailable: string[]; checks: ProvenanceChecks }> {
   const { pdfHash, epubHash, unavailable } = await hashGalleys(article);
-  if (unavailable.length > 0) return { verdict: "unavailable", unavailable };
+  const recomputed = computeArticleContentHash(payloadFor(article, article.galleyPdfHash, article.galleyEpubHash));
+  const checks: ProvenanceChecks = {
+    metadata: recomputed === article.contentHash,
+    pdf: article.galleyPdfKey || article.galleyPdfHash
+      ? unavailable.includes("PDF") ? "unavailable" : pdfHash === article.galleyPdfHash
+      : "absent",
+    epub: article.galleyEpubKey || article.galleyEpubHash
+      ? unavailable.includes("EPUB") ? "unavailable" : epubHash === article.galleyEpubHash
+      : "absent",
+  };
+  if (unavailable.length > 0) return { verdict: "unavailable", unavailable, checks };
 
   const filesMatch = pdfHash === article.galleyPdfHash && epubHash === article.galleyEpubHash;
-  const recomputed = computeArticleContentHash(payloadFor(article, article.galleyPdfHash, article.galleyEpubHash));
-  return { verdict: filesMatch && recomputed === article.contentHash ? "verified" : "mismatch", unavailable };
+  return { verdict: filesMatch && checks.metadata ? "verified" : "mismatch", unavailable, checks };
 }

@@ -59,3 +59,20 @@ export function canonicalArticleProvenancePayload(p: ArticleProvenancePayload): 
     title: p.title,
   });
 }
+
+/** Human-readable names of every input bound into the content hash, in the
+ * order shown on the verification page and the PDF certificate. */
+export const SEALED_FIELDS = [
+  "Article identifier",
+  "Title",
+  "Author list and affiliations",
+  "Abstract",
+  "DOI",
+  "Publication date",
+  "Content type",
+  "Discipline",
+  "Insight category",
+  "Key takeaways",
+  "SHA-256 of the stored PDF galley",
+  "SHA-256 of the stored EPUB galley",
+] as const;

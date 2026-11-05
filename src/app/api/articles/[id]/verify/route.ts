@@ -23,7 +23,7 @@ export async function GET(
     return NextResponse.json({ found: true, sealed: false, title: article.title });
   }
 
-  const { verdict, unavailable } = await verifyArticleProvenance({ ...article, contentHash: article.contentHash });
+  const { verdict, unavailable, checks } = await verifyArticleProvenance({ ...article, contentHash: article.contentHash });
 
   return NextResponse.json({
     found: true,
@@ -31,6 +31,8 @@ export async function GET(
     valid: verdict === "verified",
     verdict,
     ...(verdict === "unavailable" ? { unavailableFiles: unavailable } : {}),
+    checks,
+    checkedAt: new Date().toISOString(),
     sealedAt: article.provenanceSealedAt,
     title: article.title,
     doi: article.doi,
