@@ -11,8 +11,8 @@ import { Input } from "@/components/ui/input";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { DisciplineTowers } from "@/components/three-d/lazy";
-import type { DisciplineStat } from "@/components/three-d/scenes";
+import { DisciplineAnalyticsPanel } from "@/components/three-d/discipline-analytics-panel";
+import type { DisciplineStat } from "@/components/three-d/discipline-analytics-shared";
 import { useReveal } from "@/hooks/use-scroll-reveal";
 import {
   Search, SlidersHorizontal, FileX, ChevronLeft, ChevronRight,
@@ -215,28 +215,38 @@ export function BrowseView() {
 
       {/* 3D Discipline Analytics panel */}
       {show3dAnalytics && (
-        <div className="mt-6 glass-royal rounded-2xl p-6 animate-luxury-scale">
-          <div className="flex items-center justify-between mb-4">
+        <section aria-labelledby="discipline-analytics-heading" className="mt-6 glass-royal rounded-2xl p-6 animate-luxury-scale">
+          <div className="mb-5 flex items-start justify-between gap-4">
             <div>
-              <p className="eyebrow">3D Discipline Analytics</p>
-              <p className="mt-1 text-sm text-muted-foreground">Published articles, citations, and views per discipline — hover a tower for exact figures.</p>
+              <p id="discipline-analytics-heading" className="eyebrow">3D Discipline Analytics</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Journal-wide publication, citation and readership metrics per discipline. Orbit the chart, switch metrics,
+                or select a discipline to filter the articles below.
+              </p>
             </div>
-            <Button variant="ghost" size="sm" onClick={() => setShow3dAnalytics(false)}>
+            <Button variant="ghost" size="sm" aria-label="Close analytics" onClick={() => setShow3dAnalytics(false)}>
               <X className="h-4 w-4" />
             </Button>
           </div>
-          <div className="h-96 w-full">
-            {statsLoading || disciplineStats === null ? (
-              <div className="h-full w-full shimmer rounded-xl" />
-            ) : disciplineStats.length > 0 ? (
-              <DisciplineTowers stats={disciplineStats} className="h-full w-full" />
-            ) : (
-              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                No published articles yet.
+          {statsLoading || disciplineStats === null ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-[74px] shimmer rounded-xl" />)}
               </div>
-            )}
-          </div>
-        </div>
+              <div className="h-[440px] shimmer rounded-xl" />
+            </div>
+          ) : disciplineStats.length > 0 ? (
+            <DisciplineAnalyticsPanel
+              stats={disciplineStats}
+              selectedDiscipline={discipline}
+              onSelectDiscipline={setDiscipline}
+            />
+          ) : (
+            <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
+              No published articles yet.
+            </div>
+          )}
+        </section>
       )}
 
       {/* Results */}

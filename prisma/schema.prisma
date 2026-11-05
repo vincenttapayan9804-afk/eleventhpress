@@ -588,6 +588,13 @@ model Article {
   contentHash    String?
   galleyPdfHash  String? // SHA-256 of the exact PDF bytes hashed into contentHash
   galleyEpubHash String? // SHA-256 of the exact EPUB bytes hashed into contentHash, when an EPUB exists
+  // Resealed (with an AuditLog PROVENANCE_SEALED entry) whenever the platform
+  // itself legitimately changes a sealed input after publish — DOI assignment,
+  // galley regeneration. provenanceVersion < PROVENANCE_SEAL_VERSION
+  // (src/lib/article-provenance.ts) marks a seal taken before that rule
+  // existed, which scripts/backfill-provenance.ts reseals once on deploy.
+  provenanceVersion  Int       @default(0)
+  provenanceSealedAt DateTime?
 
   journal                    Journal                        @relation(fields: [journalId], references: [id])
   issue                      Issue?                         @relation(fields: [issueId], references: [id])
