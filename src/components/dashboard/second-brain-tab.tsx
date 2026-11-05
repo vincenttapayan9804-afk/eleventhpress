@@ -22,11 +22,12 @@ import type { SecondBrainNote } from "./second-brain/note-card";
 import { AtriumView } from "./second-brain/atrium-view";
 import { ConstellationView } from "./second-brain/constellation-view";
 import { TideView } from "./second-brain/tide-view";
+import { SecondBrainGraph3D } from "./second-brain/graph-3d-panel";
 
 const VIEW_META: Record<SecondBrainView, { label: string; icon: typeof Sparkles }> = {
-  constellation: { label: "Constellation", icon: Sparkles },
+  constellation: { label: "3D Constellation", icon: Sparkles },
   atrium: { label: "Atrium", icon: Building2 },
-  tide: { label: "Tide", icon: Waves },
+  tide: { label: "3D Tide", icon: Waves },
 };
 
 const DEFAULT_FONT_PAIRING: FontPairingId = "fraunces-manrope";
@@ -361,20 +362,42 @@ export function SecondBrainTab() {
       </Card>
 
       {view === "constellation" && (
-        <ConstellationView
+        <SecondBrainGraph3D
+          mode="constellation"
           notes={notes}
           links={links}
           linkCountByNote={linkCountByNote}
+          accentColor={accentColor}
           onTogglePin={togglePin}
           onDelete={deleteNote}
-          accentColor={accentColor}
+          fallback={
+            <ConstellationView
+              notes={notes}
+              links={links}
+              linkCountByNote={linkCountByNote}
+              onTogglePin={togglePin}
+              onDelete={deleteNote}
+              accentColor={accentColor}
+            />
+          }
         />
       )}
       {view === "atrium" && (
         <AtriumView notes={notes} linkCountByNote={linkCountByNote} onTogglePin={togglePin} onDelete={deleteNote} accentColor={accentColor} />
       )}
       {view === "tide" && (
-        <TideView notes={notes} linkCountByNote={linkCountByNote} onTogglePin={togglePin} onDelete={deleteNote} accentColor={accentColor} />
+        <SecondBrainGraph3D
+          mode="tide"
+          notes={notes}
+          links={links}
+          linkCountByNote={linkCountByNote}
+          accentColor={accentColor}
+          onTogglePin={togglePin}
+          onDelete={deleteNote}
+          fallback={
+            <TideView notes={notes} linkCountByNote={linkCountByNote} onTogglePin={togglePin} onDelete={deleteNote} accentColor={accentColor} />
+          }
+        />
       )}
     </div>
   );

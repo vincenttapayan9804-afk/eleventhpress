@@ -10,6 +10,7 @@ import {
   METRICS,
   formatCompact,
   niceTicks,
+  sceneDpr,
   shortDisciplineName,
   type AnalyticsMetric,
   type AnalyticsView,
@@ -542,6 +543,15 @@ function CameraRig({
   const size = useThree((s) => s.size);
   const invalidate = useThree((s) => s.invalidate);
   const goal = useRef<{ position: THREE.Vector3; target: THREE.Vector3 } | null>(null);
+  const getState = useThree((s) => s.get);
+
+  // OrbitControls sets touch-action:none on the canvas, which on a phone
+  // traps the page: a finger landing on the chart can no longer scroll.
+  // pan-y hands vertical swipes back to the browser (page scroll) while
+  // horizontal swipes still orbit the chart.
+  useEffect(() => {
+    if (controls) getState().gl.domElement.style.touchAction = "pan-y";
+  }, [controls, getState]);
 
   const fitted = useMemo(() => {
     const aspect = size.width / Math.max(size.height, 1);
@@ -624,7 +634,7 @@ export function DisciplineAnalyticsScene(props: DisciplineAnalyticsSceneProps) {
         // No tone mapping: marks render in the exact palette-validated brand
         // colours instead of ACES's darker, desaturated remap.
         flat
-        dpr={[1, 2]}
+        dpr={sceneDpr()}
         camera={{ position: [2, 5, 14], fov: 38, near: 0.1, far: 200 }}
         gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
         style={{ background: "transparent" }}

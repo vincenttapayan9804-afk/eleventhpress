@@ -4,6 +4,7 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { Float, Stars, Sphere, MeshDistortMaterial, Environment, ContactShadows, GradientTexture } from "@react-three/drei";
 import { useRef, useMemo, Suspense } from "react";
 import * as THREE from "three";
+import { sceneDpr } from "./discipline-analytics-shared";
 
 /**
  * EPIP 3D Ecosystem — Enterprise-grade corporate architecture.
@@ -35,7 +36,7 @@ function SceneWrapper({
   return (
     <Canvas
       camera={{ position: cameraPosition, fov: 45 }}
-      dpr={[1, 2]}
+      dpr={sceneDpr()}
       gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
       style={{ background: "transparent" }}
       {...(fog ? { scene: { fog: new THREE.Fog(fog[0], fog[1], fog[2]) } } : {})}

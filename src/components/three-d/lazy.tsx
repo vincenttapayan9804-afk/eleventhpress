@@ -22,16 +22,14 @@
  *    under `prefers-reduced-motion` OR a basic low-power/mobile capability
  *    check (any touch-primary device, or <=2 logical cores).
  *  - The data charts (the two metrics charts, and the browse page's
- *    discipline analytics) never skip loading for `prefers-reduced-motion`
- *    alone — hiding real numbers behind a motion preference would remove
- *    information, not just motion — but DO skip the WebGL context on the
- *    low-power/mobile capability check specifically, substituting their
- *    plain-CSS fallback (same numbers, no <Canvas>) since spinning up a
- *    WebGL context has a real, measurable cost (chunk fetch + GPU init)
- *    that's wasted on hardware unlikely to render it smoothly anyway.
+ *    discipline analytics) carry real numbers, so they never skip for
+ *    `prefers-reduced-motion` and render in 3D on every device with working
+ *    WebGL, phones and tablets included. Only a device without WebGL, or one
+ *    whose context fails or is lost, gets their plain-CSS fallback (same
+ *    numbers, no <Canvas>) — see DataSceneGuard.
  */
 import dynamic from "next/dynamic";
-import { Component, useSyncExternalStore, type ComponentProps, type ReactNode } from "react";
+import { Component, useEffect, useRef, useState, useSyncExternalStore, type ComponentProps, type ReactNode } from "react";
 import type { DisciplineAnalyticsSceneProps } from "./discipline-analytics-scene";
 
 /** Cheap, dependency-free stand-in matching each scene's container footprint — used only for the purely decorative scenes, where losing the content isn't losing information. */
@@ -211,24 +209,57 @@ function useAllowMotion() {
 }
 
 /**
- * Capability-only signal (no prefers-reduced-motion), for scenes that
- * carry real data rather than decoration — e.g. the metrics charts below.
- * Reduced-motion alone shouldn't hide real numbers (see useAllowMotion's
- * callers), but a genuinely low-power/mobile device still shouldn't pay
- * for a WebGL context just to render a bar chart when the CSS fallback
- * shows the identical numbers.
+ * WebGL capability probe for the data charts. Earlier these charts skipped
+ * WebGL on every touch-primary device, which meant phones and tablets never
+ * saw the 3D graphs at all. Now any device that can actually create a WebGL
+ * context gets them (the scenes drop to a lower pixel ratio on touch screens
+ * to save GPU memory), and the plain-DOM fallback is kept for devices with
+ * no WebGL, or whose context is lost while rendering (see DataSceneGuard).
+ * The probe runs once per page load and releases its test context at once.
  */
-function subscribeToLowPower(callback: () => void) {
-  if (typeof window === "undefined" || !window.matchMedia) return () => {};
-  const queries = [COARSE_POINTER_QUERY].map((q) => window.matchMedia(q));
-  queries.forEach((mql) => mql.addEventListener("change", callback));
-  return () => queries.forEach((mql) => mql.removeEventListener("change", callback));
+let webglProbe: boolean | null = null;
+function probeWebGL(): boolean {
+  if (webglProbe !== null) return webglProbe;
+  if (typeof document === "undefined") return false;
+  try {
+    const canvas = document.createElement("canvas");
+    const gl = (canvas.getContext("webgl2") || canvas.getContext("webgl")) as WebGLRenderingContext | null;
+    webglProbe = !!gl && !gl.isContextLost();
+    gl?.getExtension("WEBGL_lose_context")?.loseContext();
+  } catch {
+    webglProbe = false;
+  }
+  return webglProbe;
 }
-function getLowPowerServerSnapshot(): boolean {
-  return false;
+const subscribeNoop = () => () => {};
+function useWebGLAvailable() {
+  return useSyncExternalStore(subscribeNoop, probeWebGL, () => false);
 }
-function useLowPowerDevice() {
-  return useSyncExternalStore(subscribeToLowPower, isLowPowerDevice, getLowPowerServerSnapshot);
+
+/**
+ * Error boundary + context-loss watcher around one data scene. A thrown
+ * render error is caught by SceneErrorBoundary; a GPU that drops the context
+ * mid-session (common on memory-starved phones) fires `webglcontextlost`
+ * on the canvas, which doesn't bubble, so it's caught here in the capture
+ * phase. Either way the reader gets the same numbers as plain DOM.
+ */
+export function DataSceneGuard({ fallback, children }: { fallback: ReactNode; children: ReactNode }) {
+  const webgl = useWebGLAvailable();
+  const [lost, setLost] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const onLost = () => setLost(true);
+    el.addEventListener("webglcontextlost", onLost, true);
+    return () => el.removeEventListener("webglcontextlost", onLost, true);
+  }, [webgl]);
+  if (!webgl || lost) return <>{fallback}</>;
+  return (
+    <div ref={ref} className="contents">
+      <SceneErrorBoundary fallback={fallback}>{children}</SceneErrorBoundary>
+    </div>
+  );
 }
 
 const HeroGlobeImpl = dynamic(() => import("./scenes").then((m) => m.HeroGlobe), {
@@ -269,38 +300,33 @@ export function ImpactSphere(props: { className?: string }) {
   );
 }
 /**
- * The browse page's discipline analytics. Carries real numbers, so — like the
- * metrics charts below — it never skips for reduced motion (the scene only
- * stops animating), but low-power/touch devices and any WebGL failure get
- * `fallback`: a plain-DOM chart of the same data, never a blank box.
+ * The browse page's discipline analytics. Carries real numbers, so it never
+ * skips for reduced motion (the scene only stops animating) and renders in
+ * 3D on every device with working WebGL — phones included. No WebGL, a
+ * render error or a lost context all get `fallback`: a plain-DOM chart of
+ * the same data, never a blank box.
  */
 export function DisciplineAnalyticsScene({
   fallback,
   ...props
 }: DisciplineAnalyticsSceneProps & { fallback: ReactNode }) {
-  const lowPower = useLowPowerDevice();
-  if (lowPower) return <>{fallback}</>;
   return (
-    <SceneErrorBoundary fallback={fallback}>
+    <DataSceneGuard fallback={fallback}>
       <DisciplineAnalyticsSceneImpl {...props} />
-    </SceneErrorBoundary>
+    </DataSceneGuard>
   );
 }
 export function MetricsBarChart3D(props: ComponentProps<typeof MetricsBarChart3DImpl>) {
-  const lowPower = useLowPowerDevice();
-  if (lowPower) return <MetricsBarChartFallback items={props.items} className={props.className} />;
   return (
-    <SceneErrorBoundary fallback={<MetricsBarChartFallback items={props.items} className={props.className} />}>
+    <DataSceneGuard fallback={<MetricsBarChartFallback items={props.items} className={props.className} />}>
       <MetricsBarChart3DImpl {...props} />
-    </SceneErrorBoundary>
+    </DataSceneGuard>
   );
 }
 export function MetricsFillGauge3D(props: ComponentProps<typeof MetricsFillGauge3DImpl>) {
-  const lowPower = useLowPowerDevice();
-  if (lowPower) return <MetricsFillGaugeFallback items={props.items} className={props.className} />;
   return (
-    <SceneErrorBoundary fallback={<MetricsFillGaugeFallback items={props.items} className={props.className} />}>
+    <DataSceneGuard fallback={<MetricsFillGaugeFallback items={props.items} className={props.className} />}>
       <MetricsFillGauge3DImpl {...props} />
-    </SceneErrorBoundary>
+    </DataSceneGuard>
   );
 }

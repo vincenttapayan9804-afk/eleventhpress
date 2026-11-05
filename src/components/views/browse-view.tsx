@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { useTranslations } from "next-intl";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { useApp } from "@/lib/store";
 import { apiFetch } from "@/lib/api-client";
 import { DISCIPLINES, parseAuthors } from "@/lib/article";
@@ -16,7 +16,7 @@ import type { DisciplineStat } from "@/components/three-d/discipline-analytics-s
 import { useReveal } from "@/hooks/use-scroll-reveal";
 import {
   Search, SlidersHorizontal, FileX, ChevronLeft, ChevronRight,
-  Quote, Eye, Download, Sparkles, X, BarChart3,
+  Quote, Eye, Download, Sparkles, X, BarChart3, CalendarDays, CalendarRange, ArrowUpDown,
 } from "lucide-react";
 
 const DISCIPLINE_COLORS: Record<string, string> = Object.fromEntries(
@@ -47,6 +47,9 @@ export function BrowseView() {
   const [q, setQ] = useState("");
   const [discipline, setDiscipline] = useState("ALL");
   const [sort, setSort] = useState("newest");
+  const [year, setYear] = useState("ALL");
+  const [month, setMonth] = useState("ALL");
+  const [publicationYears, setPublicationYears] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [semanticMode, setSemanticMode] = useState(false);
   const [semanticScores, setSemanticScores] = useState<Record<string, { score: number; matchType: string }>>({});
@@ -55,6 +58,18 @@ export function BrowseView() {
   const [statsLoading, setStatsLoading] = useState(false);
 
   const headerReveal = useReveal();
+  const locale = useLocale();
+  const monthNames = useMemo(() => {
+    const fmt = new Intl.DateTimeFormat(locale, { month: "long", timeZone: "UTC" });
+    return Array.from({ length: 12 }, (_, i) => fmt.format(new Date(Date.UTC(2000, i, 1))));
+  }, [locale]);
+
+  // Years that actually have published work, for the Year filter.
+  useEffect(() => {
+    apiFetch<{ publicationYears?: number[] }>("/api/articles?facets=1&pageSize=1")
+      .then((res) => setPublicationYears(res.publicationYears ?? []))
+      .catch(() => setPublicationYears([]));
+  }, []);
 
   useEffect(() => {
     const hash = window.location.hash;
@@ -87,6 +102,8 @@ export function BrowseView() {
       const params = new URLSearchParams({ sort, page: String(page), pageSize: "12" });
       if (q.trim()) params.set("q", q.trim());
       if (discipline !== "ALL") params.set("discipline", discipline);
+      if (year !== "ALL") params.set("year", year);
+      if (month !== "ALL") params.set("month", month);
       if (cursor) {
         params.set("cursor", cursor);
         params.set("dir", cursorDir);
@@ -99,14 +116,14 @@ export function BrowseView() {
       setPrevCursor(res.prevCursor);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
-  }, [q, discipline, sort, page, semanticMode, cursor, cursorDir]);
+  }, [q, discipline, sort, year, month, page, semanticMode, cursor, cursorDir]);
 
   useEffect(() => {
     const t = setTimeout(fetchArticles, 250);
     return () => clearTimeout(t);
   }, [fetchArticles]);
 
-  useEffect(() => { setPage(1); setCursor(null); }, [q, discipline, sort]);
+  useEffect(() => { setPage(1); setCursor(null); }, [q, discipline, sort, year, month]);
 
   function goNext() {
     if (!nextCursor) return;
@@ -143,49 +160,58 @@ export function BrowseView() {
       {/* Header */}
       <div ref={headerReveal.observe} className={`reveal ${headerReveal.inView ? "in-view" : ""} border-b border-[var(--royal-300)]/10 pb-8`}>
         <p className="eyebrow">{t("eyebrow")}</p>
-        <h1 className="mt-2 font-display text-4xl font-semibold">{t("title")}</h1>
+        <h1 className="mt-2 font-display text-3xl font-semibold sm:text-4xl">{t("title")}</h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
           {t("description")}
         </p>
       </div>
 
-      {/* 3D-layered filter system */}
-      <div className="sticky top-16 z-30 mt-6">
-        <div className="glass-strong rounded-2xl p-4 shadow-[0_12px_40px_oklch(0.38_0.18_295/0.08)]">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-            <div className="relative flex-1">
+      {/* 3D-layered filter system — sticky only on wide screens, where it
+          doesn't eat half of a phone's viewport while scrolling results. */}
+      <div className="z-30 mt-6 lg:sticky lg:top-16">
+        <div className="glass-strong rounded-2xl p-3 shadow-[0_12px_40px_oklch(0.38_0.18_295/0.08)] sm:p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="relative min-w-0 flex-1">
               <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder={semanticMode ? t("semanticPlaceholder") : t("searchPlaceholder")}
-                className="glass-panel h-11 pl-11 border-[var(--royal-300)]/20"
+                className="glass-panel h-11 pl-11 pr-10 border-[var(--royal-300)]/20"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
+                aria-label="Search articles"
               />
               {semanticMode && q.trim() && (
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 rounded bg-[var(--royal-100)] px-1.5 py-0.5 text-[0.6rem] font-mono text-primary">AI</span>
               )}
             </div>
-            <Button
-              variant={semanticMode ? "default" : "outline"}
-              size="sm"
-              className="btn-royal-glow h-11"
-              onClick={() => { setSemanticMode(!semanticMode); setPage(1); setCursor(null); }}
-            >
-              <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-              {semanticMode ? t("semantic") : t("lexical")}
-            </Button>
-            <Button
-              variant={show3dAnalytics ? "default" : "outline"}
-              size="sm"
-              className="h-11"
-              onClick={() => setShow3dAnalytics(!show3dAnalytics)}
-            >
-              <BarChart3 className="mr-1.5 h-3.5 w-3.5" />
-              {t("cluster3d")}
-            </Button>
-            <Select value={discipline} onValueChange={setDiscipline}>
-              <SelectTrigger className="glass-panel h-11 w-full border-[var(--royal-300)]/20 sm:w-[180px]">
-                <SlidersHorizontal className="mr-2 h-3.5 w-3.5" />
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0">
+              <Button
+                variant={semanticMode ? "default" : "outline"}
+                size="sm"
+                className="btn-royal-glow h-11"
+                onClick={() => { setSemanticMode(!semanticMode); setPage(1); setCursor(null); }}
+              >
+                <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                {semanticMode ? t("semantic") : t("lexical")}
+              </Button>
+              <Button
+                variant={show3dAnalytics ? "default" : "outline"}
+                size="sm"
+                className="h-11"
+                onClick={() => setShow3dAnalytics(!show3dAnalytics)}
+              >
+                <BarChart3 className="mr-1.5 h-3.5 w-3.5" />
+                {t("cluster3d")}
+              </Button>
+            </div>
+          </div>
+          <div
+            className={`mt-3 grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4 ${semanticMode ? "opacity-60" : ""}`}
+            title={semanticMode ? "Filters apply to keyword search; semantic search ranks the whole corpus." : undefined}
+          >
+            <Select value={discipline} onValueChange={setDiscipline} disabled={semanticMode}>
+              <SelectTrigger aria-label="Discipline" className="glass-panel h-11 w-full min-w-0 border-[var(--royal-300)]/20">
+                <SlidersHorizontal className="mr-1 hidden h-3.5 w-3.5 shrink-0 min-[400px]:block" />
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="glass-strong">
@@ -193,8 +219,29 @@ export function BrowseView() {
                 {DISCIPLINES.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Select value={sort} onValueChange={setSort}>
-              <SelectTrigger className="glass-panel h-11 w-full border-[var(--royal-300)]/20 sm:w-[160px]">
+            <Select value={year} onValueChange={setYear} disabled={semanticMode}>
+              <SelectTrigger aria-label="Publication year" className="glass-panel h-11 w-full min-w-0 border-[var(--royal-300)]/20">
+                <CalendarRange className="mr-1 hidden h-3.5 w-3.5 shrink-0 min-[400px]:block" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="glass-strong">
+                <SelectItem value="ALL">All years</SelectItem>
+                {publicationYears.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={month} onValueChange={setMonth} disabled={semanticMode}>
+              <SelectTrigger aria-label="Publication month" className="glass-panel h-11 w-full min-w-0 border-[var(--royal-300)]/20">
+                <CalendarDays className="mr-1 hidden h-3.5 w-3.5 shrink-0 min-[400px]:block" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="glass-strong">
+                <SelectItem value="ALL">All months</SelectItem>
+                {monthNames.map((m, i) => <SelectItem key={m} value={String(i + 1)}>{m}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={sort} onValueChange={setSort} disabled={semanticMode}>
+              <SelectTrigger aria-label="Sort by" className="glass-panel h-11 w-full min-w-0 border-[var(--royal-300)]/20">
+                <ArrowUpDown className="mr-1 hidden h-3.5 w-3.5 shrink-0 min-[400px]:block" />
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="glass-strong">
@@ -204,8 +251,12 @@ export function BrowseView() {
           </div>
           <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
             <span>{loading ? "Searching…" : t("articlesFound", { count: total })}</span>
-            {(q || discipline !== "ALL" || semanticMode) && (
-              <Button variant="ghost" size="sm" onClick={() => { setQ(""); setDiscipline("ALL"); setSemanticMode(false); }}>
+            {(q || discipline !== "ALL" || year !== "ALL" || month !== "ALL" || semanticMode) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setQ(""); setDiscipline("ALL"); setYear("ALL"); setMonth("ALL"); setSemanticMode(false); }}
+              >
                 <X className="mr-1 h-3 w-3" /> Clear filters
               </Button>
             )}
@@ -215,7 +266,7 @@ export function BrowseView() {
 
       {/* 3D Discipline Analytics panel */}
       {show3dAnalytics && (
-        <section aria-labelledby="discipline-analytics-heading" className="mt-6 glass-royal rounded-2xl p-6 animate-luxury-scale">
+        <section aria-labelledby="discipline-analytics-heading" className="mt-6 glass-royal rounded-2xl p-4 animate-luxury-scale sm:p-6">
           <div className="mb-5 flex items-start justify-between gap-4">
             <div>
               <p id="discipline-analytics-heading" className="eyebrow">3D Discipline Analytics</p>
@@ -233,7 +284,7 @@ export function BrowseView() {
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-[74px] shimmer rounded-xl" />)}
               </div>
-              <div className="h-[440px] shimmer rounded-xl" />
+              <div className="h-[340px] shimmer rounded-xl sm:h-[440px]" />
             </div>
           ) : disciplineStats.length > 0 ? (
             <DisciplineAnalyticsPanel

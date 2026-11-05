@@ -91,3 +91,14 @@ export const CHART_THEME = {
     shadow: "#000000",
   },
 } as const;
+
+/**
+ * Device pixel ratio range for a WebGL canvas: full 2x on mouse/trackpad
+ * devices, capped at 1.5x on touch screens, where a 3x phone canvas costs a
+ * lot of GPU memory for little visible gain. Client-only callers (the scenes
+ * are loaded with ssr:false).
+ */
+export function sceneDpr(): [number, number] {
+  if (typeof window === "undefined" || !window.matchMedia) return [1, 2];
+  return window.matchMedia("(pointer: coarse)").matches ? [1, 1.5] : [1, 2];
+}

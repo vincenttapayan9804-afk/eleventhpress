@@ -2,7 +2,8 @@
 
 import { useTranslations } from "next-intl";
 import { useApp } from "@/lib/store";
-import { Globe, ShieldCheck } from "lucide-react";
+import { Cookie, Globe, ShieldCheck } from "lucide-react";
+import { openCookiePreferences } from "@/lib/cookie-consent";
 import { DOI_REGISTRAR } from "@/lib/site";
 import { useTenantBranding } from "@/lib/tenant-branding-context";
 
@@ -80,6 +81,20 @@ export function SiteFooter() {
                     className="text-left underline-offset-2 hover:text-primary hover:underline transition-colors"
                   >
                     {t("termsOfService")}
+                  </button>
+                </li>
+                <li>
+                  <a href="/cookie-policy" className="underline-offset-2 hover:text-primary hover:underline transition-colors">
+                    Cookie Policy
+                  </a>
+                </li>
+                <li>
+                  <button
+                    onClick={openCookiePreferences}
+                    data-testid="footer-cookie-settings"
+                    className="inline-flex items-center gap-1 text-left underline-offset-2 hover:text-primary hover:underline transition-colors"
+                  >
+                    <Cookie className="h-3 w-3" /> Cookie settings
                   </button>
                 </li>
                 <li>

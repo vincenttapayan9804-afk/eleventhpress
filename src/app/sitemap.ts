@@ -36,6 +36,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   return [
     { url: APP_BASE_URL, changeFrequency: "daily", priority: 1 },
+    { url: `${APP_BASE_URL}/cookie-policy`, changeFrequency: "yearly", priority: 0.2 },
     ...articles.map((a) => ({
       url: `${APP_BASE_URL}/article/${a.id}`,
       lastModified: a.publishedAt ?? undefined,

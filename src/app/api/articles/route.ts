@@ -63,6 +63,62 @@ function keysetWhere(field: string, dir: "asc" | "desc", cursor: Cursor, reverse
  *    browse UI (Previous/Next only, no arbitrary page-jump) uses this via
  *    the `nextCursor`/`prevCursor` returned in every response.
  */
+function parseIntParam(v: string | null): number | null {
+  if (!v || !/^\d{1,4}$/.test(v)) return null;
+  return parseInt(v, 10);
+}
+
+/** Earliest and latest publication year in this tenant's published corpus. */
+async function publishedYearBounds(tenantId: string | null): Promise<{ min: number; max: number } | null> {
+  const agg = await withTenantRlsContext(tenantId, (tx) =>
+    tx.article.aggregate({
+      where: { status: "PUBLISHED", journal: { tenantId }, publishedAt: { not: null } },
+      _min: { publishedAt: true },
+      _max: { publishedAt: true },
+    })
+  );
+  if (!agg._min.publishedAt || !agg._max.publishedAt) return null;
+  return { min: agg._min.publishedAt.getUTCFullYear(), max: agg._max.publishedAt.getUTCFullYear() };
+}
+
+/**
+ * Turns the `year` / `month` (1-12) query params into half-open UTC date
+ * ranges on publishedAt. Returns `ranges: null` when no date filter applies.
+ */
+async function publicationDateRanges(
+  year: number | null,
+  month: number | null,
+  tenantId: string | null
+): Promise<{ years: { min: number; max: number } | null; ranges: [Date, Date][] | null }> {
+  const validYear = year !== null && year >= 1900 && year <= 2999 ? year : null;
+  const validMonth = month !== null && month >= 1 && month <= 12 ? month : null;
+  if (validYear !== null) {
+    return {
+      years: null,
+      ranges: [
+        validMonth !== null
+          ? [new Date(Date.UTC(validYear, validMonth - 1, 1)), new Date(Date.UTC(validYear, validMonth, 1))]
+          : [new Date(Date.UTC(validYear, 0, 1)), new Date(Date.UTC(validYear + 1, 0, 1))],
+      ],
+    };
+  }
+  if (validMonth === null) return { years: null, ranges: null };
+  const bounds = await publishedYearBounds(tenantId);
+  if (!bounds) return { years: null, ranges: [] };
+  const ranges: [Date, Date][] = [];
+  for (let y = bounds.min; y <= bounds.max; y++) {
+    ranges.push([new Date(Date.UTC(y, validMonth - 1, 1)), new Date(Date.UTC(y, validMonth, 1))]);
+  }
+  return { years: bounds, ranges };
+}
+
+function yearList(bounds: { min: number; max: number } | null): number[] {
+  if (!bounds) return [];
+  const out: number[] = [];
+  for (let y = bounds.max; y >= bounds.min; y--) out.push(y);
+  return out;
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const q = (searchParams.get("q") || "").trim().toLowerCase();
@@ -85,6 +141,18 @@ export async function GET(req: NextRequest) {
 
   const where: any = { status: "PUBLISHED", journal: { tenantId } };
   if (discipline) where.discipline = discipline;
+
+  // Publication year/month filters. A month without a year means "that month
+  // in any year" (e.g. every March issue), expanded to one UTC date range
+  // per year in the corpus since Prisma can't filter on a date part directly.
+  const { years: yearBounds, ranges: dateRanges } = await publicationDateRanges(
+    parseIntParam(searchParams.get("year")),
+    parseIntParam(searchParams.get("month")),
+    tenantId
+  );
+  if (dateRanges) {
+    where.AND = [{ OR: dateRanges.map(([gte, lt]) => ({ publishedAt: { gte, lt } })) }];
+  }
   if (q) {
     where.OR = [
       { title: { contains: q } },
@@ -156,6 +224,10 @@ export async function GET(req: NextRequest) {
     totalPages: Math.max(1, Math.ceil(total / pageSize)),
     nextCursor: items.length === pageSize ? nextCursor : null,
     prevCursor,
+    // `facets=1`: the publication years the Year filter can offer.
+    ...(searchParams.get("facets") === "1"
+      ? { publicationYears: yearList(yearBounds ?? (await publishedYearBounds(tenantId))) }
+      : {}),
   }, {
     // Fully public, unauthenticated, identical for every visitor per query
     // string (status is hardcoded to PUBLISHED above) — safe for Vercel's
