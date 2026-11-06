@@ -69,19 +69,6 @@ export function formatHistory(history: ChatTurn[]): string {
   return `\n\nPrior conversation (context only, not a source of facts; answer only from the journal records above):\n${lines.join("\n")}`;
 }
 
-/** The grounding rules every journal chat answer must follow. */
-export const GROUNDING_RULES = [
-  "Rules:",
-  "1. Every factual statement must be supported by the records provided. Do not use outside knowledge, and do not fill gaps with plausible-sounding detail.",
-  "2. Attribute each claim to its article by title. When a question is about one specific article, answer about that article only, and do not mix in findings from other articles unless the reader asks for a comparison.",
-  "3. Reproduce numbers, statistics, sample sizes, dates, names and quotations exactly as written. Never round, convert or estimate them.",
-  "4. If the records only partly answer the question, answer the part they support and say clearly what they don't cover. If they don't answer it at all, say so plainly and suggest rephrasing. Never guess.",
-  "5. Be concise and well organised: lead with the direct answer, then supporting detail. Short paragraphs or bullet points are fine.",
-  'Reply with only a JSON object: {"answer": string, "usedPassages": number[], "grounded": boolean}.',
-  '"usedPassages" lists the passage numbers you drew on (use [] if you only used the article record).',
-  '"grounded" is false only when the records do not answer the question.',
-].join("\n");
-
 /** Cleans the model's usedPassages list into valid, de-duplicated numbers. */
 export function normalizeUsedPassages(raw: unknown): number[] {
   if (!Array.isArray(raw)) return [];
