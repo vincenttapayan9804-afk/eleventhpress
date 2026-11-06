@@ -5,6 +5,15 @@ import { anyLLMAvailable, chatJSON } from "@/lib/llm";
 import { retrieveChunksAcrossCorpus } from "@/lib/chunk-embeddings";
 import { db } from "@/lib/db";
 import {
+  finalizeSuggestions,
+  remainingSectionQuestions,
+  sectionRetrievalHints,
+  shortTitle,
+  starterQuestions,
+  MAX_SUGGESTIONS,
+  SECTION_NAMES,
+} from "@/lib/suggested-questions";
+import {
   ARTICLE_RECORD_SELECT,
   GROUNDING_RULES,
   formatArticleRecord,
@@ -68,6 +77,36 @@ async function loadArticleRecords(ids: string[]): Promise<ArticleRecord[]> {
   }
 }
 
+function mostCitedTitle(cited: { articleTitle: string }[]): string | null {
+  const counts = new Map<string, number>();
+  for (const c of cited) counts.set(c.articleTitle, (counts.get(c.articleTitle) ?? 0) + 1);
+  let best: string | null = null;
+  for (const [title, n] of counts) if (best === null || n > (counts.get(best) ?? 0)) best = title;
+  return best;
+}
+
+/**
+ * GET /api/corpus-chat — starter questions for the empty chat: one
+ * ready-made question about each of the most recently published articles.
+ */
+export async function GET() {
+  try {
+    const recent = await db.article.findMany({
+      where: { status: "PUBLISHED" },
+      orderBy: { publishedAt: "desc" },
+      take: MAX_SUGGESTIONS,
+      select: { title: true },
+    });
+    return NextResponse.json(
+      { suggestedQuestions: starterQuestions(recent.map((a) => a.title)) },
+      { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600" } }
+    );
+  } catch (e) {
+    console.error("[corpus-chat] starter questions failed:", e);
+    return NextResponse.json({ suggestedQuestions: [] });
+  }
+}
+
 export async function POST(req: NextRequest) {
   const ip = extractRequestIp(req.headers);
   const rl = await checkRateLimit(`corpus-chat:${ip}`, 8, 300);
@@ -100,10 +139,14 @@ export async function POST(req: NextRequest) {
   // A follow-up such as "what were its limitations?" doesn't name the
   // paper, so retrieval also sees the reader's previous question.
   const previousQuestion = [...history].reverse().find((t) => t?.role === "user")?.content;
-  const retrievalQuery =
-    typeof previousQuestion === "string" && previousQuestion.trim()
-      ? `${question}\n${previousQuestion.slice(0, MAX_QUESTION_LENGTH)}`
-      : question;
+  const hints = sectionRetrievalHints(question);
+  const retrievalQuery = [
+    question,
+    typeof previousQuestion === "string" ? previousQuestion.slice(0, MAX_QUESTION_LENGTH) : "",
+    hints,
+  ]
+    .filter((part) => part.trim())
+    .join("\n");
 
   let chunks: Awaited<ReturnType<typeof retrieveChunksAcrossCorpus>>;
   try {
@@ -140,14 +183,21 @@ export async function POST(req: NextRequest) {
 
   const systemPrompt =
     "You are the research assistant for an academic journal. You answer readers' questions using ONLY the journal records provided in the message: ARTICLE RECORDS (title, authors, date, DOI, keywords, abstract) and PASSAGES (excerpts from the published full text). If the article the reader means is not among the records, say so.\n" +
-    GROUNDING_RULES;
+    GROUNDING_RULES +
+    "\nAlso include \"suggestedQuestions\": up to " +
+    MAX_SUGGESTIONS +
+    " short, specific follow-up questions a reader would naturally ask next about the article your answer is about. " +
+    "Each must target a different part of the paper (" +
+    SECTION_NAMES.join(", ") +
+    "), refer to the paper's actual content (its topic, variables, setting, instruments or findings, as named in the records) rather than generic wording, name the article by a short form of its title, and be answerable from these records. " +
+    "Do not repeat the reader's question.";
 
   const userPrompt = `${recordsBlock}\n\n${passageBlock}${historyBlock}${focusNote}\n\nReader's question: ${question}`;
 
   try {
     const ask = () =>
-      chatJSON<{ answer: string; usedPassages?: number[]; grounded?: boolean }>(systemPrompt, userPrompt, {
-        maxTokens: 1200,
+      chatJSON<{ answer: string; usedPassages?: number[]; grounded?: boolean; suggestedQuestions?: unknown }>(systemPrompt, userPrompt, {
+        maxTokens: 1500,
         priority: "cost-first",
         temperature: 0.1,
       });
@@ -185,11 +235,23 @@ export async function POST(req: NextRequest) {
         articleTitle: c.articleTitle,
       }));
 
+    // Follow-up questions about the paper the answer is about: the named
+    // paper if the reader named one, otherwise the most-cited source.
+    const primaryTitle = focusedTitles[0] ?? mostCitedTitle(cited) ?? chunks[0]?.articleTitle ?? null;
+    const asked = [question, ...history.filter((t) => t?.role === "user").map((t) => String(t.content ?? ""))];
+    // One chip per part of the paper not yet asked about (problem,
+    // background, research gap, ..., results, recommendations).
+    const sectionQuestions = primaryTitle ? remainingSectionQuestions(primaryTitle, asked) : [];
+    const suggestedQuestions = finalizeSuggestions(result.data.suggestedQuestions, asked, sectionQuestions);
+
     return NextResponse.json({
       mode: "answered",
       answer: result.data.answer,
       grounded,
       citedChunks,
+      suggestedQuestions,
+      sectionQuestions,
+      sectionArticle: primaryTitle ? shortTitle(primaryTitle) : null,
       model: result.model,
     });
   } catch (e) {

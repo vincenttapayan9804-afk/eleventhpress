@@ -8,9 +8,9 @@
 // it (see corpus-chat-widget.tsx's dynamic() import of this module).
 // ---------------------------------------------------------------------------
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
-import { Sparkles, Send, Loader2, AlertTriangle } from "lucide-react";
+import { Sparkles, Send, Loader2, AlertTriangle, CornerDownRight } from "lucide-react";
 import { ThinkingOrb } from "thinking-orbs";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -32,6 +32,85 @@ interface CorpusChatMessage {
   content: string;
   grounded?: boolean;
   citations?: CorpusChatCitation[];
+  suggestions?: string[];
+  sections?: SectionQuestion[];
+  sectionArticle?: string | null;
+}
+
+interface SectionQuestion {
+  section: string;
+  question: string;
+}
+
+/** One chip per part of the paper (Problem, Research gap, Respondents,
+ * Instruments, Results, ...); clicking asks the full question. */
+function SectionChips({
+  article,
+  sections,
+  onPick,
+  disabled,
+}: {
+  article: string | null | undefined;
+  sections: SectionQuestion[];
+  onPick: (q: string) => void;
+  disabled: boolean;
+}) {
+  if (sections.length === 0) return null;
+  const label = article ? `Explore “${article}” by section` : "Explore this paper by section";
+  return (
+    <div className="space-y-1.5" role="group" aria-label={label}>
+      <p className="text-[0.65rem] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+      <div className="flex flex-wrap gap-1.5">
+        {sections.map((s) => (
+          <button
+            key={s.section}
+            type="button"
+            onClick={() => onPick(s.question)}
+            disabled={disabled}
+            title={s.question}
+            aria-label={s.question}
+            className="rounded-full border border-border bg-background/70 px-2.5 py-1 text-[0.7rem] font-medium text-foreground transition-colors hover:border-primary/50 hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {s.section}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Ready-made questions shown as clickable chips. */
+function SuggestionChips({
+  label,
+  questions,
+  onPick,
+  disabled,
+}: {
+  label: string;
+  questions: string[];
+  onPick: (q: string) => void;
+  disabled: boolean;
+}) {
+  if (questions.length === 0) return null;
+  return (
+    <div className="space-y-1.5" role="group" aria-label={label}>
+      <p className="text-[0.65rem] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+      <div className="flex flex-col gap-1.5">
+        {questions.map((q) => (
+          <button
+            key={q}
+            type="button"
+            onClick={() => onPick(q)}
+            disabled={disabled}
+            className="flex w-full items-start gap-1.5 rounded-md border border-primary/25 bg-primary/5 px-2.5 py-1.5 text-left text-xs leading-snug text-foreground transition-colors hover:border-primary/50 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <CornerDownRight className="mt-0.5 h-3 w-3 flex-shrink-0 text-primary" aria-hidden="true" />
+            <span>{q}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export function CorpusChatPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
@@ -41,14 +120,32 @@ export function CorpusChatPanel({ open, onOpenChange }: { open: boolean; onOpenC
   const [unavailable, setUnavailable] = useState<string | null>(null);
   const [messageListRef] = useAutoAnimate();
   const openArticle = useApp((s) => s.openArticle);
+  const [starters, setStarters] = useState<string[]>([]);
 
-  async function send() {
-    const trimmed = question.trim();
+  // Starter questions about the journal's newest articles, fetched once the
+  // panel is first opened.
+  useEffect(() => {
+    if (!open || starters.length > 0) return;
+    let cancelled = false;
+    apiFetch<{ suggestedQuestions?: string[] }>("/api/corpus-chat")
+      .then((res) => {
+        if (!cancelled && Array.isArray(res.suggestedQuestions)) setStarters(res.suggestedQuestions);
+      })
+      .catch(() => {
+        // Starters are optional; the example prompt below still shows.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, starters.length]);
+
+  async function send(text?: string) {
+    const trimmed = (text ?? question).trim();
     if (!trimmed || sending) return;
 
     const history = messages.slice(-6).map((m) => ({ role: m.role, content: m.content }));
     setMessages((prev) => [...prev, { role: "user", content: trimmed }]);
-    setQuestion("");
+    if (text === undefined) setQuestion("");
     setSending(true);
     setUnavailable(null);
 
@@ -59,6 +156,9 @@ export function CorpusChatPanel({ open, onOpenChange }: { open: boolean; onOpenC
         answer?: string;
         grounded?: boolean;
         citedChunks?: CorpusChatCitation[];
+        suggestedQuestions?: string[];
+        sectionQuestions?: SectionQuestion[];
+        sectionArticle?: string | null;
       }>("/api/corpus-chat", {
         method: "POST",
         body: JSON.stringify({ question: trimmed, history }),
@@ -67,7 +167,15 @@ export function CorpusChatPanel({ open, onOpenChange }: { open: boolean; onOpenC
       if (res.mode === "answered" && res.answer) {
         setMessages((prev) => [
           ...prev,
-          { role: "assistant", content: res.answer!, grounded: res.grounded, citations: res.citedChunks },
+          {
+            role: "assistant",
+            content: res.answer!,
+            grounded: res.grounded,
+            citations: res.citedChunks,
+            suggestions: Array.isArray(res.suggestedQuestions) ? res.suggestedQuestions : [],
+            sections: Array.isArray(res.sectionQuestions) ? res.sectionQuestions : [],
+            sectionArticle: res.sectionArticle ?? null,
+          },
         ]);
       } else {
         setUnavailable(res.message || "Ask the Corpus isn't available right now.");
@@ -88,6 +196,9 @@ export function CorpusChatPanel({ open, onOpenChange }: { open: boolean; onOpenC
       setSending(false);
     }
   }
+
+  const lastMessage = messages[messages.length - 1];
+  const lastAssistant = lastMessage?.role === "assistant" ? lastMessage : undefined;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -150,6 +261,22 @@ export function CorpusChatPanel({ open, onOpenChange }: { open: boolean; onOpenC
               </div>
             </div>
           ))}
+          {!sending && lastAssistant && ((lastAssistant.suggestions?.length ?? 0) > 0 || (lastAssistant.sections?.length ?? 0) > 0) && (
+            <div className="space-y-3 pl-1 pr-6">
+              <SuggestionChips
+                label="Ask next"
+                questions={lastAssistant.suggestions ?? []}
+                onPick={(q) => send(q)}
+                disabled={sending}
+              />
+              <SectionChips
+                article={lastAssistant.sectionArticle}
+                sections={lastAssistant.sections ?? []}
+                onPick={(q) => send(q)}
+                disabled={sending}
+              />
+            </div>
+          )}
           {sending && (
             <div className="flex justify-start">
               <div className="flex items-center gap-2 rounded-lg rounded-bl-sm border border-border bg-muted/30 px-3.5 py-2.5 text-sm text-muted-foreground">
@@ -158,7 +285,17 @@ export function CorpusChatPanel({ open, onOpenChange }: { open: boolean; onOpenC
               </div>
             </div>
           )}
-          {messages.length === 0 && !sending && (
+          {messages.length === 0 && !sending && starters.length > 0 && (
+            <div className="pt-4">
+              <SuggestionChips
+                label="Start with a recent paper"
+                questions={starters}
+                onPick={(q) => send(q)}
+                disabled={sending}
+              />
+            </div>
+          )}
+          {messages.length === 0 && !sending && starters.length === 0 && (
             <p className="pt-6 text-center text-sm text-muted-foreground">
               Try: &ldquo;What have this journal&apos;s authors found about climate adaptation?&rdquo;
             </p>
@@ -181,7 +318,7 @@ export function CorpusChatPanel({ open, onOpenChange }: { open: boolean; onOpenC
             maxLength={800}
             disabled={sending}
           />
-          <Button size="icon" onClick={send} disabled={sending || !question.trim()} aria-label="Send">
+          <Button size="icon" onClick={() => send()} disabled={sending || !question.trim()} aria-label="Send">
             {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </Button>
         </div>
