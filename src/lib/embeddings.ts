@@ -16,6 +16,7 @@
  * (ArticleEmbedding.model), same honest-fallback contract as
  * chunk-embeddings.ts's ArticleChunk.embeddingMode.
  */
+import { loadTransformers } from "@/lib/transformers-runtime";
 import { db } from "@/lib/db";
 import crypto from "crypto";
 import { cosineSimilarity } from "@/lib/vector-math";
@@ -41,7 +42,7 @@ function getExtractor(): Promise<any | null> {
   if (!extractorPromise) {
     extractorPromise = (async () => {
       try {
-        const { pipeline } = await import("@xenova/transformers");
+        const { pipeline } = await loadTransformers();
         return await pipeline("feature-extraction", LOCAL_MODEL_ID);
       } catch (e) {
         console.error("[embeddings] local embedding model failed to load, falling back to hashed n-grams:", e);

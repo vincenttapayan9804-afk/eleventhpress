@@ -60,7 +60,7 @@ import { generateGalleysForArticle } from "../src/lib/galley-regenerate";
 import { GALLEY_TEMPLATE_VERSION } from "../src/lib/galley";
 import { generateGlossary } from "../src/lib/glossary";
 import { suggestKeywordsAndSummary } from "../src/lib/manuscript-checks";
-import { indexArticleChunks } from "../src/lib/chunk-embeddings";
+import { indexArticleChunks, generateChunkEmbedding } from "../src/lib/chunk-embeddings";
 import { translateGalleyText, TRANSLATABLE_LOCALES, type TranslatableLocale } from "../src/lib/galley-translation";
 import { getSimilarArticles } from "../src/lib/manuscript-checks";
 import { getOrGenerateRelationExplanation } from "../src/lib/related-explanation";
@@ -105,6 +105,20 @@ async function main() {
   const chunkedArticleIds = new Set(
     (await db.articleChunk.groupBy({ by: ["articleId"] })).map((r) => r.articleId)
   );
+
+  // Articles whose passages were embedded with the hashed fallback (e.g.
+  // indexed at publish time on a host where the sentence model couldn't
+  // load). Re-indexed when the real model is available here, so retrieval
+  // can compare them semantically. The model is probed once, and only if
+  // such articles exist, so a build without the model doesn't redo them
+  // every time.
+  const hashChunkedArticleIds = new Set(
+    (
+      await db.articleChunk.groupBy({ by: ["articleId"], where: { embeddingMode: "hash-fallback" } })
+    ).map((r) => r.articleId)
+  );
+  const chunkModelAvailable =
+    doChunks && hashChunkedArticleIds.size > 0 && (await generateChunkEmbedding("probe")).mode === "local-model";
 
   // Bulk pre-check for translation coverage — one row per article+locale,
   // so "fully translated" means all of TRANSLATABLE_LOCALES are present.
@@ -158,7 +172,8 @@ async function main() {
     force || !a.galleyEpubKey || a.galleyTemplateVersion < GALLEY_TEMPLATE_VERSION;
   const needsGlossary = (a: (typeof candidates)[number]) => force || !a.glossary;
   const needsSummary = (a: (typeof candidates)[number]) => force || !a.laySummary;
-  const needsChunks = (a: (typeof candidates)[number]) => force || !chunkedArticleIds.has(a.id);
+  const needsChunks = (a: (typeof candidates)[number]) =>
+    force || !chunkedArticleIds.has(a.id) || (chunkModelAvailable && hashChunkedArticleIds.has(a.id));
   const needsTranslation = (a: (typeof candidates)[number]) => missingLocales(a).length > 0;
   const needsExplanations = (a: (typeof candidates)[number]) =>
     force || (explanationCountByArticle.get(a.id) ?? 0) < RELATED_ARTICLES_LIMIT;

@@ -58,6 +58,30 @@ const nextConfig: NextConfig = {
   // PDFKit reads its .afm font-metric files from disk at runtime — keep it
   // out of the webpack bundle so those assets are traced and shipped as-is.
   serverExternalPackages: ["pdfkit"],
+  // The local sentence-embedding model (@xenova/transformers, used by
+  // src/lib/embeddings.ts and src/lib/chunk-embeddings.ts) runs on
+  // onnxruntime-node, whose .node binding dlopen()s libonnxruntime.so at
+  // runtime. File tracing can't see a dlopen, so the binding was shipped
+  // without its library and the model failed to load on Vercel
+  // ("libonnxruntime.so.1.14.0: cannot open shared object file"), leaving
+  // retrieval on the hashed fallback. Ship the Linux x64 runtime (16 MB)
+  // with the routes that embed text at request time: RAG chat, semantic
+  // search, related articles, recommendations and gap analysis.
+  // /api/articles/workflow (publish-time indexing) is left out: it is
+  // already ~225 MB and this would take it close to Vercel's 250 MB
+  // function limit. Articles it indexes with the hashed fallback are
+  // re-indexed with the real model by scripts/backfill-galleys.ts on the
+  // next build.
+  outputFileTracingIncludes: Object.fromEntries(
+    [
+      "/api/corpus-chat",
+      "/api/articles/*/chat",
+      "/api/articles/*/similar",
+      "/api/search/semantic",
+      "/api/recommendations",
+      "/api/research-lab/gap-analysis",
+    ].map((route) => [route, ["./node_modules/onnxruntime-node/bin/napi-v3/linux/x64/*"]])
+  ),
   async headers() {
     return [
       {

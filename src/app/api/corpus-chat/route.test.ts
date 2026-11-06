@@ -102,7 +102,7 @@ mock.module("@/lib/db", () => ({
   }),
 }));
 
-const { POST } = await import("./route");
+const { POST, GET } = await import("./route");
 
 const RAW_ANTHROPIC_401 =
   '401 {"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key"},"request_id":"req_011Cgkqxuocu1QutkjdeChzJ"}';
@@ -234,5 +234,51 @@ describe("POST /api/corpus-chat grounding", () => {
     chatReplies = [{ answer: "x", usedPassages: [1, 1, 99, "abc", -2], grounded: true }];
     const body = await (await ask()).json();
     expect(body.citedChunks).toHaveLength(1);
+  });
+});
+
+describe("suggested questions", () => {
+  test("an answer comes with specific follow-ups and a chip for every section of the paper", async () => {
+    chatReplies = [
+      {
+        answer: "It found less damage.",
+        usedPassages: [1],
+        grounded: true,
+        suggestedQuestions: ["How was storm-surge damage measured in Coastal Adaptation in Practice?", "", 7],
+      },
+    ];
+    const body = await (await ask("Tell me about the coastal adaptation paper")).json();
+    expect(body.suggestedQuestions).toEqual(["How was storm-surge damage measured in Coastal Adaptation in Practice?"]);
+    expect(body.sectionArticle).toBe("Coastal Adaptation in Practice");
+    const sections = body.sectionQuestions.map((s: { section: string }) => s.section);
+    for (const s of ["Problem", "Background", "Research gap", "Research questions", "Hypotheses", "Respondents", "Research design", "Instruments", "Results"]) {
+      expect(sections).toContain(s);
+    }
+    expect(body.sectionQuestions[0].question).toBe("What problem does “Coastal Adaptation in Practice” address?");
+  });
+
+  test("the model is asked for content-specific follow-ups across the paper's sections", async () => {
+    await ask();
+    expect(chatCalls[0].system).toContain('"suggestedQuestions"');
+    expect(chatCalls[0].system).toMatch(/Research gap, Research questions, Hypotheses/);
+    expect(chatCalls[0].system).toMatch(/answerable from these records/);
+  });
+
+  test("sections the reader already asked about are not offered again", async () => {
+    const body = await (await ask("What hypotheses did the coastal adaptation paper test?")).json();
+    const sections = body.sectionQuestions.map((s: { section: string }) => s.section);
+    expect(sections).not.toContain("Hypotheses");
+    expect(sections).toContain("Results");
+  });
+
+  test("a section question searches with that section's vocabulary", async () => {
+    await ask("Who were the respondents or participants in “Coastal Adaptation in Practice”, and how were they selected?");
+    expect(retrievalQueries[0]).toMatch(/purposive/);
+  });
+
+  test("GET returns starter questions about recent articles", async () => {
+    const res = await GET();
+    const body = await res.json();
+    expect(body.suggestedQuestions).toEqual(["What problem does “Coastal Adaptation in Practice” address?"]);
   });
 });
