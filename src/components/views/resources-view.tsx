@@ -1,26 +1,22 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { apiFetch } from "@/lib/api-client";
 import type { DiscoveryResult, DiscoverySource } from "@/lib/open-discovery";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DOI_REGISTRAR } from "@/lib/site";
-import { BLOGS, GUIDES, BOOKS, TRAININGS, WEBINARS, type Reading, type Guide, type Planned } from "@/lib/resources-content";
+import { useApp } from "@/lib/store";
+import { BLOGS, GUIDES, BOOKS, TRAININGS, WEBINARS, type Planned } from "@/lib/resources-content";
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   GraduationCap,
   Video,
@@ -34,6 +30,8 @@ import {
   Search,
   ExternalLink,
   Loader2,
+  FileDown,
+  ShieldCheck,
 } from "lucide-react";
 
 const SOURCE_LABEL: Record<DiscoverySource, string> = {
@@ -69,9 +67,9 @@ const RESOURCE_KIND_LABEL: Record<ResourceSearchHit["kind"], string> = {
 
 export function ResourcesView() {
   const t = useTranslations("resources");
-  const [tab, setTab] = useState("trainings");
-  const [openBlog, setOpenBlog] = useState<Reading | null>(null);
-  const [openGuide, setOpenGuide] = useState<Guide | null>(null);
+  const router = useRouter();
+  const tab = useApp((s) => s.resourcesTab);
+  const setTab = (v: string) => useApp.setState({ resourcesTab: v });
 
   const [resourceQuery, setResourceQuery] = useState("");
   const [resourceHits, setResourceHits] = useState<ResourceSearchHit[]>([]);
@@ -94,15 +92,11 @@ export function ResourcesView() {
   }, [resourceQuery]);
 
   function openResourceHit(hit: ResourceSearchHit) {
-    if (hit.kind === "guide") {
-      const guide = GUIDES.find((g) => g.id === hit.id);
-      if (guide) setOpenGuide(guide);
-    } else if (hit.kind === "blog") {
-      const blog = BLOGS.find((b) => b.id === hit.id);
-      if (blog) setOpenBlog(blog);
-    } else {
-      setTab(hit.kind === "training" ? "trainings" : hit.kind === "webinar" ? "webinars" : "books");
-    }
+    const blog = hit.kind === "blog" ? BLOGS.find((b) => b.id === hit.id) : undefined;
+    const guide = hit.kind === "guide" ? GUIDES.find((g) => g.id === hit.id) : undefined;
+    if (blog) router.push(`/resources/blog/${blog.slug}`);
+    else if (guide) router.push(`/resources/guides/${guide.slug}`);
+    else setTab(hit.kind === "training" ? "trainings" : hit.kind === "webinar" ? "webinars" : hit.kind === "blog" ? "blogs" : hit.kind === "guide" ? "guides" : "books");
     setResourceQuery("");
     setResourceHits([]);
   }
@@ -172,7 +166,7 @@ export function ResourcesView() {
       </div>
 
       <Tabs value={tab} onValueChange={setTab} className="mt-8">
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-0.5 sm:grid-cols-3 lg:grid-cols-6 [&>button]:h-8">
           <TabsTrigger value="trainings">
             <GraduationCap className="mr-1.5 h-3.5 w-3.5" /> {t("tabTrainings")}
           </TabsTrigger>
@@ -216,34 +210,62 @@ export function ResourcesView() {
         {/* Blogs */}
         <TabsContent value="blogs" className="mt-6 space-y-3">
           {BLOGS.map((b) => (
-            <Card key={b.title} className="paper-card cursor-pointer" onClick={() => setOpenBlog(b)}>
-              <CardContent className="p-5">
-                <p className="font-display text-base font-semibold">{b.title}</p>
-                <p className="mt-1.5 text-sm text-muted-foreground">{b.excerpt}</p>
-                <div className="mt-3 flex items-center justify-between">
-                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Clock className="h-3 w-3" /> {b.meta}
-                  </span>
-                  <span className="flex items-center gap-1 text-xs font-medium text-primary">
-                    {t("readMore")} <ArrowRight className="h-3 w-3" />
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
+            <Link key={b.id} href={`/resources/blog/${b.slug}`} className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <Card className="paper-card">
+                <CardContent className="p-5">
+                  <p className="text-[0.68rem] font-semibold uppercase tracking-wider text-muted-foreground">{b.category}</p>
+                  <p className="mt-1 font-display text-base font-semibold">{b.title}</p>
+                  <p className="mt-1.5 text-sm text-muted-foreground">{b.excerpt}</p>
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                    <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Clock className="h-3 w-3" /> {b.meta} · Top 10 takeaways, FAQs &amp; references
+                    </span>
+                    <span className="flex items-center gap-1 text-xs font-medium text-primary">
+                      {t("readMore")} <ArrowRight className="h-3 w-3" />
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
           ))}
         </TabsContent>
 
         {/* Guides */}
         <TabsContent value="guides" className="mt-6 space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Official, versioned guides benchmarked against international publishing standards. Read each online or download
+            its branded PDF edition.
+          </p>
           {GUIDES.map((g) => (
-            <Card key={g.title} className="paper-card cursor-pointer" onClick={() => setOpenGuide(g)}>
+            <Card key={g.id} className="paper-card">
               <CardContent className="p-5">
                 <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-display text-base font-semibold">{g.title}</p>
+                  <div className="min-w-0">
+                    <p className="text-[0.68rem] font-semibold uppercase tracking-wider text-muted-foreground">
+                      {g.code} · Version {g.version}
+                    </p>
+                    <Link href={`/resources/guides/${g.slug}`} className="mt-1 block font-display text-base font-semibold hover:text-primary">
+                      {g.title}
+                    </Link>
                     <p className="mt-1.5 text-sm text-muted-foreground">{g.summary}</p>
                   </div>
                   <FileText className="h-5 w-5 shrink-0 text-primary" />
+                </div>
+                <p className="mt-3 flex items-start gap-1.5 text-xs text-muted-foreground">
+                  <ShieldCheck className="mt-px h-3.5 w-3.5 shrink-0 text-primary" />
+                  <span className="min-w-0">Benchmarked against: {g.benchmarks.join(" · ")}</span>
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button size="sm" asChild>
+                    <Link href={`/resources/guides/${g.slug}`}>
+                      <FileText className="mr-1.5 h-3.5 w-3.5" /> Read guide
+                    </Link>
+                  </Button>
+                  <Button size="sm" variant="outline" asChild>
+                    <a href={`/resources/guides/${g.slug}/pdf`} download>
+                      <FileDown className="mr-1.5 h-3.5 w-3.5" /> Download PDF
+                    </a>
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -416,42 +438,6 @@ export function ResourcesView() {
         </TabsContent>
       </Tabs>
 
-      <Dialog open={!!openBlog} onOpenChange={(o) => !o && setOpenBlog(null)}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
-          {openBlog && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="font-display text-xl">{openBlog.title}</DialogTitle>
-              </DialogHeader>
-              <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Clock className="h-3 w-3" /> {openBlog.meta}
-              </p>
-              <div className="mt-2 space-y-3 text-sm leading-relaxed text-foreground/85 text-justify">
-                {openBlog.body.map((p, i) => (
-                  <p key={i}>{p}</p>
-                ))}
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!openGuide} onOpenChange={(o) => !o && setOpenGuide(null)}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
-          {openGuide && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="font-display text-xl">{openGuide.title}</DialogTitle>
-              </DialogHeader>
-              <div className="mt-2 space-y-3 text-sm leading-relaxed text-foreground/85 text-justify">
-                {openGuide.body.map((p, i) => (
-                  <p key={i}>{p}</p>
-                ))}
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

@@ -60,7 +60,13 @@ export default function Page() {
   useEffect(() => {
     apiFetch<{ user: any }>("/api/auth/me")
       .then(({ user }) => setAuth(user))
-      .catch(() => logout());
+      // Only an actual stale session needs clearing. For an anonymous
+      // visitor, logout() would also reset the view to "home" and so
+      // override the view chosen on a server-rendered page (e.g. "Back to
+      // Resources" from /resources/blog/...) before the SPA rendered it.
+      .catch(() => {
+        if (useApp.getState().user) logout();
+      });
   }, []);
 
   // Handle ORCID OAuth callback: the callback route sets the session

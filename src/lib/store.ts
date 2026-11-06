@@ -13,6 +13,9 @@ export type ViewKey =
   | "register"
   | "dashboard"
   | "resources"
+  // A server-rendered /resources/blog|guides/... page is on screen (see
+  // ResourcePageShell); the SPA under "/" never renders this view.
+  | "resourcePage"
   | "collections"
   | "authors"
   | "experts"
@@ -107,7 +110,11 @@ interface AppState {
   departmentSlug: string | null;
   dashboardTab: DashboardTab;
   reviewId: string | null;
+  /** Active tab of the Resources view, so returning from a blog post or
+   * guide page lands back on the tab the reader came from. */
+  resourcesTab: string;
   setView: (v: ViewKey) => void;
+  openResources: (tab?: string) => void;
   openArticle: (id: string) => void;
   openMagazineIssue: (id: string) => void;
   openMediaPost: (id: string) => void;
@@ -149,7 +156,9 @@ export const useApp = create<AppState>()(
       departmentSlug: null,
       dashboardTab: "overview",
       reviewId: null,
+      resourcesTab: "trainings",
       setView: (v) => set({ view: v }),
+      openResources: (tab) => set((s) => ({ view: "resources", resourcesTab: tab ?? s.resourcesTab })),
       openArticle: (id) => set({ view: "article", articleId: id }),
       openMagazineIssue: (id) => set({ view: "magazineIssue", magazineIssueId: id }),
       openMediaPost: (id) => set({ view: "mediaPost", mediaPostId: id }),
