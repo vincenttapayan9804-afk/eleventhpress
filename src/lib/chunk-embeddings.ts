@@ -27,13 +27,8 @@ import sanitizeHtml from "sanitize-html";
 import { getObject } from "@/lib/storage";
 import { hashEmbedding } from "@/lib/embeddings";
 import { cosineSimilarity } from "@/lib/vector-math";
-import {
-  ensureChunkVectorTable,
-  upsertChunkVector,
-  deleteChunkVectors,
-  chunkVectorSearch,
-  chunkVectorSearchCorpus,
-} from "@/lib/pgvector";
+import { ensureChunkVectorTable, upsertChunkVector, deleteChunkVectors } from "@/lib/pgvector";
+import { Bm25Index, tokenize, titleMatch, isFocusedMatch, titleDocumentFrequency } from "@/lib/lexical-search";
 
 export const CHUNK_EMBEDDING_DIMS = 384;
 const CHUNK_TARGET_CHARS = 800;
@@ -207,15 +202,69 @@ export interface RetrievedChunk {
   matchType: "vector" | "lexical";
 }
 
+/** Reciprocal-rank-fusion constant (the usual value from the RRF paper). */
+const RRF_K = 60;
+
+/** Weight of the vector signal in the fused ranking. The real sentence
+ * model is a strong semantic signal; the hashed n-gram fallback only
+ * measures surface overlap, which BM25 already does better, so it's
+ * reduced to a tie-breaker. */
+function vectorWeight(mode: EmbeddingMode): number {
+  return mode === "local-model" ? 1 : 0.35;
+}
+
+interface Scored {
+  lexical: number;
+  vector: number | null;
+}
+
+/** 1-based rank of each entry among entries with a positive value. */
+function ranksOf(values: (number | null)[]): (number | null)[] {
+  const order = values
+    .map((v, i) => ({ v, i }))
+    .filter((e): e is { v: number; i: number } => e.v !== null && e.v > 0)
+    .sort((a, b) => b.v - a.v);
+  const ranks: (number | null)[] = values.map(() => null);
+  order.forEach((e, r) => (ranks[e.i] = r + 1));
+  return ranks;
+}
+
+/** Fuses BM25 and vector rankings with reciprocal rank fusion. */
+function fuse(scored: Scored[], mode: EmbeddingMode): { fused: number[]; lexRanks: (number | null)[]; vecRanks: (number | null)[] } {
+  const lexRanks = ranksOf(scored.map((s) => s.lexical));
+  const vecRanks = ranksOf(scored.map((s) => s.vector));
+  const w = vectorWeight(mode);
+  const fused = scored.map((_, i) => {
+    const lr = lexRanks[i];
+    const vr = vecRanks[i];
+    return (lr ? 1 / (RRF_K + lr) : 0) + (vr ? w / (RRF_K + vr) : 0);
+  });
+  return { fused, lexRanks, vecRanks };
+}
+
+function sameModeVector(
+  c: { embedding: string; embeddingDims: number; embeddingMode: string },
+  queryVector: number[],
+  queryMode: EmbeddingMode
+): number | null {
+  if (c.embeddingMode !== queryMode || c.embeddingDims !== queryVector.length) return null;
+  try {
+    return cosineSimilarity(queryVector, JSON.parse(c.embedding) as number[]);
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Retrieves the top-`limit` passages of `articleId` most relevant to
- * `query`. Vector comparison only ever happens between embeddings written
- * in the same mode (see file header). Any shortfall against `limit` — the
- * article has no same-mode chunks at all, or fewer than `limit` score
- * above zero — is backfilled with simple case-insensitive term-overlap
- * scoring over the remaining chunks, so a chat question never comes back
- * empty just because the model's availability flipped between indexing
- * and query time.
+ * `query`, for "Ask this paper".
+ *
+ * Hybrid retrieval: BM25 keyword relevance (lexical-search.ts) fused with
+ * vector similarity. Vectors are only compared within the same embedding
+ * mode (see file header). If nothing in the article matches the question
+ * at all, the paper's opening passages (title, abstract, introduction) are
+ * returned, so a broad question like "what is this paper about?" still
+ * gets grounded context.
  */
 export async function retrieveChunks(
   articleId: string,
@@ -229,57 +278,37 @@ export async function retrieveChunks(
   if (allChunks.length === 0) return [];
 
   const { vector: queryVector, mode: queryMode } = await generateChunkEmbedding(query);
-  const sameModeChunks = allChunks.filter(
-    (c) => c.embeddingMode === queryMode && c.embeddingDims === queryVector.length
-  );
+  const queryTokens = tokenize(query);
+  const index = new Bm25Index(allChunks.map((c) => tokenize(c.text)));
 
-  const results: RetrievedChunk[] = [];
+  const scored: Scored[] = allChunks.map((c, i) => ({
+    lexical: index.score(queryTokens, i),
+    vector: sameModeVector(c, queryVector, queryMode),
+  }));
+  const { fused, lexRanks, vecRanks } = fuse(scored, queryMode);
 
-  if (sameModeChunks.length > 0) {
-    let usedIndex = false;
-    if (await ensureChunkVectorTable()) {
-      try {
-        const rows = await chunkVectorSearch(articleId, queryVector, limit);
-        const byId = new Map(allChunks.map((c) => [c.id, c]));
-        for (const r of rows) {
-          const c = byId.get(r.chunkId);
-          if (c && c.embeddingMode === queryMode) {
-            results.push({ chunkId: c.id, text: c.text, chunkIndex: c.chunkIndex, score: r.score, matchType: "vector" });
-          }
-        }
-        usedIndex = true;
-      } catch (e) {
-        console.error("[chunk-embeddings] pgvector chunk search failed, falling back to in-memory scan:", e);
-      }
+  const eligible = allChunks
+    .map((c, i) => ({ c, i }))
+    .filter(({ i }) => (lexRanks[i] ?? 0) > 0 || (queryMode === "local-model" && (vecRanks[i] ?? Infinity) <= limit * 2))
+    .sort((a, b) => fused[b.i] - fused[a.i])
+    .slice(0, limit);
+
+  const results: RetrievedChunk[] = eligible.map(({ c, i }) => ({
+    chunkId: c.id,
+    text: c.text,
+    chunkIndex: c.chunkIndex,
+    score: fused[i],
+    matchType: (lexRanks[i] ?? Infinity) <= (vecRanks[i] ?? Infinity) ? "lexical" : "vector",
+  }));
+
+  // Broad question with no keyword match: ground it in the opening passages.
+  if (results.length < Math.min(2, limit)) {
+    const have = new Set(results.map((r) => r.chunkId));
+    for (const c of allChunks) {
+      if (results.length >= Math.min(3, limit)) break;
+      if (have.has(c.id)) continue;
+      results.push({ chunkId: c.id, text: c.text, chunkIndex: c.chunkIndex, score: 0, matchType: "lexical" });
     }
-    if (!usedIndex || results.length === 0) {
-      const scored = sameModeChunks
-        .map((c) => ({ c, score: cosineSimilarity(queryVector, JSON.parse(c.embedding) as number[]) }))
-        .sort((a, b) => b.score - a.score)
-        .slice(0, limit);
-      for (const { c, score } of scored) {
-        results.push({ chunkId: c.id, text: c.text, chunkIndex: c.chunkIndex, score, matchType: "vector" });
-      }
-    }
-  }
-
-  if (results.length >= limit) return results;
-
-  const already = new Set(results.map((r) => r.chunkId));
-  const terms = query.toLowerCase().match(/[a-z0-9]{3,}/g) ?? [];
-  const lexicalScored = allChunks
-    .filter((c) => !already.has(c.id))
-    .map((c) => {
-      const lower = c.text.toLowerCase();
-      const score = terms.reduce((s, t) => s + (lower.includes(t) ? 1 : 0), 0);
-      return { c, score };
-    })
-    .filter((r) => r.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit - results.length);
-
-  for (const { c, score } of lexicalScored) {
-    results.push({ chunkId: c.id, text: c.text, chunkIndex: c.chunkIndex, score, matchType: "lexical" });
   }
 
   return results;
@@ -288,107 +317,178 @@ export async function retrieveChunks(
 export interface CorpusRetrievedChunk extends RetrievedChunk {
   articleId: string;
   articleTitle: string;
+  /** True when the question names this chunk's article (by title or
+   * author), so the answer should be about that article specifically. */
+  focused?: boolean;
 }
 
+/** Name tokens for author matching ("Rivera", "Ana Rivera"). */
+function authorNameTokens(authorsJson: string): Set<string> {
+  const names = new Set<string>();
+  try {
+    const authors = JSON.parse(authorsJson) as { name?: string }[];
+    for (const a of Array.isArray(authors) ? authors : []) {
+      for (const t of tokenize(a?.name ?? "")) if (t.length >= 3) names.add(t);
+    }
+  } catch {
+    // Malformed authors JSON: no author matching for this article.
+  }
+  return names;
+}
+
+/** At most this many passages from one article when the question isn't
+ * about a specific article, so a broad answer draws on several papers. */
+const MAX_PASSAGES_PER_ARTICLE = 3;
+/** Score bonus for passages of an article the question names. Larger than
+ * any single RRF contribution (at most 1/61), so those passages rank first. */
+const FOCUS_BONUS = 0.05;
+
 /**
- * Journal-wide counterpart to retrieveChunks() — searches every PUBLISHED
- * article's chunks at once instead of one article's, backing the
- * "Ask the Corpus" chat (src/app/api/corpus-chat/route.ts). Same
- * same-embedding-mode-only comparison and vector-then-lexical fallback
- * contract as retrieveChunks(); the only structural difference is the
- * corpus-wide scope and that each result also carries which article it
- * came from, since a corpus answer has to cite its source article.
+ * Journal-wide counterpart to retrieveChunks(), backing "Ask the Corpus"
+ * (src/app/api/corpus-chat/route.ts). Searches every PUBLISHED article's
+ * passages and reports which article each came from, so answers can cite
+ * their source.
+ *
+ * - Hybrid ranking: BM25 keyword relevance over each passage (with its
+ *   article's title), fused with same-mode vector similarity.
+ * - Article focus: when the question names a paper by its title words or an
+ *   author's name, that paper's passages are boosted and its opening
+ *   passage (title and abstract) is always included, so the answer is about
+ *   the right paper rather than a similar one.
+ * - Diversity: otherwise at most three passages per article.
+ * - Broad questions ("what topics does this journal cover?") with no
+ *   keyword match fall back to the opening passages of the most recently
+ *   published articles, never to random passages.
  */
 export async function retrieveChunksAcrossCorpus(
   query: string,
   limit = 8
 ): Promise<CorpusRetrievedChunk[]> {
-  const { vector: queryVector, mode: queryMode } = await generateChunkEmbedding(query);
-  const results: CorpusRetrievedChunk[] = [];
-
-  if (await ensureChunkVectorTable()) {
-    try {
-      const rows = await chunkVectorSearchCorpus(queryVector, limit * 2);
-      if (rows.length > 0) {
-        const chunkRows = await db.articleChunk.findMany({
-          where: { id: { in: rows.map((r) => r.chunkId) } },
-          include: { article: { select: { title: true, status: true } } },
-        });
-        const byId = new Map(chunkRows.map((c) => [c.id, c]));
-        for (const r of rows) {
-          const c = byId.get(r.chunkId);
-          if (c && c.embeddingMode === queryMode && c.article.status === "PUBLISHED") {
-            results.push({
-              chunkId: c.id,
-              text: c.text,
-              chunkIndex: c.chunkIndex,
-              score: r.score,
-              matchType: "vector",
-              articleId: c.articleId,
-              articleTitle: c.article.title,
-            });
-          }
-          if (results.length >= limit) break;
-        }
-      }
-    } catch (e) {
-      console.error("[chunk-embeddings] corpus pgvector search failed, falling back to in-memory scan:", e);
-    }
-  }
-
-  if (results.length === 0) {
-    const allChunks = await db.articleChunk.findMany({
-      where: { article: { status: "PUBLISHED" } },
-      include: { article: { select: { title: true } } },
-    });
-    const sameModeChunks = allChunks.filter(
-      (c) => c.embeddingMode === queryMode && c.embeddingDims === queryVector.length
-    );
-    const scored = sameModeChunks
-      .map((c) => ({ c, score: cosineSimilarity(queryVector, JSON.parse(c.embedding) as number[]) }))
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit);
-    for (const { c, score } of scored) {
-      results.push({
-        chunkId: c.id,
-        text: c.text,
-        chunkIndex: c.chunkIndex,
-        score,
-        matchType: "vector",
-        articleId: c.articleId,
-        articleTitle: c.article.title,
-      });
-    }
-  }
-
-  if (results.length >= limit) return results.slice(0, limit);
-
-  const already = new Set(results.map((r) => r.chunkId));
-  const terms = query.toLowerCase().match(/[a-z0-9]{3,}/g) ?? [];
-  const remainingChunks = await db.articleChunk.findMany({
-    where: { article: { status: "PUBLISHED" }, id: { notIn: [...already] } },
-    include: { article: { select: { title: true } } },
+  const rows = await db.articleChunk.findMany({
+    where: { article: { status: "PUBLISHED" } },
+    include: { article: { select: { title: true, authors: true, keywords: true, publishedAt: true } } },
+    orderBy: [{ articleId: "asc" }, { chunkIndex: "asc" }],
   });
-  const lexicalScored = remainingChunks
-    .map((c) => {
-      const lower = c.text.toLowerCase();
-      const score = terms.reduce((s, t) => s + (lower.includes(t) ? 1 : 0), 0);
-      return { c, score };
-    })
-    .filter((r) => r.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit - results.length);
+  if (rows.length === 0) return [];
+  const { vector, mode } = await generateChunkEmbedding(query);
+  return rankCorpusChunks(rows, query, vector, mode, limit);
+}
 
-  for (const { c, score } of lexicalScored) {
-    results.push({
-      chunkId: c.id,
-      text: c.text,
-      chunkIndex: c.chunkIndex,
-      score,
-      matchType: "lexical",
-      articleId: c.articleId,
-      articleTitle: c.article.title,
-    });
+/** A stored passage plus the fields of its article that ranking uses. */
+export interface CorpusChunkRow {
+  id: string;
+  articleId: string;
+  chunkIndex: number;
+  text: string;
+  embedding: string;
+  embeddingDims: number;
+  embeddingMode: string;
+  article: { title: string; authors: string; keywords: string | null; publishedAt: Date | null };
+}
+
+/**
+ * The ranking behind retrieveChunksAcrossCorpus(), separated from the
+ * database and embedding model so it can be tested directly. `rows` must
+ * be ordered by article, then chunkIndex.
+ */
+export function rankCorpusChunks(
+  rows: CorpusChunkRow[],
+  query: string,
+  queryVector: number[],
+  queryMode: EmbeddingMode,
+  limit = 8
+): CorpusRetrievedChunk[] {
+  if (rows.length === 0) return [];
+  const queryTokens = tokenize(query);
+  const querySet = new Set(queryTokens);
+
+  // Which articles does the question name?
+  const focus = new Map<string, number>();
+  const articleMeta = new Map<string, { title: string; publishedAt: Date | null }>();
+  for (const r of rows) {
+    if (!articleMeta.has(r.articleId)) {
+      articleMeta.set(r.articleId, { title: r.article.title, publishedAt: r.article.publishedAt ?? null });
+    }
+  }
+  const titleDf = titleDocumentFrequency([...articleMeta.values()].map((a) => a.title));
+  const seen = new Set<string>();
+  for (const r of rows) {
+    if (seen.has(r.articleId)) continue;
+    seen.add(r.articleId);
+    const m = titleMatch(queryTokens, r.article.title, titleDf);
+    const byAuthor = [...authorNameTokens(r.article.authors)].some((t) => querySet.has(t));
+    if (isFocusedMatch(m) || byAuthor) focus.set(r.articleId, m.coverage + (byAuthor ? 0.5 : 0));
+  }
+
+  const index = new Bm25Index(
+    rows.map((r) => tokenize(`${r.article.title} ${r.article.keywords ?? ""} ${r.text}`))
+  );
+  const scored: Scored[] = rows.map((r, i) => ({
+    lexical: index.score(queryTokens, i),
+    vector: sameModeVector(r, queryVector, queryMode),
+  }));
+  const { fused, lexRanks, vecRanks } = fuse(scored, queryMode);
+  const total = rows.map((r, i) => fused[i] + (focus.has(r.articleId) ? FOCUS_BONUS * (focus.get(r.articleId) ?? 1) : 0));
+
+  const toResult = (i: number, matchType?: "vector" | "lexical"): CorpusRetrievedChunk => {
+    const r = rows[i];
+    return {
+      chunkId: r.id,
+      text: r.text,
+      chunkIndex: r.chunkIndex,
+      score: total[i],
+      matchType: matchType ?? ((lexRanks[i] ?? Infinity) <= (vecRanks[i] ?? Infinity) ? "lexical" : "vector"),
+      articleId: r.articleId,
+      articleTitle: r.article.title,
+      ...(focus.has(r.articleId) ? { focused: true } : {}),
+    };
+  };
+
+  const results: CorpusRetrievedChunk[] = [];
+  const taken = new Set<number>();
+  const perArticle = new Map<string, number>();
+  const take = (i: number, matchType?: "vector" | "lexical") => {
+    if (taken.has(i) || results.length >= limit) return;
+    taken.add(i);
+    perArticle.set(rows[i].articleId, (perArticle.get(rows[i].articleId) ?? 0) + 1);
+    results.push(toResult(i, matchType));
+  };
+
+  // 1. The opening passage (title + abstract) of each named article, best match first.
+  const focusedIds = [...focus.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => id).slice(0, 2);
+  for (const id of focusedIds) {
+    const opening = rows.findIndex((r) => r.articleId === id);
+    if (opening !== -1) take(opening, "lexical");
+  }
+
+  // 2. The best-ranked relevant passages.
+  const eligible = rows
+    .map((_, i) => i)
+    .filter(
+      (i) =>
+        (lexRanks[i] ?? 0) > 0 ||
+        focus.has(rows[i].articleId) ||
+        (queryMode === "local-model" && (vecRanks[i] ?? Infinity) <= limit * 2)
+    )
+    .sort((a, b) => total[b] - total[a]);
+  for (const i of eligible) {
+    if (results.length >= limit) break;
+    const id = rows[i].articleId;
+    if (!focus.has(id) && (perArticle.get(id) ?? 0) >= MAX_PASSAGES_PER_ARTICLE) continue;
+    take(i);
+  }
+
+  // 3. Broad questions: opening passages of the most recent articles.
+  if (results.length < Math.min(3, limit)) {
+    const newestFirst = [...articleMeta.entries()].sort(
+      (a, b) => (b[1].publishedAt?.getTime() ?? 0) - (a[1].publishedAt?.getTime() ?? 0)
+    );
+    for (const [id] of newestFirst) {
+      if (results.length >= limit) break;
+      if (perArticle.has(id)) continue;
+      const opening = rows.findIndex((r) => r.articleId === id);
+      if (opening !== -1) take(opening, "lexical");
+    }
   }
 
   return results;
