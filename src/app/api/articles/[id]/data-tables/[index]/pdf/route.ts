@@ -49,7 +49,7 @@ export async function GET(
   const pdf = await buildDataTablePdf({
     article: {
       id: article.id,
-      title: article.title,
+      title: article.title.replace(/\s+/g, " ").trim(),
       authors: article.authors,
       doi: article.doi,
       keywords: article.keywords,
@@ -76,7 +76,7 @@ export async function GET(
     status: 200,
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `${inline ? "inline" : "attachment"}; filename="${dataTablePdfFileName(article, n)}"`,
+      "Content-Disposition": `${inline ? "inline" : "attachment"}; filename="${dataTablePdfFileName({ title: article.title.trim() }, n)}"`,
       "Content-Length": String(pdf.length),
       "Cache-Control": "public, max-age=0, s-maxage=3600, stale-while-revalidate=86400",
     },
