@@ -22,6 +22,7 @@
  * since a hash vector and a real sentence-embedding vector do not share
  * a semantic space even at the same dimensionality.
  */
+import { loadTransformers } from "@/lib/transformers-runtime";
 import { db } from "@/lib/db";
 import sanitizeHtml from "sanitize-html";
 import { getObject } from "@/lib/storage";
@@ -49,7 +50,7 @@ function getExtractor(): Promise<any | null> {
   if (!extractorPromise) {
     extractorPromise = (async () => {
       try {
-        const { pipeline } = await import("@xenova/transformers");
+        const { pipeline } = await loadTransformers();
         return await pipeline("feature-extraction", LOCAL_MODEL_ID);
       } catch (e) {
         console.error(
