@@ -25,6 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { apiFetch } from "@/lib/api-client";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { SoundToggle } from "@/components/ui-sound";
 import { useTenantBranding } from "@/lib/tenant-branding-context";
 
 export function SiteHeader() {
@@ -213,6 +214,7 @@ export function SiteHeader() {
             )}
 
             <ThemeToggle className="size-11 sm:size-9" />
+            <SoundToggle className="size-11 sm:size-9" />
             <LanguageSwitcher />
 
             {/* Mobile nav */}
