@@ -12,6 +12,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { sceneDpr } from "@/components/three-d/discipline-analytics-shared";
+import { LabelDeclutter, declutterProps } from "@/components/three-d/label-declutter";
 import { tideWaveY, type GraphLayout, type GraphNode, type Vec3 } from "@/lib/second-brain-graph";
 
 export type GraphMode = "constellation" | "tide";
@@ -432,7 +433,10 @@ export function SecondBrainGraphScene(props: SecondBrainGraphSceneProps) {
           <TideRibbon accent={accent} extent={layout.extent - 1} />
           {thinTicks(layout.ticks, canvasWidth).map((t) => (
             <Html key={`${t.x}-${t.label}`} position={[t.x, TIDE_TICK_Y, 2.7]} center zIndexRange={LABEL_Z} style={{ pointerEvents: "none" }}>
-              <span className="whitespace-nowrap rounded bg-background/80 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground">
+              <span
+                className="whitespace-nowrap rounded bg-background/80 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground"
+                {...declutterProps(1)}
+              >
                 {t.label}
               </span>
             </Html>
@@ -483,6 +487,7 @@ export function SecondBrainGraphScene(props: SecondBrainGraphSceneProps) {
           <span
             className="block max-w-[11rem] truncate whitespace-nowrap rounded-md border border-border/70 bg-background/90 px-1.5 py-0.5 text-[10.5px] shadow-sm backdrop-blur-sm"
             style={{ color: ink, fontWeight: n.id === hot || n.pinned ? 600 : 500 }}
+            {...declutterProps(n.id === hot ? 5 : n.pinned ? 3 : 2)}
           >
             {n.title}
           </span>
@@ -501,6 +506,7 @@ export function SecondBrainGraphScene(props: SecondBrainGraphSceneProps) {
         minPolarAngle={0.2}
         maxPolarAngle={mode === "tide" ? Math.PI / 2 - 0.05 : Math.PI - 0.2}
       />
+      <LabelDeclutter />
       <CameraRig mode={mode} extent={layout.extent} focus={focus} onCameraApi={onCameraApi} />
       <SizeReporter onWidth={setCanvasWidth} />
     </Canvas>

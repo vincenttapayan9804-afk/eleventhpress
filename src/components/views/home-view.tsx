@@ -7,6 +7,7 @@ import { apiFetch } from "@/lib/api-client";
 import { ArticleListItem } from "@/lib/types";
 import { DISCIPLINES, parseAuthors } from "@/lib/article";
 import { DOI_REGISTRAR } from "@/lib/site";
+import { DISCIPLINE_ICONS } from "@/components/discipline-icons";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -15,16 +16,10 @@ import { useReveal } from "@/hooks/use-scroll-reveal";
 import { Tilt3D } from "@/components/tilt-3d";
 import {
   Search, ArrowRight, Sparkles, FileText, Quote, TrendingUp, Globe2,
-  Atom, Microscope, Cpu, Users, BarChart3, Brain, Leaf, Calculator,
-  GraduationCap, Building2, Cog, BookOpen, Share2, ShieldCheck,
+  Cog, BookOpen, Share2, ShieldCheck,
   Database, ClipboardCheck, Link2,
 } from "lucide-react";
 
-const DISCIPLINE_ICONS: Record<string, any> = {
-  Physics: Atom, Biology: Microscope, "Computer Science": Cpu, Sociology: Users,
-  Economics: BarChart3, Psychology: Brain, "Environmental Science": Leaf, Mathematics: Calculator,
-  Education: GraduationCap, Business: Building2, Technology: Cog, "Language and Literature": BookOpen,
-};
 
 const DISCIPLINE_SLUGS: Record<string, string> = {
   Physics: "physics",
@@ -41,16 +36,10 @@ const DISCIPLINE_SLUGS: Record<string, string> = {
   "Language and Literature": "language-literature",
 };
 
-const DISCIPLINE_COLORS: Record<string, string> = {
-  Physics: "bg-[var(--royal-100)] text-primary border-[var(--royal-300)]/30",
-  Biology: "bg-[var(--royal-100)] text-primary border-[var(--royal-300)]/30",
-  "Computer Science": "bg-[var(--royal-100)] text-primary border-[var(--royal-300)]/30",
-  Sociology: "bg-[var(--royal-100)] text-primary border-[var(--royal-300)]/30",
-  Economics: "bg-[var(--royal-100)] text-primary border-[var(--royal-300)]/30",
-  Psychology: "bg-[var(--royal-100)] text-primary border-[var(--royal-300)]/30",
-  "Environmental Science": "bg-[var(--royal-100)] text-primary border-[var(--royal-300)]/30",
-  Mathematics: "bg-[var(--royal-100)] text-primary border-[var(--royal-300)]/30",
-};
+// Every discipline shares the brand chip (the previous hand-written map
+// covered only eight of the twelve, leaving four icons unstyled).
+const DISCIPLINE_CHIP = "bg-[var(--royal-100)] text-primary border-[var(--royal-300)]/30";
+const DISCIPLINE_COLORS: Record<string, string> = Object.fromEntries(DISCIPLINES.map((d) => [d, DISCIPLINE_CHIP]));
 
 interface RecommendedArticle {
   id: string;
@@ -131,7 +120,7 @@ export function HomeView() {
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[oklch(0.86_0.07_292)] drop-shadow-lg">
                 {t("issueLine")}
               </p>
-              <h1 className="mt-4 font-display text-4xl font-semibold leading-[1.05] text-white headline-3d-on-image sm:text-5xl lg:text-6xl">
+              <h1 className="mt-4 font-display text-4xl font-semibold leading-[1.15] text-white headline-3d-on-image sm:text-5xl lg:text-6xl">
                 {t("headline1")}<br />
                 <span className="bg-gradient-to-r from-[oklch(0.86_0.07_292)] via-[oklch(0.76_0.11_294)] to-[oklch(0.62_0.16_296)] bg-clip-text text-transparent">{t("headline2")}</span>.
               </h1>
