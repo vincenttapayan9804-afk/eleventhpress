@@ -32,6 +32,9 @@ const SERIES_LIGHT = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#0
 const SERIES_DARK = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"];
 export const MAX_SERIES = SERIES_LIGHT.length;
 
+const HOVER_X = "<b>%{customdata}</b><br>%{fullData.name}: %{x}<extra></extra>";
+const HOVER_Y = "<b>%{customdata}</b><br>%{fullData.name}: %{y}<extra></extra>";
+
 export function truncateLabel(label: string, max: number): string {
   const s = label.replace(/\s+/g, " ").trim();
   return s.length <= max ? s : `${s.slice(0, Math.max(1, max - 1)).trimEnd()}…`;
@@ -103,7 +106,9 @@ export function buildPlot(
     const base = {
       name: truncateLabel(name, 28),
       customdata: hoverLabels,
-      hovertemplate: `<b>%{customdata}</b><br>${escapeHtml(truncateLabel(name, 40))}: %{${valueAxis}}<extra></extra>`,
+      // Static template: Plotly fills in the (escaped) row label and the
+      // trace's own name, so no table text is concatenated into markup here.
+      hovertemplate: valueAxis === "x" ? HOVER_X : HOVER_Y,
     };
     if (chartType === "bar") {
       return {
