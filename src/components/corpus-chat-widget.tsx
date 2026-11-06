@@ -1,7 +1,7 @@
 "use client";
 
 // ---------------------------------------------------------------------------
-// CorpusChatWidget — "Ask the Corpus" journal-wide RAG chat, available as a
+// CorpusChatWidget — "Ask the Corpus", the journal's AI Research Assistant, available as a
 // floating widget on every page (as opposed to ArticleChatPanel in
 // article-view.tsx, which is scoped to one article). Every answer is
 // grounded only in passages retrieved across the journal's own published
@@ -20,6 +20,7 @@ import { useState } from "react";
 import dynamic from "next/dynamic";
 import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useApp } from "@/lib/store";
 
 const CorpusChatPanel = dynamic(() => import("./corpus-chat-panel").then((m) => m.CorpusChatPanel), {
   ssr: false,
@@ -28,6 +29,9 @@ const CorpusChatPanel = dynamic(() => import("./corpus-chat-panel").then((m) => 
 export function CorpusChatWidget() {
   const [everOpened, setEverOpened] = useState(false);
   const [open, setOpen] = useState(false);
+  // Signing in or out switches where conversations are kept (account vs
+  // this browser), so the assistant starts fresh rather than mixing them.
+  const signedIn = useApp((s) => !!s.user);
 
   return (
     <>
@@ -46,7 +50,7 @@ export function CorpusChatWidget() {
       {/* Only fetches/mounts the chat panel chunk after first interaction;
           stays mounted afterward so open/close toggling doesn't lose the
           conversation. */}
-      {everOpened && <CorpusChatPanel open={open} onOpenChange={setOpen} />}
+      {everOpened && <CorpusChatPanel key={signedIn ? "account" : "device"} open={open} onOpenChange={setOpen} />}
     </>
   );
 }

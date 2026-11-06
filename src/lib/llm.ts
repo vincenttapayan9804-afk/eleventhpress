@@ -213,7 +213,46 @@ function extractJSON<T>(text: string): T {
   if (!jsonMatch) {
     throw new Error("LLM response did not contain a JSON object");
   }
-  return JSON.parse(jsonMatch[0]) as T;
+  try {
+    return JSON.parse(jsonMatch[0]) as T;
+  } catch (e) {
+    // Some models put raw line breaks or tabs inside JSON strings (common
+    // with long Markdown answers); escape them and try once more.
+    const repaired = escapeControlCharsInStrings(jsonMatch[0]);
+    if (repaired === jsonMatch[0]) throw e;
+    return JSON.parse(repaired) as T;
+  }
+}
+
+/** Escapes raw newlines, carriage returns and tabs inside JSON string literals. */
+export function escapeControlCharsInStrings(json: string): string {
+  let out = "";
+  let inString = false;
+  let escaped = false;
+  for (const ch of json) {
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (ch === "\\") {
+        escaped = true;
+      } else if (ch === '"') {
+        inString = false;
+      } else if (ch === "\n") {
+        out += "\\n";
+        continue;
+      } else if (ch === "\r") {
+        out += "\\r";
+        continue;
+      } else if (ch === "\t") {
+        out += "\\t";
+        continue;
+      }
+    } else if (ch === '"') {
+      inString = true;
+    }
+    out += ch;
+  }
+  return out;
 }
 
 async function chatJSONAnthropic<T>(

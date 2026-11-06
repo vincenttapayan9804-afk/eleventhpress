@@ -2611,3 +2611,66 @@ model MediaPost {
   @@index([type, status, publishedAt])
   @@index([tenantId])
 }
+
+// ---------------------------------------------------------------------------
+// AI Research Assistant ("Ask the Corpus") — saved conversations and
+// answer feedback. Conversations are saved only for signed-in readers
+// (anonymous readers' history stays in their own browser); they are
+// deleted after RESEARCH_CHAT_RETENTION_DAYS (default 365) without
+// activity by scripts/purge-research-conversations.ts, included in the
+// account data export, and deleted on account erasure
+// (src/lib/account-privacy.ts). userId is a plain column (no relation) so
+// the User model and its many relations stay untouched.
+// ---------------------------------------------------------------------------
+model ResearchConversation {
+  id        String            @id @default(cuid())
+  userId    String
+  title     String
+  pinned    Boolean           @default(false)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  messages  ResearchMessage[]
+
+  @@index([userId, updatedAt])
+}
+
+model ResearchMessage {
+  id             String               @id @default(cuid())
+  conversationId String
+  // "user" | "assistant"
+  role           String
+  content        String
+  // JSON: citations, sources, evidence check, evidence ids, follow-ups.
+  payload        String?
+  // "Save important responses".
+  saved          Boolean              @default(false)
+  createdAt      DateTime             @default(now())
+  conversation   ResearchConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@index([saved])
+}
+
+// Helpful / Not helpful votes and "Report issue" flags on assistant answers.
+// Kept for RESEARCH_FEEDBACK_RETENTION_DAYS (default 730). No IP address is
+// stored; userId is set only when the reader was signed in.
+model ResearchFeedback {
+  id         String   @id @default(cuid())
+  userId     String?
+  // "HELPFUL" | "NOT_HELPFUL" | "ISSUE"
+  rating     String
+  // For ISSUE: "INACCURATE" | "WRONG_CITATION" | "MISSING_INFORMATION" | "WRONG_ARTICLE" | "OTHER"
+  issueType  String?
+  comment    String?
+  question   String
+  answer     String
+  // JSON array of cited article ids.
+  articleIds String?
+  model      String?
+  // For ISSUE: "OPEN" | "RESOLVED"
+  status     String   @default("OPEN")
+  createdAt  DateTime @default(now())
+
+  @@index([rating, createdAt])
+  @@index([createdAt])
+}
