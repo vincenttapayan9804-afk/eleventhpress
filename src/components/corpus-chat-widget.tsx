@@ -18,7 +18,7 @@
 
 import { useState } from "react";
 import dynamic from "next/dynamic";
-import { Sparkles } from "lucide-react";
+import { ResearchMascot } from "@/components/research-assistant/mascot";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/lib/store";
 
@@ -40,10 +40,12 @@ export function CorpusChatWidget() {
           setEverOpened(true);
           setOpen(true);
         }}
-        className="btn-royal-glow fixed bottom-5 right-5 z-30 flex h-12 items-center gap-2 rounded-full px-5 shadow-lg"
+        className="group btn-royal-glow fixed bottom-5 right-5 z-30 flex h-12 items-center gap-2 overflow-visible rounded-full pl-2 pr-2 shadow-lg sm:pr-5"
         aria-label="Ask the Corpus"
       >
-        <Sparkles className="h-4 w-4" />
+        <span className="-mt-3 flex h-10 w-9 items-end justify-center">
+          <ResearchMascot size={36} />
+        </span>
         <span className="hidden text-sm font-medium sm:inline">Ask the Corpus</span>
       </Button>
 

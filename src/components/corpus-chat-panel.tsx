@@ -47,11 +47,9 @@ import {
   Quote,
   Search,
   ShieldCheck,
-  Sparkles,
   Trash2,
   X,
 } from "lucide-react";
-import { ThinkingOrb } from "thinking-orbs";
 import { toast } from "sonner";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
@@ -78,6 +76,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { apiFetch } from "@/lib/api-client";
 import { useApp } from "@/lib/store";
 import { useTenantBranding } from "@/lib/tenant-branding-context";
+import { JOURNAL_IDENTITY } from "@/lib/site";
+import { ResearchMascot } from "@/components/research-assistant/mascot";
 import { cn } from "@/lib/utils";
 import { AnswerView, type AnswerActions } from "@/components/research-assistant/answer-view";
 import { EvidencePanel, type EvidenceSelection } from "@/components/research-assistant/evidence-panel";
@@ -142,7 +142,7 @@ function Thinking() {
   }, []);
   return (
     <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-card/80 px-4 py-3.5 shadow-sm" role="status" aria-live="polite">
-      <ThinkingOrb state="searching" size={20} aria-label="Searching the journal" />
+      <ResearchMascot state="thinking" size={40} title="The Research Assistant is searching the journal" />
       <div>
         <p className="text-sm font-medium text-foreground">{THINKING_STEPS[step]}</p>
         <div className="mt-1.5 flex gap-1" aria-hidden="true">
@@ -399,7 +399,9 @@ export function CorpusChatPanel({ open, onOpenChange }: { open: boolean; onOpenC
     el.style.height = `${Math.min(el.scrollHeight, 220)}px`;
   }, [input]);
 
-  const journalName = journal?.name ?? branding.siteName ?? "Eleventh Press International Publishing";
+  const journalName = journal?.name ?? branding.siteName ?? JOURNAL_IDENTITY.name;
+  // The publishing house shown in full at the top of the sidebar.
+  const publisherName = journal?.publisher || branding.siteName || JOURNAL_IDENTITY.name;
   const selectedMessage = messages.find((m) => m.id === selection?.messageId && m.role === "assistant") ?? [...messages].reverse().find((m) => m.role === "assistant");
   const evidenceData = selectedMessage?.data ?? null;
   const lastMessage = messages[messages.length - 1];
@@ -642,17 +644,20 @@ export function CorpusChatPanel({ open, onOpenChange }: { open: boolean; onOpenC
   const sidebar = (
     <div className="flex h-full flex-col bg-[var(--royal-900)] text-white dark:bg-[oklch(0.17_0.04_292)]">
       <div className="border-b border-white/10 px-4 pb-4 pt-5">
-        <div className="flex items-center gap-3 pr-7 lg:pr-0">
-          <BrandMark logoUrl={branding.logoUrl} name={journalName} />
-          <div className="min-w-0">
-            <p className="truncate font-display text-[0.92rem] font-semibold leading-tight">{journalName}</p>
-            <p className="truncate text-[0.64rem] uppercase tracking-[0.16em] text-[var(--gold-300)]">
+        <div className="flex items-start gap-3 pr-7 lg:pr-0">
+          <BrandMark logoUrl={branding.logoUrl} name={publisherName} />
+          <div className="min-w-0 flex-1">
+            <p className="font-display text-[0.95rem] font-semibold leading-snug [overflow-wrap:anywhere]">{publisherName}</p>
+            {journalName !== publisherName && <p className="mt-1 text-[0.7rem] leading-snug text-white/70 [overflow-wrap:anywhere]">{journalName}</p>}
+            <p className="mt-1 text-[0.64rem] uppercase tracking-[0.16em] text-[var(--gold-300)]">
               {journal?.issn ? `ISSN ${journal.issn}` : branding.tagline || "Peer-reviewed journal"}
             </p>
           </div>
         </div>
-        <div className="mt-4 flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.06] px-3 py-2">
-          <Sparkles className="h-4 w-4 text-[var(--gold-300)]" aria-hidden="true" />
+        <div className="group mt-4 flex items-center gap-2.5 rounded-lg border border-white/10 bg-white/[0.06] px-3 py-2">
+          <span className="-my-1 flex h-11 w-10 items-end justify-center rounded-md bg-gradient-to-b from-[#bdf0ea]/25 to-transparent">
+            <ResearchMascot size={36} state={busy ? "thinking" : "idle"} />
+          </span>
           <div className="min-w-0">
             <p className="text-[0.78rem] font-semibold leading-tight">AI Research Assistant</p>
             <p className="truncate text-[0.66rem] text-white/60">
@@ -1003,6 +1008,12 @@ export function CorpusChatPanel({ open, onOpenChange }: { open: boolean; onOpenC
 
                     {messages.length === 0 && !busy ? (
                       <div className="pt-4 sm:pt-10">
+                        <div className="group float-right ml-4 hidden sm:block" aria-hidden="true">
+                          <ResearchMascot size={104} />
+                        </div>
+                        <div className="group mb-3 sm:hidden" aria-hidden="true">
+                          <ResearchMascot size={64} />
+                        </div>
                         <p className="text-[0.66rem] font-semibold uppercase tracking-[0.22em] text-[var(--gold-600)]">AI Research Assistant</p>
                         <h1 className="mt-2 font-display text-[1.8rem] font-semibold leading-tight tracking-tight text-foreground sm:text-[2.2rem]">
                           Ask the journal&apos;s published research.
