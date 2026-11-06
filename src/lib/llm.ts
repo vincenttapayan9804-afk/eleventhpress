@@ -11,8 +11,9 @@
  *     by default (when OPENROUTER_API_KEY is set), or any other compatible
  *     server (Groq, Cerebras, a self-hosted Ollama/vLLM) via LLM_BASE_URL. OpenRouter hosts genuinely
  *     open-weight models (Zhipu's GLM, Moonshot's Kimi, DeepSeek, Qwen,
- *     Llama, ...) with ":free"-suffixed IDs that cost $0 to call, so this
- *     tier works with no paid key at all — see DEFAULT_OSS_MODEL below.
+ *     Llama, ...) at $0 via ":free"-suffixed IDs and the "openrouter/free"
+ *     router, so this tier works with no paid key at all — see
+ *     DEFAULT_OSS_MODEL below.
  *
  * chatJSON() tries tier 1, then tier 2, in order by default (priority:
  * "quality-first"), and only throws once both are unavailable or have
@@ -56,12 +57,15 @@ const ANTHROPIC_MODEL = "claude-sonnet-5";
 //   LLM_VISION_MODEL  vision model ID for alt text (falls back to
 //                     OPENROUTER_VISION_MODEL)
 //
-// On OpenRouter, any model ID ending in ":free" is $0 to call. GLM-4.5-Air
-// (Zhipu AI, open-weight/MIT) is the default; alternatives include
-// "deepseek/deepseek-chat-v3.1:free", "qwen/qwen3-235b-a22b:free" and
-// "meta-llama/llama-3.3-70b-instruct:free".
+// On OpenRouter, any model ID ending in ":free" is $0 to call, but the free
+// catalogue changes often and a retired ID fails with a 404 ("This model is
+// unavailable for free"). The default is therefore OpenRouter's Free Models
+// Router, "openrouter/free", which picks whichever free model is currently
+// available and supports the request ($0, documented at
+// openrouter.ai/docs/guides/routing/routers/free-router). Set
+// OPENROUTER_MODEL (or LLM_MODEL) to pin one specific ":free" model instead.
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
-const DEFAULT_OSS_MODEL = "z-ai/glm-4.5-air:free";
+const DEFAULT_OSS_MODEL = "openrouter/free";
 
 function envValue(name: string): string | undefined {
   const v = process.env[name]?.trim();
@@ -386,14 +390,14 @@ export interface DescribeImageResult {
   provider: "anthropic" | "oss-free";
 }
 
-// A free, vision-capable OpenRouter model for the second alt-text tier —
-// same ":free"-suffix, $0-to-call convention as the chat default above.
-// Override via LLM_VISION_MODEL (or OPENROUTER_VISION_MODEL) without a code
-// change, e.g. "meta-llama/llama-3.2-11b-vision-instruct:free", or a vision
-// model on whatever server LLM_BASE_URL points at.
-const DEFAULT_OSS_VISION_MODEL = "qwen/qwen2.5-vl-32b-instruct:free";
+// The free vision tier for alt text. "openrouter/free" also filters for
+// models that accept image input, so the same router serves both. Override
+// via LLM_VISION_MODEL (or OPENROUTER_VISION_MODEL) to pin a specific
+// ":free" vision model, or a vision model on whatever server LLM_BASE_URL
+// points at.
+const DEFAULT_OSS_VISION_MODEL = "openrouter/free";
 
-function compatVisionModel(): string {
+export function compatVisionModel(): string {
   const configured = envValue("LLM_VISION_MODEL") ?? envValue("OPENROUTER_VISION_MODEL");
   if (configured) return configured;
   if (compatIsOpenRouter()) return DEFAULT_OSS_VISION_MODEL;

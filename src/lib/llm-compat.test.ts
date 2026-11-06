@@ -63,7 +63,8 @@ describe("OpenAI-compatible tier configuration", () => {
   test("defaults to OpenRouter and its free default model", async () => {
     const llm = await load();
     expect(llm.compatBaseUrl()).toBe("https://openrouter.ai/api/v1");
-    expect(llm.compatModel()).toBe("z-ai/glm-4.5-air:free");
+    expect(llm.compatModel()).toBe("openrouter/free");
+    expect(llm.compatVisionModel()).toBe("openrouter/free");
   });
 
   test("is unavailable with nothing configured; blank values count as unset", async () => {
@@ -147,7 +148,7 @@ describe("chatJSON over the OpenAI-compatible tier", () => {
 
     expect(result.data.answer).toBe("free");
     expect(calls[0].url).toBe("https://openrouter.ai/api/v1/chat/completions");
-    expect(calls[0].body.model).toBe("z-ai/glm-4.5-air:free");
+    expect(calls[0].body.model).toBe("openrouter/free");
   });
 
   test("an upstream failure names the host, and no provider at all says how to configure one", async () => {
