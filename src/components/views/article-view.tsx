@@ -1667,7 +1667,14 @@ function ArticleChatPanel({ articleId, articleTitle }: { articleId: string; arti
         setMessages((prev) => prev.slice(0, -1));
       }
     } catch (e: any) {
-      toast.error(e?.message || "Failed to send message");
+      // 4xx messages (rate limit, question too long) are written for
+      // readers; a 5xx or network failure gets the friendly banner instead.
+      const status: number | undefined = e?.status;
+      if (status && status >= 400 && status < 500 && e?.message) {
+        toast.error(e.message);
+      } else {
+        setUnavailable("AI chat is temporarily unavailable for this article — please try again in a few minutes.");
+      }
       setMessages((prev) => prev.slice(0, -1));
     } finally {
       setSending(false);

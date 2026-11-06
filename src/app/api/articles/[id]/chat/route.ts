@@ -91,9 +91,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   if (!anyLLMAvailable()) {
+    console.warn("[article-chat] no LLM provider configured (set ANTHROPIC_API_KEY, OPENROUTER_API_KEY, or LLM_BASE_URL/LLM_API_KEY)");
     return NextResponse.json({
       mode: "unavailable",
-      message: "AI chat is not configured for this deployment (no ANTHROPIC_API_KEY or OPENROUTER_API_KEY set).",
+      message: "AI chat is temporarily unavailable for this article — please try again in a few minutes.",
     });
   }
 

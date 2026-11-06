@@ -7,11 +7,12 @@
  *
  *  1. Anthropic Messages API (@anthropic-ai/sdk) — primary, when
  *     ANTHROPIC_API_KEY is set.
- *  2. A free, open-weight model over OpenRouter's OpenAI-compatible API —
- *     when OPENROUTER_API_KEY is set. OpenRouter hosts genuinely
+ *  2. A free, open-weight model over an OpenAI-compatible API — OpenRouter
+ *     by default (when OPENROUTER_API_KEY is set), or any other compatible
+ *     server (Groq, Cerebras, a self-hosted Ollama/vLLM) via LLM_BASE_URL. OpenRouter hosts genuinely
  *     open-weight models (Zhipu's GLM, Moonshot's Kimi, DeepSeek, Qwen,
  *     Llama, ...) with ":free"-suffixed IDs that cost $0 to call, so this
- *     tier works with no paid key at all — see OSS_MODEL below.
+ *     tier works with no paid key at all — see DEFAULT_OSS_MODEL below.
  *
  * chatJSON() tries tier 1, then tier 2, in order by default (priority:
  * "quality-first"), and only throws once both are unavailable or have
@@ -33,13 +34,89 @@ import Anthropic from "@anthropic-ai/sdk";
 
 const ANTHROPIC_MODEL = "claude-sonnet-5";
 
-// Any OpenRouter model ID ending in ":free" is $0 to call. GLM-4.5-Air
-// (Zhipu AI, open-weight/MIT) is the default; override via OPENROUTER_MODEL
-// to point at a different free open-weight model without a code change —
-// e.g. "moonshotai/kimi-k2:free", "deepseek/deepseek-chat-v3.1:free",
-// "qwen/qwen3-235b-a22b:free", "meta-llama/llama-3.3-70b-instruct:free".
-const OSS_MODEL = process.env.OPENROUTER_MODEL || "z-ai/glm-4.5-air:free";
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+// ── The OpenAI-compatible tier ("oss-free") ─────────────────────────────
+//
+// Tier 2 speaks the OpenAI chat-completions protocol, which almost every
+// open-model host implements. By default it points at OpenRouter's free
+// ":free" models, but LLM_BASE_URL moves it to any other compatible server
+// without a code change:
+//
+//   OpenRouter (default)  https://openrouter.ai/api/v1
+//   Groq                  https://api.groq.com/openai/v1
+//   Cerebras              https://api.cerebras.ai/v1
+//   Ollama (self-hosted)  http://your-server:11434/v1
+//   vLLM (self-hosted)    http://your-server:8000/v1
+//
+// Settings, all read at call time:
+//   LLM_BASE_URL      base URL (without /chat/completions); default OpenRouter
+//   LLM_API_KEY       bearer key for that server (falls back to
+//                     OPENROUTER_API_KEY; optional for a self-hosted server)
+//   LLM_MODEL         chat model ID (falls back to OPENROUTER_MODEL; required
+//                     when LLM_BASE_URL is not OpenRouter)
+//   LLM_VISION_MODEL  vision model ID for alt text (falls back to
+//                     OPENROUTER_VISION_MODEL)
+//
+// On OpenRouter, any model ID ending in ":free" is $0 to call. GLM-4.5-Air
+// (Zhipu AI, open-weight/MIT) is the default; alternatives include
+// "deepseek/deepseek-chat-v3.1:free", "qwen/qwen3-235b-a22b:free" and
+// "meta-llama/llama-3.3-70b-instruct:free".
+const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+const DEFAULT_OSS_MODEL = "z-ai/glm-4.5-air:free";
+
+function envValue(name: string): string | undefined {
+  const v = process.env[name]?.trim();
+  return v ? v : undefined;
+}
+
+/** Base URL of the OpenAI-compatible tier, with no trailing slash and no
+ * /chat/completions suffix (either is tolerated in the setting). */
+export function compatBaseUrl(): string {
+  const raw = envValue("LLM_BASE_URL") ?? OPENROUTER_BASE_URL;
+  return raw.replace(/\/+$/, "").replace(/\/chat\/completions$/, "");
+}
+
+function compatIsOpenRouter(): boolean {
+  try {
+    return new URL(compatBaseUrl()).hostname.endsWith("openrouter.ai");
+  } catch {
+    return false;
+  }
+}
+
+function compatApiKey(): string | undefined {
+  return envValue("LLM_API_KEY") ?? envValue("OPENROUTER_API_KEY");
+}
+
+/** Chat model for the OpenAI-compatible tier. The ":free" default only
+ * exists on OpenRouter, so another server needs LLM_MODEL set. */
+export function compatModel(): string {
+  const configured = envValue("LLM_MODEL") ?? envValue("OPENROUTER_MODEL");
+  if (configured) return configured;
+  if (compatIsOpenRouter()) return DEFAULT_OSS_MODEL;
+  throw new Error(`LLM_MODEL must be set when LLM_BASE_URL points at a server other than OpenRouter (${compatBaseUrl()})`);
+}
+
+/** Request headers for the OpenAI-compatible tier. Exported for tests. */
+export function compatHeaders(): Record<string, string> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const key = compatApiKey();
+  if (key) headers.Authorization = `Bearer ${key}`;
+  if (compatIsOpenRouter()) {
+    // OpenRouter's optional app-attribution headers; other servers don't use them.
+    headers["HTTP-Referer"] = process.env.NEXT_PUBLIC_APP_URL || "https://eleventhpress.org";
+    headers["X-Title"] = "Eleventh Press";
+  }
+  return headers;
+}
+
+/** Short host label for error messages, e.g. "api.groq.com". */
+function compatLabel(): string {
+  try {
+    return new URL(compatBaseUrl()).host;
+  } catch {
+    return "LLM_BASE_URL";
+  }
+}
 
 // A third, genuinely airgapped tier: a small open-weight instruct model run
 // in-process via @xenova/transformers (same runtime this codebase already
@@ -93,16 +170,21 @@ export function isLLMAvailable(): boolean {
   return !!process.env.ANTHROPIC_API_KEY;
 }
 
-/** True if the free open-weight (OpenRouter) tier is configured. */
+/**
+ * True if the OpenAI-compatible tier is configured: a key for it
+ * (LLM_API_KEY or OPENROUTER_API_KEY), or a custom LLM_BASE_URL, since a
+ * self-hosted server such as Ollama may need no key at all.
+ */
 export function ossLLMAvailable(): boolean {
-  return !!process.env.OPENROUTER_API_KEY;
+  return !!compatApiKey() || !!envValue("LLM_BASE_URL");
 }
 
 /**
  * True if chatJSON() has any real tier to try at all. Callers that gate a
  * feature on "is there some real AI available" (as opposed to
  * specifically Anthropic) should check this instead of isLLMAvailable(),
- * so the feature also lights up with just a free OPENROUTER_API_KEY.
+ * so the feature also lights up with just a free OPENROUTER_API_KEY (or
+ * any LLM_BASE_URL server).
  */
 export function anyLLMAvailable(): boolean {
   return isAirgappedMode() || isLLMAvailable() || ossLLMAvailable();
@@ -163,16 +245,12 @@ async function chatJSONOss<T>(
   userPrompt: string,
   maxTokens: number
 ): Promise<ChatJSONResult<T>> {
-  const res = await fetch(OPENROUTER_URL, {
+  const model = compatModel();
+  const res = await fetch(`${compatBaseUrl()}/chat/completions`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-      "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://eleventhpress.org",
-      "X-Title": "Eleventh Press",
-    },
+    headers: compatHeaders(),
     body: JSON.stringify({
-      model: OSS_MODEL,
+      model,
       max_tokens: maxTokens,
       messages: [
         { role: "system", content: systemPrompt },
@@ -183,7 +261,7 @@ async function chatJSONOss<T>(
 
   if (!res.ok) {
     const body = await res.text().catch(() => res.statusText);
-    throw new Error(`OpenRouter request failed (${res.status}): ${body}`);
+    throw new Error(`LLM request to ${compatLabel()} failed (${res.status}): ${body}`);
   }
 
   const json = await res.json();
@@ -192,7 +270,7 @@ async function chatJSONOss<T>(
     throw new Error("OSS LLM response contained no text content");
   }
 
-  return { data: extractJSON<T>(text), rawResponse: text, model: OSS_MODEL, provider: "oss-free" };
+  return { data: extractJSON<T>(text), rawResponse: text, model, provider: "oss-free" };
 }
 
 async function chatJSONLocal<T>(
@@ -299,7 +377,7 @@ export async function chatJSON<T = any>(
   }
 
   if (anthropicError) throw anthropicError;
-  throw new Error("No LLM provider configured (set ANTHROPIC_API_KEY and/or OPENROUTER_API_KEY)");
+  throw new Error("No LLM provider configured (set ANTHROPIC_API_KEY, OPENROUTER_API_KEY, or LLM_BASE_URL/LLM_API_KEY)");
 }
 
 export interface DescribeImageResult {
@@ -309,11 +387,18 @@ export interface DescribeImageResult {
 }
 
 // A free, vision-capable OpenRouter model for the second alt-text tier —
-// same ":free"-suffix, $0-to-call convention as OSS_MODEL above. Override
-// via OPENROUTER_VISION_MODEL without a code change if a better free
-// vision model becomes available, e.g. "meta-llama/llama-3.2-11b-vision-
-// instruct:free" or another vision-capable ":free" listing.
-const OSS_VISION_MODEL = process.env.OPENROUTER_VISION_MODEL || "qwen/qwen2.5-vl-32b-instruct:free";
+// same ":free"-suffix, $0-to-call convention as the chat default above.
+// Override via LLM_VISION_MODEL (or OPENROUTER_VISION_MODEL) without a code
+// change, e.g. "meta-llama/llama-3.2-11b-vision-instruct:free", or a vision
+// model on whatever server LLM_BASE_URL points at.
+const DEFAULT_OSS_VISION_MODEL = "qwen/qwen2.5-vl-32b-instruct:free";
+
+function compatVisionModel(): string {
+  const configured = envValue("LLM_VISION_MODEL") ?? envValue("OPENROUTER_VISION_MODEL");
+  if (configured) return configured;
+  if (compatIsOpenRouter()) return DEFAULT_OSS_VISION_MODEL;
+  throw new Error(`LLM_VISION_MODEL must be set when LLM_BASE_URL points at a server other than OpenRouter (${compatBaseUrl()})`);
+}
 
 const ALT_TEXT_SYSTEM_PROMPT =
   "You write concise, descriptive, screen-reader-appropriate alt text for figures in academic articles. Describe what the image actually shows — data trends, diagram structure, photographed subject — in one or two plain sentences. Never speculate beyond what's visible. Do not begin with \"Image of\" or \"Figure showing\".";
@@ -359,16 +444,12 @@ async function describeImageOss(
   mediaType: "image/png" | "image/jpeg" | "image/webp" | "image/gif",
   promptContext: string
 ): Promise<DescribeImageResult> {
-  const res = await fetch(OPENROUTER_URL, {
+  const model = compatVisionModel();
+  const res = await fetch(`${compatBaseUrl()}/chat/completions`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-      "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://eleventhpress.org",
-      "X-Title": "Eleventh Press",
-    },
+    headers: compatHeaders(),
     body: JSON.stringify({
-      model: OSS_VISION_MODEL,
+      model,
       max_tokens: 300,
       messages: [
         { role: "system", content: ALT_TEXT_SYSTEM_PROMPT },
@@ -385,7 +466,7 @@ async function describeImageOss(
 
   if (!res.ok) {
     const body = await res.text().catch(() => res.statusText);
-    throw new Error(`OpenRouter vision request failed (${res.status}): ${body}`);
+    throw new Error(`LLM vision request to ${compatLabel()} failed (${res.status}): ${body}`);
   }
 
   const json = await res.json();
@@ -394,7 +475,7 @@ async function describeImageOss(
     throw new Error("OSS vision model response contained no text content");
   }
 
-  return { altText: text, model: OSS_VISION_MODEL, provider: "oss-free" };
+  return { altText: text, model, provider: "oss-free" };
 }
 
 /**
@@ -436,5 +517,5 @@ export async function describeImage(
   }
 
   if (anthropicError) throw anthropicError;
-  throw new Error("No vision-capable LLM provider configured (set ANTHROPIC_API_KEY and/or OPENROUTER_API_KEY)");
+  throw new Error("No vision-capable LLM provider configured (set ANTHROPIC_API_KEY, OPENROUTER_API_KEY, or LLM_BASE_URL/LLM_API_KEY)");
 }
