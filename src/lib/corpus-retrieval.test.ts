@@ -178,3 +178,36 @@ describe("Ask the Corpus retrieval", () => {
     expect(rank("results", 2)).toHaveLength(2);
   });
 });
+
+describe("conversation context and comparisons", () => {
+  function rankWith(question: string, options: Parameters<ChunkModule["rankCorpusChunks"]>[5], limit = 8) {
+    return rankCorpusChunks(CORPUS, question, hashEmbedding(question, DIMS), "hash-fallback", limit, options);
+  }
+
+  test("a follow-up that doesn't name a paper stays on the paper being discussed", () => {
+    const results = rankWith("What were its limitations?", { contextArticleIds: ["mangrove"] });
+    expect(results[0].articleId).toBe("mangrove");
+    expect(results[0].chunkIndex).toBe(0);
+    expect(results.filter((r) => r.articleId === "mangrove").map((r) => r.chunkIndex)).toContain(3);
+    expect(results[0].focused).toBe(true);
+  });
+
+  test("a paper named in the question wins over the conversation's earlier paper", () => {
+    const results = rankWith("What were the results of the early sepsis detection study?", { contextArticleIds: ["mangrove"] });
+    expect(results[0].articleId).toBe("sepsis");
+    expect(results.some((r) => r.articleId === "mangrove" && r.focused)).toBe(false);
+  });
+
+  test("a comparison of several papers includes each one's opening passage and caps each paper's share", () => {
+    const results = rankWith("Compare the results and limitations", { contextArticleIds: ["mangrove", "sepsis", "teachers"], maxFocused: 4, maxPerArticle: 2 }, 9);
+    for (const id of ["mangrove", "sepsis", "teachers"]) {
+      expect(results.some((r) => r.articleId === id && r.chunkIndex === 0)).toBe(true);
+      expect(results.filter((r) => r.articleId === id).length).toBeLessThanOrEqual(2);
+    }
+  });
+
+  test("unknown context ids are ignored", () => {
+    const results = rankWith("Give me an overview of what is being published", { contextArticleIds: ["not-an-article"] });
+    expect(results.map((r) => r.articleId)).toEqual(["teachers", "sepsis", "mangrove"]);
+  });
+});

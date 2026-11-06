@@ -363,7 +363,8 @@ const FOCUS_BONUS = 0.05;
  */
 export async function retrieveChunksAcrossCorpus(
   query: string,
-  limit = 8
+  limit = 8,
+  options: CorpusRankOptions = {}
 ): Promise<CorpusRetrievedChunk[]> {
   const rows = await db.articleChunk.findMany({
     where: { article: { status: "PUBLISHED" } },
@@ -372,7 +373,46 @@ export async function retrieveChunksAcrossCorpus(
   });
   if (rows.length === 0) return [];
   const { vector, mode } = await generateChunkEmbedding(query);
-  return rankCorpusChunks(rows, query, vector, mode, limit);
+  return rankCorpusChunks(rows, query, vector, mode, limit, options);
+}
+
+/**
+ * Loads specific passages by id, in the order given, for regenerating an
+ * answer from exactly the evidence an earlier answer used. Passages of
+ * articles that are no longer published are dropped.
+ */
+export async function loadCorpusChunksByIds(ids: string[]): Promise<CorpusRetrievedChunk[]> {
+  if (ids.length === 0) return [];
+  const rows = await db.articleChunk.findMany({
+    where: { id: { in: ids }, article: { status: "PUBLISHED" } },
+    include: { article: { select: { title: true } } },
+  });
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  return ids
+    .map((id) => byId.get(id))
+    .filter((r): r is NonNullable<typeof r> => !!r)
+    .map((r) => ({
+      chunkId: r.id,
+      text: r.text,
+      chunkIndex: r.chunkIndex,
+      score: 0,
+      matchType: "lexical" as const,
+      articleId: r.articleId,
+      articleTitle: r.article.title,
+    }));
+}
+
+/** Optional tuning for rankCorpusChunks(). */
+export interface CorpusRankOptions {
+  /** Articles the conversation is about (a follow-up such as "what were
+   * its limitations?"). Used as the focus when the question doesn't name
+   * an article itself. */
+  contextArticleIds?: string[];
+  /** How many focused articles get their opening passage included (default 2). */
+  maxFocused?: number;
+  /** Passage cap per article (default 3). With several focused articles
+   * (a comparison) it applies to them too, so each gets a fair share. */
+  maxPerArticle?: number;
 }
 
 /** A stored passage plus the fields of its article that ranking uses. */
@@ -397,9 +437,12 @@ export function rankCorpusChunks(
   query: string,
   queryVector: number[],
   queryMode: EmbeddingMode,
-  limit = 8
+  limit = 8,
+  options: CorpusRankOptions = {}
 ): CorpusRetrievedChunk[] {
   if (rows.length === 0) return [];
+  const maxFocused = options.maxFocused ?? 2;
+  const maxPerArticle = options.maxPerArticle ?? MAX_PASSAGES_PER_ARTICLE;
   const queryTokens = tokenize(query);
   const querySet = new Set(queryTokens);
 
@@ -419,6 +462,13 @@ export function rankCorpusChunks(
     const m = titleMatch(queryTokens, r.article.title, titleDf);
     const byAuthor = [...authorNameTokens(r.article.authors)].some((t) => querySet.has(t));
     if (isFocusedMatch(m) || byAuthor) focus.set(r.articleId, m.coverage + (byAuthor ? 0.5 : 0));
+  }
+  // A follow-up that doesn't name an article is about the articles the
+  // conversation was already discussing, in the order given.
+  if (focus.size === 0 && options.contextArticleIds?.length) {
+    options.contextArticleIds.forEach((id, i) => {
+      if (articleMeta.has(id) && !focus.has(id)) focus.set(id, 1 - i * 0.05);
+    });
   }
 
   const index = new Bm25Index(
@@ -456,7 +506,8 @@ export function rankCorpusChunks(
   };
 
   // 1. The opening passage (title + abstract) of each named article, best match first.
-  const focusedIds = [...focus.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => id).slice(0, 2);
+  const focusedIds = [...focus.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => id).slice(0, maxFocused);
+  const capFocused = focusedIds.length > 2;
   for (const id of focusedIds) {
     const opening = rows.findIndex((r) => r.articleId === id);
     if (opening !== -1) take(opening, "lexical");
@@ -475,7 +526,7 @@ export function rankCorpusChunks(
   for (const i of eligible) {
     if (results.length >= limit) break;
     const id = rows[i].articleId;
-    if (!focus.has(id) && (perArticle.get(id) ?? 0) >= MAX_PASSAGES_PER_ARTICLE) continue;
+    if ((capFocused || !focus.has(id)) && (perArticle.get(id) ?? 0) >= maxPerArticle) continue;
     take(i);
   }
 

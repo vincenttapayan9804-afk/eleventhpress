@@ -162,3 +162,9 @@ describe("chatJSON over the OpenAI-compatible tier", () => {
     await expect(llm.chatJSON("sys", "user")).rejects.toThrow(/LLM_BASE_URL/);
   });
 });
+
+test("JSON replies with raw line breaks inside strings are repaired", async () => {
+  const { escapeControlCharsInStrings } = await load();
+  const raw = '{"answer": "Line one\nLine two\twith tab", "n": 1}';
+  expect(JSON.parse(escapeControlCharsInStrings(raw))).toEqual({ answer: "Line one\nLine two\twith tab", n: 1 });
+});

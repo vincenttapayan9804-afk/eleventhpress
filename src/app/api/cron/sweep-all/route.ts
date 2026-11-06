@@ -6,6 +6,7 @@ import { sweepStuckMagazineIssueProductionJobs } from "@/lib/magazine-production
 import { sweepStuckIntegrityChecks } from "@/lib/ithenticate";
 import { sweepStuckNarrationJobs } from "@/lib/kokoro-tts";
 import { sweepStuckTranscriptionJobs } from "@/lib/transcription";
+import { purgeExpiredResearchData } from "@/lib/research-assistant";
 
 /**
  * GET /api/cron/sweep-all
@@ -36,6 +37,9 @@ const SWEEPS = [
   { name: "ithenticate", run: sweepStuckIntegrityChecks },
   { name: "narration", run: sweepStuckNarrationJobs },
   { name: "transcription", run: sweepStuckTranscriptionJobs },
+  // Not a stuck-job sweep: the Research Assistant's retention policy
+  // (conversations inactive past RESEARCH_CHAT_RETENTION_DAYS, old feedback).
+  { name: "researchRetention", run: () => purgeExpiredResearchData() },
 ] as const;
 
 export async function GET(req: NextRequest) {

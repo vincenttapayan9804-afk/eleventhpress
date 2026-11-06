@@ -41,7 +41,7 @@ export async function exportUserAccountData(userId: string) {
   });
   if (!user) return null;
 
-  const [submissions, reviews, invoices, notifications, certificates, authorResponses] = await Promise.all([
+  const [submissions, reviews, invoices, notifications, certificates, authorResponses, researchConversations, researchFeedback] = await Promise.all([
     db.article.findMany({
       where: { correspondingAuthorId: userId },
       select: { id: true, title: true, doi: true, status: true, submittedAt: true, publishedAt: true },
@@ -66,6 +66,23 @@ export async function exportUserAccountData(userId: string) {
       where: { authorId: userId },
       select: { id: true, articleId: true, content: true, createdAt: true },
     }),
+    // AI Research Assistant conversations saved to the account.
+    db.researchConversation.findMany({
+      where: { userId },
+      orderBy: { createdAt: "asc" },
+      select: {
+        id: true,
+        title: true,
+        pinned: true,
+        createdAt: true,
+        updatedAt: true,
+        messages: { orderBy: { createdAt: "asc" }, select: { role: true, content: true, saved: true, createdAt: true } },
+      },
+    }),
+    db.researchFeedback.findMany({
+      where: { userId },
+      select: { id: true, rating: true, issueType: true, comment: true, question: true, createdAt: true },
+    }),
   ]);
 
   return {
@@ -77,6 +94,8 @@ export async function exportUserAccountData(userId: string) {
     notifications,
     certificates,
     authorResponses,
+    researchConversations,
+    researchFeedback,
   };
 }
 
@@ -131,6 +150,10 @@ export async function anonymizeUserAccount(userId: string): Promise<AnonymizeRes
     }),
     // Purely personal — nothing else references a Notification row.
     db.notification.deleteMany({ where: { userId } }),
+    // Research Assistant conversations are personal too (messages cascade);
+    // feedback on answers is kept for quality review but unlinked.
+    db.researchConversation.deleteMany({ where: { userId } }),
+    db.researchFeedback.updateMany({ where: { userId }, data: { userId: null } }),
   ]);
 
   return { ok: true };

@@ -35,6 +35,8 @@ let retrievalFailure: Error | null = null;
 let chatReplies: unknown[] = [];
 let chatCalls: { system: string; user: string; opts: any }[] = [];
 let retrievalQueries: string[] = [];
+let retrievalCalls: { query: string; limit: unknown; options: any }[] = [];
+let evidenceLoads: string[][] = [];
 
 const RECORD = {
   id: "art_1",
@@ -76,9 +78,15 @@ mock.module("@/lib/chunk-embeddings", () => ({
   retrieveChunksAcrossCorpus: (async (...args: Parameters<ChunksModule["retrieveChunksAcrossCorpus"]>) => {
     if (!active) return realChunks.retrieveChunksAcrossCorpus(...args);
     retrievalQueries.push(String(args[0]));
+    retrievalCalls.push({ query: String(args[0]), limit: args[1], options: args[2] });
     if (retrievalFailure) throw retrievalFailure;
     return [PASSAGE];
   }) as unknown as ChunksModule["retrieveChunksAcrossCorpus"],
+  loadCorpusChunksByIds: (async (...args: Parameters<ChunksModule["loadCorpusChunksByIds"]>) => {
+    if (!active) return realChunks.loadCorpusChunksByIds(...args);
+    evidenceLoads.push(args[0]);
+    return [{ ...PASSAGE, focused: undefined }];
+  }) as unknown as ChunksModule["loadCorpusChunksByIds"],
 }));
 
 // Rate limiting is covered by its own tests; other files mock it in ways
@@ -95,7 +103,10 @@ mock.module("@/lib/db", () => ({
   db: new Proxy(realDb.db as object, {
     get(target, prop, receiver) {
       if (active && prop === "article") {
-        return { findMany: async () => [RECORD] };
+        return { findMany: async () => [RECORD], count: async () => 1 };
+      }
+      if (active && prop === "journal") {
+        return { findFirst: async () => ({ name: "Journal of Test Studies", issn: "1234-5678", publisher: "Test Press" }) };
       }
       return Reflect.get(target, prop, receiver);
     },
@@ -108,13 +119,17 @@ const RAW_ANTHROPIC_401 =
   '401 {"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key"},"request_id":"req_011Cgkqxuocu1QutkjdeChzJ"}';
 
 let ipCounter = 0;
-function ask(question = "What have authors found about climate adaptation?", history?: { role: string; content: string }[]) {
+function ask(
+  question = "What have authors found about climate adaptation?",
+  history?: { role: string; content: string; sources?: string[] }[],
+  extra: Record<string, unknown> = {}
+) {
   ipCounter += 1;
   return POST(
     new NextRequest("http://localhost/api/corpus-chat", {
       method: "POST",
       headers: { "content-type": "application/json", "x-forwarded-for": `203.0.113.${ipCounter}` },
-      body: JSON.stringify({ question, ...(history ? { history } : {}) }),
+      body: JSON.stringify({ question, ...(history ? { history } : {}), ...extra }),
     })
   );
 }
@@ -131,6 +146,8 @@ beforeEach(() => {
   chatReplies = [];
   chatCalls = [];
   retrievalQueries = [];
+  retrievalCalls = [];
+  evidenceLoads = [];
   console.info = () => {};
   console.error = () => {};
   console.warn = () => {};
@@ -177,8 +194,9 @@ describe("POST /api/corpus-chat error handling", () => {
     const body = await (await ask()).json();
     expect(body.mode).toBe("answered");
     expect(body.answer).toBe("Restoration cut damage by 30%.");
-    expect(body.citedChunks).toHaveLength(1);
-    expect(body.citedChunks[0].articleTitle).toBe(PASSAGE.articleTitle);
+    expect(body.citations).toHaveLength(1);
+    expect(body.sources).toHaveLength(1);
+    expect(body.sources[0].title).toBe(PASSAGE.articleTitle);
   });
 
   test("reader-facing validation errors are unchanged", async () => {
@@ -194,12 +212,13 @@ describe("POST /api/corpus-chat grounding", () => {
     expect(chatCalls).toHaveLength(1);
     const { system, user, opts } = chatCalls[0];
     expect(system).toContain("ONLY the journal records");
+    expect(system).toContain("Journal of Test Studies");
     expect(system).toMatch(/exactly as written/);
     expect(user).toContain('[A1] "Coastal Adaptation in Practice"');
     expect(user).toContain("Authors: Ana Rivera (University of Dhaka)");
     expect(user).toContain("Published: 2026-03-10");
     expect(user).toContain("DOI: 10.5555/ep.2026.001");
-    expect(user).toContain("[Passage 1 | A1");
+    expect(user).toContain("[P1 | A1");
     expect(user).toContain(PASSAGE.text);
     expect(user).toContain('The reader appears to be asking about: "Coastal Adaptation in Practice"');
     expect(opts.temperature).toBeLessThanOrEqual(0.2);
@@ -218,8 +237,8 @@ describe("POST /api/corpus-chat grounding", () => {
     chatReplies = [{ answer: "Ana Rivera wrote it.", usedPassages: [], grounded: true }];
     const body = await (await ask("Who wrote the coastal adaptation paper?")).json();
     expect(body.mode).toBe("answered");
-    expect(body.citedChunks).toHaveLength(1);
-    expect(body.citedChunks[0].articleTitle).toBe(PASSAGE.articleTitle);
+    expect(body.citations).toHaveLength(1);
+    expect(body.sources[0].title).toBe(PASSAGE.articleTitle);
   });
 
   test("a malformed first reply is retried once", async () => {
@@ -233,7 +252,101 @@ describe("POST /api/corpus-chat grounding", () => {
   test("invalid passage numbers from the model are ignored", async () => {
     chatReplies = [{ answer: "x", usedPassages: [1, 1, 99, "abc", -2], grounded: true }];
     const body = await (await ask()).json();
-    expect(body.citedChunks).toHaveLength(1);
+    expect(body.citations).toHaveLength(1);
+  });
+});
+
+describe("POST /api/corpus-chat citation integrity", () => {
+  test("inline [P1]/[A1] markers become numbered citations with verified sources", async () => {
+    chatReplies = [{ answer: "Restoration cut damage by 30% [P1]. It was written by Ana Rivera [A1].", usedPassages: [1], grounded: true }];
+    const body = await (await ask("Who wrote the coastal adaptation paper and what did it find?")).json();
+    expect(body.answer).toBe("Restoration cut damage by 30% [1]. It was written by Ana Rivera [2].");
+    expect(body.citations.map((c: any) => [c.n, c.kind])).toEqual([
+      [1, "passage"],
+      [2, "record"],
+    ]);
+    expect(body.sources).toHaveLength(1);
+    expect(body.sources[0].reference).toBe(
+      "Rivera, A. (2026). Coastal Adaptation in Practice. Journal of Test Studies. https://doi.org/10.5555/ep.2026.001"
+    );
+    expect(body.sources[0].authors).toEqual([{ name: "Ana Rivera", affiliation: "University of Dhaka" }]);
+    expect(body.evidence.status).toBe("verified");
+    expect(body.evidenceIds).toEqual(["c1"]);
+  });
+
+  test("citations to evidence the model wasn't given, invented DOIs and its own reference list are removed", async () => {
+    chatReplies = [
+      {
+        answer: "Damage fell by 30% [P1][P9] (doi:10.9999/fake.123).\n\n### References\nMadeUp, A. (2020). Not real.",
+        usedPassages: [1],
+        grounded: true,
+      },
+    ];
+    const body = await (await ask()).json();
+    expect(body.answer).not.toContain("References");
+    expect(body.answer).not.toContain("10.9999/fake.123");
+    expect(body.answer).toContain("[1]");
+    expect(body.citations).toHaveLength(1);
+    expect(body.evidence.status).toBe("review");
+    expect(body.evidence.warnings.join(" ")).toMatch(/citation that pointed at evidence/);
+    expect(body.evidence.warnings.join(" ")).toMatch(/DOI/);
+  });
+
+  test("the system prompt sets the knowledge boundary, academic standards and response structure", async () => {
+    await ask();
+    const { system } = chatCalls[0];
+    expect(system).toMatch(/Never fabricate research findings, authors, article titles, publication dates, DOIs, statistical results/);
+    expect(system).toMatch(/correlation as causation/);
+    expect(system).toMatch(/Documented findings/);
+    expect(system).toMatch(/Cross-article synthesis/);
+    expect(system).toMatch(/AI interpretation, not stated by the authors/);
+    expect(system).toMatch(/### Supporting evidence/);
+    expect(system).toMatch(/### Articles compared/);
+    expect(system).toMatch(/Do not claim a consensus/);
+    expect(system).toMatch(/never pad a simple answer/);
+  });
+});
+
+describe("POST /api/corpus-chat conversation context and comparison", () => {
+  test("a follow-up that refers back focuses retrieval on the previous answer's articles", async () => {
+    await ask("What were the limitations of this study?", [
+      { role: "user", content: "Tell me about the mangrove restoration study" },
+      { role: "assistant", content: "It found less damage [1].", sources: ["art_1", "art_2"] },
+    ]);
+    expect(retrievalCalls[0].options.contextArticleIds).toEqual(["art_1", "art_2"]);
+    expect(chatCalls[0].user).toContain('RESOLVED REFERENCES: the reader\'s question refers back to [A1] "Coastal Adaptation in Practice"');
+  });
+
+  test("“the second study” resolves to the previous answer's second source", async () => {
+    await ask("What method did the second study use?", [
+      { role: "user", content: "Compare the coastal studies" },
+      { role: "assistant", content: "…", sources: ["art_9", "art_1"] },
+    ]);
+    expect(retrievalCalls[0].options.contextArticleIds).toEqual(["art_1"]);
+  });
+
+  test("a new, unrelated question isn't tied to earlier articles", async () => {
+    await ask("What have authors found about teacher workload in rural schools across the region?", [
+      { role: "user", content: "Tell me about the mangrove restoration study" },
+      { role: "assistant", content: "…", sources: ["art_1"] },
+    ]);
+    expect(retrievalCalls[0].options.contextArticleIds).toEqual([]);
+    expect(retrievalQueries[0]).not.toContain("mangrove");
+  });
+
+  test("a comparison question retrieves more widely across articles", async () => {
+    await ask("Compare the methods used across the studies on coastal adaptation");
+    expect(retrievalCalls[0].limit).toBe(14);
+    expect(retrievalCalls[0].options.maxFocused).toBe(4);
+    expect(chatCalls[0].user).toMatch(/Question type: a comparison or synthesis across articles/);
+  });
+
+  test("regenerate answers again from exactly the same evidence", async () => {
+    await ask("What did the coastal paper find?", [], { regenerate: true, evidenceIds: ["c1"] });
+    expect(evidenceLoads).toEqual([["c1"]]);
+    expect(retrievalCalls).toHaveLength(0);
+    expect(chatCalls[0].opts.temperature).toBeGreaterThan(0.1);
+    expect(chatCalls[0].user).toMatch(/regenerated answer/);
   });
 });
 
@@ -280,5 +393,8 @@ describe("suggested questions", () => {
     const res = await GET();
     const body = await res.json();
     expect(body.suggestedQuestions).toEqual(["What problem does “Coastal Adaptation in Practice” address?"]);
+    expect(body.journal).toEqual({ name: "Journal of Test Studies", issn: "1234-5678", publisher: "Test Press" });
+    expect(body.stats.articles).toBe(1);
+    expect(body.prompts.some((p: { category: string }) => p.category === "Synthesize the journal")).toBe(true);
   });
 });

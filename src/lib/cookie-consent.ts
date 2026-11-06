@@ -94,6 +94,7 @@ export const COOKIE_INVENTORY: CookieInventoryItem[] = [
   { name: "epip-session", category: "preferences", kind: "Local storage", purpose: "Your interface language and a cached copy of your signed-in profile, so pages render straight away.", duration: "Until you sign out or clear site data" },
   { name: "theme", category: "preferences", kind: "Local storage", purpose: "Light, dark or system theme.", duration: "Until you clear site data" },
   { name: "sidebar_state", category: "preferences", kind: "Cookie", purpose: "Whether the dashboard sidebar is expanded.", duration: "7 days" },
+  { name: "epip-research-assistant", category: "preferences", kind: "Local storage", purpose: "Your AI Research Assistant conversations when you aren't signed in, kept only in this browser. You can turn this off or clear it in the assistant.", duration: "Until you delete them, or 12 months without use" },
   { name: "epip-reader-session-id", category: "preferences", kind: "Session storage", purpose: "Random per-tab ID for the live “people reading now” count on articles.", duration: "Until the tab closes" },
   { name: "reader_key", category: "metering", kind: "Cookie", purpose: "Random ID for an anonymous reader, used only for the monthly free magazine article count. Set only if you accept it.", duration: "1 year" },
 ];

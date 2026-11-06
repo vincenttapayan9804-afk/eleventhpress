@@ -194,3 +194,39 @@ export function starterQuestions(titles: string[]): string[] {
   ];
   return titles.slice(0, 4).map((title, i) => variants[i % variants.length](shortTitle(title)));
 }
+
+export interface StarterPrompt {
+  category: "Explore a paper" | "Compare studies" | "Synthesize the journal";
+  question: string;
+}
+
+/**
+ * Ready-made research prompts for the empty assistant: a question about
+ * each of the newest papers, a comparison of the two newest, and
+ * journal-wide synthesis questions.
+ */
+export function starterPrompts(titles: string[]): StarterPrompt[] {
+  const out: StarterPrompt[] = starterQuestions(titles.slice(0, MAX_SUGGESTIONS)).map((question) => ({
+    category: "Explore a paper",
+    question,
+  }));
+  if (titles.length >= 2) {
+    out.push({
+      category: "Compare studies",
+      question: `Compare the research designs, participants and findings of “${shortTitle(titles[0])}” and “${shortTitle(titles[1])}”.`,
+    });
+  }
+  if (titles.length >= 3) {
+    out.push({
+      category: "Compare studies",
+      question: `How do the research instruments used in “${shortTitle(titles[1])}” and “${shortTitle(titles[2])}” differ?`,
+    });
+  }
+  if (titles.length > 0) {
+    out.push(
+      { category: "Synthesize the journal", question: "What research topics and methods are most common across the journal's recent articles?" },
+      { category: "Synthesize the journal", question: "What research gaps and recommendations for future research do the journal's recent articles identify?" }
+    );
+  }
+  return out;
+}
