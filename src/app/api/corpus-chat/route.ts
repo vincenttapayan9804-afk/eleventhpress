@@ -28,6 +28,14 @@ interface ChatTurn {
 }
 
 const MAX_QUESTION_LENGTH = 800;
+
+/** What readers see whenever no answer can be produced for an operational
+ * reason (no provider configured, a provider outage, a rejected or expired
+ * API key, a retrieval error). The real cause is logged server-side only:
+ * an upstream error body is an operator detail, not something a reader
+ * should see. */
+const UNAVAILABLE_MESSAGE =
+  "Ask the Corpus is temporarily unavailable. Please try again in a few minutes, or browse and search the published articles directly.";
 const MAX_HISTORY_TURNS = 6;
 
 export async function POST(req: NextRequest) {
@@ -53,13 +61,17 @@ export async function POST(req: NextRequest) {
   }
 
   if (!anyLLMAvailable()) {
-    return NextResponse.json({
-      mode: "unavailable",
-      message: "AI chat is not configured for this deployment (no ANTHROPIC_API_KEY or OPENROUTER_API_KEY set).",
-    });
+    console.warn("[corpus-chat] no LLM provider configured (set ANTHROPIC_API_KEY, OPENROUTER_API_KEY, or LLM_BASE_URL/LLM_API_KEY)");
+    return NextResponse.json({ mode: "unavailable", message: UNAVAILABLE_MESSAGE });
   }
 
-  const chunks = await retrieveChunksAcrossCorpus(question, 8);
+  let chunks: Awaited<ReturnType<typeof retrieveChunksAcrossCorpus>>;
+  try {
+    chunks = await retrieveChunksAcrossCorpus(question, 8);
+  } catch (e) {
+    console.error("[corpus-chat] retrieval failed:", e);
+    return NextResponse.json({ mode: "unavailable", message: UNAVAILABLE_MESSAGE });
+  }
   if (chunks.length === 0) {
     return NextResponse.json({
       mode: "not-indexed",
@@ -115,8 +127,12 @@ export async function POST(req: NextRequest) {
       citedChunks,
       model: result.model,
     });
-  } catch (e: any) {
+  } catch (e) {
+    // e.g. a 401 "invalid x-api-key" from a provider, an exhausted credit
+    // balance, a rate limit or a malformed reply. Logged in full here; the
+    // reader gets the same friendly "unavailable" banner as every other
+    // non-answer path, never the raw upstream error.
     console.error("[corpus-chat] chat failed:", e);
-    return NextResponse.json({ error: e?.message || "Chat request failed" }, { status: 502 });
+    return NextResponse.json({ mode: "unavailable", message: UNAVAILABLE_MESSAGE });
   }
 }
