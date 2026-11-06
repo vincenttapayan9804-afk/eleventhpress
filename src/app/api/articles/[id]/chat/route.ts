@@ -6,6 +6,14 @@ import { chatJSON, anyLLMAvailable } from "@/lib/llm";
 import { retrieveChunks, indexArticleChunks } from "@/lib/chunk-embeddings";
 import { resolveTenantFromHeaders } from "@/lib/tenant";
 import { withTenantRlsContext } from "@/lib/db-rls";
+import {
+  ARTICLE_RECORD_SELECT,
+  GROUNDING_RULES,
+  formatArticleRecord,
+  formatHistory,
+  normalizeUsedPassages,
+  type ChatTurn,
+} from "@/lib/rag-prompt";
 
 /**
  * POST /api/articles/[id]/chat — "Ask this paper" RAG chat.
@@ -47,13 +55,10 @@ import { withTenantRlsContext } from "@/lib/db-rls";
 // passages) with headroom.
 export const maxDuration = 60;
 
-interface ChatTurn {
-  role: "user" | "assistant";
-  content: string;
-}
-
 const MAX_QUESTION_LENGTH = 800;
 const MAX_HISTORY_TURNS = 6;
+/** Passages retrieved per question. */
+const PASSAGE_LIMIT = 8;
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: articleId } = await params;
@@ -83,7 +88,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const article = await withTenantRlsContext(tenant?.id ?? null, (tx) =>
     tx.article.findUnique({
       where: { id: articleId },
-      select: { id: true, status: true, title: true },
+      select: { ...ARTICLE_RECORD_SELECT, status: true },
     })
   );
   if (!article || article.status !== "PUBLISHED") {
@@ -98,12 +103,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     });
   }
 
-  let chunks = await retrieveChunks(articleId, question, 6);
+  const history = Array.isArray(body.history) ? body.history.slice(-MAX_HISTORY_TURNS) : [];
+  const historyBlock = formatHistory(history);
+
+  let chunks = await retrieveChunks(articleId, question, PASSAGE_LIMIT);
   if (chunks.length === 0) {
     try {
       const indexResult = await indexArticleChunks(articleId);
       if (indexResult.chunkCount > 0) {
-        chunks = await retrieveChunks(articleId, question, 6);
+        chunks = await retrieveChunks(articleId, question, PASSAGE_LIMIT);
       }
     } catch (e) {
       console.error(`[article-chat] on-demand indexing failed for article ${articleId}:`, e);
@@ -116,36 +124,26 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     });
   }
 
-  const history = Array.isArray(body.history) ? body.history.slice(-MAX_HISTORY_TURNS) : [];
-  const historyBlock = history.length
-    ? `\n\nPrior conversation (for context only — still answer only from the passages below):\n${history
-        .map((t) => `${t.role === "user" ? "Reader" : "You"}: ${t.content}`)
-        .join("\n")}`
-    : "";
-
-  const passageBlock = chunks
+  const passageBlock = `PASSAGES (excerpts from the paper's full text):\n\n${chunks
     .map((c, i) => `[Passage ${i + 1}]\n${c.text}`)
-    .join("\n\n");
+    .join("\n\n")}`;
 
   const systemPrompt =
-    `You are a research assistant answering questions about a single published academic paper, "${article.title}". ` +
-    `You may ONLY use the passages provided below — they are the only excerpts of this paper you have access to. ` +
-    `If the passages don't contain enough information to answer, say so plainly instead of guessing or using outside knowledge. ` +
-    `Never invent a citation, statistic, or claim that isn't directly supported by the passages. ` +
-    `Reply with a JSON object: {"answer": string, "usedPassages": number[], "grounded": boolean}. ` +
-    `"usedPassages" is the 1-based list of passage numbers you actually drew on. ` +
-    `"grounded" is false only if you had to tell the reader the passages don't cover their question.`;
+    `You are a research assistant answering questions about one published academic paper, "${article.title}". ` +
+    "Use ONLY the ARTICLE RECORD (title, authors, date, DOI, keywords, abstract) and the PASSAGES (excerpts from its full text) provided in the message. " +
+    "If the reader asks about a different paper or a topic this paper doesn't cover, say so.\n" +
+    GROUNDING_RULES;
 
-  const userPrompt = `${passageBlock}${historyBlock}\n\nReader's question: ${question}`;
+  const userPrompt = `ARTICLE RECORD:\n${formatArticleRecord(article)}\n\n${passageBlock}${historyBlock}\n\nReader's question: ${question}`;
 
   try {
     const result = await chatJSON<{ answer: string; usedPassages?: number[]; grounded?: boolean }>(
       systemPrompt,
       userPrompt,
-      { maxTokens: 700, priority: "cost-first" }
+      { maxTokens: 1000, priority: "cost-first", temperature: 0.1 }
     );
 
-    const usedPassages = Array.isArray(result.data.usedPassages) ? result.data.usedPassages : [];
+    const usedPassages = normalizeUsedPassages(result.data.usedPassages);
     const citedChunks = usedPassages
       .map((n) => chunks[n - 1])
       .filter((c): c is (typeof chunks)[number] => !!c)

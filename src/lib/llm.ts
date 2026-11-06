@@ -247,7 +247,8 @@ async function chatJSONAnthropic<T>(
 async function chatJSONOss<T>(
   systemPrompt: string,
   userPrompt: string,
-  maxTokens: number
+  maxTokens: number,
+  temperature?: number
 ): Promise<ChatJSONResult<T>> {
   const model = compatModel();
   const res = await fetch(`${compatBaseUrl()}/chat/completions`, {
@@ -256,6 +257,7 @@ async function chatJSONOss<T>(
     body: JSON.stringify({
       model,
       max_tokens: maxTokens,
+      ...(temperature !== undefined ? { temperature } : {}),
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
@@ -274,7 +276,10 @@ async function chatJSONOss<T>(
     throw new Error("OSS LLM response contained no text content");
   }
 
-  return { data: extractJSON<T>(text), rawResponse: text, model, provider: "oss-free" };
+  // A router such as "openrouter/free" reports the model that actually
+  // answered in the response's `model` field.
+  const servedModel = typeof json?.model === "string" && json.model ? json.model : model;
+  return { data: extractJSON<T>(text), rawResponse: text, model: servedModel, provider: "oss-free" };
 }
 
 async function chatJSONLocal<T>(
@@ -325,9 +330,18 @@ async function chatJSONLocal<T>(
 export async function chatJSON<T = any>(
   systemPrompt: string,
   userPrompt: string,
-  opts: { maxTokens?: number; priority?: "quality-first" | "cost-first" } = {}
+  opts: {
+    maxTokens?: number;
+    priority?: "quality-first" | "cost-first";
+    /** Sampling temperature for the OpenAI-compatible tier; low values
+     * (e.g. 0.1) keep grounded answers close to the source text. The
+     * Anthropic tier uses adaptive thinking, which sets its own sampling,
+     * so it ignores this. */
+    temperature?: number;
+  } = {}
 ): Promise<ChatJSONResult<T>> {
   const maxTokens = opts.maxTokens ?? 4096;
+  const temperature = opts.temperature;
 
   if (isAirgappedMode()) {
     return chatJSONLocal<T>(systemPrompt, userPrompt, maxTokens);
@@ -342,7 +356,7 @@ export async function chatJSON<T = any>(
 
   if (tryOssFirst) {
     try {
-      return await chatJSONOss<T>(systemPrompt, userPrompt, maxTokens);
+      return await chatJSONOss<T>(systemPrompt, userPrompt, maxTokens, temperature);
     } catch (ossError) {
       if (isLLMAvailable()) {
         try {
@@ -369,7 +383,7 @@ export async function chatJSON<T = any>(
 
   if (ossLLMAvailable()) {
     try {
-      return await chatJSONOss<T>(systemPrompt, userPrompt, maxTokens);
+      return await chatJSONOss<T>(systemPrompt, userPrompt, maxTokens, temperature);
     } catch (e) {
       if (anthropicError) {
         throw new Error(

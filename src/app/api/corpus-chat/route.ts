@@ -3,6 +3,16 @@ import { extractRequestIp } from "@/lib/institutions";
 import { checkRateLimit } from "@/lib/ratelimit";
 import { anyLLMAvailable, chatJSON } from "@/lib/llm";
 import { retrieveChunksAcrossCorpus } from "@/lib/chunk-embeddings";
+import { db } from "@/lib/db";
+import {
+  ARTICLE_RECORD_SELECT,
+  GROUNDING_RULES,
+  formatArticleRecord,
+  formatHistory,
+  normalizeUsedPassages,
+  type ArticleRecord,
+  type ChatTurn,
+} from "@/lib/rag-prompt";
 
 /**
  * POST /api/corpus-chat — "Ask the Corpus" journal-wide RAG chat.
@@ -22,11 +32,6 @@ import { retrieveChunksAcrossCorpus } from "@/lib/chunk-embeddings";
  */
 export const maxDuration = 60;
 
-interface ChatTurn {
-  role: "user" | "assistant";
-  content: string;
-}
-
 const MAX_QUESTION_LENGTH = 800;
 
 /** What readers see whenever no answer can be produced for an operational
@@ -37,6 +42,31 @@ const MAX_QUESTION_LENGTH = 800;
 const UNAVAILABLE_MESSAGE =
   "Ask the Corpus is temporarily unavailable. Please try again in a few minutes, or browse and search the published articles directly.";
 const MAX_HISTORY_TURNS = 6;
+/** Passages retrieved per question. */
+const PASSAGE_LIMIT = 10;
+/** Ask the model again once if the first reply fails (the free router can
+ * pick a model that returns a malformed reply), as long as there's time
+ * left within maxDuration. */
+const RETRY_IF_FAILED_WITHIN_MS = 25_000;
+
+/** Bibliographic records for every article a passage came from, so the
+ * model can answer "who wrote", "when was it published", "what is it
+ * about" from the record itself rather than guessing. Best effort: a
+ * lookup failure just means the answer relies on the passages alone. */
+async function loadArticleRecords(ids: string[]): Promise<ArticleRecord[]> {
+  if (ids.length === 0) return [];
+  try {
+    const rows = await db.article.findMany({
+      where: { id: { in: ids }, status: "PUBLISHED" },
+      select: ARTICLE_RECORD_SELECT,
+    });
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    return ids.map((id) => byId.get(id)).filter((r): r is ArticleRecord => !!r);
+  } catch (e) {
+    console.error("[corpus-chat] article records lookup failed:", e);
+    return [];
+  }
+}
 
 export async function POST(req: NextRequest) {
   const ip = extractRequestIp(req.headers);
@@ -65,9 +95,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ mode: "unavailable", message: UNAVAILABLE_MESSAGE });
   }
 
+  const history = Array.isArray(body.history) ? body.history.slice(-MAX_HISTORY_TURNS) : [];
+  const historyBlock = formatHistory(history);
+  // A follow-up such as "what were its limitations?" doesn't name the
+  // paper, so retrieval also sees the reader's previous question.
+  const previousQuestion = [...history].reverse().find((t) => t?.role === "user")?.content;
+  const retrievalQuery =
+    typeof previousQuestion === "string" && previousQuestion.trim()
+      ? `${question}\n${previousQuestion.slice(0, MAX_QUESTION_LENGTH)}`
+      : question;
+
   let chunks: Awaited<ReturnType<typeof retrieveChunksAcrossCorpus>>;
   try {
-    chunks = await retrieveChunksAcrossCorpus(question, 8);
+    chunks = await retrieveChunksAcrossCorpus(retrievalQuery, PASSAGE_LIMIT);
   } catch (e) {
     console.error("[corpus-chat] retrieval failed:", e);
     return NextResponse.json({ mode: "unavailable", message: UNAVAILABLE_MESSAGE });
@@ -79,39 +119,64 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const history = Array.isArray(body.history) ? body.history.slice(-MAX_HISTORY_TURNS) : [];
-  const historyBlock = history.length
-    ? `\n\nPrior conversation (for context only — still answer only from the passages below):\n${history
-        .map((t) => `${t.role === "user" ? "Reader" : "You"}: ${t.content}`)
-        .join("\n")}`
+  // One label per source article (A1, A2, ...), shared by the details
+  // block and the passages so the model can tie them together.
+  const articleIds = [...new Set(chunks.map((c) => c.articleId))];
+  const labelOf = new Map(articleIds.map((id, i) => [id, `A${i + 1}`]));
+  const records = await loadArticleRecords(articleIds);
+  const focusedTitles = [...new Set(chunks.filter((c) => c.focused).map((c) => c.articleTitle))];
+
+  const recordsBlock = records.length
+    ? `ARTICLE RECORDS (bibliographic details of each source article):\n\n${records
+        .map((a) => formatArticleRecord(a, labelOf.get(a.id)))
+        .join("\n\n")}`
+    : "";
+  const passageBlock = `PASSAGES (excerpts from the articles' full text):\n\n${chunks
+    .map((c, i) => `[Passage ${i + 1} | ${labelOf.get(c.articleId)} "${c.articleTitle}"]\n${c.text}`)
+    .join("\n\n")}`;
+  const focusNote = focusedTitles.length
+    ? `\n\nThe reader appears to be asking about: ${focusedTitles.map((t) => `"${t}"`).join(", ")}.`
     : "";
 
-  const passageBlock = chunks
-    .map((c, i) => `[Passage ${i + 1}, from "${c.articleTitle}"]\n${c.text}`)
-    .join("\n\n");
-
   const systemPrompt =
-    `You are a research assistant answering questions across an entire academic journal's published articles. ` +
-    `You may ONLY use the passages provided below — they are excerpts from this journal's own published articles, each labeled with the article it came from. ` +
-    `If the passages don't contain enough information to answer, say so plainly instead of guessing or using outside knowledge. ` +
-    `Never invent a citation, statistic, or claim that isn't directly supported by the passages. When passages from multiple articles are relevant, synthesize across them and attribute each claim to its source article by name. ` +
-    `Reply with a JSON object: {"answer": string, "usedPassages": number[], "grounded": boolean}. ` +
-    `"usedPassages" is the 1-based list of passage numbers you actually drew on. ` +
-    `"grounded" is false only if you had to tell the reader the passages don't cover their question.`;
+    "You are the research assistant for an academic journal. You answer readers' questions using ONLY the journal records provided in the message: ARTICLE RECORDS (title, authors, date, DOI, keywords, abstract) and PASSAGES (excerpts from the published full text). If the article the reader means is not among the records, say so.\n" +
+    GROUNDING_RULES;
 
-  const userPrompt = `${passageBlock}${historyBlock}\n\nReader's question: ${question}`;
+  const userPrompt = `${recordsBlock}\n\n${passageBlock}${historyBlock}${focusNote}\n\nReader's question: ${question}`;
 
   try {
-    const result = await chatJSON<{ answer: string; usedPassages?: number[]; grounded?: boolean }>(
-      systemPrompt,
-      userPrompt,
-      { maxTokens: 900, priority: "cost-first" }
-    );
+    const ask = () =>
+      chatJSON<{ answer: string; usedPassages?: number[]; grounded?: boolean }>(systemPrompt, userPrompt, {
+        maxTokens: 1200,
+        priority: "cost-first",
+        temperature: 0.1,
+      });
+    const started = Date.now();
+    let result: Awaited<ReturnType<typeof ask>>;
+    try {
+      result = await ask();
+      if (typeof result.data?.answer !== "string" || !result.data.answer.trim()) {
+        throw new Error("model reply had no answer text");
+      }
+    } catch (first) {
+      if (Date.now() - started > RETRY_IF_FAILED_WITHIN_MS) throw first;
+      console.warn("[corpus-chat] first attempt failed, retrying once:", first);
+      result = await ask();
+      if (typeof result.data?.answer !== "string" || !result.data.answer.trim()) {
+        throw new Error("model reply had no answer text");
+      }
+    }
 
-    const usedPassages = Array.isArray(result.data.usedPassages) ? result.data.usedPassages : [];
-    const citedChunks = usedPassages
-      .map((n) => chunks[n - 1])
-      .filter((c): c is (typeof chunks)[number] => !!c)
+    const grounded = result.data.grounded !== false;
+    const usedPassages = normalizeUsedPassages(result.data.usedPassages);
+    let cited = usedPassages.map((n) => chunks[n - 1]).filter((c): c is (typeof chunks)[number] => !!c);
+    // An answer drawn only from the article records (e.g. "who wrote X?")
+    // still cites its source: the named article's opening passage.
+    if (cited.length === 0 && grounded) {
+      cited = chunks.filter((c) => c.focused).slice(0, 1);
+    }
+    console.info(`[corpus-chat] answered by ${result.provider}/${result.model}; ${chunks.length} passages, cited ${cited.length}, grounded=${grounded}`);
+    const citedChunks = cited
       .map((c) => ({
         chunkIndex: c.chunkIndex,
         text: c.text,
@@ -123,7 +188,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       mode: "answered",
       answer: result.data.answer,
-      grounded: result.data.grounded !== false,
+      grounded,
       citedChunks,
       model: result.model,
     });
