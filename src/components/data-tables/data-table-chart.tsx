@@ -7,18 +7,20 @@
 // with enough rows to be meaningful (isChartable()) — never a chart with
 // invented data. Every table, chartable or not, gets 1-click CSV/Excel
 // export (src/lib/table-export.ts) since exporting doesn't require any
-// numeric structure.
+// numeric structure. Charts are laid out by src/lib/data-table-plot.ts so
+// labels, ticks and legend never overlap; articles also get a branded PDF.
 // ---------------------------------------------------------------------------
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import type { Data } from "plotly.js";
+import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Download, FileSpreadsheet } from "lucide-react";
+import { Download, FileSpreadsheet, FileText } from "lucide-react";
 import { exportTableToCsv, exportTableToExcel } from "@/lib/table-export";
+import { buildPlot, MAX_SERIES, type ChartType } from "@/lib/data-table-plot";
 
 const PlotlyChart = dynamic(() => import("./plotly-chart").then((m) => m.PlotlyChart), {
   ssr: false,
@@ -30,6 +32,9 @@ export interface DataTableChartTable {
   rows: string[][];
   numericColumns: number[];
   chartable: boolean;
+  sectionRows?: number[];
+  labelColumn?: number;
+  caption?: string;
 }
 
 const CHART_TYPES = [
@@ -37,27 +42,44 @@ const CHART_TYPES = [
   { value: "line", label: "Line" },
   { value: "scatter", label: "Scatter" },
 ] as const;
-type ChartType = (typeof CHART_TYPES)[number]["value"];
 
-function toNumber(cell: string | undefined): number {
-  const raw = (cell || "").replace(/[$,%\s]/g, "");
-  return raw && !isNaN(Number(raw)) ? Number(raw) : 0;
+/** Tracks the chart container's width so the layout can adapt (fewer,
+ * steeper ticks and a two-column legend on phones). */
+function useWidth<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  const [width, setWidth] = useState(800);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(([entry]) => setWidth(Math.round(entry.contentRect.width)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return [ref, width] as const;
 }
 
-export function DataTableChart({ table, filenameBase }: { table: DataTableChartTable; filenameBase: string }) {
+export function DataTableChart({
+  table,
+  filenameBase,
+  pdfHref,
+}: {
+  table: DataTableChartTable;
+  filenameBase: string;
+  /** Server-rendered, journal-branded PDF of this table (articles only). */
+  pdfHref?: string;
+}) {
   const [chartType, setChartType] = useState<ChartType>("bar");
   const [exporting, setExporting] = useState(false);
+  const { resolvedTheme } = useTheme();
+  const [chartRef, chartWidth] = useWidth<HTMLDivElement>();
+  const sections = useMemo(() => new Set(table.sectionRows ?? []), [table.sectionRows]);
 
-  const labelCol = table.headers.findIndex((_, i) => !table.numericColumns.includes(i));
-  const labels = table.rows.map((row, i) => (labelCol >= 0 ? row[labelCol] || `Row ${i + 1}` : `Row ${i + 1}`));
-
-  const plotData: Data[] = table.numericColumns.map((col) => ({
-    x: labels,
-    y: table.rows.map((row) => toNumber(row[col])),
-    name: table.headers[col] || `Column ${col + 1}`,
-    type: chartType === "bar" ? "bar" : "scatter",
-    mode: chartType === "line" ? "lines+markers" : chartType === "scatter" ? "markers" : undefined,
-  }));
+  // Width is bucketed so a resize doesn't rebuild the figure on every pixel.
+  const widthBucket = chartWidth < 520 ? 400 : 800;
+  const plot = useMemo(
+    () => (table.chartable ? buildPlot(table, chartType, { dark: resolvedTheme === "dark", width: widthBucket }) : null),
+    [table, chartType, resolvedTheme, widthBucket]
+  );
 
   async function handleExport(kind: "csv" | "excel") {
     setExporting(true);
@@ -78,7 +100,16 @@ export function DataTableChart({ table, filenameBase }: { table: DataTableChartT
         <Button size="sm" variant="outline" disabled={exporting} onClick={() => handleExport("excel")}>
           <FileSpreadsheet className="mr-1.5 h-3.5 w-3.5" /> Export Excel
         </Button>
+        {pdfHref && (
+          <Button size="sm" variant="outline" asChild>
+            <a href={pdfHref} download>
+              <FileText className="mr-1.5 h-3.5 w-3.5" /> Export PDF
+            </a>
+          </Button>
+        )}
       </div>
+
+      {table.caption && <p className="mb-2 text-xs font-medium text-foreground/80">{table.caption}</p>}
 
       <div className="overflow-x-auto">
         <table className="w-full min-w-max border-collapse text-xs">
@@ -93,9 +124,9 @@ export function DataTableChart({ table, filenameBase }: { table: DataTableChartT
           </thead>
           <tbody>
             {table.rows.map((row, i) => (
-              <tr key={i}>
+              <tr key={i} className={sections.has(i) ? "bg-muted/50 font-semibold" : undefined}>
                 {row.map((c, j) => (
-                  <td key={j} className="border border-border p-1.5">
+                  <td key={j} className="border border-border p-1.5 align-top">
                     {c}
                   </td>
                 ))}
@@ -105,8 +136,8 @@ export function DataTableChart({ table, filenameBase }: { table: DataTableChartT
         </table>
       </div>
 
-      {table.chartable && (
-        <div className="mt-4">
+      {plot && plot.data.length > 0 && (
+        <div className="mt-4" ref={chartRef}>
           <div className="mb-2 flex justify-end">
             <Select value={chartType} onValueChange={(v) => setChartType(v as ChartType)}>
               <SelectTrigger className="h-8 w-32 text-xs"><SelectValue /></SelectTrigger>
@@ -117,8 +148,13 @@ export function DataTableChart({ table, filenameBase }: { table: DataTableChartT
               </SelectContent>
             </Select>
           </div>
-          <div className="h-72">
-            <PlotlyChart data={plotData} />
+          {table.numericColumns.length > MAX_SERIES && (
+            <p className="mb-1 text-[11px] text-muted-foreground">
+              Showing the first {MAX_SERIES} of {table.numericColumns.length} numeric columns; export the table for all of them.
+            </p>
+          )}
+          <div style={{ height: plot.height }}>
+            <PlotlyChart data={plot.data} layout={plot.layout} />
           </div>
         </div>
       )}

@@ -1,9 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { getObject } from "@/lib/storage";
-import { extractTables, isChartable } from "@/lib/data-tables";
-import { resolveTenantFromHeaders } from "@/lib/tenant";
-import { withTenantRlsContext } from "@/lib/db-rls";
+import { loadPublishedArticleTables } from "@/lib/article-data-tables-server";
 
 /**
  * GET /api/articles/[id]/data-tables
@@ -15,35 +11,13 @@ import { withTenantRlsContext } from "@/lib/db-rls";
  * this is the same already-public content, just structured differently.
  * An article with no tables (or none with numeric columns) returns an
  * empty array; the frontend must show that honestly, never a chart with
- * invented data.
+ * invented data. Each table's branded PDF is …/data-tables/[n]/pdf.
  */
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const tenant = await resolveTenantFromHeaders(req.headers);
-  const article = await withTenantRlsContext(tenant?.id ?? null, (tx) =>
-    tx.article.findUnique({
-      where: { id },
-      select: { status: true, galleyHtmlKey: true },
-    })
-  );
-  if (!article || article.status !== "PUBLISHED" || !article.galleyHtmlKey) {
-    return NextResponse.json({ tables: [] });
-  }
-
-  const buf = await getObject(article.galleyHtmlKey);
-  if (!buf) {
-    return NextResponse.json({ tables: [] });
-  }
-
-  const html = buf.toString("utf-8");
-  const match = html.match(/<div class="article-body">([\s\S]*)<\/div>\s*<\/body>/);
-  if (!match) {
-    return NextResponse.json({ tables: [] });
-  }
-
-  const tables = extractTables(match[1]).map((t) => ({ ...t, chartable: isChartable(t) }));
-  return NextResponse.json({ tables });
+  const tables = await loadPublishedArticleTables(id, req.headers);
+  return NextResponse.json({ tables: tables ?? [] });
 }

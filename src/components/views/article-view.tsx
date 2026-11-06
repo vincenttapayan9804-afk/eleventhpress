@@ -19,7 +19,7 @@ import { PdfPreview } from "@/components/pdf-preview";
 import { ThinkingOrb } from "thinking-orbs";
 import { IconChip } from "@/components/icon-chip";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { DataTableChart } from "@/components/data-tables/data-table-chart";
+import { DataTableChart, type DataTableChartTable } from "@/components/data-tables/data-table-chart";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -1201,12 +1201,7 @@ export function ArticleView() {
   );
 }
 
-interface ExtractedTableData {
-  headers: string[];
-  rows: string[][];
-  numericColumns: number[];
-  chartable: boolean;
-}
+type ExtractedTableData = DataTableChartTable;
 
 interface StatcheckResultData {
   raw: string;
@@ -1329,7 +1324,12 @@ function SupplementalMaterialsTab({ article }: { article: ArticleDetail }) {
         ) : tables.length > 0 ? (
           <div className="space-y-6">
             {tables.map((t, i) => (
-              <DataTableChart key={i} table={t} filenameBase={`${article.title.slice(0, 60)}-table-${i + 1}`} />
+              <DataTableChart
+                key={i}
+                table={t}
+                filenameBase={`${article.title.slice(0, 60)}-table-${i + 1}`}
+                pdfHref={`/api/articles/${article.id}/data-tables/${i + 1}/pdf`}
+              />
             ))}
           </div>
         ) : (
