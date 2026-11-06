@@ -1,4 +1,3 @@
-import { DOI_REGISTRAR } from "@/lib/site";
 
 /**
  * Shared source of truth for the Resources page's static content (guides,
@@ -6,187 +5,194 @@ import { DOI_REGISTRAR } from "@/lib/site";
  * resources-view.tsx so both the UI and the server-side search route
  * (src/app/api/resources/search/route.ts, and the Meilisearch sync it
  * triggers) read from the exact same data instead of two copies drifting
- * apart. Content text is unchanged from the original component.
+ * apart.
  */
 
 export interface Reading {
   id: string;
+  /** URL segment: /resources/blog/<slug>. */
+  slug: string;
   title: string;
   excerpt: string;
-  body: string[];
+  category: string;
+  /** ISO dates. */
+  datePublished: string;
+  dateModified: string;
+  readMinutes: number;
   meta: string;
 }
 
+const EDITORIAL = "Editorial Office";
+const REVISED = "2026-11-06";
+
+function reading(r: Omit<Reading, "meta" | "dateModified"> & { dateModified?: string }): Reading {
+  return { ...r, dateModified: r.dateModified ?? r.datePublished, meta: `${EDITORIAL} · ${r.readMinutes} min read` };
+}
+
+/**
+ * Catalog of the Resources blog. Full text (top-10 takeaways, sections,
+ * FAQs, references) lives in src/lib/resources/blog-posts.ts, which only the
+ * server-rendered /resources/blog/[slug] page imports; readMinutes is
+ * checked against that text by resources-content.test.ts.
+ */
 export const BLOGS: Reading[] = [
-  {
+  reading({
     id: "blog-syndication-network",
+    slug: "beyond-the-doi-multidisciplinary-syndication-network",
     title: "Beyond the DOI: Inside Our Multidisciplinary Syndication Network",
-    excerpt: "Publication used to be the finish line. Here's what happens to your article after that — automatically.",
-    meta: "Editorial Team · 5 min read",
-    body: [
-      "Most journals treat the DOI as the finish line: your article is registered, indexed, and that's the end of the publisher's job. We built Eleventh Press to treat publication as the starting line instead.",
-      "The moment your article is published, it becomes eligible for syndication across eight platforms with no extra manuscript prep. Blogger is genuinely automated — connect your account once, and every future article can be published to it via the real Blogger API with one click, not a copy-pasted link. ResearchGate, Academia.edu, Substack, Medium, LinkedIn Articles, and HubPages each get a ready-to-post share kit — a repurposed, plain-language excerpt and a canonical backlink, generated for you. And for the disciplines where preprinting matters, we generate formatted arXiv and SSRN submission packages, gated behind an explicit consent step since preprinting carries real policy implications your journal agreement may or may not permit.",
-      "None of this replaces peer review or dilutes the version of record — it's the same published, DOI-registered article, reaching readers where they already are. That's what we mean when we say we're a syndication network, not just a journal.",
-    ],
-  },
-  {
+    excerpt: "Publication used to be the finish line. How a published, DOI-registered article is disseminated across eight platforms without diluting the version of record.",
+    category: "Dissemination & Open Scholarship",
+    datePublished: REVISED,
+    readMinutes: 7,
+  }),
+  reading({
     id: "blog-book-division",
+    slug: "from-articles-to-book-academic-publishing-division",
     title: "Your Articles, Now a Book: How Our Publishing Division Works",
-    excerpt: "Compile a volume from your published work, or submit a standalone manuscript — either way, it reaches real bookstores.",
-    meta: "Editorial Team · 4 min read",
-    body: [
-      "Publishing in Eleventh Press doesn't have to end at the journal article. Our book-publishing division lets you compile your own published articles into an edited volume or anthology — a genuine way to turn a body of work into a standalone book — or submit a new monograph manuscript entirely.",
-      "Either path goes through the same editorial rigor as an article: submission, review, and production. Production means a real EPUB3 file (not a placeholder) and a print-ready PDF, generated directly from your manuscript or your compiled chapters.",
-      "Distribution is where it gets genuinely wide: Draft2Digital and IngramSpark each push your book out to multiple retailers from a single submission — Apple Books, Barnes & Noble, Kobo, and print-on-demand through IngramSpark's network — while Amazon KDP and Lulu remain available as free, self-serve manual paths if you'd rather publish directly yourself.",
-    ],
-  },
-  {
+    excerpt: "Compile an edited volume from your published work or submit a new monograph: the editorial, production and distribution standards behind both routes.",
+    category: "Books & Long-Form Scholarship",
+    datePublished: REVISED,
+    readMinutes: 6,
+  }),
+  reading({
     id: "blog-multidisciplinary-standards",
+    slug: "editorial-standards-for-multidisciplinary-research",
     title: "Why Multidisciplinary Research Needs Its Own Editorial Standards",
-    excerpt: "A single-discipline review checklist breaks down the moment a manuscript spans three fields at once. Here's how we handle it.",
-    meta: "Editorial Team · 6 min read",
-    body: [
-      "Most peer-review checklists were written for a single discipline, then reused everywhere. That works fine until a manuscript combines, say, climate modelling with public-health policy and a qualitative fieldwork component — and no single reviewer is equipped to evaluate all three at once.",
-      "Our approach is to assign discipline-matched reviewers per component rather than forcing one generalist to sign off on the whole paper. The editor's job becomes synthesis: reconciling feedback that sometimes pulls in different directions, and making sure the final decision reflects the manuscript as a whole rather than the loudest reviewer.",
-      "It's slower than a single-track review, but it's the only way we've found to genuinely evaluate cross-disciplinary work on its own terms instead of forcing it into a discipline it doesn't quite belong to.",
-    ],
-  },
-  {
+    excerpt: "Single-discipline review checklists break down when a manuscript spans three fields. Component-matched review, reporting guidelines and editorial synthesis explained.",
+    category: "Peer Review & Editorial Practice",
+    datePublished: REVISED,
+    readMinutes: 6,
+  }),
+  reading({
     id: "blog-apc-explained",
+    slug: "article-processing-charge-explained",
     title: "Demystifying the APC: What You're Actually Paying For",
-    excerpt: "USD 97 sounds arbitrary until you see what it actually funds — editorial handling, DOI registration, typesetting, permanent hosting, and eligibility for the syndication network.",
-    meta: "Editorial Team · 4 min read",
-    body: [
-      `An Article Processing Charge often reads as an abstract toll on publishing. In practice it funds five concrete things: editorial and peer-review coordination, DOI registration with ${DOI_REGISTRAR}, production (typesetting into PDF/HTML/JATS), indefinite open-access hosting, and eligibility for automatic syndication across our network plus the book-publishing division once published.`,
-      "It's charged once, only after acceptance — never at submission, and never as a condition of getting reviewed. If a reviewer's decision and an author's ability to pay were linked in any way, the review process would be compromised, so we keep waiver requests and peer-review outcomes handled by entirely separate parts of the editorial office.",
-      "If the fee is a genuine barrier, ask for a waiver before you assume you can't publish with us — see the APC Waiver guide below.",
-    ],
-  },
-  {
+    excerpt: "What an article processing charge funds, when it is charged, how it is firewalled from editorial decisions, and how to recognise a fair and transparent fee.",
+    category: "Open Access Economics",
+    datePublished: REVISED,
+    readMinutes: 6,
+  }),
+  reading({
     id: "blog-double-blind-review",
+    slug: "double-blind-peer-review-plain-language-guide",
     title: "A Plain-Language Guide to Double-Blind Peer Review",
-    excerpt: "What actually gets hidden, what doesn't, and why anonymisation is harder than it sounds.",
-    meta: "Editorial Team · 5 min read",
-    body: [
-      "Double-blind review means neither the author nor the reviewer knows the other's identity. Sounds simple — in practice, author names, affiliations, funding acknowledgements, and even PDF metadata all have to be stripped before a manuscript reaches a reviewer.",
-      "It isn't perfect: a sufficiently niche dataset or a distinctive writing style can sometimes give away authorship. But the goal isn't cryptographic anonymity, it's removing the obvious, easily-biased signals — institutional prestige, seniority, geography — so the work gets judged on its own merits first.",
-      "Where a field's norms make blinding impractical or counterproductive (some qualitative and community-based research, for instance), we offer single-blind or fully open review instead.",
-    ],
-  },
-  {
+    excerpt: "What double-anonymised review hides, what the evidence says about reviewer bias, how to anonymise a manuscript properly, and when other review models fit better.",
+    category: "Peer Review & Editorial Practice",
+    datePublished: REVISED,
+    readMinutes: 6,
+  }),
+  reading({
     id: "blog-open-access-licensing",
+    slug: "open-access-licensing-cc-by-explained",
     title: "Open Access Licensing, Explained Without the Legalese",
-    excerpt: "CC BY 4.0 in one sentence: anyone can share and adapt your work, as long as they credit you.",
-    meta: "Editorial Team · 3 min read",
-    body: [
-      "Every article we publish carries a Creative Commons Attribution 4.0 (CC BY 4.0) license by default. In plain terms: anyone — a student, a journalist, a competing lab — can copy, redistribute, and even build on your published work commercially, as long as they credit you as the original author.",
-      "This is different from a subscription paywall model, where readers (or their institution) pay for access after publication, and different from a fully restrictive copyright transfer, where the publisher — not the author — controls reuse.",
-      "CC BY 4.0 is the license most funder mandates (Plan S, many NIH/UKRI grants) require, so publishing under it also keeps you compliant with those obligations without any extra paperwork on your end.",
-    ],
-  },
-  {
+    excerpt: "CC BY 4.0 in one sentence, the six Creative Commons licences compared, copyright retention, third-party material and what funder mandates actually require.",
+    category: "Open Access & Copyright",
+    datePublished: REVISED,
+    readMinutes: 6,
+  }),
+  reading({
     id: "blog-reviewer-matching",
+    slug: "how-editors-match-reviewers-to-manuscripts",
     title: "How Editors Actually Match Reviewers to Manuscripts",
-    excerpt: "It isn't random, and it isn't just 'ask whoever's free' — here's the matching logic behind the scenes.",
-    meta: "Editorial Team · 4 min read",
-    body: [
-      "When a manuscript clears initial screening, it's matched against our reviewer pool using the paper's discipline tag and extracted keywords against each reviewer's stated expertise. Reviewers are ranked by match strength, and the top candidates are invited — typically two or three per manuscript.",
-      "Reviewers can accept, decline, or request an extension on the standard 14-day window. If too many decline, the editor widens the search rather than settling for a weaker match, since a mismatched reviewer produces feedback that isn't useful to anyone.",
-      "This is also why keeping your reviewer profile's expertise keywords current matters if you're on our reviewer pool — better matching means fewer irrelevant invitations and reviews you're actually qualified to give.",
-    ],
-  },
-  {
+    excerpt: "Expertise matching, conflict-of-interest screening, reviewer workload and the 14-day window: the logic behind every peer-review invitation.",
+    category: "Peer Review & Editorial Practice",
+    datePublished: REVISED,
+    readMinutes: 6,
+  }),
+  reading({
     id: "blog-reading-rejection",
+    slug: "reading-your-rejection-letter-what-to-do-next",
     title: "Reading Your Rejection Letter: What to Do Next",
-    excerpt: "A rejection isn't always a dead end. Here's how to read reviewer feedback and decide your next move.",
-    meta: "Editorial Team · 5 min read",
-    body: [
-      "A rejection can mean several different things: the work doesn't fit our scope, the methodology has a fixable gap, or reviewers found the contribution too incremental for this venue. The editor's decision letter and the underlying reviewer comments together should tell you which one applies.",
-      "If reviewers flagged a specific, addressable methodological issue, that's often worth fixing and resubmitting elsewhere — the feedback has value even if this particular venue wasn't the right fit. If it was a scope mismatch, no amount of revision will change that outcome here, and your time is better spent elsewhere.",
-      "We don't offer formal appeals for straightforward scope rejections, but if you believe a review contains a factual error, you can write to the handling editor directly and ask for a second read.",
-    ],
-  },
+    excerpt: "How to decode an editorial decision, triage reviewer comments, decide where to resubmit and when (and how) to ask for a second read.",
+    category: "Author Development",
+    datePublished: REVISED,
+    readMinutes: 6,
+  }),
 ];
 
 export interface Guide {
   id: string;
+  /** URL segment: /resources/guides/<slug>. */
+  slug: string;
+  /** Controlled document code printed on the PDF edition. */
+  code: string;
   title: string;
   summary: string;
-  body: string[];
+  version: string;
+  /** ISO date the current version took effect. */
+  effective: string;
+  /** ISO date of the next scheduled review. */
+  nextReview: string;
+  /** Short names of the standards the guide is benchmarked against. */
+  benchmarks: string[];
 }
 
+function guide(g: Omit<Guide, "version" | "effective" | "nextReview">): Guide {
+  return { ...g, version: "2.0", effective: REVISED, nextReview: "2027-11-06" };
+}
+
+/**
+ * Catalog of the official guides. Full text and the benchmarked-standards
+ * table live in src/lib/resources/guide-docs.ts (server-only); each guide
+ * also has a branded PDF edition at /resources/guides/<slug>/pdf.
+ */
 export const GUIDES: Guide[] = [
-  {
+  guide({
     id: "guide-author-submission",
+    slug: "author-submission-guide",
+    code: "EP-G-01",
     title: "Author Submission Guide",
-    summary: "Everything required before you upload a manuscript: metadata, author list, and what happens after you hit submit.",
-    body: [
-      "Before submitting, you'll need: the manuscript file, a title and abstract, 3–8 keywords, a discipline tag, the full author list with affiliations and (ideally) ORCID iDs, and — if applicable — funder information and links to any underlying datasets or code repositories.",
-      "Once submitted, your manuscript enters initial editorial screening for scope fit and an automated in-corpus similarity check. If it passes, it's anonymised for double-blind review and assigned to discipline-matched reviewers. You can track every stage from your dashboard's \"My Articles\" tab.",
-      "There's no submission fee. The APC is only invoiced after acceptance.",
-    ],
-  },
-  {
+    summary: "Everything required before you upload a manuscript: components, metadata, authorship, declarations, anonymisation, and every stage after you press submit.",
+    benchmarks: ["ICMJE Recommendations", "COPE Core Practices", "CRediT (ANSI/NISO Z39.104-2022)", "EQUATOR reporting guidelines", "ORCID & ROR identifiers"],
+  }),
+  guide({
     id: "guide-formatting-citation",
+    slug: "formatting-and-citation-style-guide",
+    code: "EP-G-02",
     title: "Formatting & Citation Style Guide",
-    summary: "Manuscript formatting expectations and how in-text citations map to our reference list.",
-    body: [
-      "We don't enforce a single rigid template at submission — focus on clarity and completeness. At production stage, accepted manuscripts are typeset into our house style automatically.",
-      "References should be complete enough to resolve unambiguously (full author list, title, venue, year, and a DOI where one exists). Where a DOI is available, we validate it against OpenAlex during production to catch broken or mistyped citations before publication.",
-      "Figures and tables should be referenced in the text in the order they appear and include a self-contained caption — a reader should understand a figure without needing to reread the surrounding paragraph.",
-    ],
-  },
-  {
+    summary: "Manuscript structure, house style, references, figures, tables, units and accessibility, and how your file becomes a typeset PDF, HTML and JATS XML article.",
+    benchmarks: ["APA 7th edition", "JATS (ANSI/NISO Z39.96)", "SI Brochure (BIPM)", "ISO 8601", "WCAG 2.2"],
+  }),
+  guide({
     id: "guide-reviewer-handbook",
+    slug: "reviewer-handbook",
+    code: "EP-G-03",
     title: "Reviewer Handbook",
-    summary: "What we expect from a review, how scoring works, and the 14-day response window.",
-    body: [
-      "A complete review includes an overall score (1–5), a recommendation (Accept / Minor revisions / Major revisions / Reject), a confidence score, and separate comments for the author and for the editor. Author-facing comments should be specific and actionable — \"needs more rigor\" isn't useful; \"the sample size in Section 3.2 is underpowered for the claimed effect size\" is.",
-      "You have 14 days from accepting an invitation to submit your review. If you need more time, request an extension rather than letting the deadline lapse silently — editors would rather adjust the timeline than lose a good-fit reviewer.",
-      "Keep author identity out of your written comments even when you can guess it from the subject matter — the blinding only works if both sides respect it.",
-    ],
-  },
-  {
+    summary: "How to accept an invitation, write a constructive and evidence-based report, apply the 1–5 scoring rubric and recommendations, and meet the 14-day window.",
+    benchmarks: ["COPE Ethical Guidelines for Peer Reviewers", "ANSI/NISO Z39.106-2023", "ICMJE Recommendations", "EQUATOR reporting guidelines"],
+  }),
+  guide({
     id: "guide-apc-waiver",
+    slug: "apc-waiver-request-guide",
+    code: "EP-G-04",
     title: "APC Waiver Request Guide",
-    summary: "How to request a full or partial fee waiver, and how we keep it separate from the review decision.",
-    body: [
-      "If the USD 97 APC is a genuine barrier, request a waiver from your dashboard once your article is accepted (or earlier, if you already know it will be an issue). Briefly explain your funding situation — no elaborate documentation is required for standard requests.",
-      "Waiver requests are reviewed by the editorial office, not by your assigned reviewers or handling editor, and never influence the peer-review outcome. A request being under review does not delay production once approved.",
-      "Partial waivers are available where a full waiver isn't warranted but the full fee is still a genuine burden — ask, rather than assuming it's all-or-nothing.",
-    ],
-  },
-  {
+    summary: "Who can request a full or partial waiver of the USD 97 APC, how to apply, how requests are assessed, and how they are kept separate from editorial decisions.",
+    benchmarks: ["Principles of Transparency & Best Practice (COPE/DOAJ/OASPA/WAME)", "Plan S Principles", "World Bank income classifications", "Research4Life eligibility"],
+  }),
+  guide({
     id: "guide-data-code-availability",
+    slug: "data-and-code-availability-guide",
+    code: "EP-G-05",
     title: "Data & Code Availability Guide",
-    summary: "How to link an underlying dataset or code repository to your published article.",
-    body: [
-      "If your research has an associated dataset, code repository, or supplementary materials, you can attach it to your submission as a dataset link. We support linking to Zenodo records directly, which gives the dataset its own citable DOI alongside your article's.",
-      "Linking data isn't mandatory for every submission, but it's required where a funder mandate specifies open data, and it's strongly encouraged everywhere else — it materially improves reproducibility and how easily others can build on your work.",
-      "Update the link if your repository moves; broken data links are one of the most common post-publication correction requests we receive.",
-    ],
-  },
-  {
+    summary: "Writing a data availability statement, choosing a repository, licensing and citing datasets and software, and handling sensitive data, the FAIR way.",
+    benchmarks: ["FAIR Guiding Principles", "Joint Declaration of Data Citation Principles", "FORCE11 Software Citation Principles", "TOP Guidelines", "CARE Principles"],
+  }),
+  guide({
     id: "guide-publication-ethics",
+    slug: "publication-ethics-and-research-integrity",
+    code: "EP-G-06",
     title: "Publication Ethics & Research Integrity Statement",
-    summary: "Our COPE/ICMJE-aligned policy on authorship, plagiarism, conflicts of interest, and how to report a concern.",
-    body: [
-      "Authorship: everyone listed must have made a genuine intellectual contribution to the work. Authorship disputes are resolved by the handling editor before publication — we don't adjudicate them after the fact, since that's much harder to do fairly.",
-      "Plagiarism & data integrity: every submission runs through an automated in-corpus similarity check before it reaches a reviewer, and citations are validated against OpenAlex during production so an unresolvable or fabricated reference gets caught before publication, not after.",
-      "Conflicts of interest: reviewers and editors must disclose any competing interest with a submission's authors or subject matter — a shared institution, a recent collaboration, a personal relationship — and recuse themselves from handling that submission where one exists.",
-      "Reporting a concern: email editorial@eleventhpress.org with the article's DOI (if published) or submission ID and a description of the issue. The editorial office investigates independently of the original handling editor wherever a conflict of interest is possible, and every substantiated concern results in a public corrections notice — see the guide below for what each notice type means.",
-    ],
-  },
-  {
+    summary: "Our COPE- and ICMJE-aligned policy on authorship, AI tools, plagiarism, data and image integrity, conflicts of interest, ethical oversight and reporting a concern.",
+    benchmarks: ["COPE Core Practices", "ICMJE Recommendations", "Declaration of Helsinki (2024)", "European Code of Conduct for Research Integrity", "Singapore Statement"],
+  }),
+  guide({
     id: "guide-corrections-retractions",
+    slug: "corrections-retractions-and-expressions-of-concern",
+    code: "EP-G-07",
     title: "Corrections, Retractions & Expressions of Concern Guide",
-    summary: "What each notice type means and how to report a concern about a published article.",
-    body: [
-      "We follow COPE/ICMJE convention for post-publication integrity issues. A Corrigendum fixes an author error; an Erratum fixes a publisher/production error; an Expression of Concern flags an unresolved doubt pending investigation; a Retraction withdraws the findings entirely.",
-      "To report a concern about any published article, email editorial@eleventhpress.org with the article's DOI and a description of the issue. The editorial office investigates independently of the original handling editor where a conflict of interest is possible.",
-      "Every notice is published as a linked, permanent addendum to the original article — the original is never silently deleted or altered.",
-    ],
-  },
+    summary: "What each post-publication notice means, when it is used, how it is issued and linked to the original article, and how to request a correction or report a concern.",
+    benchmarks: ["COPE Retraction Guidelines", "NISO RP-45-2024 (CREC)", "ICMJE Recommendations", "NISO RP-8-2008 (Journal Article Versions)"],
+  }),
 ];
 
 export interface Book {

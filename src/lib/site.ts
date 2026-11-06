@@ -57,3 +57,23 @@ export const ARTICLE_LANGUAGE = "en";
  */
 export const JOURNAL_ORG_CITY = process.env.JOURNAL_ORG_CITY || "Remote";
 export const JOURNAL_ORG_COUNTRY = process.env.JOURNAL_ORG_COUNTRY || "US";
+
+/**
+ * Journal identity block printed on every official document the platform
+ * generates for readers (Resources guides, their PDF editions). Mirrors the
+ * masthead on the About page (src/components/views/about-view.tsx) so the
+ * two can't silently disagree; update both together.
+ */
+export const JOURNAL_IDENTITY = {
+  name: "Eleventh Press International Publishing",
+  shortName: "Eleventh Press",
+  tagline: "A Full-Stack Peer Reviewed Press & Multidisciplinary Syndication Network",
+  issn: "2945-1138",
+  doiPrefix: "10.52011",
+  established: 2021,
+  location: "London, United Kingdom",
+  editorialEmail: "editorial@eleventhpress.org",
+  license: "CC BY 4.0",
+  licenseUrl: "https://creativecommons.org/licenses/by/4.0/",
+  apc: "USD 97",
+} as const;

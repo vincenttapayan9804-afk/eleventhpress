@@ -132,7 +132,7 @@ export function SiteHeader() {
               <button
                 key={item.view}
                 onClick={() => setView(item.view)}
-                data-active={view === item.view}
+                data-active={view === item.view || (item.view === "resources" && view === "resourcePage")}
                 data-testid={`nav-${item.view}`}
                 className="nav-underline flex-shrink-0 whitespace-nowrap font-sans text-[0.83rem] font-medium text-foreground/80 hover:text-foreground transition-colors 2xl:text-sm"
               >
