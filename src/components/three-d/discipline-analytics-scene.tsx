@@ -2,6 +2,7 @@
 
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { Billboard, ContactShadows, Html, Line, OrbitControls, RoundedBox } from "@react-three/drei";
+import { LabelDeclutter, declutterProps } from "./label-declutter";
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
@@ -46,21 +47,48 @@ export interface DisciplineAnalyticsSceneProps {
 const LABEL_Z: [number, number] = [20, 0];
 const BAR_W = 0.6;
 const BAR_SPACING = 1.1;
-const BAR_MAX_H = 3;
+const BAR_SIDE_MARGIN = 2.6;
+const CAMERA_FOV = 38;
+
+/**
+ * Bar-chart geometry fitted to the canvas. The row of bars is as wide as the
+ * discipline count makes it, so on most canvases width decides the camera
+ * distance and a fixed bar height left the chart a thin strip with empty
+ * space above (and, on a phone, ticks 0/1/2/3 squeezed into ~40px). Instead
+ * the tallest bar grows to use the height the width-fitted camera can see.
+ */
+function barsLayout(width: number, height: number, barCount: number) {
+  const aspect = width / Math.max(height, 1);
+  const halfW = ((barCount - 1) * BAR_SPACING) / 2 + BAR_SIDE_MARGIN;
+  // Half the visible height at the width-fitted distance, in world units.
+  const visHalf = halfW / aspect;
+  const usable = visHalf * 0.9;
+  const barH = THREE.MathUtils.clamp(Math.min((usable - 0.6) / 0.6, (usable - 1.7) / 0.4), 3, 9);
+  const targetY = barH * 0.4;
+  // Vertical half-extent to frame: bar top + value badge above the target,
+  // rotated names below it.
+  const vHalfExtent = Math.max(barH + 0.6 - targetY, targetY + 1.7);
+  return { barH, targetY, halfW, vHalfExtent };
+}
 const BOX = { half: 2.2, height: 3 };
 
 function Label({
   position,
   children,
   transform = "translate(-50%, -50%)",
+  priority = 1,
+  group,
 }: {
   position: [number, number, number];
   children: ReactNode;
   transform?: string;
+  /** Collision priority for <LabelDeclutter>: a higher number wins. */
+  priority?: number;
+  group?: string;
 }) {
   return (
     <Html position={position} zIndexRange={LABEL_Z} style={{ pointerEvents: "none" }}>
-      <div style={{ transform, transformOrigin: "100% 0" }} className="whitespace-nowrap">
+      <div style={{ transform, transformOrigin: "100% 0" }} className="whitespace-nowrap" {...declutterProps(priority, group)}>
         {children}
       </div>
     </Html>
@@ -226,41 +254,58 @@ function BarsScene({
   const top = ticks[ticks.length - 1];
   const x0 = -((ranked.length - 1) * BAR_SPACING) / 2;
   const x1 = -x0;
-  const axisX = x0 - BAR_SPACING * 0.75;
+  const axisX = x0 - BAR_SPACING * 0.85;
+  const floorRight = x1 + BAR_SPACING * 0.6;
+  // Rotated category names: steepen the angle as bars get closer together
+  // on screen, so neighbouring names keep ≥ ~17px between their baselines
+  // (perpendicular gap = on-screen bar spacing × sin(angle)).
+  const size = useThree((s) => s.size);
+  const { barH: barMaxH } = barsLayout(size.width, size.height, ranked.length);
+  const nameAngle = useMemo(() => {
+    const dx = (size.width * 0.78) / Math.max(ranked.length, 1);
+    const deg = (Math.asin(Math.min(1, 17 / Math.max(dx, 1))) * 180) / Math.PI;
+    return Math.round(Math.min(80, Math.max(36, deg)));
+  }, [size.width, ranked.length]);
   const wallZ = -0.75;
   const focus = highlighted ?? selected;
 
   const gridSegments = useMemo(() => {
     const segs: [number, number, number][] = [];
     for (const t of ticks) {
-      const y = (t / top) * BAR_MAX_H;
-      segs.push([axisX, y, wallZ], [x1 + BAR_SPACING * 0.6, y, wallZ]);
+      const y = (t / top) * barMaxH;
+      segs.push([axisX, y, wallZ], [floorRight, y, wallZ]);
     }
-    segs.push([axisX, 0, wallZ], [axisX, BAR_MAX_H, wallZ]);
+    segs.push([axisX, 0, wallZ], [axisX, barMaxH, wallZ]);
     return segs;
-  }, [ticks, top, axisX, x1]);
+  }, [ticks, top, axisX, floorRight, barMaxH]);
 
   return (
     <group>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.002, -0.05]}>
-        <planeGeometry args={[x1 - x0 + BAR_SPACING * 2.4, 2.1]} />
+      {/* The floor starts at the y-axis, so the axis's tick labels sit
+          beside it rather than on top of it. */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[(axisX + floorRight) / 2, -0.002, -0.05]}>
+        <planeGeometry args={[floorRight - axisX, 2.1]} />
         <meshStandardMaterial color={theme.floor} roughness={0.9} transparent opacity={0.85} />
       </mesh>
       <GridLines segments={gridSegments} color={theme.grid} />
 
+      {/* The axis title lives in the legend above the canvas ("Bar height:
+          …"), not in the scene, where it collided with the leader's value. */}
       {ticks.map((t) => (
-        <Label key={t} position={[axisX - 0.12, (t / top) * BAR_MAX_H, wallZ]} transform="translate(-100%, -50%)">
+        <Label
+          key={t}
+          position={[axisX - 0.12, (t / top) * barMaxH, wallZ]}
+          transform="translate(-100%, -50%)"
+          priority={t === 0 ? 1 : 2}
+        >
           <span className="text-[11px] tabular-nums text-muted-foreground">{formatCompact(t)}</span>
         </Label>
       ))}
-      <Label position={[axisX, BAR_MAX_H + 0.42, wallZ]} transform="translate(-50%, -50%)">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{def.axisTitle}</span>
-      </Label>
 
       {ranked.map((s, i) => {
         const value = def.value(s);
         const x = x0 + i * BAR_SPACING;
-        const height = (value / top) * BAR_MAX_H;
+        const height = (value / top) * barMaxH;
         const emphasized = focus === s.discipline;
         // Selective direct labels: the emphasized bar, plus the leader when
         // nothing is emphasized. Every other value lives in the tooltip and
@@ -280,11 +325,16 @@ function BarsScene({
               onSelect={onSelect}
             />
             {showValue && (
-              <Label position={[x, height + 0.32, 0]}>
+              <Label position={[x, height + 0.32, 0]} priority={5}>
                 <ValueBadge>{def.format(value)}</ValueBadge>
               </Label>
             )}
-            <Label position={[x + 0.12, 0, 0.45]} transform="translate(-100%, 0) rotate(-38deg)">
+            <Label
+              position={[x + 0.12, 0, 0.45]}
+              transform={`translate(-100%, 0) rotate(-${nameAngle}deg)`}
+              priority={emphasized ? 4 : 3}
+              group="names"
+            >
               <span
                 className={`text-[11px] ${emphasized ? "font-semibold text-foreground" : "font-medium text-muted-foreground"}`}
               >
@@ -401,7 +451,7 @@ function Point({
         </mesh>
       </group>
       {showName && (
-        <Label position={[x, y + 0.42, z]}>
+        <Label position={[x, y + 0.42, z]} priority={emphasized ? 6 : 4}>
           <span
             className={`rounded px-1 text-[11px] ${emphasized ? "bg-background/95 font-semibold text-foreground shadow-sm" : "bg-background/75 font-medium text-muted-foreground"}`}
           >
@@ -414,7 +464,7 @@ function Point({
 }
 
 function ScatterScene({
-  stats,
+  stats: allStats,
   highlighted,
   selected,
   onHover,
@@ -422,6 +472,10 @@ function ScatterScene({
   allowMotion,
   theme,
 }: Omit<DisciplineAnalyticsSceneProps, "view" | "metric" | "dark" | "onCameraApi" | "className"> & { theme: Theme }) {
+  // Disciplines with nothing published yet would all sit on the origin as
+  // one overplotted clump; they're listed in the table (and the legend
+  // says so) instead of being drawn.
+  const stats = useMemo(() => allStats.filter((s) => s.articles > 0), [allStats]);
   const { half, height } = BOX;
   const xt = useMemo(() => niceTicks(Math.max(...stats.map((s) => s.articles), 0), 4), [stats]);
   const yt = useMemo(() => niceTicks(Math.max(...stats.map((s) => s.citations), 0), 4), [stats]);
@@ -473,17 +527,17 @@ function ScatterScene({
       <GridLines segments={gridSegments} color={theme.grid} />
 
       {xt.map((t) => (
-        <Label key={`x${t}`} position={[sx(t), 0, half + 0.38]}>
+        <Label key={`x${t}`} position={[sx(t), 0, half + 0.38]} priority={2}>
           <span className="text-[11px] tabular-nums text-muted-foreground">{formatCompact(t)}</span>
         </Label>
       ))}
       {yt.map((t) => (
-        <Label key={`y${t}`} position={[-half - 0.15, sy(t), half]} transform="translate(-100%, -50%)">
+        <Label key={`y${t}`} position={[-half - 0.15, sy(t), half]} transform="translate(-100%, -50%)" priority={2}>
           <span className="text-[11px] tabular-nums text-muted-foreground">{formatCompact(t)}</span>
         </Label>
       ))}
       {zt.map((t) => (
-        <Label key={`z${t}`} position={[half + 0.5, 0, sz(t)]}>
+        <Label key={`z${t}`} position={[half + 0.5, 0, sz(t)]} priority={2}>
           <span className="text-[11px] tabular-nums text-muted-foreground">{formatCompact(t)}</span>
         </Label>
       ))}
@@ -492,7 +546,7 @@ function ScatterScene({
         { text: "Citations", position: [-half, height + 0.45, -half] as [number, number, number] },
         { text: "Views", position: [half + 1.45, 0, 0] as [number, number, number] },
       ].map((a) => (
-        <Label key={a.text} position={a.position}>
+        <Label key={a.text} position={a.position} priority={3}>
           <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{a.text}</span>
         </Label>
       ))}
@@ -523,7 +577,7 @@ function ScatterScene({
 // ─── Camera: fit-to-container framing, animated transitions, zoom API ───
 
 const FRAMING: Record<AnalyticsView, { target: THREE.Vector3; dir: THREE.Vector3 }> = {
-  bars: { target: new THREE.Vector3(-0.35, 1.2, 0), dir: new THREE.Vector3(0.14, 0.4, 1).normalize() },
+  bars: { target: new THREE.Vector3(-0.35, 1.2, 0) /* y replaced by barsLayout */, dir: new THREE.Vector3(0.14, 0.4, 1).normalize() },
   scatter: { target: new THREE.Vector3(0, 1.2, 0), dir: new THREE.Vector3(1, 0.72, 1.12).normalize() },
 };
 
@@ -557,13 +611,15 @@ function CameraRig({
     const aspect = size.width / Math.max(size.height, 1);
     const vHalf = THREE.MathUtils.degToRad(camera.fov / 2);
     const hHalf = Math.atan(Math.tan(vHalf) * aspect);
-    const { target, dir } = FRAMING[view];
+    const { dir } = FRAMING[view];
+    const bars = barsLayout(size.width, size.height, barCount);
+    const target = view === "bars" ? new THREE.Vector3(-0.35, bars.targetY, 0) : FRAMING.scatter.target;
     // Bars: frame the row's half-width plus axis/label margin horizontally,
     // and the tallest bar plus labels vertically. Scatter: frame the box's
     // bounding sphere plus its axis labels.
     const dist =
       view === "bars"
-        ? Math.max((((barCount - 1) * BAR_SPACING) / 2 + 2.9) / Math.tan(hHalf), 2.9 / Math.tan(vHalf))
+        ? Math.max(bars.halfW / Math.tan(hHalf), bars.vHalfExtent / Math.tan(vHalf))
         : 4.3 / Math.sin(Math.min(vHalf, hHalf));
     return { position: target.clone().addScaledVector(dir, Math.max(dist, 6)), target: target.clone() };
   }, [view, barCount, size.width, size.height, camera.fov]);
@@ -635,7 +691,7 @@ export function DisciplineAnalyticsScene(props: DisciplineAnalyticsSceneProps) {
         // colours instead of ACES's darker, desaturated remap.
         flat
         dpr={sceneDpr()}
-        camera={{ position: [2, 5, 14], fov: 38, near: 0.1, far: 200 }}
+        camera={{ position: [2, 5, 14], fov: CAMERA_FOV, near: 0.1, far: 200 }}
         gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
         style={{ background: "transparent" }}
         onPointerMissed={() => onHover(null)}
@@ -656,6 +712,7 @@ export function DisciplineAnalyticsScene(props: DisciplineAnalyticsSceneProps) {
           minPolarAngle={0.15}
           maxPolarAngle={Math.PI / 2 - 0.06}
         />
+        <LabelDeclutter />
         <CameraRig view={view} barCount={props.stats.length} allowMotion={allowMotion} onCameraApi={onCameraApi} />
       </Canvas>
     </div>

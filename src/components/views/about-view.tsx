@@ -11,6 +11,8 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { DOI_REGISTRAR } from "@/lib/site";
+import { DISCIPLINES } from "@/lib/article";
+import { DISCIPLINE_ICONS } from "@/components/discipline-icons";
 import {
   BookOpen,
   ShieldCheck,
@@ -20,13 +22,8 @@ import {
   Quote,
   Scale,
   Microscope,
-  Atom,
   Cpu,
-  Brain,
-  Leaf,
-  Calculator,
   Landmark,
-  BarChart3,
   Workflow,
   Database,
   Cloud,
@@ -195,24 +192,19 @@ export function AboutView() {
       {/* Disciplines */}
       <section className="mt-12">
         <h2 className="font-display text-2xl font-semibold">Disciplines covered</h2>
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {[
-            { name: "Physics", icon: Atom },
-            { name: "Biology", icon: Microscope },
-            { name: "Computer Science", icon: Cpu },
-            { name: "Sociology", icon: Users },
-            { name: "Economics", icon: BarChart3 },
-            { name: "Psychology", icon: Brain },
-            { name: "Environmental Science", icon: Leaf },
-            { name: "Mathematics", icon: Calculator },
-          ].map((d) => (
-            <Card key={d.name} className="paper-card">
-              <CardContent className="flex items-center gap-3 p-4">
-                <d.icon className="h-5 w-5 text-primary" />
-                <span className="font-sans text-sm font-medium">{d.name}</span>
-              </CardContent>
-            </Card>
-          ))}
+        {/* The same twelve as the home page: both read DISCIPLINES. */}
+        <div className="mt-4 grid grid-cols-1 gap-3 min-[400px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+          {DISCIPLINES.map((name) => {
+            const Icon = DISCIPLINE_ICONS[name];
+            return (
+              <Card key={name} className="paper-card">
+                <CardContent className="flex items-center gap-3 p-4">
+                  <Icon className="h-5 w-5 shrink-0 text-primary" />
+                  <span className="min-w-0 font-sans text-sm font-medium">{name}</span>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </section>
 

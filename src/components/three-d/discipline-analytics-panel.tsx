@@ -133,6 +133,9 @@ export function DisciplineAnalyticsPanel({
     [stats]
   );
   const statByName = useMemo(() => new Map(stats.map((s) => [s.discipline, s])), [stats]);
+  // The scatter skips disciplines with no published articles (they'd all
+  // overplot at the origin); the legend says how many.
+  const unplotted = stats.filter((s) => s.articles === 0).length;
 
   const select = (d: string) => onSelectDiscipline(selected === d ? "ALL" : d);
   const tooltipStat = chartHover?.pointer ? statByName.get(chartHover.discipline) : undefined;
@@ -187,31 +190,28 @@ export function DisciplineAnalyticsPanel({
         </ToggleGroup>
 
         {view === "bars" && (
-          // Scrolls sideways on a narrow phone instead of squeezing the
-          // segments into each other.
-          <div className="no-scrollbar -mx-1 max-w-full overflow-x-auto px-1 py-0.5">
-            <ToggleGroup
-              type="single"
-              variant="outline"
-              size="sm"
-              value={metric}
-              onValueChange={(v) => v && setMetric(v as AnalyticsMetric)}
-              aria-label="Metric"
-            >
-              {METRIC_ORDER.map((m) => (
-                <ToggleGroupItem key={m} value={m} aria-label={METRICS[m].label} className="px-2.5 sm:px-3">
-                  {m === "citationsPerArticle" ? (
-                    <>
-                      <span className="sm:hidden">Cit./article</span>
-                      <span className="hidden sm:inline">{METRICS[m].label}</span>
-                    </>
-                  ) : (
-                    METRICS[m].label
-                  )}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-          </div>
+          // A 2×2 grid on phones (every metric fully visible, nothing
+          // clipped or scrolled out of view); one segmented row from sm up.
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            size="sm"
+            value={metric}
+            onValueChange={(v) => v && setMetric(v as AnalyticsMetric)}
+            aria-label="Metric"
+            className="grid w-full grid-cols-2 gap-1.5 data-[variant=outline]:shadow-none sm:flex sm:w-fit sm:gap-0 sm:data-[variant=outline]:shadow-xs"
+          >
+            {METRIC_ORDER.map((m) => (
+              <ToggleGroupItem
+                key={m}
+                value={m}
+                aria-label={METRICS[m].label}
+                className="rounded-md px-2.5 data-[variant=outline]:border-l sm:rounded-none sm:px-3 sm:first:rounded-l-md sm:last:rounded-r-md sm:data-[variant=outline]:border-l-0 sm:data-[variant=outline]:first:border-l"
+              >
+                {METRICS[m].label}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
         )}
 
         <div className="ml-auto flex shrink-0 items-center gap-1">
@@ -228,30 +228,10 @@ export function DisciplineAnalyticsPanel({
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_430px]">
-        <div
-          role="img"
-          aria-label={
-            view === "bars"
-              ? `3D bar chart of ${METRICS[metric].axisTitle.toLowerCase()} per discipline. The table beside it lists every value.`
-              : "3D scatter plot of published articles, citations and views per discipline. The table beside it lists every value."
-          }
-          className="relative h-[340px] overflow-hidden rounded-xl sm:h-[440px] border border-border/60 bg-gradient-to-b from-[var(--royal-50)] to-transparent"
-        >
-          <DisciplineAnalyticsScene
-            stats={stats}
-            view={view}
-            metric={metric}
-            highlighted={highlighted}
-            selected={selected}
-            onHover={(d, pointer) => setChartHover(d ? { discipline: d, pointer } : null)}
-            onSelect={select}
-            allowMotion={allowMotion}
-            dark={dark}
-            onCameraApi={handleCameraApi}
-            fallback={fallback}
-          />
-
-          <div className="pointer-events-none absolute left-2 top-2 flex max-w-[calc(100%-1rem)] flex-col gap-1 rounded-lg border border-border/60 bg-background/85 px-2.5 py-2 text-[10px] sm:left-3 sm:top-3 sm:text-[11px] text-muted-foreground backdrop-blur-sm">
+        {/* Legend and hint sit outside the canvas, in normal flow: overlaid
+            on the chart they covered bars and labels on narrow screens. */}
+        <div className="flex min-w-0 flex-col gap-2">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-[11px] text-muted-foreground">
             <span className="flex items-center gap-1.5">
               {view === "bars" ? (
                 <span className="h-3 w-2 rounded-t-[2px]" style={{ background: theme.mark }} />
@@ -262,13 +242,41 @@ export function DisciplineAnalyticsPanel({
                 ? `Bar height: ${METRICS[metric].axisTitle.toLowerCase()}`
                 : "Discipline — x: articles · y: citations · z: views"}
             </span>
+            {view === "scatter" && unplotted > 0 && (
+              <span>
+                {unplotted} discipline{unplotted === 1 ? "" : "s"} with no published articles yet: see the table
+              </span>
+            )}
             <span className="flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-full border-2" style={{ borderColor: theme.accent }} />
               Has DOI-registered articles
             </span>
           </div>
-          <p className="pointer-events-none absolute bottom-3 right-3 flex items-center gap-1.5 rounded-md bg-background/80 px-2 py-1 text-[11px] text-muted-foreground backdrop-blur-sm">
-            <MousePointerClick className="h-3 w-3" /> <span className="hidden sm:inline">Drag to orbit · click a discipline to filter</span><span className="sm:hidden">Swipe sideways to orbit · tap to filter</span>
+          <div
+            role="img"
+            aria-label={
+              view === "bars"
+                ? `3D bar chart of ${METRICS[metric].axisTitle.toLowerCase()} per discipline. The table beside it lists every value.`
+                : "3D scatter plot of published articles, citations and views per discipline. The table beside it lists every value."
+            }
+            className="relative h-[340px] overflow-hidden rounded-xl sm:h-[440px] border border-border/60 bg-gradient-to-b from-[var(--royal-50)] to-transparent"
+          >
+            <DisciplineAnalyticsScene
+              stats={stats}
+              view={view}
+              metric={metric}
+              highlighted={highlighted}
+              selected={selected}
+              onHover={(d, pointer) => setChartHover(d ? { discipline: d, pointer } : null)}
+              onSelect={select}
+              allowMotion={allowMotion}
+              dark={dark}
+              onCameraApi={handleCameraApi}
+              fallback={fallback}
+            />
+          </div>
+          <p className="flex items-center gap-1.5 px-1 text-[11px] text-muted-foreground">
+            <MousePointerClick className="h-3 w-3 shrink-0" /> <span className="hidden sm:inline">Drag to orbit · click a discipline to filter</span><span className="sm:hidden">Swipe sideways to orbit · tap to filter</span>
           </p>
         </div>
 

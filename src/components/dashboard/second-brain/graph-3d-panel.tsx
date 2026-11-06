@@ -153,78 +153,84 @@ export function SecondBrainGraph3D({
       </dl>
 
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_280px]">
-        <div
-          role="img"
-          aria-label={
-            mode === "constellation"
-              ? `3D constellation of ${stats.notes} notes and ${stats.connections} tag connections. Most-connected notes orbit closest to the core.`
-              : `3D tide of ${stats.notes} notes along a timeline; taller notes have more connections.`
-          }
-          className="relative h-[380px] overflow-hidden rounded-2xl border border-primary/20 bg-[radial-gradient(ellipse_at_center,color-mix(in_oklab,var(--primary)_14%,transparent),transparent_70%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_20px_50px_-24px_color-mix(in_oklab,var(--primary)_45%,transparent)] sm:h-[520px]"
-        >
-          <DataSceneGuard fallback={fallback}>
-            <SceneImpl
-              mode={mode}
-              layout={layout}
-              accent={accentColor}
-              dark={dark}
-              allowMotion={allowMotion}
-              autoRotate={autoRotate}
-              hovered={hover?.id ?? null}
-              selected={selected}
-              lit={lit}
-              onHover={(id, pointer) => setHover(id ? { id, pointer } : null)}
-              onSelect={setSelected}
-              onCameraApi={handleCameraApi}
-            />
-          </DataSceneGuard>
-
-          <div className="absolute right-2 top-2 flex items-center gap-0.5 rounded-lg border border-border/60 bg-background/85 p-0.5 backdrop-blur-sm">
-            <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Zoom out" onClick={() => camera.current?.zoomBy(1.25)}>
-              <ZoomOut className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Zoom in" onClick={() => camera.current?.zoomBy(1 / 1.25)}>
-              <ZoomIn className="h-4 w-4" />
-            </Button>
-            {allowMotion && (
+        {/* Legend and controls sit above the canvas, in normal flow:
+            overlaid on the graph they covered notes on narrow screens. */}
+        <div className="flex min-w-0 flex-col gap-2">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-full" style={{ background: accentColor }} /> Note (size = links)
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-full border-2" style={{ borderColor: accentColor }} /> Pinned
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-px w-4" style={{ background: accentColor }} /> Shared tag
+              </span>
+              <span className="flex items-center gap-1">
+                <Hand className="h-3 w-3 shrink-0" />
+                <span className="hidden sm:inline">Drag to orbit · click a note to focus</span>
+                <span className="sm:hidden">Swipe sideways to orbit · tap a note</span>
+              </span>
+            </div>
+            <div className="flex shrink-0 items-center gap-0.5 rounded-lg border border-border/60 bg-background/85 p-0.5">
+              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Zoom out" onClick={() => camera.current?.zoomBy(1.25)}>
+                <ZoomOut className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Zoom in" onClick={() => camera.current?.zoomBy(1 / 1.25)}>
+                <ZoomIn className="h-4 w-4" />
+              </Button>
+              {allowMotion && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  aria-label={autoRotate ? "Pause rotation" : "Resume rotation"}
+                  aria-pressed={!autoRotate}
+                  onClick={() => setAutoRotate((v) => !v)}
+                >
+                  {autoRotate ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8"
-                aria-label={autoRotate ? "Pause rotation" : "Resume rotation"}
-                aria-pressed={!autoRotate}
-                onClick={() => setAutoRotate((v) => !v)}
+                aria-label="Reset view"
+                onClick={() => {
+                  setSelected(null);
+                  camera.current?.reset();
+                }}
               >
-                {autoRotate ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                <RotateCcw className="h-4 w-4" />
               </Button>
-            )}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              aria-label="Reset view"
-              onClick={() => {
-                setSelected(null);
-                camera.current?.reset();
-              }}
-            >
-              <RotateCcw className="h-4 w-4" />
-            </Button>
+            </div>
           </div>
-
-          <div className="pointer-events-none absolute bottom-2 left-2 flex max-w-[calc(100%-1rem)] flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-border/60 bg-background/85 px-2.5 py-1.5 text-[10px] text-muted-foreground backdrop-blur-sm sm:text-[11px]">
-            <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full" style={{ background: accentColor }} /> Note (size = links)
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full border-2" style={{ borderColor: accentColor }} /> Pinned
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-px w-4" style={{ background: accentColor }} /> Shared tag
-            </span>
-            <span className="hidden items-center gap-1 sm:flex">
-              <Hand className="h-3 w-3" /> Drag to orbit · click a note to focus
-            </span>
+          <div
+            role="img"
+            aria-label={
+              mode === "constellation"
+                ? `3D constellation of ${stats.notes} notes and ${stats.connections} tag connections. Most-connected notes orbit closest to the core.`
+                : `3D tide of ${stats.notes} notes along a timeline; taller notes have more connections.`
+            }
+            className="relative h-[380px] overflow-hidden rounded-2xl border border-primary/20 bg-[radial-gradient(ellipse_at_center,color-mix(in_oklab,var(--primary)_14%,transparent),transparent_70%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_20px_50px_-24px_color-mix(in_oklab,var(--primary)_45%,transparent)] sm:h-[520px]"
+          >
+            <DataSceneGuard fallback={fallback}>
+              <SceneImpl
+                mode={mode}
+                layout={layout}
+                accent={accentColor}
+                dark={dark}
+                allowMotion={allowMotion}
+                autoRotate={autoRotate}
+                hovered={hover?.id ?? null}
+                selected={selected}
+                lit={lit}
+                onHover={(id, pointer) => setHover(id ? { id, pointer } : null)}
+                onSelect={setSelected}
+                onCameraApi={handleCameraApi}
+              />
+            </DataSceneGuard>
           </div>
         </div>
 

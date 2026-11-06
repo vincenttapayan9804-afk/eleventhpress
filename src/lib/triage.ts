@@ -18,7 +18,7 @@ import { db } from "@/lib/db";
 import { parseAuthors, DISCIPLINES } from "@/lib/article";
 import { chatJSON, anyLLMAvailable } from "@/lib/llm";
 
-const AIMS_SCOPE = `Eleventh Press International Publishing is committed to rigorous, transparent, and rapid dissemination of scholarship. The journal welcomes original research submissions spanning the natural sciences, engineering, social sciences, and humanities. Disciplines: Physics, Biology, Computer Science, Sociology, Economics, Psychology, Environmental Science, Mathematics.`;
+const AIMS_SCOPE = `Eleventh Press International Publishing is committed to rigorous, transparent, and rapid dissemination of scholarship. The journal welcomes original research submissions spanning the natural sciences, engineering, social sciences, and humanities. Disciplines: ${DISCIPLINES.join(", ")}.`;
 
 const SYSTEM_PROMPT = `You are the editorial triage assistant for Eleventh Press International Publishing, a multidisciplinary open-access journal. Your job is to read a manuscript submission and produce a structured editorial report that helps the editor make a fast, informed first decision.
 
