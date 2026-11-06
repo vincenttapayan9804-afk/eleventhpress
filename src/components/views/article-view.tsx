@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { useApp } from "@/lib/store";
 import { apiFetch } from "@/lib/api-client";
 import { ArticleDetail } from "@/lib/types";
@@ -15,8 +14,8 @@ import { MetricsBarChart3D, MetricsFillGauge3D } from "@/components/three-d/lazy
 import { ReaderPresenceBadge } from "@/components/article/reader-presence-badge";
 import { ArticleNarrationCard } from "@/components/article/article-narration-card";
 import { GalleyTranslationPanel } from "@/components/article/galley-translation-panel";
+import { ArticleChatPanel } from "@/components/article/article-chat-panel";
 import { PdfPreview } from "@/components/pdf-preview";
-import { ThinkingOrb } from "thinking-orbs";
 import { IconChip } from "@/components/icon-chip";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { DataTableChart, type DataTableChartTable } from "@/components/data-tables/data-table-chart";
@@ -77,8 +76,6 @@ import {
   Lock,
   FileCode,
   Layers,
-  Send,
-  Sparkles,
   Printer,
   Users,
   Scale,
@@ -1605,172 +1602,6 @@ function HeadMetas({ article, authors }: { article: ArticleDetail; authors: any[
   }, [article, authors]);
 
   return null;
-}
-
-// ---------------------------------------------------------------------------
-// ArticleChatPanel — "Ask this paper" RAG chat. Every answer is grounded
-// in passages retrieved from this specific article's chunked galley text
-// (src/lib/chunk-embeddings.ts, src/app/api/articles/[id]/chat/route.ts) —
-// never general knowledge. Renders the honest unavailable/not-indexed
-// states the API returns rather than a fabricated conversation.
-// ---------------------------------------------------------------------------
-
-interface ChatCitation {
-  chunkIndex: number;
-  text: string;
-  matchType: "vector" | "lexical";
-}
-
-interface ChatMessage {
-  role: "user" | "assistant";
-  content: string;
-  grounded?: boolean;
-  citations?: ChatCitation[];
-}
-
-function ArticleChatPanel({ articleId, articleTitle }: { articleId: string; articleTitle: string }) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [question, setQuestion] = useState("");
-  const [sending, setSending] = useState(false);
-  const [unavailable, setUnavailable] = useState<string | null>(null);
-  const [messageListRef] = useAutoAnimate();
-
-  async function send() {
-    const trimmed = question.trim();
-    if (!trimmed || sending) return;
-
-    const history = messages.slice(-6).map((m) => ({ role: m.role, content: m.content }));
-    setMessages((prev) => [...prev, { role: "user", content: trimmed }]);
-    setQuestion("");
-    setSending(true);
-    setUnavailable(null);
-
-    try {
-      const res = await apiFetch<{
-        mode: "answered" | "unavailable" | "not-indexed";
-        message?: string;
-        answer?: string;
-        grounded?: boolean;
-        citedChunks?: ChatCitation[];
-      }>(`/api/articles/${articleId}/chat`, {
-        method: "POST",
-        body: JSON.stringify({ question: trimmed, history }),
-      });
-
-      if (res.mode === "answered" && res.answer) {
-        setMessages((prev) => [
-          ...prev,
-          { role: "assistant", content: res.answer!, grounded: res.grounded, citations: res.citedChunks },
-        ]);
-      } else {
-        setUnavailable(res.message || "AI chat isn't available for this article right now.");
-        setMessages((prev) => prev.slice(0, -1));
-      }
-    } catch (e: any) {
-      // 4xx messages (rate limit, question too long) are written for
-      // readers; a 5xx or network failure gets the friendly banner instead.
-      const status: number | undefined = e?.status;
-      if (status && status >= 400 && status < 500 && e?.message) {
-        toast.error(e.message);
-      } else {
-        setUnavailable("AI chat is temporarily unavailable for this article — please try again in a few minutes.");
-      }
-      setMessages((prev) => prev.slice(0, -1));
-    } finally {
-      setSending(false);
-    }
-  }
-
-  return (
-    <Card className="paper-card">
-      <CardContent className="p-5">
-        <div className="flex items-start gap-3">
-          <Sparkles className="mt-1 h-5 w-5 flex-shrink-0 text-primary" />
-          <div>
-            <p className="font-display text-lg font-semibold">Ask this paper</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Ask a question about &ldquo;{articleTitle}&rdquo; — answers are grounded only in
-              this article&apos;s own text, not general knowledge, and every answer shows which
-              passages it drew on.
-            </p>
-          </div>
-        </div>
-
-        {unavailable && (
-          <div className="mt-4 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-            <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
-            <p>{unavailable}</p>
-          </div>
-        )}
-
-        {messages.length > 0 && (
-          <div ref={messageListRef} className="mt-4 max-h-96 space-y-3 overflow-y-auto epip-scroll pr-1">
-            {messages.map((m, i) => (
-              <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
-                <div
-                  className={
-                    m.role === "user"
-                      ? "max-w-[85%] rounded-lg rounded-br-sm bg-primary px-3.5 py-2 text-sm text-primary-foreground"
-                      : "max-w-[85%] rounded-lg rounded-bl-sm border border-border bg-muted/30 px-3.5 py-2.5 text-sm"
-                  }
-                >
-                  <p className="whitespace-pre-wrap leading-relaxed">{m.content}</p>
-                  {m.role === "assistant" && m.grounded === false && (
-                    <p className="mt-1.5 text-[0.65rem] italic text-muted-foreground">
-                      Not covered by this article&apos;s text.
-                    </p>
-                  )}
-                  {m.role === "assistant" && m.citations && m.citations.length > 0 && (
-                    <details className="mt-2">
-                      <summary className="cursor-pointer text-[0.65rem] font-medium text-primary">
-                        {m.citations.length} passage{m.citations.length > 1 ? "s" : ""} cited
-                      </summary>
-                      <div className="mt-1.5 space-y-1.5">
-                        {m.citations.map((c) => (
-                          <p key={c.chunkIndex} className="rounded border border-border/60 bg-background/60 p-2 text-[0.7rem] leading-snug text-muted-foreground">
-                            {c.text}
-                          </p>
-                        ))}
-                      </div>
-                    </details>
-                  )}
-                </div>
-              </div>
-            ))}
-            {sending && (
-              <div className="flex justify-start">
-                <div className="flex items-center gap-2 rounded-lg rounded-bl-sm border border-border bg-muted/30 px-3.5 py-2.5 text-sm text-muted-foreground">
-                  <ThinkingOrb state="searching" size={20} aria-label="Reading the paper" />
-                  Reading the paper…
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="mt-4 flex items-end gap-2">
-          <Textarea
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                send();
-              }
-            }}
-            placeholder="e.g. What method did the authors use, and what was the main finding?"
-            className="min-h-[2.5rem] resize-none text-sm"
-            rows={1}
-            maxLength={800}
-            disabled={sending}
-          />
-          <Button size="icon" onClick={send} disabled={sending || !question.trim()} aria-label="Send">
-            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
 }
 
 // ---------------------------------------------------------------------------

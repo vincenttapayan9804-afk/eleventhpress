@@ -81,7 +81,7 @@ function CitationChip({ citation, data, onCite }: { citation: AnswerCitation; da
   );
 }
 
-function evidenceBadge(data: AnswerData) {
+function evidenceBadge(data: AnswerData, scope: "journal" | "article") {
   const status = data.evidence?.status ?? (data.grounded ? "verified" : "unsupported");
   if (status === "verified") {
     return { icon: ShieldCheck, label: "Evidence verified", cls: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" };
@@ -89,18 +89,20 @@ function evidenceBadge(data: AnswerData) {
   if (status === "review") {
     return { icon: ShieldAlert, label: "Review details", cls: "border-amber-500/35 bg-amber-500/10 text-amber-800 dark:text-amber-300" };
   }
-  return { icon: ShieldQuestion, label: "Not covered by the journal", cls: "border-border bg-muted/50 text-muted-foreground" };
+  return { icon: ShieldQuestion, label: scope === "article" ? "Not covered by this article" : "Not covered by the journal", cls: "border-border bg-muted/50 text-muted-foreground" };
 }
 
 export interface AnswerActions {
   onCite: (n: number) => void;
   onShowSources: () => void;
-  onOpenArticle: (articleId: string) => void;
+  /** Omit to hide "Open article" (e.g. inside the article itself). */
+  onOpenArticle?: (articleId: string) => void;
   onRegenerate: () => void;
   onCopy: () => void;
   onCopyCitations: () => void;
   onExport: (format: "pdf" | "docx" | "md") => void;
-  onToggleSave: () => void;
+  /** Omit to hide "Save" (no conversation storage). */
+  onToggleSave?: () => void;
   onFeedback: (rating: "HELPFUL" | "NOT_HELPFUL") => void;
   onReport: () => void;
   onContinue: () => void;
@@ -147,16 +149,19 @@ export const AnswerView = memo(function AnswerView({
   busy,
   exporting,
   isLatest,
+  scope = "journal",
 }: {
   message: ChatMessage;
   actions: AnswerActions;
   busy: boolean;
   exporting: boolean;
   isLatest: boolean;
+  /** "article": answering about one paper (Ask this paper). */
+  scope?: "journal" | "article";
 }) {
   const data: AnswerData = message.data ?? { grounded: true, citations: [], sources: [] };
   const byN = useMemo(() => new Map(data.citations.map((c) => [c.n, c])), [data.citations]);
-  const badge = evidenceBadge(data);
+  const badge = evidenceBadge(data, scope);
   const BadgeIcon = badge.icon;
   const primary = data.sources[0];
 
@@ -221,7 +226,9 @@ export const AnswerView = memo(function AnswerView({
         </span>
         {data.evidence?.passagesReviewed ? (
           <span className="text-[0.66rem] text-muted-foreground">
-            {data.evidence.passagesReviewed} passages from {data.evidence.articlesReviewed} article{data.evidence.articlesReviewed === 1 ? "" : "s"} reviewed
+            {scope === "article"
+              ? `${data.evidence.passagesReviewed} passage${data.evidence.passagesReviewed === 1 ? "" : "s"} of this article reviewed`
+              : `${data.evidence.passagesReviewed} passages from ${data.evidence.articlesReviewed} article${data.evidence.articlesReviewed === 1 ? "" : "s"} reviewed`}
           </span>
         ) : null}
       </header>
@@ -282,9 +289,11 @@ export const AnswerView = memo(function AnswerView({
         <ToolButton label="Expand sources" onClick={actions.onShowSources} disabled={data.sources.length === 0}>
           <Library className="h-4 w-4" />
         </ToolButton>
-        <ToolButton label={primary ? `Open article: ${primary.title}` : "Open article"} onClick={() => primary && actions.onOpenArticle(primary.id)} disabled={!primary}>
-          <BookOpen className="h-4 w-4" />
-        </ToolButton>
+        {actions.onOpenArticle && (
+          <ToolButton label={primary ? `Open article: ${primary.title}` : "Open article"} onClick={() => primary && actions.onOpenArticle?.(primary.id)} disabled={!primary}>
+            <BookOpen className="h-4 w-4" />
+          </ToolButton>
+        )}
         <DropdownMenu>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -315,9 +324,11 @@ export const AnswerView = memo(function AnswerView({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <ToolButton label={message.saved ? "Saved — click to unsave" : "Save response"} onClick={actions.onToggleSave} active={message.saved}>
-          {message.saved ? <BookmarkCheck className="h-4 w-4" /> : <Bookmark className="h-4 w-4" />}
-        </ToolButton>
+        {actions.onToggleSave && (
+          <ToolButton label={message.saved ? "Saved — click to unsave" : "Save response"} onClick={actions.onToggleSave} active={message.saved}>
+            {message.saved ? <BookmarkCheck className="h-4 w-4" /> : <Bookmark className="h-4 w-4" />}
+          </ToolButton>
+        )}
         <span className="mx-1 h-4 w-px bg-border" aria-hidden="true" />
         <ToolButton label="Helpful" onClick={() => actions.onFeedback("HELPFUL")} active={data.feedback === "HELPFUL"}>
           <ThumbsUp className="h-4 w-4" />

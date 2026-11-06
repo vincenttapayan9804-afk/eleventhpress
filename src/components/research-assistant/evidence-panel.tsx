@@ -58,7 +58,8 @@ function ArticlePreview({
   source: AnswerSource;
   citation: number | null;
   onBack: () => void;
-  onOpenArticle: (id: string) => void;
+  /** Omit to hide "Open article" (e.g. inside the article itself). */
+  onOpenArticle?: (id: string) => void;
 }) {
   const [showAbstract, setShowAbstract] = useState(false);
   const cited = data.citations.filter((c) => c.articleId === source.id);
@@ -171,13 +172,15 @@ function ArticlePreview({
       </section>
 
       <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => onOpenArticle(source.id)}
-          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <BookOpen className="h-3.5 w-3.5" /> Open article
-        </button>
+        {onOpenArticle && (
+          <button
+            type="button"
+            onClick={() => onOpenArticle(source.id)}
+            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <BookOpen className="h-3.5 w-3.5" /> Open article
+          </button>
+        )}
         <a
           href={source.url}
           target="_blank"
@@ -202,7 +205,8 @@ export function EvidencePanel({
   data: AnswerData | null;
   selection: EvidenceSelection | null;
   onSelect: (sel: EvidenceSelection | null) => void;
-  onOpenArticle: (id: string) => void;
+  /** Omit to hide "Open article" (e.g. inside the article itself). */
+  onOpenArticle?: (id: string) => void;
   onClose?: () => void;
 }) {
   const citation = selection?.citation ?? null;
