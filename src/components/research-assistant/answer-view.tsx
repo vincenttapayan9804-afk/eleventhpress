@@ -34,6 +34,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { INTENT_LABEL, type AnswerCitation, type AnswerData, type ChatMessage } from "./types";
+import { ResearchMascot } from "./mascot";
 
 /** "[1][3]" → markdown links the renderer turns into citation chips. */
 function linkCitations(md: string): string {
@@ -210,6 +211,7 @@ export const AnswerView = memo(function AnswerView({
     <article className="group/answer relative" aria-label="Research Assistant answer">
       <header className="mb-3 flex flex-wrap items-center gap-2">
         <span className="inline-flex items-center gap-1.5 text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-[var(--gold-600)]">
+          <ResearchMascot size={20} motion="blink" />
           {data.intent ? INTENT_LABEL[data.intent] : "Research answer"}
         </span>
         <span className="h-1 w-1 rounded-full bg-border" aria-hidden="true" />

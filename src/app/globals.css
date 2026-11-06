@@ -1111,3 +1111,52 @@ body[data-tenant-font="system"] {
     filter: none !important;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   AI RESEARCH ASSISTANT MASCOT (src/components/research-assistant/mascot.tsx)
+   CSS-only motion: a gentle bob, blinks, wing flaps; while searching it
+   flaps faster and looks around. Stops entirely for reduced motion.
+   ═══════════════════════════════════════════════════════════════════ */
+.ra-mascot * { transform-box: fill-box; }
+.ra-mascot-bob { animation: ra-bob 2.8s ease-in-out infinite; transform-origin: 50% 100%; }
+.ra-mascot-shadow { animation: ra-shadow 2.8s ease-in-out infinite; transform-origin: center; }
+.ra-mascot-head { animation: ra-tilt 5.6s ease-in-out infinite; transform-origin: 50% 90%; }
+.ra-mascot-eyes { animation: ra-blink 4.8s infinite; transform-origin: center; }
+.ra-mascot-wing-l { animation: ra-flap-l 2.8s ease-in-out infinite; transform-origin: 90% 5%; }
+.ra-mascot-wing-r { animation: ra-flap-r 2.8s ease-in-out infinite; transform-origin: 10% 5%; }
+
+.ra-mascot[data-state="thinking"] .ra-mascot-bob,
+.ra-mascot[data-state="thinking"] .ra-mascot-shadow { animation-duration: 1.1s; }
+.ra-mascot[data-state="thinking"] .ra-mascot-wing-l,
+.ra-mascot[data-state="thinking"] .ra-mascot-wing-r { animation-duration: 0.55s; }
+.ra-mascot[data-state="thinking"] .ra-mascot-head { animation: ra-ponder 2.4s ease-in-out infinite; }
+.ra-mascot[data-state="thinking"] .ra-mascot-pupils { animation: ra-look 2.4s ease-in-out infinite; }
+
+/* Hovering the launcher or the assistant card makes it hop and wave. */
+.group:hover .ra-mascot[data-motion="full"][data-state="idle"] .ra-mascot-bob { animation: ra-hop 0.7s ease-in-out infinite; }
+.group:hover .ra-mascot[data-motion="full"][data-state="idle"] .ra-mascot-wing-l,
+.group:hover .ra-mascot[data-motion="full"][data-state="idle"] .ra-mascot-wing-r { animation-duration: 0.7s; }
+
+.ra-mascot[data-motion="blink"] .ra-mascot-bob,
+.ra-mascot[data-motion="blink"] .ra-mascot-shadow,
+.ra-mascot[data-motion="blink"] .ra-mascot-head,
+.ra-mascot[data-motion="blink"] .ra-mascot-wing-l,
+.ra-mascot[data-motion="blink"] .ra-mascot-wing-r { animation: none; }
+
+@keyframes ra-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+@keyframes ra-hop { 0%, 100% { transform: translateY(0) scaleY(1); } 15% { transform: translateY(1px) scaleY(0.96); } 50% { transform: translateY(-8px) scaleY(1.02); } }
+@keyframes ra-shadow { 0%, 100% { transform: scaleX(1); opacity: 0.16; } 50% { transform: scaleX(0.82); opacity: 0.1; } }
+@keyframes ra-tilt { 0%, 100% { transform: rotate(0deg); } 30% { transform: rotate(-4deg); } 65% { transform: rotate(3deg); } }
+@keyframes ra-ponder { 0%, 100% { transform: rotate(-7deg); } 50% { transform: rotate(7deg); } }
+@keyframes ra-blink { 0%, 90%, 100% { transform: scaleY(1); } 93% { transform: scaleY(0.08); } 96% { transform: scaleY(1); } }
+@keyframes ra-look { 0%, 100% { transform: translateX(-3px); } 45%, 55% { transform: translateX(3px) translateY(-1px); } }
+@keyframes ra-flap-l { 0%, 70%, 100% { transform: rotate(0deg); } 80% { transform: rotate(18deg); } 90% { transform: rotate(4deg); } }
+@keyframes ra-flap-r { 0%, 70%, 100% { transform: rotate(0deg); } 80% { transform: rotate(-18deg); } 90% { transform: rotate(-4deg); } }
+.ra-mascot[data-state="thinking"] .ra-mascot-wing-l { animation-name: ra-flap-l-fast; }
+.ra-mascot[data-state="thinking"] .ra-mascot-wing-r { animation-name: ra-flap-r-fast; }
+@keyframes ra-flap-l-fast { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(22deg); } }
+@keyframes ra-flap-r-fast { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-22deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .ra-mascot, .ra-mascot * { animation: none !important; }
+}
