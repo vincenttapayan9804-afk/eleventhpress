@@ -7,6 +7,7 @@ import { getCurrentTenant } from "@/lib/tenant";
 import { TenantBrandingProvider } from "@/lib/tenant-branding-context";
 import { ThemeProvider } from "@/components/theme-provider";
 import { CookieConsentBanner } from "@/components/cookie-consent-banner";
+import { UiSoundEffects } from "@/components/ui-sound";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -126,6 +127,7 @@ export default async function RootLayout({
             {children}
             <Toaster />
             <CookieConsentBanner />
+            <UiSoundEffects />
           </TenantBrandingProvider>
         </ThemeProvider>
       </body>
