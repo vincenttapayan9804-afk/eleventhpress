@@ -20,14 +20,14 @@ import type { ProvenanceCheckResult } from "@/lib/article-provenance-server";
 
 export const PROVENANCE_WATERMARK = "Published at Eleventh Press International Publishing";
 
-const PURPLE = "#4c1d95";
-const PURPLE_DEEP = "#2a1458";
-const GOLD = "#c9a55c";
-const GOLD_DEEP = "#8a6a28";
-const INK = "#241b3a";
-const MUTED = "#6b6478";
-const RULE = "#e4dfee";
-const TINT = "#f7f4fc";
+export const PURPLE = "#4c1d95";
+export const PURPLE_DEEP = "#2a1458";
+export const GOLD = "#c9a55c";
+export const GOLD_DEEP = "#8a6a28";
+export const INK = "#241b3a";
+export const MUTED = "#6b6478";
+export const RULE = "#e4dfee";
+export const TINT = "#f7f4fc";
 
 const PAGE_W = 595.28;
 const PAGE_H = 841.89;
@@ -66,7 +66,7 @@ export function pdfSafe(input: string | null | undefined): string {
   return out;
 }
 
-function fmtDate(isoStr: string | null | undefined, withTime = false): string {
+export function fmtDate(isoStr: string | null | undefined, withTime = false): string {
   if (!isoStr) return "—";
   const d = new Date(isoStr);
   const date = d.toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" });
@@ -75,11 +75,11 @@ function fmtDate(isoStr: string | null | undefined, withTime = false): string {
   return `${date}, ${time} UTC`;
 }
 
-function drawCheckGlyph(doc: PDFKit.PDFDocument, cx: number, cy: number, r: number, color: string) {
+export function drawCheckGlyph(doc: PDFKit.PDFDocument, cx: number, cy: number, r: number, color: string) {
   doc.save().lineWidth(Math.max(1.2, r * 0.22)).lineCap("round").lineJoin("round").strokeColor(color)
     .moveTo(cx - r * 0.45, cy + r * 0.02).lineTo(cx - r * 0.1, cy + r * 0.38).lineTo(cx + r * 0.5, cy - r * 0.34).stroke().restore();
 }
-function drawCrossGlyph(doc: PDFKit.PDFDocument, cx: number, cy: number, r: number, color: string) {
+export function drawCrossGlyph(doc: PDFKit.PDFDocument, cx: number, cy: number, r: number, color: string) {
   doc.save().lineWidth(Math.max(1.2, r * 0.22)).lineCap("round").strokeColor(color)
     .moveTo(cx - r * 0.36, cy - r * 0.36).lineTo(cx + r * 0.36, cy + r * 0.36)
     .moveTo(cx + r * 0.36, cy - r * 0.36).lineTo(cx - r * 0.36, cy + r * 0.36).stroke().restore();
@@ -91,7 +91,7 @@ function drawBangGlyph(doc: PDFKit.PDFDocument, cx: number, cy: number, r: numbe
 }
 
 /** Gold-ringed seal emblem with the verdict glyph at its centre. */
-function drawSeal(doc: PDFKit.PDFDocument, cx: number, cy: number, r: number, verdict: ProvenanceRecord["verdict"]) {
+export function drawSeal(doc: PDFKit.PDFDocument, cx: number, cy: number, r: number, verdict: ProvenanceRecord["verdict"]) {
   const s = VERDICT_STYLE[verdict];
   doc.save();
   doc.circle(cx, cy, r).fill(doc.radialGradient(cx - r * 0.3, cy - r * 0.3, 0, cx, cy, r).stop(0, "#fbf0cd").stop(0.6, GOLD).stop(1, GOLD_DEEP));
@@ -111,7 +111,7 @@ function drawSeal(doc: PDFKit.PDFDocument, cx: number, cy: number, r: number, ve
 
 /** The content hash as a row of 64 tinted cells, one per hex nibble — a
  * quick visual cross-check against the same strip on the live page. */
-function drawFingerprint(doc: PDFKit.PDFDocument, hash: string, x: number, y: number, w: number, h: number) {
+export function drawFingerprint(doc: PDFKit.PDFDocument, hash: string, x: number, y: number, w: number, h: number) {
   const nibbles = hash.slice(0, 64).split("");
   const cell = w / nibbles.length;
   nibbles.forEach((n, i) => {
