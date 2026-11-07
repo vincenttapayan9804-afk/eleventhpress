@@ -28,6 +28,8 @@ const PROFILE_SELECT = {
   emailVerifiedAt: true,
   departmentId: true,
   academicStatus: true,
+  tenantId: true,
+  mustChangePassword: true,
 } as const;
 
 export async function GET(req: NextRequest) {

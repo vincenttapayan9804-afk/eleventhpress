@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTenantBranding, isWhitelabel } from "@/lib/tenant-branding-context";
 import { useTranslations } from "next-intl";
 import { useApp } from "@/lib/store";
 import { apiFetch } from "@/lib/api-client";
@@ -54,6 +55,7 @@ interface RecommendedArticle {
 export function HomeView() {
   const { setView, openArticle, user } = useApp();
   const t = useTranslations("home");
+  const branding = useTenantBranding();
   const [featured, setFeatured] = useState<ArticleListItem[]>([]);
   const [recommended, setRecommended] = useState<RecommendedArticle[]>([]);
   const [stats, setStats] = useState({ articles: 0, citations: 0, downloads: 0, countries: 28 });
@@ -118,7 +120,7 @@ export function HomeView() {
           <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-12">
             <div ref={heroReveal.observe} className={`reveal ${heroReveal.inView ? "in-view" : ""}`}>
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[oklch(0.86_0.07_292)] drop-shadow-lg">
-                {t("issueLine")}
+                {isWhitelabel(branding) ? branding.siteName || branding.tenantName : t("issueLine")}
               </p>
               <h1 className="mt-4 font-display text-4xl font-semibold leading-[1.15] text-white headline-3d-on-image sm:text-5xl lg:text-6xl">
                 {t("headline1")}<br />

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, Fragment } from "react";
+import { useTenantBranding, isWhitelabel } from "@/lib/tenant-branding-context";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { useApp } from "@/lib/store";
 import { apiFetch } from "@/lib/api-client";
@@ -82,6 +83,7 @@ import {
   NarrationTab,
   ResearchIntegrityTab,
   BrandingTab,
+  TeamTab,
   TenantsTab,
   DepartmentsTab,
   EthicsTab,
@@ -114,6 +116,7 @@ interface DashboardData {
 }
 
 export function DashboardView() {
+  const branding = useTenantBranding();
   const { user, dashboardTab, setView, openDashboard, openAdminPortal, logout, reviewId } = useApp();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -168,8 +171,8 @@ export function DashboardView() {
     { key: "expertDashboard", label: "Professional Dashboard", icon: Crown, roles: ["EXPERT", "SUPER_ADMIN"], group: "Home" },
 
     // --- Publishing — My Work ---
-    { key: "submit", label: "New submission", icon: FilePlus2, roles: ["AUTHOR", "EXPERT", "SUPER_ADMIN"], group: "Publishing — My Work" },
-    { key: "myArticles", label: "My articles", icon: FolderOpen, roles: ["AUTHOR", "EXPERT", "SUPER_ADMIN"], group: "Publishing — My Work" },
+    { key: "submit", label: "New submission", icon: FilePlus2, roles: ["AUTHOR", "EXPERT", "SUPER_ADMIN", "TENANT_ADMIN"], group: "Publishing — My Work" },
+    { key: "myArticles", label: "My articles", icon: FolderOpen, roles: ["AUTHOR", "EXPERT", "SUPER_ADMIN", "TENANT_ADMIN"], group: "Publishing — My Work" },
     { key: "myBooks", label: "My books", icon: BookOpen, roles: ["AUTHOR", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"], group: "Publishing — My Work" },
     { key: "distribution", label: "Article distribution", icon: Share2, roles: ["AUTHOR", "SUPER_ADMIN"], group: "Publishing — My Work" },
     { key: "reviewerQueue", label: "My reviews", icon: PenSquare, roles: ["REVIEWER", "SUPER_ADMIN"], group: "Publishing — My Work" },
@@ -216,16 +219,16 @@ export function DashboardView() {
     },
 
     // --- Editorial Operations ---
-    { key: "editorQueue", label: "Editorial queue", icon: ListChecks, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"], group: "Editorial Operations" },
-    { key: "indexing", label: "Indexing & discovery", icon: Search, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"], group: "Editorial Operations" },
-    { key: "bookAcquisitions", label: "Book acquisitions", icon: LibraryIcon, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"], group: "Editorial Operations" },
+    { key: "editorQueue", label: "Editorial queue", icon: ListChecks, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN", "TENANT_ADMIN"], group: "Editorial Operations" },
+    { key: "indexing", label: "Indexing & discovery", icon: Search, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN", "TENANT_ADMIN"], group: "Editorial Operations" },
+    { key: "bookAcquisitions", label: "Book acquisitions", icon: LibraryIcon, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN", "TENANT_ADMIN"], group: "Editorial Operations" },
     { key: "researchIntegrity", label: "Research integrity", icon: ShieldCheck, roles: ["SUPER_ADMIN"], group: "Editorial Operations" },
 
     // --- Content Channels ---
-    { key: "magazines", label: "Magazines", icon: Newspaper, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"], group: "Content Channels" },
-    { key: "podcasts", label: "Podcasts", icon: Mic, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"], group: "Content Channels" },
-    { key: "media", label: "Media (News/Blog)", icon: FileText, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"], group: "Content Channels" },
-    { key: "narration", label: "Narration", icon: Volume2, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"], group: "Content Channels" },
+    { key: "magazines", label: "Magazines", icon: Newspaper, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN", "TENANT_ADMIN"], group: "Content Channels" },
+    { key: "podcasts", label: "Podcasts", icon: Mic, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN", "TENANT_ADMIN"], group: "Content Channels" },
+    { key: "media", label: "Media (News/Blog)", icon: FileText, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN", "TENANT_ADMIN"], group: "Content Channels" },
+    { key: "narration", label: "Narration", icon: Volume2, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN", "TENANT_ADMIN"], group: "Content Channels" },
 
     // --- Analytics & Reporting ---
     { key: "counter", label: "COUNTER 5 / SUSHI", icon: BarChart3, roles: ["SUPER_ADMIN", "EDITOR"], group: "Analytics & Reporting" },
@@ -279,6 +282,10 @@ export function DashboardView() {
     { key: "grants", label: "Grants", icon: Landmark, roles: ["SUPER_ADMIN", "TENANT_ADMIN"], group: "Institution Administration" },
 
     // --- Platform Administration ---
+    // A tenant admin's branding + team live under their institution's own
+    // group; the SUPER_ADMIN sees the same tabs under Platform Administration.
+    { key: "branding", label: "Branding & profile", icon: Palette, roles: ["TENANT_ADMIN"], group: "Institution Administration" },
+    { key: "team", label: "Team & access", icon: Users2, roles: ["TENANT_ADMIN"], group: "Institution Administration" },
     { key: "branding", label: "Branding", icon: Palette, roles: ["SUPER_ADMIN"], group: "Platform Administration" },
     { key: "tenants", label: "Tenants", icon: Globe, roles: ["SUPER_ADMIN"], group: "Platform Administration" },
     { key: "admin", label: "Admin & audit", icon: Users, roles: ["SUPER_ADMIN"], group: "Platform Administration" },
@@ -312,7 +319,9 @@ export function DashboardView() {
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="eyebrow">
-              {data.role.replace(/_/g, " ")} dashboard
+              {isWhitelabel(branding)
+                ? `${branding.siteName || branding.tenantName} · ${data.role === "TENANT_ADMIN" ? "Administrator" : data.role.replace(/_/g, " ").toLowerCase()} dashboard`
+                : `${data.role.replace(/_/g, " ")} dashboard`}
             </p>
             <h1 className="mt-1 font-display text-3xl font-semibold">
               Welcome, {user.fullName.split(" ").slice(-1)[0]}
@@ -470,6 +479,7 @@ export function DashboardView() {
           {dashboardTab === "researchIntegrity" && <ResearchIntegrityTab />}
           {dashboardTab === "branding" && <BrandingTab />}
           {dashboardTab === "tenants" && <TenantsTab />}
+          {dashboardTab === "team" && <TeamTab />}
           {dashboardTab === "departments" && <DepartmentsTab />}
           {dashboardTab === "ethics" && <EthicsTab />}
           {dashboardTab === "ethicsReview" && <EthicsReviewTab />}

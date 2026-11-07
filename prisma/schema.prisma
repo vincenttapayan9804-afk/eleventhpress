@@ -78,6 +78,10 @@ model User {
   // 0/null on every successful login (src/app/api/auth/login/route.ts).
   failedLoginCount      Int       @default(0)
   lockedUntil           DateTime?
+  // Set when an administrator issues this account a temporary password
+  // (e.g. a new tenant admin); the dashboard asks for a new password
+  // before anything else and clears this once it's changed.
+  mustChangePassword    Boolean   @default(false)
   // ORCID OAuth tokens (premium integration)
   orcidAccessToken      String?
   orcidRefreshToken     String?
@@ -1782,6 +1786,18 @@ model Tenant {
   primaryColor String? // CSS color (oklch()/hex/etc), applied to --primary
   accentColor  String? // applied to --accent
   fontFamily   String? // "inter" | "fraunces" | "system" — see FONT_FAMILY_OPTIONS
+
+  // --- Organization profile (whitelabel contact details). Optional, shown
+  // in the tenant's footer, contact areas, emails and generated documents
+  // whenever set; null falls back to the platform's own details. ---
+  officialEmail String?
+  supportEmail  String?
+  phone         String?
+  phoneAlt      String?
+  websiteUrl    String?
+  address       String?
+  // { facebook?, x?, linkedin?, instagram?, youtube?, tiktok?, researchgate? } — absolute URLs
+  socialLinks   Json?
 
   // --- Whitelabel Phase 6: plan/quota enforcement. Null means "unlimited" —
   // the platform tenant and any tenant created before this field existed

@@ -3,7 +3,7 @@ import sharp from "sharp";
 import type { Certificate } from "@prisma/client";
 import { db } from "@/lib/db";
 import { putObject } from "@/lib/storage";
-import { buildRecognitionCertificate, buildMembershipCertificate, buildAffiliationCard } from "@/lib/certificate-pdf";
+import { buildRecognitionCertificate, buildMembershipCertificate, buildAffiliationCard, type CertificateBrand } from "@/lib/certificate-pdf";
 import {
   BOARD_EDITOR_ROLES,
   canonicalCertificatePayload,
@@ -101,6 +101,20 @@ async function resolveAvatarPng(avatarUrl: string | null): Promise<Buffer | null
   }
 }
 
+/** A tenant's logo as a PNG for PDFKit (keeps transparency); null on any failure. */
+async function resolveLogoPng(logoUrl: string | null): Promise<Buffer | null> {
+  if (!logoUrl || !logoUrl.startsWith("http")) return null;
+  try {
+    const res = await fetch(logoUrl);
+    if (!res.ok) return null;
+    const bytes = Buffer.from(await res.arrayBuffer());
+    return await sharp(bytes).resize(512, 512, { fit: "inside", withoutEnlargement: true }).png().toBuffer();
+  } catch (e) {
+    console.error("[certificates] logo fetch/convert failed", e);
+    return null;
+  }
+}
+
 /**
  * Renders a certificate's PDF from the platform's current template/data
  * and persists it — shared by every issuance path (self-service
@@ -116,16 +130,33 @@ export async function renderAndPersistCertificate(
   category: CertificateCategory,
   existing: Certificate | null
 ): Promise<Certificate> {
-  const user = await db.user.findUnique({ where: { id: userId }, select: { fullName: true, avatarUrl: true } });
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { fullName: true, avatarUrl: true, tenant: true },
+  });
   if (!user) throw new Error("User not found");
+
+  // Whitelabel: a tenant member's certificates are issued by their
+  // institution, in its colours and with its logo.
+  const tenant = user.tenant && !user.tenant.isPlatform ? user.tenant : null;
 
   // Journal.name is the journal's own title (e.g. "...Journal of
   // Multidisciplinary Research"); Journal.publisher is the umbrella brand
   // ("Eleventh Press International Publishing") — certificates are issued
   // by the publisher, not the journal, so publisher is the correct field.
-  const journal = await db.journal.findFirst({ select: { publisher: true, issn: true } });
+  const journal = tenant
+    ? await db.journal.findFirst({ where: { tenantId: tenant.id }, select: { publisher: true, issn: true } })
+    : await db.journal.findFirst({ select: { publisher: true, issn: true } });
   const workTitle = category === "AUTHOR" ? await latestPublishedWorkTitle(userId) : null;
   const avatarPng = await resolveAvatarPng(user.avatarUrl);
+  const brand: CertificateBrand | null = tenant
+    ? {
+        name: tenant.siteName || tenant.name,
+        tagline: tenant.tagline,
+        primaryColor: tenant.primaryColor,
+        logoPng: await resolveLogoPng(tenant.logoUrl),
+      }
+    : null;
 
   const serialNumber = existing?.serialNumber ?? generateSerialNumber(type);
   const payload = {
@@ -134,16 +165,16 @@ export async function renderAndPersistCertificate(
     category,
     recipientName: user.fullName,
     issuedAtIso: (existing?.issuedAt ?? new Date()).toISOString(),
-    journalName: journal?.publisher || CANONICAL_PUBLISHER_NAME,
+    journalName: tenant ? tenant.siteName || tenant.name : journal?.publisher || CANONICAL_PUBLISHER_NAME,
     issn: journal?.issn ?? null,
     workTitle,
   };
   const contentHash = computeContentHash(payload);
 
   const pdfBuffer =
-    type === "RECOGNITION" ? await buildRecognitionCertificate(payload, avatarPng) :
-    type === "MEMBERSHIP" ? await buildMembershipCertificate(payload, avatarPng) :
-    await buildAffiliationCard(payload, avatarPng);
+    type === "RECOGNITION" ? await buildRecognitionCertificate(payload, avatarPng, brand) :
+    type === "MEMBERSHIP" ? await buildMembershipCertificate(payload, avatarPng, brand) :
+    await buildAffiliationCard(payload, avatarPng, brand);
 
   const pdfKey = existing?.pdfKey ?? certificateStorageKey(userId, serialNumber, "pdf");
   await putObject(pdfKey, pdfBuffer, "application/pdf");

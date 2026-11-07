@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   if (!session) {
     return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
-  if (!["AUTHOR", "EXPERT", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"].includes(session.role)) {
+  if (!["AUTHOR", "EXPERT", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN", "TENANT_ADMIN"].includes(session.role)) {
     return NextResponse.json({ error: "Only AUTHOR or EXPERT role may submit manuscripts" }, { status: 403 });
   }
 

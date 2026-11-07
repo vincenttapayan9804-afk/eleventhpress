@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   const articleId = searchParams.get("articleId");
 
   if (articleId) {
-    if (!["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"].includes(session.role)) {
+    if (!["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN", "TENANT_ADMIN"].includes(session.role)) {
       return NextResponse.json({ error: "Editor role required" }, { status: 403 });
     }
     const reviews = await db.review.findMany({

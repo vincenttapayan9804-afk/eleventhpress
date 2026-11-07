@@ -20,6 +20,22 @@
 import { cache } from "react";
 import { db } from "./db";
 import { APP_HOST } from "./site";
+import { getSessionFromHeaders } from "./auth";
+
+/** Social profiles an organization can list. Keys are fixed so the footer, emails and PDFs know which icon/label to use. */
+export const SOCIAL_LINK_KEYS = ["facebook", "x", "linkedin", "instagram", "youtube", "tiktok", "researchgate"] as const;
+export type SocialLinkKey = (typeof SOCIAL_LINK_KEYS)[number];
+export type SocialLinks = Partial<Record<SocialLinkKey, string>>;
+
+export const SOCIAL_LINK_LABELS: Record<SocialLinkKey, string> = {
+  facebook: "Facebook",
+  x: "X (Twitter)",
+  linkedin: "LinkedIn",
+  instagram: "Instagram",
+  youtube: "YouTube",
+  tiktok: "TikTok",
+  researchgate: "ResearchGate",
+};
 
 export interface TenantBranding {
   siteName: string | null;
@@ -29,7 +45,26 @@ export interface TenantBranding {
   primaryColor: string | null;
   accentColor: string | null;
   fontFamily: string | null;
+  // Organization profile
+  officialEmail: string | null;
+  supportEmail: string | null;
+  phone: string | null;
+  phoneAlt: string | null;
+  websiteUrl: string | null;
+  address: string | null;
+  socialLinks: SocialLinks | null;
 }
+
+/**
+ * How the request reached its tenant:
+ * - "domain": the tenant's own verified hostname (custom domain/subdomain).
+ * - "session": the signed-in account belongs to a whitelabel tenant, so the
+ *   official site shows that institution's platform to them.
+ * - "portal": a visitor opened the tenant's public portal link
+ *   (/t/<slug>), which remembers the choice in a cookie.
+ * - "platform": the official Eleventh Press site.
+ */
+export type TenantSource = "domain" | "session" | "portal" | "platform";
 
 export interface TenantContext extends TenantBranding {
   id: string;
@@ -37,7 +72,11 @@ export interface TenantContext extends TenantBranding {
   name: string;
   status: string;
   isPlatform: boolean;
+  source: TenantSource;
 }
+
+/** Cookie remembering which tenant portal a visitor opened via /t/<slug>. */
+export const PORTAL_COOKIE_NAME = "ep_portal";
 
 /** Valid values for Tenant.fontFamily — matches the CSS variables already defined in src/app/layout.tsx. */
 export const FONT_FAMILY_OPTIONS = ["inter", "fraunces", "system"] as const;
@@ -63,7 +102,10 @@ function normalizeHost(host: string): string {
  * generateMetadata/RootLayout), so this is a real fallback, not a silently
  * broken one.
  */
-export async function resolveTenantFromHost(hostHeader: string | null | undefined): Promise<TenantContext | null> {
+export async function resolveTenantFromHost(
+  hostHeader: string | null | undefined,
+  opts: { sessionTenantId?: string | null; portalSlug?: string | null } = {}
+): Promise<TenantContext | null> {
   const host = hostHeader ? normalizeHost(hostHeader) : null;
 
   try {
@@ -76,11 +118,26 @@ export async function resolveTenantFromHost(hostHeader: string | null | undefine
         where: { hostname: host, verified: true },
         include: { tenant: true },
       });
-      if (domain) return toTenantContext(domain.tenant);
+      if (domain) return toTenantContext(domain.tenant, "domain");
+    }
+
+    // On the official site: a signed-in member of a whitelabel tenant
+    // always works inside their own institution's platform, and a visitor
+    // who opened a tenant's portal link sees that tenant. A suspended
+    // tenant falls back to the official site.
+    if (opts.sessionTenantId) {
+      const own = await db.tenant.findUnique({ where: { id: opts.sessionTenantId } });
+      if (own && !own.isPlatform && own.status !== "SUSPENDED") return toTenantContext(own, "session");
+      // An official-site account viewing no portal: its row is the platform — skip the second lookup.
+      if (own?.isPlatform && !opts.portalSlug) return toTenantContext(own, "platform");
+    }
+    if (opts.portalSlug) {
+      const portal = await db.tenant.findUnique({ where: { slug: opts.portalSlug } });
+      if (portal && !portal.isPlatform && portal.status === "ACTIVE") return toTenantContext(portal, "portal");
     }
 
     const platform = await db.tenant.findFirst({ where: { isPlatform: true } });
-    return platform ? toTenantContext(platform) : null;
+    return platform ? toTenantContext(platform, "platform") : null;
   } catch (err) {
     console.error("[tenant] resolveTenantFromHost failed, falling back to default branding:", err);
     return null;
@@ -100,28 +157,97 @@ interface TenantRow {
   primaryColor: string | null;
   accentColor: string | null;
   fontFamily: string | null;
+  officialEmail?: string | null;
+  supportEmail?: string | null;
+  phone?: string | null;
+  phoneAlt?: string | null;
+  websiteUrl?: string | null;
+  address?: string | null;
+  socialLinks?: unknown;
 }
 
-function toTenantContext(tenant: TenantRow): TenantContext {
+/** Keeps only known social keys with http(s) URLs — the column is free-form JSON. */
+export function normalizeSocialLinks(value: unknown): SocialLinks | null {
+  if (!value || typeof value !== "object") return null;
+  const out: SocialLinks = {};
+  for (const key of SOCIAL_LINK_KEYS) {
+    const v = (value as Record<string, unknown>)[key];
+    if (typeof v === "string" && /^https?:\/\//i.test(v.trim())) out[key] = v.trim();
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+/** The branding/profile subset of a tenant row (what pages, emails and documents use). */
+export function brandingOf(tenant: TenantRow | null | undefined): TenantBranding {
+  return {
+    siteName: tenant?.siteName ?? null,
+    tagline: tenant?.tagline ?? null,
+    logoUrl: tenant?.logoUrl ?? null,
+    faviconUrl: tenant?.faviconUrl ?? null,
+    primaryColor: tenant?.primaryColor ?? null,
+    accentColor: tenant?.accentColor ?? null,
+    fontFamily: tenant?.fontFamily ?? null,
+    officialEmail: tenant?.officialEmail ?? null,
+    supportEmail: tenant?.supportEmail ?? null,
+    phone: tenant?.phone ?? null,
+    phoneAlt: tenant?.phoneAlt ?? null,
+    websiteUrl: tenant?.websiteUrl ?? null,
+    address: tenant?.address ?? null,
+    socialLinks: normalizeSocialLinks(tenant?.socialLinks),
+  };
+}
+
+export const EMPTY_BRANDING: TenantBranding = brandingOf(null);
+
+function toTenantContext(tenant: TenantRow, source: TenantSource): TenantContext {
   return {
     id: tenant.id,
     slug: tenant.slug,
     name: tenant.name,
     status: tenant.status,
     isPlatform: tenant.isPlatform,
-    siteName: tenant.siteName,
-    tagline: tenant.tagline,
-    logoUrl: tenant.logoUrl,
-    faviconUrl: tenant.faviconUrl,
-    primaryColor: tenant.primaryColor,
-    accentColor: tenant.accentColor,
-    fontFamily: tenant.fontFamily,
+    source: tenant.isPlatform ? "platform" : source,
+    ...brandingOf(tenant),
+    // A whitelabel tenant that hasn't set a display name yet still shows
+    // its own name rather than "Eleventh Press".
+    siteName: tenant.siteName ?? (tenant.isPlatform ? null : tenant.name),
   };
+}
+
+function cookieValue(headers: Headers, name: string): string | null {
+  const raw = headers.get("cookie");
+  if (!raw) return null;
+  const match = raw.match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`));
+  return match ? decodeURIComponent(match[1]) : null;
 }
 
 /** Headers-object entry point for API route handlers — mirrors getSessionFromHeaders(headers). */
 export function resolveTenantFromHeaders(headers: Headers): Promise<TenantContext | null> {
-  return resolveTenantFromHost(headers.get("host"));
+  const session = getSessionFromHeaders(headers);
+  return resolveTenantFromHost(headers.get("host"), {
+    sessionTenantId: session?.tenantId ?? null,
+    portalSlug: cookieValue(headers, PORTAL_COOKIE_NAME),
+  });
+}
+
+/**
+ * Cache-Control for public, tenant-scoped API responses. The CDN cache key
+ * is host + URL (not cookies), so a response for a signed-in tenant member
+ * or a portal visitor on the official host must never be stored publicly —
+ * it would be served to the next official-site visitor, and vice versa. The
+ * client tags those requests with `__ws=<slug>` (see api-client.ts), and a
+ * tagged request that resolved to a different tenant isn't cached either.
+ */
+export function tenantCacheControl(req: { url: string }, tenant: TenantContext | null, publicValue: string): string {
+  const noStore = "private, no-store";
+  if (tenant && (tenant.source === "session" || tenant.source === "portal")) return noStore;
+  try {
+    const ws = new URL(req.url).searchParams.get("__ws");
+    if (ws && ws !== tenant?.slug) return noStore;
+  } catch {
+    /* relative URL in tests — fall through */
+  }
+  return publicValue;
 }
 
 /**
@@ -134,7 +260,7 @@ export function resolveTenantFromHeaders(headers: Headers): Promise<TenantContex
 export const getCurrentTenant = cache(async (): Promise<TenantContext | null> => {
   const { headers } = await import("next/headers");
   const headerList = await headers();
-  return resolveTenantFromHost(headerList.get("host"));
+  return resolveTenantFromHeaders(headerList);
 });
 
 /** Convenience fallback for code that wants "the tenant, or the platform tenant if truly nothing resolves." */
@@ -145,7 +271,7 @@ export async function getPlatformTenant(): Promise<TenantContext> {
       `No platform tenant found (host=${APP_HOST}). Run scripts/backfill-platform-tenant.ts --confirm.`
     );
   }
-  return toTenantContext(platform);
+  return toTenantContext(platform, "platform");
 }
 
 /**

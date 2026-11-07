@@ -102,7 +102,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const session = getSessionFromHeaders(req.headers);
   if (!session) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
-  if (!["AUTHOR", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"].includes(session.role)) {
+  if (!["AUTHOR", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN", "TENANT_ADMIN"].includes(session.role)) {
     return NextResponse.json({ error: "Author or editor role required" }, { status: 403 });
   }
 

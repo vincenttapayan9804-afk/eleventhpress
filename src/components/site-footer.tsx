@@ -2,15 +2,93 @@
 
 import { useTranslations } from "next-intl";
 import { useApp } from "@/lib/store";
-import { Cookie, Globe, ShieldCheck } from "lucide-react";
+import {
+  Cookie,
+  Globe,
+  ShieldCheck,
+  Mail,
+  Phone,
+  MapPin,
+  Facebook,
+  Linkedin,
+  Instagram,
+  Youtube,
+  Twitter,
+  Music2,
+  GraduationCap,
+  type LucideIcon,
+} from "lucide-react";
 import { openCookiePreferences } from "@/lib/cookie-consent";
 import { DOI_REGISTRAR } from "@/lib/site";
-import { useTenantBranding } from "@/lib/tenant-branding-context";
+import { useTenantBranding, isWhitelabel, type ClientBranding } from "@/lib/tenant-branding-context";
+
+const SOCIAL_ICONS: Record<string, { icon: LucideIcon; label: string }> = {
+  facebook: { icon: Facebook, label: "Facebook" },
+  x: { icon: Twitter, label: "X (Twitter)" },
+  linkedin: { icon: Linkedin, label: "LinkedIn" },
+  instagram: { icon: Instagram, label: "Instagram" },
+  youtube: { icon: Youtube, label: "YouTube" },
+  tiktok: { icon: Music2, label: "TikTok" },
+  researchgate: { icon: GraduationCap, label: "ResearchGate" },
+};
+
+/** Organization contact block — renders only the details the tenant has set. */
+function FooterContact({ branding }: { branding: ClientBranding }) {
+  const emails = [branding.officialEmail, branding.supportEmail].filter((v, i, a): v is string => !!v && a.indexOf(v) === i);
+  const phones = [branding.phone, branding.phoneAlt].filter((v): v is string => !!v);
+  const socials = Object.entries(branding.socialLinks ?? {}).filter(([k, v]) => v && SOCIAL_ICONS[k]);
+  if (!emails.length && !phones.length && !branding.address && !branding.websiteUrl && !socials.length) return null;
+  return (
+    <div className="mt-5 space-y-2 text-sm text-muted-foreground" data-testid="footer-contact">
+      {emails.map((e) => (
+        <a key={e} href={`mailto:${e}`} className="flex items-center gap-2 hover:text-primary transition-colors">
+          <Mail className="h-3.5 w-3.5 shrink-0" /> {e}
+        </a>
+      ))}
+      {phones.map((p) => (
+        <a key={p} href={`tel:${p.replace(/[^0-9+]/g, "")}`} className="flex items-center gap-2 hover:text-primary transition-colors">
+          <Phone className="h-3.5 w-3.5 shrink-0" /> {p}
+        </a>
+      ))}
+      {branding.websiteUrl && (
+        <a href={branding.websiteUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 hover:text-primary transition-colors">
+          <Globe className="h-3.5 w-3.5 shrink-0" /> {branding.websiteUrl.replace(/^https?:\/\//, "").replace(/\/$/, "")}
+        </a>
+      )}
+      {branding.address && (
+        <p className="flex items-start gap-2">
+          <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" /> <span className="whitespace-pre-line">{branding.address}</span>
+        </p>
+      )}
+      {socials.length > 0 && (
+        <div className="flex flex-wrap gap-2 pt-1">
+          {socials.map(([key, url]) => {
+            const { icon: Icon, label } = SOCIAL_ICONS[key];
+            return (
+              <a
+                key={key}
+                href={url}
+                target="_blank"
+                rel="noreferrer"
+                aria-label={label}
+                title={label}
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground"
+              >
+                <Icon className="h-3.5 w-3.5" />
+              </a>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function SiteFooter() {
   const setView = useApp((s) => s.setView);
   const t = useTranslations("footer");
   const branding = useTenantBranding();
+  const whitelabel = isWhitelabel(branding);
   return (
     <footer className="mt-auto">
       <div className="royal-divider" />
@@ -20,7 +98,7 @@ export function SiteFooter() {
             <div className="md:col-span-2">
               <div className="flex items-center gap-3">
                 {branding.logoUrl ? (
-                  <img src={branding.logoUrl} alt={branding.siteName || "Eleventh Press"} className="h-8 w-8 rounded-full object-cover" />
+                  <img src={branding.logoUrl} alt={branding.siteName || "Eleventh Press"} className="h-10 w-auto max-w-[140px] object-contain" />
                 ) : (
                   <span className="wax-mark">
                     <span className="wax-mark-text">EP</span>
@@ -36,11 +114,16 @@ export function SiteFooter() {
                 </div>
               </div>
               <p className="mt-5 max-w-md text-sm leading-relaxed text-muted-foreground">
-                {t("description", { registrar: DOI_REGISTRAR })}
+                {whitelabel
+                  ? `The research publishing platform of ${branding.siteName || branding.tenantName}: peer review, open access publishing, research administration and institutional analytics in one place.`
+                  : t("description", { registrar: DOI_REGISTRAR })}
               </p>
-              <p className="mt-4 text-xs text-muted-foreground">
-                {t("issnLine")}
-              </p>
+              {!whitelabel && (
+                <p className="mt-4 text-xs text-muted-foreground">
+                  {t("issnLine")}
+                </p>
+              )}
+              <FooterContact branding={branding} />
             </div>
 
             <div>
@@ -111,14 +194,26 @@ export function SiteFooter() {
           </div>
 
           <div className="mt-12 flex flex-col items-start justify-between gap-3 border-t border-[var(--royal-300)]/10 pt-6 text-xs text-muted-foreground sm:flex-row sm:items-center">
-            <p>{t("copyright", { year: new Date().getFullYear() })}</p>
+            {whitelabel ? (
+              <p>
+                © {new Date().getFullYear()} {branding.siteName || branding.tenantName}. Powered by{" "}
+                <a href={branding.source === "portal" ? "/t/exit" : "/"} className="underline-offset-2 hover:text-primary hover:underline">
+                  Eleventh Press
+                </a>
+                .
+              </p>
+            ) : (
+              <p>{t("copyright", { year: new Date().getFullYear() })}</p>
+            )}
             <div className="flex items-center gap-4">
+              {!whitelabel && (
               <button
                 onClick={() => setView("adminPortal")}
                 className="flex items-center gap-1 text-muted-foreground hover:text-primary transition-colors"
               >
                 <ShieldCheck className="h-3 w-3" /> Admin Portal
               </button>
+              )}
               <p className="font-mono">{t("indexedLine", { registrar: DOI_REGISTRAR })}</p>
             </div>
           </div>

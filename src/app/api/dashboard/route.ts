@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
 
   let payload: any = { role, notifications, unreadCount: notifCount };
 
-  if (role === "AUTHOR" || role === "EXPERT" || role === "SUPER_ADMIN") {
+  if (role === "AUTHOR" || role === "EXPERT" || role === "SUPER_ADMIN" || role === "TENANT_ADMIN") {
     const [submissions, invoices] = await withRlsContext(session, (tx) =>
       Promise.all([
         tx.article.findMany({
@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
     payload.invoices = invoices;
   }
 
-  if (["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"].includes(role)) {
+  if (["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN", "TENANT_ADMIN"].includes(role)) {
     // Whitelabel Phase 7 — a tenant's editorial board only sees that
     // tenant's own queue, stats, and audit trail. SUPER_ADMIN keeps the
     // platform-wide view (role === "SUPER_ADMIN" below, unfiltered) — same
@@ -61,9 +61,12 @@ export async function GET(req: NextRequest) {
     // Whitelabel Phase 8 — every read here now runs inside withRlsContext
     // (previously only invoices/recentAudit did), so this route is fully
     // covered once RLS activation flips the runtime DB role.
+    // A tenant admin is always confined to its own institution, even if a
+    // (theoretical) session lacked its tenantId.
+    const scopeTenantId = role === "TENANT_ADMIN" ? session.tenantId ?? "__none__" : session.tenantId;
     const tenantFilter =
-      role === "SUPER_ADMIN" || !session.tenantId ? {} : { journal: { tenantId: session.tenantId } };
-    const auditFilter = role === "SUPER_ADMIN" || !session.tenantId ? {} : { tenantId: session.tenantId };
+      role === "SUPER_ADMIN" || !scopeTenantId ? {} : { journal: { tenantId: scopeTenantId } };
+    const auditFilter = role === "SUPER_ADMIN" || !scopeTenantId ? {} : { tenantId: scopeTenantId };
 
     const [queue, published, inReview, accepted, submitted, recentAudit] = await withRlsContext(session, (tx) =>
       Promise.all([

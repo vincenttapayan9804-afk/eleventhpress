@@ -119,6 +119,18 @@ export default function Page() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const target = params.get("view");
+    if (target === "dashboard") {
+      // Arrived from signing in to a tenant platform (workspace-client.ts):
+      // open the dashboard once the session has been re-read.
+      window.history.replaceState({}, "", "/");
+      apiFetch<{ user: any }>("/api/auth/me")
+        .then(({ user }) => {
+          setAuth(user);
+          openDashboard("overview");
+        })
+        .catch(() => useApp.getState().setView("login"));
+      return;
+    }
     if (target !== "login" && target !== "register") return;
     useApp.getState().setView(target);
     if (params.get("password_reset") === "1") toast.success("Password changed. Sign in with your new password.");

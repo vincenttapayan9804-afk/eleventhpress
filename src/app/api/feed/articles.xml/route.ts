@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { APP_BASE_URL } from "@/lib/site";
-import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { resolveTenantFromHeaders, tenantCacheControl } from "@/lib/tenant";
 import { withTenantRlsContext } from "@/lib/db-rls";
 import { buildArticlesRss } from "@/lib/articles-rss";
 
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
   return new NextResponse(xml, {
     headers: {
       "Content-Type": "application/rss+xml; charset=utf-8",
-      "Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600",
+      "Cache-Control": tenantCacheControl(req, tenant, "public, s-maxage=300, stale-while-revalidate=3600"),
     },
   });
 }

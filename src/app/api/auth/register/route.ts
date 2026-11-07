@@ -14,6 +14,7 @@ import { generateReferralCode } from "@/lib/referrals";
 import { generateEmailVerificationToken } from "@/lib/email-verification";
 import { sendEmail, notificationEmailHtml } from "@/lib/email";
 import { APP_BASE_URL } from "@/lib/site";
+import { emailBrandOf, brandName } from "@/lib/email-brand";
 
 // `role` intentionally accepts any non-empty string here, not an enum of
 // SELF_SELECTABLE_ROLES/APPLICATION_ROLES — the handler below already
@@ -108,14 +109,16 @@ export async function POST(req: NextRequest) {
     // account is already created, so a send failure must never surface as
     // a failed registration. Verification is informational, not a login
     // gate — see User.emailVerifiedAt's schema comment.
+    const brand = emailBrandOf(tenant);
     sendEmail({
       to: user.email,
-      subject: "Verify your email — Eleventh Press",
+      subject: `Verify your email — ${brandName(brand)}`,
       html: notificationEmailHtml({
         title: "Verify your email",
-        message: `Welcome to Eleventh Press, ${fullName}. Confirm this is really your email address to finish securing your account.`,
+        message: `Welcome to ${brandName(brand)}, ${fullName}. Confirm this is really your email address to finish securing your account.`,
         ctaUrl: `${APP_BASE_URL}/api/auth/verify-email?token=${emailVerificationToken}`,
         ctaLabel: "Verify email",
+        brand,
       }),
     }).catch(() => {});
 

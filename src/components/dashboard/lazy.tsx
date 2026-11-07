@@ -86,6 +86,9 @@ export const AdminTab = dynamic(() => import("./admin-tab").then((m) => m.AdminT
 export const BrandingTab = dynamic(() => import("./branding-tab").then((m) => m.BrandingTab), {
   loading: () => <TabLoadingFallback />,
 });
+export const TeamTab = dynamic(() => import("./team-tab").then((m) => m.TeamTab), {
+  loading: () => <TabLoadingFallback />,
+});
 export const TenantsTab = dynamic(() => import("./tenants-tab").then((m) => m.TenantsTab), {
   loading: () => <TabLoadingFallback />,
 });

@@ -40,9 +40,15 @@ export async function GET(req: NextRequest) {
     }),
   ]);
 
+  // The expected issuer: a whitelabel tenant member's certificates are
+  // issued by their institution (see renderAndPersistCertificate).
+  const owner = await db.user.findUnique({ where: { id: session.userId }, select: { tenant: true } });
+  const issuer =
+    owner?.tenant && !owner.tenant.isPlatform ? owner.tenant.siteName || owner.tenant.name : CANONICAL_PUBLISHER_NAME;
+
   const healed = await Promise.all(
     certificates.map(async (c) => {
-      if (c.journalName === CANONICAL_PUBLISHER_NAME && c.templateVersion >= CURRENT_CERTIFICATE_TEMPLATE_VERSION) return c;
+      if (c.journalName === issuer && c.templateVersion >= CURRENT_CERTIFICATE_TEMPLATE_VERSION) return c;
       try {
         return await renderAndPersistCertificate(session.userId, c.type as CertificateType, c.category as CertificateCategory, c);
       } catch (e) {

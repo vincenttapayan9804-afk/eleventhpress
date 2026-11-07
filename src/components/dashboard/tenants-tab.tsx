@@ -23,7 +23,18 @@ import {
   Activity,
   AlertTriangle,
   Wallet,
+  ExternalLink,
+  Palette,
+  KeyRound,
+  MailCheck,
+  MailWarning,
+  Check,
+  Building2,
+  UserCog,
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { BrandingTab } from "./branding-tab";
 import { TENANT_PLANS, TENANT_PLAN_KEYS, ALL_MODULE_KEYS, MODULE_LABELS } from "@/lib/tenant-plans";
 import { RESEARCHER_PLANS } from "@/lib/researcher-plans";
 
@@ -51,6 +62,23 @@ interface Tenant {
   domainCount: number;
   userCount: number;
   domains: TenantDomain[];
+  admins?: { id: string; email: string; fullName: string; pendingFirstSignIn: boolean }[];
+  siteName?: string | null;
+  logoUrl?: string | null;
+  primaryColor?: string | null;
+  portalUrl?: string;
+}
+
+/** What a create / resend returns once — the temporary password is never shown again. */
+interface IssuedCredentials {
+  tenantName: string;
+  adminName: string;
+  email: string;
+  temporaryPassword: string;
+  loginUrl: string;
+  portalUrl: string;
+  emailDelivered: boolean;
+  isReset?: boolean;
 }
 
 interface TenantHealth {
@@ -89,6 +117,14 @@ export function TenantsTab() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [newSlug, setNewSlug] = useState("");
   const [newName, setNewName] = useState("");
+  const [newAdminName, setNewAdminName] = useState("");
+  const [newAdminEmail, setNewAdminEmail] = useState("");
+  const [newPlan, setNewPlan] = useState("");
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [issued, setIssued] = useState<IssuedCredentials | null>(null);
+  const [copiedCreds, setCopiedCreds] = useState(false);
+  const [brandingFor, setBrandingFor] = useState<Tenant | null>(null);
+  const [resendingFor, setResendingFor] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [newHostname, setNewHostname] = useState<Record<string, string>>({});
   const [addingDomainFor, setAddingDomainFor] = useState<string | null>(null);
@@ -129,25 +165,82 @@ export function TenantsTab() {
     load();
   }, []);
 
-  async function createTenant() {
-    if (!newSlug.trim() || !newName.trim()) {
-      toast.error("Slug and name are required");
+  async function createTenant(e?: React.FormEvent) {
+    e?.preventDefault();
+    if (!newName.trim() || !newAdminName.trim() || !newAdminEmail.trim()) {
+      toast.error("Enter the institution, the administrator's name and their email");
       return;
     }
     setCreating(true);
     try {
-      await apiFetch("/api/admin/tenants", {
+      const res = await apiFetch<{
+        tenant: { name: string };
+        admin: { fullName: string; email: string; temporaryPassword: string } | null;
+        loginUrl: string;
+        portalUrl: string;
+        emailDelivered: boolean;
+      }>("/api/admin/tenants", {
         method: "POST",
-        body: JSON.stringify({ slug: newSlug.trim(), name: newName.trim() }),
+        body: JSON.stringify({
+          name: newName.trim(),
+          adminName: newAdminName.trim(),
+          adminEmail: newAdminEmail.trim(),
+          plan: newPlan || undefined,
+          slug: newSlug.trim() || undefined,
+        }),
       });
-      toast.success(`Tenant "${newName}" created`);
+      if (res.admin) {
+        setIssued({
+          tenantName: res.tenant.name,
+          adminName: res.admin.fullName,
+          email: res.admin.email,
+          temporaryPassword: res.admin.temporaryPassword,
+          loginUrl: res.loginUrl,
+          portalUrl: res.portalUrl,
+          emailDelivered: res.emailDelivered,
+        });
+        setCopiedCreds(false);
+      }
+      toast.success(`${res.tenant.name} is ready`);
       setNewSlug("");
       setNewName("");
+      setNewAdminName("");
+      setNewAdminEmail("");
+      setNewPlan("");
       await load();
     } catch (e: any) {
-      toast.error(e.message || "Failed to create tenant");
+      toast.error(String(e.message || "Failed to create tenant").replace(/^(\w+): /, ""));
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function resendAccess(t: Tenant) {
+    if (!confirm(`Issue ${t.admins?.[0]?.fullName ?? "the administrator"} a new temporary password and email it? Their current password stops working.`)) return;
+    setResendingFor(t.id);
+    try {
+      const res = await apiFetch<{
+        admin: { fullName: string; email: string; temporaryPassword: string };
+        loginUrl: string;
+        portalUrl: string;
+        emailDelivered: boolean;
+      }>(`/api/admin/tenants/${t.id}/admin-access`, { method: "POST", body: JSON.stringify({}) });
+      setIssued({
+        tenantName: t.siteName || t.name,
+        adminName: res.admin.fullName,
+        email: res.admin.email,
+        temporaryPassword: res.admin.temporaryPassword,
+        loginUrl: res.loginUrl,
+        portalUrl: res.portalUrl,
+        emailDelivered: res.emailDelivered,
+        isReset: true,
+      });
+      setCopiedCreds(false);
+      await load();
+    } catch (e: any) {
+      toast.error(e.message || "Couldn't reissue the sign-in details");
+    } finally {
+      setResendingFor(null);
     }
   }
 
@@ -390,29 +483,111 @@ export function TenantsTab() {
       <Card className="paper-card">
         <CardHeader className="pb-3">
           <div className="flex items-center gap-2">
-            <Globe className="h-4 w-4 text-primary" />
-            <p className="eyebrow">New tenant</p>
+            <Building2 className="h-4 w-4 text-primary" />
+            <p className="eyebrow">Create a tenant</p>
           </div>
           <p className="text-xs text-muted-foreground">
-            Creates an isolated tenant with its own branding and, once a custom domain is verified
-            below, its own hostname.
+            Creates the institution&apos;s own whitelabel research platform and its administrator account. The
+            administrator receives their sign-in details by email, signs in on this site, and lands in their
+            institution&apos;s dashboard with the full research ecosystem.
           </p>
         </CardHeader>
-        <CardContent>
-          <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-            <div className="space-y-1.5">
-              <Label htmlFor="newSlug">Slug</Label>
-              <Input id="newSlug" placeholder="harvard" value={newSlug} onChange={(e) => setNewSlug(e.target.value)} />
+        <CardContent className="space-y-4">
+          <form onSubmit={createTenant} className="space-y-4">
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="newName">Institution name</Label>
+                <Input id="newName" required placeholder="University of the Philippines" value={newName} onChange={(e) => setNewName(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="newAdminName">Administrator&apos;s full name</Label>
+                <Input id="newAdminName" required placeholder="Dr. Juan dela Cruz" value={newAdminName} onChange={(e) => setNewAdminName(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="newAdminEmail">Administrator&apos;s email</Label>
+                <Input id="newAdminEmail" type="email" required placeholder="research.office@up.edu.ph" value={newAdminEmail} onChange={(e) => setNewAdminEmail(e.target.value)} />
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="newName">Name</Label>
-              <Input id="newName" placeholder="Harvard University Press" value={newName} onChange={(e) => setNewName(e.target.value)} />
-            </div>
-            <Button onClick={createTenant} disabled={creating}>
+
+            <button type="button" onClick={() => setShowAdvanced((v) => !v)} className="flex items-center gap-1 text-xs text-primary hover:underline">
+              {showAdvanced ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />} Optional: plan and portal address
+            </button>
+            {showAdvanced && (
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="newPlan">Plan</Label>
+                  <Select value={newPlan || "__none"} onValueChange={(v) => setNewPlan(v === "__none" ? "" : v)}>
+                    <SelectTrigger id="newPlan">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none">No plan (all modules)</SelectItem>
+                      {TENANT_PLAN_KEYS.map((k) => (
+                        <SelectItem key={k} value={k}>
+                          {TENANT_PLANS[k].label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="newSlug">Portal address</Label>
+                  <div className="flex items-center rounded-md border border-input bg-background pl-3 text-sm">
+                    <span className="whitespace-nowrap text-muted-foreground">/t/</span>
+                    <Input
+                      id="newSlug"
+                      placeholder="generated from the name"
+                      value={newSlug}
+                      onChange={(e) => setNewSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+                      className="border-0 pl-1 shadow-none focus-visible:ring-0"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <Button type="submit" disabled={creating || !newName.trim() || !newAdminName.trim() || !newAdminEmail.trim()}>
               {creating ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Plus className="mr-1.5 h-3.5 w-3.5" />}
-              Create
+              Create tenant &amp; send login details
             </Button>
-          </div>
+          </form>
+
+          {issued && (
+            <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 text-sm" data-testid="tenant-credentials">
+              <p className="font-medium">
+                {issued.isReset ? "New sign-in details for" : "Created"} {issued.tenantName}
+              </p>
+              <p className="mt-1 flex items-center gap-1.5 text-xs">
+                {issued.emailDelivered ? (
+                  <>
+                    <MailCheck className="h-3.5 w-3.5 text-emerald-600" /> Emailed to {issued.adminName} ({issued.email}).
+                  </>
+                ) : (
+                  <>
+                    <MailWarning className="h-3.5 w-3.5 text-amber-600" /> Email delivery isn&apos;t configured, so nothing was sent. Share these details with {issued.adminName} yourself.
+                  </>
+                )}
+              </p>
+              <pre className="mt-2 whitespace-pre-wrap rounded-md bg-background p-3 font-mono text-xs">{`Platform: ${issued.tenantName}\nSign in at: ${issued.loginUrl}\nEmail: ${issued.email}\nTemporary password: ${issued.temporaryPassword}\nPublic portal: ${issued.portalUrl}`}</pre>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => navigator.clipboard?.writeText(`Platform: ${issued.tenantName}\nSign in at: ${issued.loginUrl}\nEmail: ${issued.email}\nTemporary password: ${issued.temporaryPassword}\nPublic portal: ${issued.portalUrl}`).then(() => setCopiedCreds(true))}
+                >
+                  {copiedCreds ? <Check className="mr-1.5 h-3.5 w-3.5" /> : <Copy className="mr-1.5 h-3.5 w-3.5" />}
+                  {copiedCreds ? "Copied" : "Copy details"}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setIssued(null)}>
+                  Done
+                </Button>
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                The temporary password is shown only once. The administrator chooses their own password and sets up
+                two-factor authentication when they first sign in.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -460,9 +635,40 @@ export function TenantsTab() {
                       <p className="text-xs text-muted-foreground">
                         {t.slug} · {t.domainCount} domain{t.domainCount === 1 ? "" : "s"} · {t.userCount} user{t.userCount === 1 ? "" : "s"}
                       </p>
+                      {t.admins && t.admins.length > 0 && (
+                        <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                          <UserCog className="h-3 w-3" />
+                          {t.admins.map((a) => `${a.fullName} (${a.email})`).join(", ")}
+                          {t.admins.some((a) => a.pendingFirstSignIn) && (
+                            <Badge variant="outline" className="border-amber-300 bg-amber-50 text-[0.6rem] text-amber-700">
+                              awaiting first sign-in
+                            </Badge>
+                          )}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </button>
+                {!t.isPlatform && (
+                  <div className="flex flex-wrap gap-2 px-4 pb-3">
+                    {t.portalUrl && (
+                      <Button asChild size="sm" variant="outline" className="h-8">
+                        <a href={t.portalUrl} target="_blank" rel="noreferrer">
+                          <ExternalLink className="mr-1.5 h-3.5 w-3.5" /> Open portal
+                        </a>
+                      </Button>
+                    )}
+                    <Button size="sm" variant="outline" className="h-8" onClick={() => setBrandingFor(t)}>
+                      <Palette className="mr-1.5 h-3.5 w-3.5" /> Branding
+                    </Button>
+                    {t.admins && t.admins.length > 0 && (
+                      <Button size="sm" variant="outline" className="h-8" disabled={resendingFor === t.id} onClick={() => resendAccess(t)}>
+                        {resendingFor === t.id ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <KeyRound className="mr-1.5 h-3.5 w-3.5" />}
+                        Resend login details
+                      </Button>
+                    )}
+                  </div>
+                )}
 
                 {expanded === t.id && (
                   <div className="border-t border-border p-4 pt-3">
@@ -914,6 +1120,18 @@ export function TenantsTab() {
           </div>
         </CardContent>
       </Card>
+      <Dialog open={!!brandingFor} onOpenChange={(open) => !open && setBrandingFor(null)}>
+        <DialogContent className="max-h-[92vh] w-[96vw] max-w-6xl overflow-y-auto sm:max-w-6xl">
+          <DialogHeader>
+            <DialogTitle>Branding — {brandingFor?.name}</DialogTitle>
+            <DialogDescription>
+              Set this institution&apos;s logo, colours and contact details. Its administrator can also change these from
+              their own dashboard.
+            </DialogDescription>
+          </DialogHeader>
+          {brandingFor && <BrandingTab tenantId={brandingFor.id} onSaved={load} />}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

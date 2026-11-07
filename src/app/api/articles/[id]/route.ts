@@ -6,7 +6,7 @@ import { deleteArticleCascade } from "@/lib/article-delete";
 import { recordCounterEvent } from "@/lib/institutions";
 import { resolveAuthorAvatars } from "@/lib/author-accounts";
 import { parseAuthors } from "@/lib/article";
-import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { resolveTenantFromHeaders, tenantCacheControl } from "@/lib/tenant";
 import { withRlsContext, withTenantRlsContext } from "@/lib/db-rls";
 
 /**
@@ -83,7 +83,7 @@ export async function GET(
   // window only increments once) for real protection against a viral
   // article's traffic spike hitting the database on every request.
   const headers: Record<string, string> = isPublished
-    ? { "Cache-Control": "public, s-maxage=20, stale-while-revalidate=120" }
+    ? { "Cache-Control": tenantCacheControl(req, tenant, "public, s-maxage=20, stale-while-revalidate=120") }
     : {};
 
   // One avatarUrl (or null) per author entry, in the same order as

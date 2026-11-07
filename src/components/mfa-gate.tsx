@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { PasswordChangeGate } from "@/components/password-change-gate";
 import { useApp } from "@/lib/store";
 import { apiFetch } from "@/lib/api-client";
 import { MFA_REQUIRED_ROLES } from "@/lib/roles";
@@ -31,8 +32,13 @@ export function MfaGate({ children }: { children: React.ReactNode }) {
   const [backupCodes, setBackupCodes] = useState<string[] | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // A temporary password issued by an administrator is replaced first.
+  if (user?.mustChangePassword) return <PasswordChangeGate />;
+
   const mustSetUp = !!user && MFA_REQUIRED_ROLES.includes(user.role) && user.twoFactorEnabled === false;
-  if (!mustSetUp) {
+  // Stay on this screen after enabling 2FA until the one-time backup codes
+  // have been acknowledged — otherwise they'd never be shown.
+  if (!mustSetUp && !backupCodes) {
     return <>{children}</>;
   }
 

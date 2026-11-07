@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { sendEmail, notificationEmailHtml } from "@/lib/email";
 import { APP_BASE_URL } from "@/lib/site";
+import { emailBrandOf } from "@/lib/email-brand";
 
 export type NotificationType = "INFO" | "SUCCESS" | "WARNING" | "ERROR";
 
@@ -37,7 +38,7 @@ export async function notify(input: NotifyInput): Promise<void> {
         articleId: input.articleId,
       },
     }),
-    db.user.findUnique({ where: { id: input.userId }, select: { email: true } }),
+    db.user.findUnique({ where: { id: input.userId }, select: { email: true, tenant: true } }),
   ]);
   if (user?.email) {
     await sendEmail({
@@ -48,6 +49,7 @@ export async function notify(input: NotifyInput): Promise<void> {
         message: input.message,
         ctaUrl: input.articleId ? `${APP_BASE_URL}/article/${input.articleId}` : undefined,
         ctaLabel: input.articleId ? "View article" : undefined,
+        brand: emailBrandOf(user.tenant),
       }),
     });
   }
@@ -67,9 +69,10 @@ export async function notifyMany(inputs: NotifyInput[]): Promise<void> {
         articleId: i.articleId,
       })),
     }),
-    db.user.findMany({ where: { id: { in: userIds } }, select: { id: true, email: true } }),
+    db.user.findMany({ where: { id: { in: userIds } }, select: { id: true, email: true, tenant: true } }),
   ]);
   const emailById = new Map(users.map((u) => [u.id, u.email]));
+  const brandById = new Map(users.map((u) => [u.id, emailBrandOf(u.tenant)]));
   await Promise.allSettled(
     inputs.map((i) => {
       const email = emailById.get(i.userId);
@@ -82,6 +85,7 @@ export async function notifyMany(inputs: NotifyInput[]): Promise<void> {
           message: i.message,
           ctaUrl: i.articleId ? `${APP_BASE_URL}/article/${i.articleId}` : undefined,
           ctaLabel: i.articleId ? "View article" : undefined,
+          brand: brandById.get(i.userId),
         }),
       });
     })

@@ -1,95 +1,50 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { requireTenantScope } from "@/lib/tenant-auth";
-import { TENANT_SCOPED_ADMIN_ROLES } from "@/lib/roles";
-import { resolveTenantFromHeaders, FONT_FAMILY_OPTIONS } from "@/lib/tenant";
 import { parseBody } from "@/lib/validate";
+import { BrandingSchema, brandingFormOf, resolveBrandingTarget } from "@/lib/tenant-branding-admin";
 
 /**
- * GET/PUT /api/admin/tenant-branding
- * Operates on whichever tenant the request's Host header resolves to (same
- * resolution every public page uses). SUPER_ADMIN may edit any tenant's
- * branding this way; TENANT_ADMIN may only edit branding while the request
- * is being made from their own tenant's domain (requireTenantScope below).
+ * GET/PUT /api/admin/tenant-branding[?tenantId=]
+ * The branding console's API: logo, favicon, colours, font, and the
+ * organization profile (official/support email, phones, website, address,
+ * social links). SUPER_ADMIN may edit any tenant (`?tenantId=`, or the
+ * official site by default); TENANT_ADMIN only its own institution.
  */
-
-// Deliberately restrictive — this value is interpolated into a raw <style>
-// block in the root layout (see resolveTenantFromHost -> layout.tsx), so it
-// must never be able to contain "}" / "<" / etc. and break out of the CSS
-// custom-property declaration. Covers hex, rgb()/oklch()/hsl() functions,
-// and CSS named colors.
-const CSS_COLOR_RE = /^[a-zA-Z0-9#(),.%\s-]+$/;
-const CssColor = z
-  .string()
-  .trim()
-  .min(1)
-  .max(100)
-  .regex(CSS_COLOR_RE, "Must be a plain CSS color (hex, rgb(), oklch(), etc.)");
-
-const BrandingSchema = z.object({
-  siteName: z.string().trim().max(200).nullable().optional(),
-  tagline: z.string().trim().max(300).nullable().optional(),
-  logoUrl: z.string().trim().url().max(2000).nullable().optional().or(z.literal("").transform(() => null)),
-  faviconUrl: z.string().trim().url().max(2000).nullable().optional().or(z.literal("").transform(() => null)),
-  primaryColor: CssColor.nullable().optional(),
-  accentColor: CssColor.nullable().optional(),
-  fontFamily: z.enum(FONT_FAMILY_OPTIONS).nullable().optional(),
-});
-
 export async function GET(req: NextRequest) {
-  const tenant = await resolveTenantFromHeaders(req.headers);
-  if (!tenant) {
-    return NextResponse.json({ error: "No tenant resolved for this request" }, { status: 404 });
-  }
-
-  const auth = requireTenantScope(req.headers, tenant.id, TENANT_SCOPED_ADMIN_ROLES);
-  if (!auth.ok) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
-  }
-
+  const target = await resolveBrandingTarget(req);
+  if (!target.ok) return NextResponse.json({ error: target.error }, { status: target.status });
+  const t = target.tenant;
   return NextResponse.json({
-    tenant: { id: tenant.id, slug: tenant.slug, name: tenant.name },
-    branding: {
-      siteName: tenant.siteName,
-      tagline: tenant.tagline,
-      logoUrl: tenant.logoUrl,
-      faviconUrl: tenant.faviconUrl,
-      primaryColor: tenant.primaryColor,
-      accentColor: tenant.accentColor,
-      fontFamily: tenant.fontFamily,
-    },
+    tenant: { id: t.id, slug: t.slug, name: t.name, isPlatform: t.isPlatform },
+    branding: brandingFormOf(t),
   });
 }
 
 export async function PUT(req: NextRequest) {
-  const tenant = await resolveTenantFromHeaders(req.headers);
-  if (!tenant) {
-    return NextResponse.json({ error: "No tenant resolved for this request" }, { status: 404 });
-  }
-
-  const auth = requireTenantScope(req.headers, tenant.id, TENANT_SCOPED_ADMIN_ROLES);
-  if (!auth.ok) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
-  }
+  const target = await resolveBrandingTarget(req);
+  if (!target.ok) return NextResponse.json({ error: target.error }, { status: target.status });
 
   const parsed = await parseBody(req, BrandingSchema);
   if (!parsed.ok) return parsed.response;
 
-  const updated = await db.tenant.update({
-    where: { id: tenant.id },
-    data: parsed.data,
-  });
+  const { socialLinks, ...rest } = parsed.data;
+  const data: Prisma.TenantUpdateInput = { ...rest };
+  if (socialLinks !== undefined) data.socialLinks = socialLinks === null ? Prisma.DbNull : socialLinks;
 
-  return NextResponse.json({
-    branding: {
-      siteName: updated.siteName,
-      tagline: updated.tagline,
-      logoUrl: updated.logoUrl,
-      faviconUrl: updated.faviconUrl,
-      primaryColor: updated.primaryColor,
-      accentColor: updated.accentColor,
-      fontFamily: updated.fontFamily,
-    },
-  });
+  const updated = await db.tenant.update({ where: { id: target.tenant.id }, data });
+
+  await db.auditLog
+    .create({
+      data: {
+        userId: target.session.userId,
+        action: "TENANT_BRANDING_UPDATED",
+        entityType: "TENANT",
+        entityId: updated.id,
+        metadata: JSON.stringify({ fields: Object.keys(parsed.data) }),
+      },
+    })
+    .catch(() => {});
+
+  return NextResponse.json({ branding: brandingFormOf(updated) });
 }
