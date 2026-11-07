@@ -13,10 +13,12 @@
  * route.ts) and passed in — this module stays a pure PDF renderer with no
  * network or DB access of its own.
  */
+import crypto from "crypto";
 import PDFDocument from "pdfkit";
 import QRCode from "qrcode";
 import { APP_BASE_URL } from "@/lib/site";
-import type { CertificatePayload } from "@/lib/certificates";
+import { canonicalCertificatePayload, type CertificatePayload } from "@/lib/certificates";
+import { pdfSafe } from "@/lib/provenance-certificate-pdf";
 import { CARD_GLOBE_JPEG_BASE64 } from "@/lib/certificate-globe-asset";
 
 const CARD_GLOBE_JPEG = Buffer.from(CARD_GLOBE_JPEG_BASE64, "base64");
@@ -42,210 +44,157 @@ async function buildVerifyQr(serialNumber: string): Promise<Buffer> {
   return QRCode.toBuffer(url, { errorCorrectionLevel: "M", margin: 1, width: 200, color: { dark: BRAND_INK, light: "#ffffff" } });
 }
 
+// ── Design system shared with the article PDFs ─────────────────────────
+// (src/lib/provenance-certificate-pdf.ts, data-table PDFs): purple
+// gradient cover band over a gold rule, serif titles, a gold double
+// hairline frame, a faint diagonal watermark and a running footer.
+const PURPLE_DEEP = "#2a1458";
 const GOLD_LIGHT = "#fbf0cd";
-const GOLD_MID = "#d4af5f";
 const GOLD_DEEP = "#8a6a28";
-const GOLD_SHADOW = "#5c4218";
+const RULE = "#e4dfee";
+const TINT = "#f7f4fc";
+const IVORY = "#fdfbf6";
 
-/** One decorative tile: beveled square background + diamond outline + a
- * 4-petal quatrefoil motif — repeated edge-to-edge to build the frame. */
-function drawOrnamentTile(doc: PDFKit.PDFDocument, x: number, y: number, size: number) {
-  doc.save();
-  doc.rect(x, y, size, size)
-    .fill(doc.linearGradient(x, y, x + size, y + size).stop(0, GOLD_LIGHT).stop(0.5, GOLD_MID).stop(1, GOLD_DEEP));
-  doc.lineWidth(0.5).strokeColor(GOLD_SHADOW).rect(x + 0.75, y + 0.75, size - 1.5, size - 1.5).stroke();
+const WATERMARK = "Eleventh Press International Publishing";
 
-  const cx = x + size / 2, cy = y + size / 2, r = size * 0.36;
-  doc.lineWidth(0.6).strokeColor(GOLD_SHADOW)
-    .polygon([cx, cy - r], [cx + r, cy], [cx, cy + r], [cx - r, cy]).stroke();
-
-  const pr = size * 0.15;
-  doc.fillColor(GOLD_LIGHT);
-  const petalOffset = r * 0.5;
-  for (const [px, py] of [[cx, cy - petalOffset], [cx + petalOffset, cy], [cx, cy + petalOffset], [cx - petalOffset, cy]] as [number, number][]) {
-    doc.ellipse(px, py, pr, pr * 0.62).fill();
-  }
-  doc.circle(cx, cy, size * 0.07).fillColor(GOLD_SHADOW).fill();
-  doc.restore();
+function contentHashOf(payload: CertificatePayload): string {
+  return crypto.createHash("sha256").update(canonicalCertificatePayload(payload)).digest("hex");
 }
 
-/**
- * A repeating-tile ornate gold frame: small beveled quatrefoil tiles run
- * edge-to-edge along all four sides with matching tiles anchoring each
- * corner — built natively (no stock clipart, so no licensing question).
- * Tile count per edge is chosen so tiles fit exactly with no partial tile
- * at the end. A slim purple accent rule sits just inside the tiled band.
- */
-function drawGoldFrame(doc: PDFKit.PDFDocument, margin: number, frameWidth: number) {
-  const { width, height } = doc.page;
-  const oL = margin, oT = margin, oR = width - margin, oB = height - margin;
-  const iL = margin + frameWidth, iT = margin + frameWidth, iR = width - margin - frameWidth, iB = height - margin - frameWidth;
-
-  doc.save();
-
-  drawOrnamentTile(doc, oL, oT, frameWidth);
-  drawOrnamentTile(doc, oR - frameWidth, oT, frameWidth);
-  drawOrnamentTile(doc, oL, oB - frameWidth, frameWidth);
-  drawOrnamentTile(doc, oR - frameWidth, oB - frameWidth, frameWidth);
-
-  const hRunLen = (oR - frameWidth) - (oL + frameWidth);
-  const hCount = Math.max(1, Math.round(hRunLen / frameWidth));
-  const hTileW = hRunLen / hCount;
-  for (let i = 0; i < hCount; i++) {
-    const tx = oL + frameWidth + i * hTileW;
-    drawOrnamentTile(doc, tx, oT, hTileW);
-    drawOrnamentTile(doc, tx, oB - frameWidth, hTileW);
-  }
-
-  const vRunLen = (oB - frameWidth) - (oT + frameWidth);
-  const vCount = Math.max(1, Math.round(vRunLen / frameWidth));
-  const vTileH = vRunLen / vCount;
-  for (let i = 0; i < vCount; i++) {
-    const ty = oT + frameWidth + i * vTileH;
-    drawOrnamentTile(doc, oL, ty, frameWidth);
-    drawOrnamentTile(doc, oR - frameWidth, ty, frameWidth);
-  }
-
-  doc.lineWidth(1).strokeColor(GOLD_SHADOW);
-  doc.rect(oL, oT, oR - oL, oB - oT).stroke();
-  doc.rect(iL, iT, iR - iL, iB - iT).stroke();
-
-  doc.lineWidth(1.25).strokeColor(BRAND_PURPLE)
-    .rect(iL + 6, iT + 6, (iR - iL) - 12, (iB - iT) - 12).stroke();
-
-  doc.restore();
+function fmtIssued(payload: CertificatePayload, month: "long" | "short" = "long"): string {
+  return new Date(payload.issuedAtIso).toLocaleDateString("en-GB", { year: "numeric", month, day: "numeric", timeZone: "UTC" });
 }
 
-/** Circular avatar photo — clips to a circle so it reads as a real photo
- * badge, not a rectangle. Skipped entirely (no placeholder icon) when no
- * real avatar was resolved, matching this codebase's convention of never
- * substituting a fabricated stand-in for missing real data. */
+function verifyUrl(payload: CertificatePayload): string {
+  return `${APP_BASE_URL}/verify/${payload.serialNumber}`;
+}
+
+/** Largest font size (down to `min`) at which `text` fits on one line. */
+function fitFontSize(doc: PDFKit.PDFDocument, text: string, font: string, max: number, min: number, width: number): number {
+  doc.font(font);
+  for (let size = max; size > min; size -= 0.5) {
+    doc.fontSize(size);
+    if (doc.widthOfString(text) <= width) return size;
+  }
+  return min;
+}
+
+/** A real avatar, clipped round with a double gold ring. Skipped (no
+ * placeholder) when no avatar was resolved — never a fabricated stand-in. */
 function drawAvatarCircle(doc: PDFKit.PDFDocument, avatarPng: Buffer | null, cx: number, cy: number, radius: number) {
   if (!avatarPng) return;
+  doc.save().circle(cx, cy, radius + 3.5).fill(doc.linearGradient(cx - radius, cy - radius, cx + radius, cy + radius).stop(0, GOLD_LIGHT).stop(0.5, BRAND_GOLD).stop(1, GOLD_DEEP)).restore();
   doc.save();
   doc.circle(cx, cy, radius).clip();
   doc.image(avatarPng, cx - radius, cy - radius, { width: radius * 2, height: radius * 2 });
   doc.restore();
-  doc.lineWidth(1.5).strokeColor(BRAND_GOLD).circle(cx, cy, radius).stroke();
+  doc.circle(cx, cy, radius).lineWidth(0.8).strokeColor("#ffffff").stroke();
 }
 
-/** Bottom-anchored, two-column footer used by both certificate layouts —
- * verification block (QR + serial/verify-url/issued date) on the left,
- * signature on the right, with enough horizontal separation that neither
- * ever collides regardless of how much text the verification block needs. */
-function drawFooter(doc: PDFKit.PDFDocument, margin: number, payload: CertificatePayload, qr: Buffer) {
+/** Gold seal with notched edge and the "EP" monogram — the publisher's mark. */
+function drawEmblem(doc: PDFKit.PDFDocument, cx: number, cy: number, r: number) {
+  doc.save();
+  doc.circle(cx, cy, r).fill(doc.radialGradient(cx - r * 0.3, cy - r * 0.3, 0, cx, cy, r).stop(0, GOLD_LIGHT).stop(0.6, BRAND_GOLD).stop(1, GOLD_DEEP));
+  doc.lineWidth(0.6).strokeColor(GOLD_DEEP);
+  for (let i = 0; i < 36; i++) {
+    const a = (i / 36) * Math.PI * 2;
+    doc.moveTo(cx + Math.cos(a) * (r - 3.4), cy + Math.sin(a) * (r - 3.4)).lineTo(cx + Math.cos(a) * (r - 0.8), cy + Math.sin(a) * (r - 0.8)).stroke();
+  }
+  doc.circle(cx, cy, r * 0.74).lineWidth(0.7).strokeColor(GOLD_DEEP).stroke();
+  doc.circle(cx, cy, r * 0.66).fill(PURPLE_DEEP);
+  doc.circle(cx, cy, r * 0.66).lineWidth(0.8).strokeColor(GOLD_LIGHT).stroke();
+  doc.restore();
+  const mono = "EP";
+  doc.font("Times-Bold").fontSize(r * 0.62).fillColor(GOLD_LIGHT);
+  const w = doc.widthOfString(mono);
+  doc.text(mono, cx - w / 2, cy - r * 0.36, { lineBreak: false });
+}
+
+/** Centered gold rule with a small diamond — the divider used under titles. */
+function drawDivider(doc: PDFKit.PDFDocument, cx: number, y: number, half: number) {
+  doc.save().lineWidth(0.7).strokeColor(BRAND_GOLD);
+  doc.moveTo(cx - half, y).lineTo(cx - 8, y).stroke();
+  doc.moveTo(cx + 8, y).lineTo(cx + half, y).stroke();
+  doc.polygon([cx, y - 4], [cx + 4, y], [cx, y + 4], [cx - 4, y]).fill(BRAND_GOLD);
+  doc.restore();
+}
+
+/** Faint diagonal watermark, as on every article PDF. */
+function drawWatermark(doc: PDFKit.PDFDocument, text: string, angle: number, size: number, opacity: number) {
   const { width, height } = doc.page;
-  const footerTop = height - margin - 100;
-  const qrSize = 60;
-
-  doc.image(qr, margin + 28, footerTop, { width: qrSize, height: qrSize });
-  const textX = margin + 28 + qrSize + 14;
-  const textWidth = width / 2 - textX;
-  doc.fillColor(BRAND_MUTED).font("Helvetica").fontSize(7.5);
-  doc.text(`Serial: ${payload.serialNumber}`, textX, footerTop + 2, { width: textWidth });
-  doc.text(`Verify at ${APP_BASE_URL}/verify/${payload.serialNumber}`, textX, footerTop + 16, { width: textWidth });
-  doc.text(`Issued ${new Date(payload.issuedAtIso).toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" })}`, textX, footerTop + 30, { width: textWidth });
-
-  const sigWidth = 200;
-  const sigX = width - margin - 28 - sigWidth;
-  doc.moveTo(sigX, footerTop + 30).lineTo(sigX + sigWidth, footerTop + 30).lineWidth(0.75).strokeColor(BRAND_MUTED).stroke();
-  doc.fillColor(BRAND_MUTED).font("Helvetica-Oblique").fontSize(10)
-    .text("Editor-in-Chief", sigX, footerTop + 36, { width: sigWidth, align: "center" });
+  doc.save();
+  doc.rotate(angle, { origin: [width / 2, height / 2] });
+  doc.font("Helvetica-Bold").fontSize(size).fillColor(BRAND_PURPLE).fillOpacity(opacity);
+  const w = doc.widthOfString(text, { characterSpacing: 1 });
+  doc.text(text, width / 2 - w / 2, height / 2 - size / 2, { lineBreak: false, characterSpacing: 1 });
+  doc.restore();
 }
 
-/**
- * One credibility group: category label centered on its own heading line,
- * its badges centered directly beneath (regular weight, smaller than the
- * label). Long lists (Syndication networks) get a narrower wrap column via
- * `itemsMaxWidth` so they reflow into a balanced multi-line block instead
- * of stretching far wider than every other group.
- */
-function drawCenteredGroup(
-  doc: PDFKit.PDFDocument,
-  label: string,
-  items: string[],
-  x: number,
-  y: number,
-  width: number,
-  labelColor: string,
-  labelSize: number,
-  itemSize: number,
-  itemsMaxWidth?: number
-): number {
-  doc.font("Helvetica-Bold").fontSize(labelSize);
-  const labelHeight = doc.heightOfString(label.toUpperCase(), { width });
-  doc.fillColor(labelColor).text(label.toUpperCase(), x, y, { align: "center", width });
-  const itemsY = y + labelHeight + 4;
-
-  const iw = itemsMaxWidth ?? width;
-  const ix = x + (width - iw) / 2;
-  const itemsText = items.join(" · ");
-  doc.fillColor(BRAND_INK).font("Helvetica").fontSize(itemSize)
-    .text(itemsText, ix, itemsY, { align: "center", width: iw, lineGap: 2 });
-  const itemsHeight = doc.heightOfString(itemsText, { width: iw, lineGap: 2 });
-
-  return itemsY + itemsHeight;
+/** Gold double hairline page frame with small diamond corner ornaments. */
+function drawPageFrame(doc: PDFKit.PDFDocument) {
+  const { width, height } = doc.page;
+  doc.save().lineWidth(0.9).strokeColor(BRAND_GOLD).rect(14, 14, width - 28, height - 28).stroke();
+  doc.lineWidth(0.35).strokeColor(BRAND_GOLD).rect(19, 19, width - 38, height - 38).stroke();
+  for (const [x, y] of [[19, 19], [width - 19, 19], [19, height - 19], [width - 19, height - 19]]) {
+    doc.polygon([x, y - 5], [x + 5, y], [x, y + 5], [x - 5, y]).fill(BRAND_GOLD);
+  }
+  doc.restore();
 }
 
-/** All four honest credibility groups — reuses the exact same verified
- * indexing/benchmark/syndication/open-data lists already shown elsewhere
- * on the platform, never a new or inflated claim invented for the
- * certificate. Returns the y position immediately after the last group. */
-function drawBadgeGroups(doc: PDFKit.PDFDocument, x: number, y: number, width: number, labelSize: number, itemSize: number, gap: number): number {
-  let cy = y;
-  cy = drawCenteredGroup(doc, "Indexed in", INDEXED_IN, x, cy, width, BRAND_GOLD, labelSize, itemSize) + gap;
-  cy = drawCenteredGroup(doc, "Benchmarked standards", BENCHMARKED_STANDARDS, x, cy, width, BRAND_PURPLE, labelSize, itemSize) + gap;
-  cy = drawCenteredGroup(doc, "Syndication networks", SYNDICATION_NETWORKS, x, cy, width, BRAND_GOLD, labelSize, itemSize, Math.min(width, 270)) + gap;
-  cy = drawCenteredGroup(doc, "Open data sources", OPEN_DATA_SOURCES, x, cy, width, BRAND_PURPLE, labelSize, itemSize) + gap;
-  return cy;
+/** Purple gradient band over a gold rule, with the issuer on the left and
+ * the serial / issue date on the right — the article PDFs' cover band. */
+function drawCoverBand(doc: PDFKit.PDFDocument, payload: CertificatePayload, height: number, subtitle: string) {
+  const { width } = doc.page;
+  const m = 48;
+  doc.rect(0, 0, width, height).fill(doc.linearGradient(0, 0, width, height).stop(0, PURPLE_DEEP).stop(1, BRAND_PURPLE));
+  doc.rect(0, height, width, 2.2).fill(BRAND_GOLD);
+  const leftW = width - 2 * m - 190;
+  doc.font("Helvetica-Bold").fontSize(7.4).fillColor(BRAND_GOLD)
+    .text(pdfSafe(payload.journalName).toUpperCase(), m, 30, { width: leftW, characterSpacing: 2.2, lineBreak: false });
+  doc.font("Times-Bold").fontSize(16).fillColor("#ffffff").text(subtitle, m, 42, { width: leftW, lineBreak: false });
+  doc.font("Helvetica").fontSize(7.8).fillColor("#d9cff0")
+    .text(`${JOURNAL_TAGLINE}${payload.issn ? `  ·  ISSN ${payload.issn}` : ""}`, m, 63, { width: leftW, lineBreak: false });
+  doc.font("Helvetica-Bold").fontSize(6.3).fillColor(BRAND_GOLD).text("SERIAL NUMBER", m, 30, { width: width - 2 * m, align: "right", characterSpacing: 1.2, lineBreak: false });
+  doc.font("Courier-Bold").fontSize(10).fillColor("#ffffff").text(payload.serialNumber, m, 40, { width: width - 2 * m, align: "right", lineBreak: false });
+  doc.font("Helvetica-Bold").fontSize(6.3).fillColor(BRAND_GOLD).text("ISSUED", m, 55, { width: width - 2 * m, align: "right", characterSpacing: 1.2, lineBreak: false });
+  doc.font("Helvetica").fontSize(8.2).fillColor("#ffffff").text(fmtIssued(payload), m, 64, { width: width - 2 * m, align: "right", lineBreak: false });
 }
 
-/** Just the syndication/open-data half of the four groups, for the
- * affiliation card — its "Indexed in"/"Benchmarked standards" groups are
- * drawn inside the card itself (see drawCardCredibilityGroup) so this
- * covers the remaining two below it without duplicating the first two. */
-function drawRemainingBadgeGroups(doc: PDFKit.PDFDocument, x: number, y: number, width: number, labelSize: number, itemSize: number, gap: number): number {
-  let cy = y;
-  cy = drawCenteredGroup(doc, "Syndication networks", SYNDICATION_NETWORKS, x, cy, width, BRAND_GOLD, labelSize, itemSize, Math.min(width, 270)) + gap;
-  cy = drawCenteredGroup(doc, "Open data sources", OPEN_DATA_SOURCES, x, cy, width, BRAND_PURPLE, labelSize, itemSize) + gap;
-  return cy;
+/** The four credibility groups — the same verified lists shown elsewhere on
+ * the platform, never a new claim — as columns in a tinted panel. */
+const CREDENTIAL_GROUPS: { label: string; items: string[]; color: string }[] = [
+  { label: "Indexed in", items: INDEXED_IN, color: GOLD_DEEP },
+  { label: "Benchmarked standards", items: BENCHMARKED_STANDARDS, color: BRAND_PURPLE },
+  { label: "Syndication networks", items: SYNDICATION_NETWORKS, color: GOLD_DEEP },
+  { label: "Open data sources", items: OPEN_DATA_SOURCES, color: BRAND_PURPLE },
+];
+
+function credentialsPanelHeight(doc: PDFKit.PDFDocument, colW: number, itemSize: number): number {
+  doc.font("Helvetica").fontSize(itemSize);
+  return Math.max(...CREDENTIAL_GROUPS.map((g) => doc.heightOfString(g.items.join(" · "), { width: colW, lineGap: 1.6 }))) + 30;
 }
 
-/** Left-aligned credibility group for inside the affiliation card itself —
- * matches the card's own left-aligned typographic style (brand/name/role/
- * serial are all left-aligned), unlike the centered groups used on the two
- * full-page certificate layouts. */
-function drawCardCredibilityGroup(
-  doc: PDFKit.PDFDocument,
-  label: string,
-  items: string[],
-  x: number,
-  y: number,
-  width: number,
-  labelColor: string,
-  itemColor: string,
-  labelSize: number,
-  itemSize: number
-): number {
-  doc.fillColor(labelColor).font("Helvetica-Bold").fontSize(labelSize)
-    .text(label.toUpperCase(), x, y, { width });
-  const itemsY = y + labelSize + 3;
-
-  const itemsText = items.join(" · ");
-  doc.fillColor(itemColor).font("Helvetica").fontSize(itemSize)
-    .text(itemsText, x, itemsY, { width, lineGap: 1.5 });
-  const itemsHeight = doc.heightOfString(itemsText, { width, lineGap: 1.5 });
-
-  return itemsY + itemsHeight;
+function drawCredentialsPanel(doc: PDFKit.PDFDocument, x: number, y: number, width: number, itemSize = 7.2): number {
+  const gap = 14;
+  const colW = (width - 28 - gap * 3) / 4;
+  const h = credentialsPanelHeight(doc, colW, itemSize);
+  doc.roundedRect(x, y, width, h, 6).fillAndStroke(TINT, RULE);
+  CREDENTIAL_GROUPS.forEach((g, i) => {
+    const cx = x + 14 + i * (colW + gap);
+    if (i > 0) doc.moveTo(cx - gap / 2, y + 12).lineTo(cx - gap / 2, y + h - 12).lineWidth(0.4).strokeColor(RULE).stroke();
+    doc.font("Helvetica-Bold").fontSize(6.4).fillColor(g.color).text(g.label.toUpperCase(), cx, y + 11, { width: colW, align: "center", characterSpacing: 1, lineBreak: false });
+    doc.font("Helvetica").fontSize(itemSize).fillColor(BRAND_INK).text(g.items.join(" · "), cx, y + 23, { width: colW, align: "center", lineGap: 1.6 });
+  });
+  return y + h;
 }
 
-function newLandscapeDoc(title: string): PDFKit.PDFDocument {
+function newLandscapeDoc(title: string, subject: string): PDFKit.PDFDocument {
   return new PDFDocument({
     size: "A4",
     layout: "landscape",
-    margins: { top: 40, bottom: 40, left: 40, right: 40 },
+    margins: { top: 0, bottom: 0, left: 0, right: 0 },
     bufferPages: true,
-    info: { Title: title },
+    info: { Title: pdfSafe(title), Author: "Eleventh Press International Publishing", Subject: pdfSafe(subject), Creator: "Eleventh Press International Publishing — certificates" },
   });
 }
 
@@ -272,87 +221,6 @@ const MEMBERSHIP_BODY: Record<CertificatePayload["category"], string> = {
   EXPERT: "Council of Experts",
 };
 
-function recognitionBodyText(payload: CertificatePayload): string {
-  if (payload.category === "AUTHOR" && payload.workTitle) {
-    return `in recognition of the publication of\n“${payload.workTitle}”\nwith ${payload.journalName}${payload.issn ? ` (ISSN ${payload.issn})` : ""}.`;
-  }
-  return `in recognition of ${CATEGORY_SERVICE_TEXT[payload.category]}\nwith ${payload.journalName}${payload.issn ? ` (ISSN ${payload.issn})` : ""}.`;
-}
-
-export async function buildRecognitionCertificate(payload: CertificatePayload, avatarPng: Buffer | null): Promise<Buffer> {
-  const doc = newLandscapeDoc(`Certificate of Recognition — ${payload.recipientName}`);
-  const result = collect(doc);
-  const qr = await buildVerifyQr(payload.serialNumber);
-  const frameMargin = 20;
-  const frameWidth = 16;
-  const margin = frameMargin + frameWidth + 6 + 14; // outer inset + gold band + purple rule gap + breathing room
-  const contentWidth = doc.page.width - margin * 2 - 150;
-
-  drawGoldFrame(doc, frameMargin, frameWidth);
-  drawAvatarCircle(doc, avatarPng, margin + 46, 96, 30);
-
-  doc.y = 50;
-  doc.fillColor(BRAND_GOLD).font("Helvetica-Bold").fontSize(10)
-    .text(payload.journalName.toUpperCase(), margin, doc.y, { align: "center", width: doc.page.width - margin * 2 });
-  doc.moveDown(0.5);
-  doc.fillColor(BRAND_PURPLE).font("Helvetica-Bold").fontSize(26)
-    .text("Certificate of Recognition", margin, doc.y, { align: "center", width: doc.page.width - margin * 2 });
-  doc.moveDown(0.55);
-  doc.fillColor(BRAND_INK).font("Helvetica").fontSize(11)
-    .text("This certificate is presented to", margin, doc.y, { align: "center", width: doc.page.width - margin * 2 });
-  doc.moveDown(0.3);
-  doc.fillColor(BRAND_PURPLE).font("Helvetica-Bold").fontSize(20)
-    .text(payload.recipientName, margin, doc.y, { align: "center", width: doc.page.width - margin * 2 });
-  doc.moveDown(0.35);
-  doc.fillColor(BRAND_INK).font("Helvetica").fontSize(10)
-    .text(recognitionBodyText(payload), (doc.page.width - contentWidth) / 2, doc.y, { align: "center", width: contentWidth });
-
-  const blockX = margin + 44;
-  const blockWidth = doc.page.width - blockX * 2;
-  drawBadgeGroups(doc, blockX, doc.y + 18, blockWidth, 10, 8, 13);
-
-  drawFooter(doc, margin, payload, qr);
-  doc.end();
-  return result;
-}
-
-export async function buildMembershipCertificate(payload: CertificatePayload, avatarPng: Buffer | null): Promise<Buffer> {
-  const doc = newLandscapeDoc(`Certificate of Membership — ${payload.recipientName}`);
-  const result = collect(doc);
-  const qr = await buildVerifyQr(payload.serialNumber);
-  const frameMargin = 20;
-  const frameWidth = 16;
-  const margin = frameMargin + frameWidth + 6 + 14;
-  const contentWidth = doc.page.width - margin * 2 - 150;
-
-  drawGoldFrame(doc, frameMargin, frameWidth);
-  drawAvatarCircle(doc, avatarPng, margin + 46, 96, 30);
-
-  doc.y = 50;
-  doc.fillColor(BRAND_GOLD).font("Helvetica-Bold").fontSize(10)
-    .text(payload.journalName.toUpperCase(), margin, doc.y, { align: "center", width: doc.page.width - margin * 2 });
-  doc.moveDown(0.5);
-  doc.fillColor(BRAND_PURPLE).font("Helvetica-Bold").fontSize(26)
-    .text("Certificate of Membership", margin, doc.y, { align: "center", width: doc.page.width - margin * 2 });
-  doc.moveDown(0.55);
-  doc.fillColor(BRAND_INK).font("Helvetica").fontSize(11)
-    .text("This certifies that", margin, doc.y, { align: "center", width: doc.page.width - margin * 2 });
-  doc.moveDown(0.3);
-  doc.fillColor(BRAND_PURPLE).font("Helvetica-Bold").fontSize(20)
-    .text(payload.recipientName, margin, doc.y, { align: "center", width: doc.page.width - margin * 2 });
-  doc.moveDown(0.35);
-  doc.fillColor(BRAND_INK).font("Helvetica").fontSize(10)
-    .text(`is a member in good standing of the ${MEMBERSHIP_BODY[payload.category]} of\n${payload.journalName}${payload.issn ? ` (ISSN ${payload.issn})` : ""}, effective the date below.`, (doc.page.width - contentWidth) / 2, doc.y, { align: "center", width: contentWidth });
-
-  const blockX = margin + 44;
-  const blockWidth = doc.page.width - blockX * 2;
-  drawBadgeGroups(doc, blockX, doc.y + 18, blockWidth, 10, 8, 13);
-
-  drawFooter(doc, margin, payload, qr);
-  doc.end();
-  return result;
-}
-
 const CARD_ROLE_LABEL: Record<CertificatePayload["category"], string> = {
   AUTHOR: "Published Author",
   REVIEWER: "Board of Reviewers Member",
@@ -360,108 +228,340 @@ const CARD_ROLE_LABEL: Record<CertificatePayload["category"], string> = {
   EXPERT: "Council of Experts Member",
 };
 
-/** Compact wallet/ID-card-style design, centered on a Letter page — a real
- * CR80 card size (3.375in x 2.125in) wouldn't be practically downloadable/
- * printable for most users, so the card graphic is enlarged and centered
- * for legible home printing, matching how real printable ID cards are
- * commonly distributed. Four-quadrant layout (brand top-left, photo
- * top-right, name/role mid-left, serial+QR bottom) keeps every element in
- * its own zone so nothing can collide regardless of name/title length. */
+function issuerLine(payload: CertificatePayload): string {
+  return `${payload.journalName}${payload.issn ? ` (ISSN ${payload.issn})` : ""}`;
+}
+
+interface FormalText {
+  kicker: string;
+  title: string;
+  lead: string;
+  body: string;
+  work?: string | null;
+}
+
+/**
+ * The formal certificate (Recognition and Membership), A4 landscape, in the
+ * article-PDF design: cover band, serif title with a gold divider, the
+ * recipient's name, the citation, the credibility panel, and a footer with
+ * the QR code, serial and full SHA-256 content hash (left), the publisher's
+ * seal (centre) and the Editor-in-Chief signature line (right).
+ */
+async function buildFormalCertificate(payload: CertificatePayload, avatarPng: Buffer | null, text: FormalText): Promise<Buffer> {
+  const doc = newLandscapeDoc(`${text.title} — ${payload.recipientName}`, `${payload.serialNumber} · SHA-256 ${contentHashOf(payload)}`);
+  const result = collect(doc);
+  const qr = await buildVerifyQr(payload.serialNumber);
+  const W = doc.page.width;
+  const H = doc.page.height;
+  const M = 48;
+  const cx = W / 2;
+
+  doc.rect(0, 0, W, H).fill(IVORY);
+  drawWatermark(doc, WATERMARK, -24, 40, 0.035);
+  drawCoverBand(doc, payload, 88, text.title);
+
+  // Photo, top-left of the body.
+  drawAvatarCircle(doc, avatarPng, M + 44, 150, 32);
+
+  // Title block
+  let y = 118;
+  doc.font("Helvetica-Bold").fontSize(7.6).fillColor(GOLD_DEEP).text(text.kicker, 0, y, { width: W, align: "center", characterSpacing: 3, lineBreak: false });
+  y += 14;
+  doc.font("Times-Bold").fontSize(34).fillColor(BRAND_PURPLE).text(text.title, 0, y, { width: W, align: "center", lineBreak: false });
+  y += 44;
+  drawDivider(doc, cx, y, 120);
+  y += 14;
+  doc.font("Times-Italic").fontSize(12.5).fillColor(BRAND_MUTED).text(text.lead, 0, y, { width: W, align: "center", lineBreak: false });
+  y += 20;
+  const nameText = pdfSafe(payload.recipientName);
+  const nameW = W - 2 * 150;
+  const nameSize = fitFontSize(doc, nameText, "Times-Bold", 28, 15, nameW);
+  doc.font("Times-Bold").fontSize(nameSize).fillColor(BRAND_INK).text(nameText, 150, y, { width: nameW, align: "center" });
+  y = doc.y + 4;
+  doc.moveTo(cx - 150, y).lineTo(cx + 150, y).lineWidth(0.6).strokeColor(BRAND_GOLD).stroke();
+  y += 12;
+  const bodyW = 560;
+  doc.font("Times-Roman").fontSize(12).fillColor(BRAND_INK).text(pdfSafe(text.body), cx - bodyW / 2, y, { width: bodyW, align: "center", lineGap: 2 });
+  if (text.work) {
+    doc.font("Times-BoldItalic").fontSize(12.5).fillColor(BRAND_PURPLE).text(pdfSafe(`“${text.work}”`), cx - bodyW / 2, doc.y + 2, { width: bodyW, align: "center", lineGap: 2 });
+  }
+  doc.font("Times-Roman").fontSize(12).fillColor(BRAND_INK).text(pdfSafe(`with ${issuerLine(payload)}.`), cx - bodyW / 2, doc.y + 2, { width: bodyW, align: "center" });
+
+  // Credibility panel
+  const footerTop = H - 128;
+  const panelX = M + 24;
+  const panelW = W - 2 * panelX;
+  // Centred in the space left between the citation and the footer.
+  const panelH = credentialsPanelHeight(doc, (panelW - 28 - 42) / 4, 7.2);
+  const free = footerTop - 14 - panelH - doc.y;
+  const panelY = doc.y + Math.max(14, free / 2);
+  drawCredentialsPanel(doc, panelX, panelY, panelW);
+
+  // Footer: verification (left), seal (centre), signature (right)
+  const qrSize = 66;
+  const qx = M + 10;
+  const qy = footerTop + 12;
+  doc.roundedRect(qx - 4, qy - 4, qrSize + 8, qrSize + 8, 5).fillAndStroke("#ffffff", RULE);
+  doc.image(qr, qx, qy, { width: qrSize, height: qrSize });
+  const tx = qx + qrSize + 16;
+  const tw = cx - 70 - tx;
+  const hash = contentHashOf(payload);
+  doc.font("Helvetica-Bold").fontSize(6.2).fillColor(BRAND_MUTED).text("SERIAL NUMBER", tx, qy - 2, { characterSpacing: 1, lineBreak: false });
+  doc.font("Courier-Bold").fontSize(9).fillColor(BRAND_PURPLE).text(payload.serialNumber, tx, qy + 7, { lineBreak: false });
+  doc.font("Helvetica-Bold").fontSize(6.2).fillColor(BRAND_MUTED).text("CONTENT HASH (SHA-256)", tx, qy + 22, { characterSpacing: 1, lineBreak: false });
+  doc.font("Courier").fontSize(6.6).fillColor(BRAND_INK).text(`${hash.slice(0, 32)}\n${hash.slice(32)}`, tx, qy + 31, { width: tw, lineGap: 0.5 });
+  doc.font("Helvetica").fontSize(6.6).fillColor(BRAND_MUTED).text(`Scan or visit ${verifyUrl(payload)} to verify`, tx, qy + 52, { width: tw });
+
+  drawEmblem(doc, cx, footerTop + 46, 36);
+
+  const sigW = 200;
+  const sx = W - M - 10 - sigW;
+  doc.moveTo(sx, footerTop + 52).lineTo(sx + sigW, footerTop + 52).lineWidth(0.7).strokeColor(BRAND_INK).stroke();
+  doc.font("Times-Italic").fontSize(11).fillColor(BRAND_INK).text("Editor-in-Chief", sx, footerTop + 57, { width: sigW, align: "center", lineBreak: false });
+  doc.font("Helvetica").fontSize(7).fillColor(BRAND_MUTED).text(pdfSafe(payload.journalName), sx, footerTop + 72, { width: sigW, align: "center" });
+
+  // Running footer line, as on the article PDFs
+  const fy = H - 34;
+  doc.moveTo(M, fy).lineTo(W - M, fy).lineWidth(0.5).strokeColor(BRAND_GOLD).stroke();
+  doc.font("Helvetica-Bold").fontSize(6.4).fillColor(BRAND_PURPLE)
+    .text(`${pdfSafe(payload.journalName).toUpperCase()}  ·  ${payload.serialNumber}`, M, fy + 5, { characterSpacing: 0.8, lineBreak: false });
+  doc.font("Helvetica").fontSize(6.4).fillColor(BRAND_MUTED)
+    .text(`Issued ${fmtIssued(payload)}  ·  Tamper-evident: any change to this document will not match the hash above`, M, fy + 5, { width: W - 2 * M, align: "right", lineBreak: false });
+
+  drawPageFrame(doc);
+  doc.end();
+  return result;
+}
+
+export async function buildRecognitionCertificate(payload: CertificatePayload, avatarPng: Buffer | null): Promise<Buffer> {
+  const isWork = payload.category === "AUTHOR" && !!payload.workTitle;
+  return buildFormalCertificate(payload, avatarPng, {
+    kicker: "IN RECOGNITION OF DISTINCTION",
+    title: "Certificate of Recognition",
+    lead: "This certificate is proudly presented to",
+    body: isWork ? "in recognition of the publication of" : `in recognition of ${CATEGORY_SERVICE_TEXT[payload.category]}`,
+    work: isWork ? payload.workTitle : null,
+  });
+}
+
+export async function buildMembershipCertificate(payload: CertificatePayload, avatarPng: Buffer | null): Promise<Buffer> {
+  return buildFormalCertificate(payload, avatarPng, {
+    kicker: "IN GOOD STANDING",
+    title: "Certificate of Membership",
+    lead: "This certifies that",
+    body: `is a member in good standing of the ${MEMBERSHIP_BODY[payload.category]}, effective ${fmtIssued(payload)},`,
+  });
+}
+
+// ── Professional Affiliation Card ──────────────────────────────────────
+// CR80 ID-card proportions (85.6 × 54 mm), enlarged 1.6× so it prints
+// legibly at home. Both sides are laid out on one Letter page with real,
+// visible card edges: a soft drop shadow, a hairline outline and crop marks
+// at every corner, so it can be cut out (or printed double-sided).
+const CARD_W = 396;
+const CARD_H = 250;
+const CARD_R = 14;
+
+function drawCardShell(doc: PDFKit.PDFDocument, x: number, y: number) {
+  // Soft shadow
+  for (const [dy, op, grow] of [[6, 0.05, 3], [4, 0.06, 1.5], [2, 0.08, 0.5]] as const) {
+    doc.save().fillOpacity(op).roundedRect(x - grow, y + dy - grow, CARD_W + grow * 2, CARD_H + grow * 2, CARD_R + grow).fill("#1b1030").restore();
+  }
+  // Crop marks
+  doc.save().lineWidth(0.5).strokeColor("#9a92ab");
+  const marks: [number, number, number, number][] = [
+    [x, y, -1, -1], [x + CARD_W, y, 1, -1], [x, y + CARD_H, -1, 1], [x + CARD_W, y + CARD_H, 1, 1],
+  ];
+  for (const [mx, my, sx, sy] of marks) {
+    doc.moveTo(mx + sx * 6, my).lineTo(mx + sx * 18, my).stroke();
+    doc.moveTo(mx, my + sy * 6).lineTo(mx, my + sy * 18).stroke();
+  }
+  doc.restore();
+}
+
+function drawCardEdge(doc: PDFKit.PDFDocument, x: number, y: number) {
+  doc.roundedRect(x, y, CARD_W, CARD_H, CARD_R).lineWidth(0.9).strokeColor("#b9b0cc").stroke();
+}
+
+function drawChip(doc: PDFKit.PDFDocument, x: number, y: number) {
+  const w = 36;
+  const h = 27;
+  doc.save();
+  doc.roundedRect(x, y, w, h, 5).fill(doc.linearGradient(x, y, x + w, y + h).stop(0, GOLD_LIGHT).stop(0.5, BRAND_GOLD).stop(1, GOLD_DEEP));
+  doc.lineWidth(0.6).strokeColor(GOLD_DEEP);
+  doc.roundedRect(x + 11, y + 7, 14, 13, 2).stroke();
+  doc.moveTo(x, y + 9).lineTo(x + 11, y + 9).moveTo(x, y + 18).lineTo(x + 11, y + 18).stroke();
+  doc.moveTo(x + 25, y + 9).lineTo(x + w, y + 9).moveTo(x + 25, y + 18).lineTo(x + w, y + 18).stroke();
+  doc.moveTo(x + w / 2, y).lineTo(x + w / 2, y + 7).moveTo(x + w / 2, y + 20).lineTo(x + w / 2, y + h).stroke();
+  doc.restore();
+}
+
+function cardLabel(doc: PDFKit.PDFDocument, text: string, x: number, y: number, color: string, width?: number) {
+  doc.font("Helvetica-Bold").fontSize(5.6).fillColor(color).text(text, x, y, { characterSpacing: 1.1, lineBreak: false, ...(width ? { width } : {}) });
+}
+
+function drawCardFront(doc: PDFKit.PDFDocument, payload: CertificatePayload, avatarPng: Buffer | null, qr: Buffer, x: number, y: number) {
+  drawCardShell(doc, x, y);
+  doc.save();
+  doc.roundedRect(x, y, CARD_W, CARD_H, CARD_R).clip();
+  doc.rect(x, y, CARD_W, CARD_H).fill(doc.linearGradient(x, y, x + CARD_W, y + CARD_H).stop(0, PURPLE_DEEP).stop(1, BRAND_PURPLE));
+  // The home page hero's globe, "cover"-fit on the right, blended into the
+  // purple with a left-to-right vignette so the text stays legible.
+  doc.image(CARD_GLOBE_JPEG, x + CARD_W * 0.3, y, { cover: [CARD_W * 0.7, CARD_H], align: "center", valign: "center" });
+  doc.rect(x, y, CARD_W, CARD_H).fill(
+    doc.linearGradient(x, y, x + CARD_W, y).stop(0, PURPLE_DEEP, 1).stop(0.42, PURPLE_DEEP, 0.96).stop(0.78, BRAND_PURPLE, 0.35).stop(1, BRAND_PURPLE, 0.15)
+  );
+  // Gold top rule, like the article PDFs' cover band
+  doc.rect(x, y + 50, CARD_W, 1.2).fill(BRAND_GOLD);
+  doc.restore();
+  doc.roundedRect(x + 6, y + 6, CARD_W - 12, CARD_H - 12, CARD_R - 5).lineWidth(0.6).strokeColor(BRAND_GOLD).stroke();
+
+  const pad = 22;
+  cardLabel(doc, pdfSafe(payload.journalName).toUpperCase(), x + pad, y + 18, BRAND_GOLD, CARD_W - pad * 2 - 90);
+  doc.font("Times-Bold").fontSize(12.5).fillColor("#ffffff").text("Professional Affiliation Card", x + pad, y + 28, { lineBreak: false });
+
+  drawChip(doc, x + pad, y + 66);
+
+  // Photo, top-right
+  drawAvatarCircle(doc, avatarPng, x + CARD_W - pad - 34, y + 92, 34);
+
+  // Name + role
+  const nameW = CARD_W - pad * 2 - 84;
+  const name = pdfSafe(payload.recipientName).toUpperCase();
+  const size = fitFontSize(doc, name, "Helvetica-Bold", 17, 10, nameW);
+  doc.font("Helvetica-Bold").fontSize(size).fillColor("#ffffff").text(name, x + pad, y + 106, { width: nameW });
+  const roleY = Math.max(doc.y + 2, y + 128);
+  doc.font("Times-Italic").fontSize(11).fillColor(BRAND_GOLD).text(CARD_ROLE_LABEL[payload.category], x + pad, roleY, { width: nameW, lineBreak: false });
+
+  // Bottom row: serial / issued / ISSN, QR at right
+  const by = y + CARD_H - 44;
+  const cols: [string, string][] = [
+    ["SERIAL NO.", payload.serialNumber],
+    ["ISSUED", fmtIssued(payload, "short")],
+    ["ISSN", payload.issn ?? "—"],
+  ];
+  let cxp = x + pad;
+  cols.forEach(([k, v], i) => {
+    cardLabel(doc, k, cxp, by, "#cbbcf0");
+    doc.font(i === 0 ? "Courier-Bold" : "Helvetica-Bold").fontSize(i === 0 ? 8 : 8.2).fillColor("#ffffff").text(v, cxp, by + 9, { lineBreak: false });
+    cxp += i === 0 ? 118 : 74;
+  });
+  const qs = 56;
+  doc.roundedRect(x + CARD_W - pad - qs - 3, y + CARD_H - pad - qs - 3, qs + 6, qs + 6, 4).fill("#ffffff");
+  doc.image(qr, x + CARD_W - pad - qs, y + CARD_H - pad - qs, { width: qs, height: qs });
+
+  drawCardEdge(doc, x, y);
+}
+
+function drawCardBack(doc: PDFKit.PDFDocument, payload: CertificatePayload, qr: Buffer, x: number, y: number) {
+  drawCardShell(doc, x, y);
+  doc.save();
+  doc.roundedRect(x, y, CARD_W, CARD_H, CARD_R).clip();
+  doc.rect(x, y, CARD_W, CARD_H).fill(IVORY);
+  // Faint guilloche-style rings, a classic anti-counterfeit card pattern
+  doc.lineWidth(0.35).strokeColor(BRAND_PURPLE).strokeOpacity(0.07);
+  for (let i = 0; i < 16; i++) doc.circle(x + CARD_W * 0.78, y + CARD_H * 0.62, 18 + i * 9).stroke();
+  doc.strokeOpacity(1);
+  // Stripe, purple with a gold rule
+  doc.rect(x, y + 18, CARD_W, 30).fill(doc.linearGradient(x, y, x + CARD_W, y).stop(0, PURPLE_DEEP).stop(1, BRAND_PURPLE));
+  doc.rect(x, y + 48, CARD_W, 1.2).fill(BRAND_GOLD);
+  doc.restore();
+  doc.font("Helvetica-Bold").fontSize(6.2).fillColor(BRAND_GOLD).text("VERIFIED PROFESSIONAL AFFILIATION", x + 22, y + 25, { characterSpacing: 1.6, lineBreak: false });
+  doc.font("Courier-Bold").fontSize(8).fillColor("#ffffff").text(payload.serialNumber, x + 22, y + 34, { lineBreak: false });
+
+  const pad = 22;
+  const qs = 64;
+  const qx = x + CARD_W - pad - qs;
+  const leftW = CARD_W - pad * 2 - qs - 16;
+
+  // Statement
+  doc.font("Times-Bold").fontSize(9.6).fillColor(BRAND_PURPLE).text(pdfSafe(payload.journalName), x + pad, y + 58, { width: leftW, lineBreak: false });
+  doc.font("Helvetica").fontSize(7.2).fillColor(BRAND_INK).text(
+    pdfSafe(`This card certifies the holder's professional affiliation with ${issuerLine(payload)} as ${CARD_ROLE_LABEL[payload.category]}. Scan the QR code to check its authenticity at any time.`),
+    x + pad, y + 71, { width: leftW, lineGap: 1 }
+  );
+
+  // Credentials, 2 × 2
+  const gy = doc.y + 9;
+  const colW = (leftW - 10) / 2;
+  const groupH = (g: (typeof CREDENTIAL_GROUPS)[number]) => {
+    doc.font("Helvetica").fontSize(5.9);
+    return 9 + doc.heightOfString(g.items.join(" · "), { width: colW, lineGap: 0.8 });
+  };
+  const row1 = Math.max(groupH(CREDENTIAL_GROUPS[0]), groupH(CREDENTIAL_GROUPS[1]));
+  CREDENTIAL_GROUPS.forEach((g, i) => {
+    const gx = x + pad + (i % 2) * (colW + 10);
+    const gyy = gy + (i < 2 ? 0 : row1 + 7);
+    cardLabel(doc, g.label.toUpperCase(), gx, gyy, g.color);
+    doc.font("Helvetica").fontSize(5.9).fillColor(BRAND_INK).text(g.items.join(" · "), gx, gyy + 8, { width: colW, lineGap: 0.8 });
+  });
+
+  // QR + verification, right
+  doc.roundedRect(qx - 4, y + 60, qs + 8, qs + 8, 5).fillAndStroke("#ffffff", RULE);
+  doc.image(qr, qx, y + 64, { width: qs, height: qs });
+  cardLabel(doc, "SCAN TO VERIFY", qx - 4, y + 60 + qs + 13, BRAND_PURPLE, qs + 8);
+  const hash = contentHashOf(payload);
+  doc.font("Courier").fontSize(5.2).fillColor(BRAND_MUTED).text(`SHA-256\n${hash.slice(0, 16)}\n${hash.slice(16, 32)}\n${hash.slice(32, 48)}\n${hash.slice(48)}`, qx - 4, y + 60 + qs + 23, { width: qs + 8, align: "center", lineGap: 0.2 });
+
+  // Signature strip
+  const sy = y + CARD_H - 40;
+  const sw = leftW;
+  doc.save();
+  doc.rect(x + pad, sy, sw, 16).fill("#ffffff");
+  doc.rect(x + pad, sy, sw, 16).clip();
+  doc.lineWidth(0.3).strokeColor(BRAND_PURPLE).strokeOpacity(0.18);
+  for (let i = -16; i < sw; i += 5) doc.moveTo(x + pad + i, sy + 16).lineTo(x + pad + i + 16, sy).stroke();
+  doc.restore();
+  doc.rect(x + pad, sy, sw, 16).lineWidth(0.5).strokeColor(RULE).stroke();
+  doc.font("Helvetica").fontSize(5.6).fillColor(BRAND_MUTED).text("Holder's signature", x + pad, sy + 19, { lineBreak: false });
+  doc.text(`Issued ${fmtIssued(payload, "short")}`, x + pad, sy + 19, { width: sw, align: "right", lineBreak: false });
+
+  drawCardEdge(doc, x, y);
+}
+
 export async function buildAffiliationCard(payload: CertificatePayload, avatarPng: Buffer | null): Promise<Buffer> {
   const doc = new PDFDocument({
     size: "LETTER",
-    margins: { top: 40, bottom: 40, left: 40, right: 40 },
+    margins: { top: 0, bottom: 0, left: 0, right: 0 },
     bufferPages: true,
-    info: { Title: `Professional Affiliation Card — ${payload.recipientName}` },
+    info: {
+      Title: pdfSafe(`Professional Affiliation Card — ${payload.recipientName}`),
+      Author: "Eleventh Press International Publishing",
+      Subject: pdfSafe(`${payload.serialNumber} · SHA-256 ${contentHashOf(payload)}`),
+      Creator: "Eleventh Press International Publishing — certificates",
+    },
   });
   const result = collect(doc);
   const qr = await buildVerifyQr(payload.serialNumber);
+  const W = doc.page.width;
+  const H = doc.page.height;
+  const M = 48;
 
-  const cardW = 420;
-  const cardH = 260;
-  const cardX = (doc.page.width - cardW) / 2;
-  const cardY = 190;
-  const pad = 24;
+  doc.rect(0, 0, W, H).fill("#ffffff");
+  drawWatermark(doc, WATERMARK, -54, 26, 0.04);
+  drawCoverBand(doc, payload, 88, "Professional Affiliation Card");
 
-  // Header above the card — journal name + tagline, dynamically spaced so
-  // a long tagline wrapping to 2 lines never collides with the card below.
-  doc.y = 60;
-  doc.fillColor(BRAND_PURPLE).font("Helvetica-Bold").fontSize(20)
-    .text(payload.journalName, 40, doc.y, { align: "center", width: doc.page.width - 80 });
-  doc.moveDown(0.3);
-  doc.fillColor(BRAND_MUTED).font("Helvetica").fontSize(9.5)
-    .text(JOURNAL_TAGLINE, 40, doc.y, { align: "center", width: doc.page.width - 80 });
+  doc.font("Helvetica").fontSize(8).fillColor(BRAND_MUTED)
+    .text("Front and back of your card. Print at actual size (100%) and cut along the card edges, or print the two sides double-sided.", M, 102, { width: W - 2 * M, align: "center" });
 
-  doc.save();
-  doc.roundedRect(cardX, cardY, cardW, cardH, 12).fillColor(BRAND_PURPLE).fill();
-  doc.restore();
+  const x = (W - CARD_W) / 2;
+  const frontY = 146;
+  const backY = frontY + CARD_H + 56;
+  doc.font("Helvetica-Bold").fontSize(6.6).fillColor(GOLD_DEEP).text("FRONT", x + 26, frontY - 14, { characterSpacing: 2, lineBreak: false });
+  drawCardFront(doc, payload, avatarPng, qr, x, frontY);
+  doc.font("Helvetica-Bold").fontSize(6.6).fillColor(GOLD_DEEP).text("BACK", x + 26, backY - 14, { characterSpacing: 2, lineBreak: false });
+  drawCardBack(doc, payload, qr, x, backY);
 
-  // The same globe image the home page hero uses (public/hero/hero-bg.png,
-  // pre-cropped to the sphere — see certificate-globe-asset.ts), "cover"-fit
-  // into the card's rounded interior so it fills edge-to-edge without
-  // distortion, then a left-to-right purple vignette — the identical
-  // blending technique the home page hero itself uses — keeps the text on
-  // the left legible while the globe reads clearly on the right.
-  doc.save();
-  doc.roundedRect(cardX + 6, cardY + 6, cardW - 12, cardH - 12, 8).clip();
-  doc.image(CARD_GLOBE_JPEG, cardX + 6, cardY + 6, { cover: [cardW - 12, cardH - 12], align: "center", valign: "center" });
-  doc.rect(cardX + 6, cardY + 6, cardW - 12, cardH - 12).fill(
-    doc.linearGradient(cardX + 6, cardY, cardX + cardW * 0.72, cardY)
-      .stop(0, BRAND_PURPLE, 1)
-      .stop(0.55, BRAND_PURPLE, 1)
-      .stop(1, BRAND_PURPLE, 0)
-  );
-  doc.restore();
-  doc.roundedRect(cardX + 6, cardY + 6, cardW - 12, cardH - 12, 8).lineWidth(1).strokeColor(BRAND_GOLD).stroke();
+  const fy = H - 46;
+  doc.font("Helvetica").fontSize(7.6).fillColor(BRAND_MUTED)
+    .text(`Verify authenticity at ${verifyUrl(payload)}`, M, backY + CARD_H + 24, { width: W - 2 * M, align: "center" });
+  doc.moveTo(M, fy).lineTo(W - M, fy).lineWidth(0.5).strokeColor(BRAND_GOLD).stroke();
+  doc.font("Helvetica-Bold").fontSize(6.4).fillColor(BRAND_PURPLE)
+    .text(`${pdfSafe(payload.journalName).toUpperCase()}  ·  ${payload.serialNumber}`, M, fy + 6, { characterSpacing: 0.8, lineBreak: false });
+  doc.font("Helvetica").fontSize(6.4).fillColor(BRAND_MUTED)
+    .text(`Issued ${fmtIssued(payload)}`, M, fy + 6, { width: W - 2 * M, align: "right", lineBreak: false });
 
-  // Top-left: brand + document label
-  doc.fillColor(BRAND_GOLD).font("Helvetica-Bold").fontSize(8.5)
-    .text("ELEVENTH PRESS INTERNATIONAL PUBLISHING", cardX + pad, cardY + 18, { width: cardW - pad * 2 - 76 });
-  doc.fillColor("#ffffff").font("Helvetica-Bold").fontSize(10.5)
-    .text("PROFESSIONAL AFFILIATION", cardX + pad, cardY + 32, { width: cardW - pad * 2 - 76 });
-
-  // Top-right: avatar
-  drawAvatarCircle(doc, avatarPng, cardX + cardW - pad - 28, cardY + 46, 28);
-
-  // Mid-left: name + role — flow-positioned off the name's actual rendered
-  // height (not a fixed offset) so a long name wrapping to two lines never
-  // collides with the role line or the badges below it.
-  const nameWidth = cardW - pad * 2 - 76;
-  doc.font("Helvetica-Bold").fontSize(19);
-  const nameHeight = doc.heightOfString(payload.recipientName, { width: nameWidth });
-  doc.fillColor("#ffffff").text(payload.recipientName, cardX + pad, cardY + 100, { width: nameWidth });
-  const roleY = cardY + 100 + nameHeight + 4;
-  doc.font("Helvetica").fontSize(11.5);
-  const roleHeight = doc.heightOfString(CARD_ROLE_LABEL[payload.category], { width: nameWidth });
-  doc.fillColor(BRAND_GOLD).text(CARD_ROLE_LABEL[payload.category], cardX + pad, roleY, { width: nameWidth });
-
-  // Indexed in / Benchmarked standards — inside the card itself, in the gap
-  // between the role line and the bottom serial/QR row. Left-aligned to
-  // match the card's own typographic style, in light tones that stay
-  // legible against the purple/globe backdrop.
-  const cardBadgeX = cardX + pad;
-  const cardBadgeWidth = cardW - pad * 2 - 76;
-  let cby = roleY + roleHeight + 8;
-  cby = drawCardCredibilityGroup(doc, "Indexed in", INDEXED_IN, cardBadgeX, cby, cardBadgeWidth, BRAND_GOLD, "#f2ecff", 6.5, 5.5) + 4;
-  drawCardCredibilityGroup(doc, "Benchmarked standards", BENCHMARKED_STANDARDS, cardBadgeX, cby, cardBadgeWidth, "#ffffff", "#f2ecff", 6.5, 5.5);
-
-  // Bottom-left: serial/issued; bottom-right: QR
-  doc.fillColor("#e8e0f5").font("Helvetica").fontSize(8)
-    .text(`Serial ${payload.serialNumber}`, cardX + pad, cardY + cardH - 42, { width: cardW - pad * 2 - 76 });
-  doc.text(`Issued ${new Date(payload.issuedAtIso).toLocaleDateString("en-GB", { year: "numeric", month: "short", day: "numeric" })}`, cardX + pad, cardY + cardH - 30, { width: cardW - pad * 2 - 76 });
-  doc.image(qr, cardX + cardW - pad - 56, cardY + cardH - 76, { width: 56, height: 56 });
-
-  doc.fillColor(BRAND_MUTED).font("Helvetica").fontSize(8)
-    .text(`Verify authenticity at ${APP_BASE_URL}/verify/${payload.serialNumber}`, 40, cardY + cardH + 22, { align: "center", width: doc.page.width - 80 });
-
-  // Syndication networks / Open data sources — the remaining two
-  // credibility groups, below the card (Indexed in/Benchmarked standards
-  // already live inside it above, so this deliberately skips those two to
-  // avoid printing them twice).
-  const badgeX = 70;
-  const badgeWidth = doc.page.width - badgeX * 2;
-  drawRemainingBadgeGroups(doc, badgeX, cardY + cardH + 44, badgeWidth, 7.5, 6.5, 10);
-
+  drawPageFrame(doc);
   doc.end();
   return result;
 }
