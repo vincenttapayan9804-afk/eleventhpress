@@ -113,6 +113,21 @@ export default function Page() {
     }
   }, [setAuth]);
 
+  // Links into the sign-in screen: "?view=login" (password-changed email,
+  // reset page), "?view=login&forgot=1" (request a new reset link) and
+  // "?view=register" (referral links). AuthView reads `forgot` itself.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const target = params.get("view");
+    if (target !== "login" && target !== "register") return;
+    useApp.getState().setView(target);
+    if (params.get("password_reset") === "1") toast.success("Password changed. Sign in with your new password.");
+    params.delete("view");
+    params.delete("password_reset");
+    const rest = params.toString();
+    window.history.replaceState({}, "", rest ? `/?${rest}` : "/");
+  }, []);
+
   // Scroll to top on view change
   useEffect(() => {
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "instant" as any });

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { hashPassword, signToken, SESSION_COOKIE_NAME, sessionCookieOptions } from "@/lib/auth";
+import { hashPassword, signToken, SESSION_COOKIE_NAME, sessionCookieOptions, MIN_PASSWORD_LENGTH } from "@/lib/auth";
 import { SELF_SELECTABLE_ROLES, APPLICATION_ROLES } from "@/lib/roles";
 import { isPasswordBreached } from "@/lib/password-breach";
 import { extractRequestIp } from "@/lib/institutions";
@@ -14,8 +14,6 @@ import { generateReferralCode } from "@/lib/referrals";
 import { generateEmailVerificationToken } from "@/lib/email-verification";
 import { sendEmail, notificationEmailHtml } from "@/lib/email";
 import { APP_BASE_URL } from "@/lib/site";
-
-const MIN_PASSWORD_LENGTH = 8;
 
 // `role` intentionally accepts any non-empty string here, not an enum of
 // SELF_SELECTABLE_ROLES/APPLICATION_ROLES — the handler below already

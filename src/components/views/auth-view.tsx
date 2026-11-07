@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useApp } from "@/lib/store";
 import { apiFetch } from "@/lib/api-client";
@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Loader2, Mail, Lock, User as UserIcon, Building2, Globe2, Tag, BookOpen, ArrowLeft, KeyRound, ShieldCheck } from "lucide-react";
+import { Loader2, Mail, Lock, User as UserIcon, Building2, Globe2, Tag, BookOpen, ArrowLeft, KeyRound, ShieldCheck, MailCheck } from "lucide-react";
 
 // Only roles a registrant can grant themselves — matches the backend's
 // SELF_SELECTABLE_ROLES in src/app/api/auth/register/route.ts. Reviewer,
@@ -52,6 +52,21 @@ export function AuthView() {
   // Login form
   const [loginEmail, setLoginEmail] = useState(SHOW_DEMO_ACCOUNTS ? "author@eleventhpress.org" : "");
   const [loginPassword, setLoginPassword] = useState(SHOW_DEMO_ACCOUNTS ? "author" : "");
+
+  // "Forgot password?" — replaces the sign-in form in the same card.
+  // "/?view=login&forgot=1" (the reset page's "request a new link") opens it directly.
+  const [forgotMode, setForgotMode] = useState<boolean>(
+    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("forgot") === "1"
+  );
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has("forgot")) return;
+    params.delete("forgot");
+    const rest = params.toString();
+    window.history.replaceState({}, "", rest ? `/?${rest}` : "/");
+  }, []);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotSentTo, setForgotSentTo] = useState<string | null>(null);
 
   // Two-factor challenge step (only entered when login reports twoFactorRequired)
   const [pendingToken, setPendingToken] = useState<string | null>(null);
@@ -89,6 +104,27 @@ export function AuthView() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function submitForgot(e: React.FormEvent) {
+    e.preventDefault();
+    const email = forgotEmail.trim();
+    if (!email) return;
+    setLoading(true);
+    try {
+      await apiFetch("/api/auth/forgot-password", { method: "POST", body: JSON.stringify({ email }) });
+      setForgotSentTo(email);
+    } catch (e: any) {
+      toast.error("Couldn't send the reset link", { description: e.message });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function openForgot() {
+    setForgotEmail(loginEmail);
+    setForgotSentTo(null);
+    setForgotMode(true);
   }
 
   async function submitTwoFactorChallenge(e: React.FormEvent) {
@@ -188,6 +224,69 @@ export function AuthView() {
       <div className="grid gap-8 lg:grid-cols-2">
         {/* LOGIN */}
         <Card className="paper-card">
+          {forgotMode ? (
+            <>
+              <CardHeader>
+                <p className="eyebrow flex items-center gap-1.5">
+                  <KeyRound className="h-3.5 w-3.5" /> Account recovery
+                </p>
+                <h1 className="font-display text-2xl font-semibold text-primary">Reset your password</h1>
+                <p className="text-sm text-muted-foreground">
+                  Enter the email address you sign in with. We&apos;ll email you a link to choose a new password.
+                </p>
+              </CardHeader>
+              <CardContent>
+                {forgotSentTo ? (
+                  <div className="space-y-4" role="status" aria-live="polite">
+                    <div className="flex items-start gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/[0.08] p-4">
+                      <MailCheck className="mt-0.5 h-5 w-5 flex-shrink-0 text-emerald-600 dark:text-emerald-400" />
+                      <div className="text-sm leading-relaxed">
+                        <p className="font-medium text-foreground">Check your inbox</p>
+                        <p className="mt-1 text-muted-foreground">
+                          If an account exists for <span className="font-medium text-foreground">{forgotSentTo}</span>, a reset link is on its
+                          way. It works once and expires in 30 minutes. Not there in a few minutes? Check your spam folder.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button type="button" variant="outline" onClick={() => setForgotSentTo(null)} disabled={loading}>
+                        Send another link
+                      </Button>
+                      <Button type="button" variant="ghost" onClick={() => setForgotMode(false)}>
+                        <ArrowLeft className="mr-1.5 h-4 w-4" /> Back to sign in
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <form onSubmit={submitForgot} className="space-y-4">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="fp-email" className="flex items-center gap-1.5">
+                        <Mail className="h-3 w-3" /> {t("emailLabel")}
+                      </Label>
+                      <Input
+                        id="fp-email"
+                        type="email"
+                        required
+                        autoFocus
+                        autoComplete="email"
+                        value={forgotEmail}
+                        onChange={(e) => setForgotEmail(e.target.value)}
+                        className="h-10"
+                      />
+                    </div>
+                    <Button type="submit" className="w-full" disabled={loading || !forgotEmail.trim()}>
+                      {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Send reset link
+                    </Button>
+                    <Button type="button" variant="ghost" className="w-full" onClick={() => setForgotMode(false)}>
+                      <ArrowLeft className="mr-1.5 h-4 w-4" /> Back to sign in
+                    </Button>
+                  </form>
+                )}
+              </CardContent>
+            </>
+          ) : (
+          <>
           <CardHeader>
             <p className="eyebrow">{t("signInEyebrow")}</p>
             <h1 className="font-display text-2xl font-semibold text-primary">
@@ -213,12 +312,22 @@ export function AuthView() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="li-pass" className="flex items-center gap-1.5">
-                  <Lock className="h-3 w-3" /> {t("passwordLabel")}
-                </Label>
+                <div className="flex items-center justify-between gap-2">
+                  <Label htmlFor="li-pass" className="flex items-center gap-1.5">
+                    <Lock className="h-3 w-3" /> {t("passwordLabel")}
+                  </Label>
+                  <button
+                    type="button"
+                    onClick={openForgot}
+                    className="text-xs font-medium text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
                 <Input
                   id="li-pass"
                   type="password"
+                  autoComplete="current-password"
                   required
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
@@ -270,6 +379,8 @@ export function AuthView() {
               </div>
             )}
           </CardContent>
+          </>
+          )}
         </Card>
 
         {/* REGISTER */}
