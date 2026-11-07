@@ -184,3 +184,41 @@ export function verifyPendingTwoFactorToken(token: string): { userId: string } |
     return null;
   }
 }
+
+/** Minimum password length, shared by registration and password reset. */
+export const MIN_PASSWORD_LENGTH = 8;
+
+const PASSWORD_RESET_TTL_MINUTES = 30;
+export const PASSWORD_RESET_TTL_LABEL = `${PASSWORD_RESET_TTL_MINUTES} minutes`;
+
+/** A short fingerprint of the account's current password hash. Embedded in
+ * a reset token so the token stops working the moment the password
+ * changes: it can be used once, and an older link is void after any reset. */
+export function passwordFingerprint(passwordHash: string): string {
+  return crypto.createHash("sha256").update(`epip-reset:${passwordHash}`).digest("hex").slice(0, 24);
+}
+
+/**
+ * The token in a "Forgot password" email link. Like the pending-2FA token
+ * it is narrow and short-lived: it carries no email/role/name, so
+ * verifyToken() never accepts it as a session, and it is valid for 30
+ * minutes and only while the password is unchanged (see
+ * passwordFingerprint), which makes it single-use without a database row.
+ */
+export function signPasswordResetToken(userId: string, passwordHash: string): string {
+  return jwt.sign({ userId, kind: "password_reset", fp: passwordFingerprint(passwordHash) }, SESSION_SECRET!, {
+    expiresIn: `${PASSWORD_RESET_TTL_MINUTES}m`,
+  });
+}
+
+export function verifyPasswordResetToken(token: string): { userId: string; fp: string } | null {
+  try {
+    const decoded = jwt.verify(token, SESSION_SECRET!);
+    if (typeof decoded !== "object" || decoded === null) return null;
+    const { userId, kind, fp } = decoded as Record<string, unknown>;
+    if (kind !== "password_reset" || typeof userId !== "string" || typeof fp !== "string") return null;
+    return { userId, fp };
+  } catch {
+    return null;
+  }
+}
