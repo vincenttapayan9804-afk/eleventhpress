@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { parseAuthors } from "@/lib/article";
 import { fetchAuthorCitationMetrics, computeHIndex } from "@/lib/citation-metrics";
-import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { resolveTenantFromHeaders, tenantCacheControl } from "@/lib/tenant";
 import { withTenantRlsContext } from "@/lib/db-rls";
 
 /**
@@ -205,6 +205,6 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json(
     { authors, total: authors.length, distribution },
-    { headers: { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=300" } }
+    { headers: { "Cache-Control": tenantCacheControl(req, tenant, "public, s-maxage=30, stale-while-revalidate=300") } }
   );
 }

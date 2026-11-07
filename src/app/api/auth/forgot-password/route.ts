@@ -7,6 +7,7 @@ import { checkRateLimit } from "@/lib/ratelimit";
 import { parseBody } from "@/lib/validate";
 import { sendEmail, notificationEmailHtml } from "@/lib/email";
 import { APP_BASE_URL } from "@/lib/site";
+import { emailBrandForTenantId, brandName } from "@/lib/email-brand";
 
 /**
  * POST /api/auth/forgot-password — "Forgot password?" for every kind of
@@ -40,7 +41,7 @@ export async function POST(req: NextRequest) {
   if (!perAddress.ok) return NextResponse.json({ error: perAddress.message }, { status: 429 });
 
   try {
-    const select = { id: true, email: true, fullName: true, passwordHash: true, deletedAt: true } as const;
+    const select = { id: true, email: true, fullName: true, passwordHash: true, deletedAt: true, tenantId: true } as const;
     const user =
       (await db.user.findUnique({ where: { email }, select })) ??
       (email !== email.toLowerCase() ? await db.user.findUnique({ where: { email: email.toLowerCase() }, select }) : null);
@@ -48,16 +49,19 @@ export async function POST(req: NextRequest) {
     if (user && !user.deletedAt) {
       const token = signPasswordResetToken(user.id, user.passwordHash);
       const link = `${APP_BASE_URL}/reset-password?token=${encodeURIComponent(token)}`;
+      const brand = await emailBrandForTenantId(user.tenantId);
+      const site = brandName(brand);
       const result = await sendEmail({
         to: user.email,
-        subject: "Reset your password — Eleventh Press",
+        subject: `Reset your password — ${site}`,
         html: notificationEmailHtml({
           title: "Reset your password",
-          message: `Hi ${escapeHtml(user.fullName)}, we received a request to reset the password for your Eleventh Press account. The link below works once and expires in ${PASSWORD_RESET_TTL_LABEL}. If you didn't ask for this, you can ignore this email — your password won't change.`,
+          message: `Hi ${escapeHtml(user.fullName)}, we received a request to reset the password for your ${escapeHtml(site)} account. The link below works once and expires in ${PASSWORD_RESET_TTL_LABEL}. If you didn't ask for this, you can ignore this email — your password won't change.`,
           ctaUrl: link,
           ctaLabel: "Choose a new password",
+          brand,
         }),
-        text: `Reset your Eleventh Press password (link expires in ${PASSWORD_RESET_TTL_LABEL}): ${link}\n\nIf you didn't ask for this, ignore this email.`,
+        text: `Reset your ${site} password (link expires in ${PASSWORD_RESET_TTL_LABEL}): ${link}\n\nIf you didn't ask for this, ignore this email.`,
       });
       await db.auditLog
         .create({

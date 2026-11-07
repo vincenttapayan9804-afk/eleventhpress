@@ -8,6 +8,7 @@ import { parseBody } from "@/lib/validate";
 import { isPasswordBreached } from "@/lib/password-breach";
 import { sendEmail, notificationEmailHtml } from "@/lib/email";
 import { APP_BASE_URL } from "@/lib/site";
+import { emailBrandForTenantId, brandName } from "@/lib/email-brand";
 
 /**
  * GET  /api/auth/reset-password?token=…  — is this reset link still valid?
@@ -34,7 +35,7 @@ async function userForToken(token: string) {
   if (!claims) return null;
   const user = await db.user.findUnique({
     where: { id: claims.userId },
-    select: { id: true, email: true, fullName: true, passwordHash: true, deletedAt: true, emailVerifiedAt: true, twoFactorEnabled: true },
+    select: { id: true, email: true, fullName: true, passwordHash: true, deletedAt: true, emailVerifiedAt: true, twoFactorEnabled: true, tenantId: true },
   });
   if (!user || user.deletedAt || passwordFingerprint(user.passwordHash) !== claims.fp) return null;
   return user;
@@ -103,15 +104,17 @@ export async function POST(req: NextRequest) {
       })
       .catch(() => {});
 
+    const brand = await emailBrandForTenantId(user.tenantId);
     await sendEmail({
       to: user.email,
-      subject: "Your password was changed — Eleventh Press",
+      subject: `Your password was changed — ${brandName(brand)}`,
       html: notificationEmailHtml({
         title: "Your password was changed",
         message:
-          "The password for your Eleventh Press account was just changed using a reset link. If this was you, there's nothing else to do. If it wasn't, reset your password again straight away from the sign-in page and contact the editorial office.",
+          `The password for your ${brandName(brand)} account was just changed using a reset link. If this was you, there's nothing else to do. If it wasn't, reset your password again straight away from the sign-in page and contact the editorial office.`,
         ctaUrl: `${APP_BASE_URL}/?view=login`,
         ctaLabel: "Sign in",
+        brand,
       }),
     }).catch(() => {});
 

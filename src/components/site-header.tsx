@@ -70,6 +70,16 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-40 w-full">
+      {/* Visitor opened a tenant's public portal link (/t/<slug>) on the
+          official site — say whose platform this is and offer the way back. */}
+      {branding.source === "portal" && (
+        <div className="bg-primary px-4 py-1.5 text-center text-xs text-primary-foreground" data-testid="portal-banner">
+          You&apos;re viewing the {branding.siteName || branding.tenantName} research platform ·{" "}
+          <a href="/t/exit" className="font-medium underline underline-offset-2">
+            Back to Eleventh Press
+          </a>
+        </div>
+      )}
       {/* Glassmorphic header */}
       <div className="glass-strong border-b border-[var(--royal-300)]/15">
         <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between px-4 py-2 sm:px-6 lg:px-8">
@@ -83,7 +93,7 @@ export function SiteHeader() {
               <img
                 src={branding.logoUrl}
                 alt={branding.siteName || tHeader("brandName")}
-                className="h-8 w-8 flex-shrink-0 rounded-full object-cover group-hover:scale-105 transition-transform duration-500"
+                className="h-9 w-auto max-w-[120px] flex-shrink-0 object-contain group-hover:scale-105 transition-transform duration-500"
                 style={{ transitionTimingFunction: "var(--ease-luxury)" }}
               />
             ) : (
@@ -96,7 +106,7 @@ export function SiteHeader() {
                 {branding.siteName || tHeader("brandName")}
               </span>
               <span className="truncate text-[0.55rem] font-sans font-medium uppercase tracking-[0.14em] text-muted-foreground sm:text-[0.62rem] sm:tracking-[0.22em]">
-                {branding.tagline || tHeader("brandTagline")}
+                {branding.tagline || (branding.isPlatform ? tHeader("brandTagline") : "Research Platform")}
               </span>
             </span>
           </button>

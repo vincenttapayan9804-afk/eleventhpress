@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTenantBranding, isWhitelabel } from "@/lib/tenant-branding-context";
 import { useTranslations } from "next-intl";
 import { useApp } from "@/lib/store";
 import { apiFetch } from "@/lib/api-client";
@@ -82,6 +83,8 @@ function initialsOf(name: string) {
 }
 
 export function AboutView() {
+  const branding = useTenantBranding();
+  const whitelabel = isWhitelabel(branding);
   const { setView } = useApp();
   const t = useTranslations("home");
   const [board, setBoard] = useState<BoardMember[] | null>(null);
@@ -95,16 +98,42 @@ export function AboutView() {
     <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
       {/* Header */}
       <div className="border-b border-border pb-8">
-        <p className="eyebrow">About Eleventh Press</p>
-        <h1 className="mt-2 font-display text-4xl font-semibold sm:text-5xl">
-          Eleventh Press International Publishing
-        </h1>
-        <p className="mt-3 font-display text-lg text-royal-gradient">
-          A Full-Stack Peer Reviewed Press &amp; Multidisciplinary Syndication Network
-        </p>
-        <p className="mt-3 text-sm text-muted-foreground">
-          ISSN 2945-1138 · Publisher prefix 10.52011 · Est. 2021 · London, United Kingdom
-        </p>
+        {whitelabel ? (
+          <>
+            <p className="eyebrow">About</p>
+            <h1 className="mt-2 font-display text-4xl font-semibold sm:text-5xl">{branding.siteName || branding.tenantName}</h1>
+            {branding.tagline && <p className="mt-3 font-display text-lg text-royal-gradient">{branding.tagline}</p>}
+            <p className="mt-3 text-sm text-muted-foreground">Research publishing platform powered by Eleventh Press International Publishing</p>
+            {(branding.officialEmail || branding.supportEmail || branding.phone || branding.websiteUrl || branding.address) && (
+              <div className="mt-5 grid gap-2 rounded-lg border border-border bg-card/60 p-4 text-sm sm:grid-cols-2" data-testid="about-contact">
+                {branding.officialEmail && (
+                  <p><span className="text-muted-foreground">Email: </span><a className="text-primary hover:underline" href={`mailto:${branding.officialEmail}`}>{branding.officialEmail}</a></p>
+                )}
+                {branding.supportEmail && branding.supportEmail !== branding.officialEmail && (
+                  <p><span className="text-muted-foreground">Editorial office: </span><a className="text-primary hover:underline" href={`mailto:${branding.supportEmail}`}>{branding.supportEmail}</a></p>
+                )}
+                {branding.phone && <p><span className="text-muted-foreground">Telephone: </span>{branding.phone}{branding.phoneAlt ? ` · ${branding.phoneAlt}` : ""}</p>}
+                {branding.websiteUrl && (
+                  <p><span className="text-muted-foreground">Website: </span><a className="text-primary hover:underline" href={branding.websiteUrl} target="_blank" rel="noreferrer">{branding.websiteUrl.replace(/^https?:\/\//, "")}</a></p>
+                )}
+                {branding.address && <p className="sm:col-span-2"><span className="text-muted-foreground">Address: </span>{branding.address}</p>}
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <p className="eyebrow">About Eleventh Press</p>
+            <h1 className="mt-2 font-display text-4xl font-semibold sm:text-5xl">
+              Eleventh Press International Publishing
+            </h1>
+            <p className="mt-3 font-display text-lg text-royal-gradient">
+              A Full-Stack Peer Reviewed Press &amp; Multidisciplinary Syndication Network
+            </p>
+            <p className="mt-3 text-sm text-muted-foreground">
+              ISSN 2945-1138 · Publisher prefix 10.52011 · Est. 2021 · London, United Kingdom
+            </p>
+          </>
+        )}
       </div>
 
       {/* Aims & Scope */}

@@ -81,7 +81,7 @@ export function OverviewTab({ data }: Props) {
                   <Sparkles className="mr-1.5 h-4 w-4" /> New submission
                 </Button>
               )}
-              {role === "EDITOR" || role === "ASSOCIATE_EDITOR" || role === "SUPER_ADMIN" ? (
+              {role === "EDITOR" || role === "ASSOCIATE_EDITOR" || role === "SUPER_ADMIN" || role === "TENANT_ADMIN" ? (
                 <Button variant="outline" onClick={() => openDashboard("editorQueue")}>
                   Open queue <ArrowRight className="ml-1 h-4 w-4" />
                 </Button>
@@ -159,7 +159,7 @@ export function OverviewTab({ data }: Props) {
       )}
 
       {/* Editorial-wide funnel + reviewer workload — the whole queue, not just one person's */}
-      {(role === "EDITOR" || role === "ASSOCIATE_EDITOR" || role === "SUPER_ADMIN") && data.stats && (
+      {(role === "EDITOR" || role === "ASSOCIATE_EDITOR" || role === "SUPER_ADMIN" || role === "TENANT_ADMIN") && data.stats && (
         <div className="grid gap-4 lg:grid-cols-2">
           <Card className="paper-card aurora-card aurora-enter">
             <CardHeader className="pb-3">
@@ -220,7 +220,7 @@ export function OverviewTab({ data }: Props) {
         </Card>
       )}
 
-      {(role === "EDITOR" || role === "ASSOCIATE_EDITOR" || role === "SUPER_ADMIN") && data.queue && (
+      {(role === "EDITOR" || role === "ASSOCIATE_EDITOR" || role === "SUPER_ADMIN" || role === "TENANT_ADMIN") && data.queue && (
         <Card className="paper-card aurora-card aurora-enter">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
@@ -297,7 +297,7 @@ export function OverviewTab({ data }: Props) {
       )}
 
       {/* Indexing/Discovery quick access for editors */}
-      {(role === "EDITOR" || role === "ASSOCIATE_EDITOR" || role === "SUPER_ADMIN") && (
+      {(role === "EDITOR" || role === "ASSOCIATE_EDITOR" || role === "SUPER_ADMIN" || role === "TENANT_ADMIN") && (
         <Card className="paper-card aurora-card aurora-enter bg-primary/5">
           <CardContent className="flex items-center justify-between gap-4 p-5">
             <div className="flex items-center gap-3">
@@ -354,7 +354,7 @@ function getRoleTagline(role: string): string {
 
 function getStatCards(data: any): { icon: any; label: string; value: any }[] {
   const role = data.role;
-  if (role === "EDITOR" || role === "ASSOCIATE_EDITOR" || role === "SUPER_ADMIN") {
+  if (role === "EDITOR" || role === "ASSOCIATE_EDITOR" || role === "SUPER_ADMIN" || role === "TENANT_ADMIN") {
     return [
       { icon: Clock, label: "Awaiting review", value: data.stats?.submitted ?? 0 },
       { icon: PenSquare, label: "In review", value: data.stats?.inReview ?? 0 },

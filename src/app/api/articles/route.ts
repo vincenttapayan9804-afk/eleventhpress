@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { resolveTenantFromHeaders, tenantCacheControl } from "@/lib/tenant";
 import { withTenantRlsContext } from "@/lib/db-rls";
 
 /**
@@ -233,6 +233,6 @@ export async function GET(req: NextRequest) {
     // string (status is hardcoded to PUBLISHED above) — safe for Vercel's
     // CDN to cache at the edge. Short TTL keeps a newly published article
     // showing up within seconds rather than serving a genuinely stale list.
-    headers: { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=300" },
+    headers: { "Cache-Control": tenantCacheControl(req, tenant, "public, s-maxage=30, stale-while-revalidate=300") },
   });
 }

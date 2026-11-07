@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { enterWorkspaceIfNeeded } from "@/lib/workspace-client";
 import { useTranslations } from "next-intl";
 import { useApp } from "@/lib/store";
 import { apiFetch } from "@/lib/api-client";
@@ -98,6 +99,7 @@ export function AuthView() {
       }
       setAuth(res.user);
       toast.success(`Welcome back, ${res.user.fullName.split(" ")[0]}`);
+      if (enterWorkspaceIfNeeded(res.user)) return;
       openDashboard("overview");
     } catch (e: any) {
       toast.error("Sign in failed", { description: e.message });
@@ -139,6 +141,7 @@ export function AuthView() {
       setAuth(res.user);
       setPendingToken(null);
       toast.success(`Welcome back, ${res.user.fullName.split(" ")[0]}`);
+      if (enterWorkspaceIfNeeded(res.user)) return;
       openDashboard("overview");
     } catch (e: any) {
       toast.error("Verification failed", { description: e.message });

@@ -34,6 +34,12 @@ export const BUCKET_UPLOAD_RULES: Record<string, BucketUploadRules> = {
     contentTypes: ["application/pdf", "image/jpeg", "image/png", "image/webp"],
     maxSizeBytes: 10 * 1024 * 1024,
   },
+  // Tenant logos and favicons (whitelabel branding). No SVG: it can carry
+  // script and PDFKit can't embed it in generated documents.
+  "brand-assets": {
+    contentTypes: ["image/png", "image/jpeg", "image/webp"],
+    maxSizeBytes: 2 * 1024 * 1024,
+  },
   "book-covers": {
     contentTypes: ["image/jpeg", "image/png", "image/webp"],
     maxSizeBytes: 5 * 1024 * 1024,

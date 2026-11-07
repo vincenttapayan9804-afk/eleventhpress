@@ -3,8 +3,9 @@ import { Inter, Fraunces, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { DOI_REGISTRAR } from "@/lib/site";
-import { getCurrentTenant } from "@/lib/tenant";
-import { TenantBrandingProvider } from "@/lib/tenant-branding-context";
+import { getCurrentTenant, brandingOf } from "@/lib/tenant";
+import { TenantBrandingProvider, type ClientBranding } from "@/lib/tenant-branding-context";
+import { brandCssVars } from "@/lib/brand-colors";
 import { ThemeProvider } from "@/components/theme-provider";
 import { CookieConsentBanner } from "@/components/cookie-consent-banner";
 import { UiSoundEffects } from "@/components/ui-sound";
@@ -75,7 +76,9 @@ export async function generateMetadata(): Promise<Metadata> {
     alternates: {
       types: { "application/rss+xml": "/api/feed/articles.xml" },
     },
-    ...(tenant?.faviconUrl ? { icons: { icon: tenant.faviconUrl } } : {}),
+    ...(tenant?.faviconUrl || (tenant && !tenant.isPlatform && tenant.logoUrl)
+      ? { icons: { icon: (tenant.faviconUrl || tenant.logoUrl)! } }
+      : {}),
   };
 }
 
@@ -85,15 +88,20 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const tenant = await getCurrentTenant();
-  const branding = {
+  const branding: ClientBranding = {
+    ...brandingOf(tenant),
     siteName: tenant?.siteName ?? null,
-    tagline: tenant?.tagline ?? null,
-    logoUrl: tenant?.logoUrl ?? null,
-    faviconUrl: tenant?.faviconUrl ?? null,
-    primaryColor: tenant?.primaryColor ?? null,
-    accentColor: tenant?.accentColor ?? null,
-    fontFamily: tenant?.fontFamily ?? null,
+    tenantId: tenant?.id ?? null,
+    tenantSlug: tenant?.slug ?? null,
+    tenantName: tenant?.name ?? null,
+    isPlatform: tenant?.isPlatform ?? true,
+    source: tenant?.source ?? "platform",
   };
+  const brandCss = brandCssVars(branding.primaryColor, branding.accentColor);
+  // Requests made from a tenant platform reached through the official host
+  // (signed-in member or portal visitor) carry this slug so the CDN never
+  // serves them the official site's cached responses (see api-client.ts).
+  const workspaceTag = tenant && !tenant.isPlatform && tenant.source !== "domain" ? tenant.slug : undefined;
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -104,19 +112,13 @@ export default async function RootLayout({
             from CSS/HTML injection. Emitted as its own <style> tag, after
             globals.css, so it only ever overrides — never redefines — the
             base :root palette. */}
-        {(branding.primaryColor || branding.accentColor) && (
-          <style
-            id="tenant-brand-vars"
-            dangerouslySetInnerHTML={{
-              __html: `:root{${branding.primaryColor ? `--primary:${branding.primaryColor};` : ""}${
-                branding.accentColor ? `--accent:${branding.accentColor};` : ""
-              }}`,
-            }}
-          />
-        )}
+        {brandCss ? <style id="tenant-brand-vars" dangerouslySetInnerHTML={{ __html: brandCss }} /> : null}
       </head>
       <body
         data-tenant-font={branding.fontFamily || "inter"}
+        data-tenant-id={branding.tenantId ?? undefined}
+        data-ws={workspaceTag}
+        data-ws-source={branding.source}
         className={`${inter.variable} ${fraunces.variable} ${jetbrains.variable} antialiased bg-background text-foreground`}
       >
         {/* Ambient pearlescent background with royal purple tint */}

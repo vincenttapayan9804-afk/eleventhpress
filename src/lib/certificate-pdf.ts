@@ -20,15 +20,17 @@ import { APP_BASE_URL } from "@/lib/site";
 import { canonicalCertificatePayload, type CertificatePayload } from "@/lib/certificates";
 import { pdfSafe } from "@/lib/provenance-certificate-pdf";
 import { CARD_GLOBE_JPEG_BASE64 } from "@/lib/certificate-globe-asset";
+import { mixHex, normalizeHex } from "@/lib/brand-colors";
 
 const CARD_GLOBE_JPEG = Buffer.from(CARD_GLOBE_JPEG_BASE64, "base64");
 
-const BRAND_PURPLE = "#4c1d95";
+let BRAND_PURPLE = "#4c1d95";
 const BRAND_GOLD = "#c9a55c";
 const BRAND_INK = "#241b3a";
 const BRAND_MUTED = "#6b6478";
 
-const JOURNAL_TAGLINE = "A Full-Stack Peer Reviewed Press & Multidisciplinary Syndication Network";
+const DEFAULT_TAGLINE = "A Full-Stack Peer Reviewed Press & Multidisciplinary Syndication Network";
+let JOURNAL_TAGLINE = DEFAULT_TAGLINE;
 const INDEXED_IN = ["Google Scholar", "Zenodo", "OAI-PMH 2.0", "BASE", "CORE", "OpenAIRE"];
 const BENCHMARKED_STANDARDS = ["SCOPUS", "Web of Science (WoS)", "COPE", "WAME", "CONSORT", "ICMJE", "STM"];
 const SYNDICATION_NETWORKS = [
@@ -48,14 +50,61 @@ async function buildVerifyQr(serialNumber: string): Promise<Buffer> {
 // (src/lib/provenance-certificate-pdf.ts, data-table PDFs): purple
 // gradient cover band over a gold rule, serif titles, a gold double
 // hairline frame, a faint diagonal watermark and a running footer.
-const PURPLE_DEEP = "#2a1458";
+let PURPLE_DEEP = "#2a1458";
 const GOLD_LIGHT = "#fbf0cd";
 const GOLD_DEEP = "#8a6a28";
 const RULE = "#e4dfee";
 const TINT = "#f7f4fc";
 const IVORY = "#fdfbf6";
 
-const WATERMARK = "Eleventh Press International Publishing";
+const PLATFORM_ISSUER = "Eleventh Press International Publishing";
+let WATERMARK = PLATFORM_ISSUER;
+let ISSUER = PLATFORM_ISSUER;
+let BRAND_LOGO: Buffer | null = null;
+
+/**
+ * Whitelabel branding for a tenant member's certificates: the institution's
+ * name (watermark, metadata), tagline, primary colour (cover band, titles,
+ * card) and logo (inside the seal and on the card). Omitted for the
+ * official site, which keeps the Eleventh Press design exactly as is.
+ */
+export interface CertificateBrand {
+  name: string;
+  tagline?: string | null;
+  primaryColor?: string | null;
+  /** Logo already normalised to PNG by the caller. */
+  logoPng?: Buffer | null;
+}
+
+// The theme lives in module state that every drawing helper reads, so
+// renders are serialised: two certificates for different tenants can never
+// interleave across an `await` and mix their colours.
+let renderChain: Promise<unknown> = Promise.resolve();
+
+function withBrand<T>(brand: CertificateBrand | null | undefined, render: () => Promise<T>): Promise<T> {
+  const run = async () => {
+    const primary = normalizeHex(brand?.primaryColor);
+    BRAND_PURPLE = primary ?? "#4c1d95";
+    PURPLE_DEEP = primary ? mixHex(primary, "#000000", 0.45) : "#2a1458";
+    JOURNAL_TAGLINE = brand ? brand.tagline || "Powered by Eleventh Press" : DEFAULT_TAGLINE;
+    WATERMARK = brand?.name || PLATFORM_ISSUER;
+    ISSUER = brand?.name || PLATFORM_ISSUER;
+    BRAND_LOGO = brand?.logoPng ?? null;
+    try {
+      return await render();
+    } finally {
+      BRAND_PURPLE = "#4c1d95";
+      PURPLE_DEEP = "#2a1458";
+      JOURNAL_TAGLINE = DEFAULT_TAGLINE;
+      WATERMARK = PLATFORM_ISSUER;
+      ISSUER = PLATFORM_ISSUER;
+      BRAND_LOGO = null;
+    }
+  };
+  const result = renderChain.then(run, run);
+  renderChain = result.catch(() => {});
+  return result;
+}
 
 function contentHashOf(payload: CertificatePayload): string {
   return crypto.createHash("sha256").update(canonicalCertificatePayload(payload)).digest("hex");
@@ -104,6 +153,17 @@ function drawEmblem(doc: PDFKit.PDFDocument, cx: number, cy: number, r: number) 
   doc.circle(cx, cy, r * 0.66).fill(PURPLE_DEEP);
   doc.circle(cx, cy, r * 0.66).lineWidth(0.8).strokeColor(GOLD_LIGHT).stroke();
   doc.restore();
+  if (BRAND_LOGO) {
+    // Tenant seal: the institution's logo on a white disc inside the gold ring.
+    const ir = r * 0.6;
+    doc.save().circle(cx, cy, ir).fill("#ffffff").restore();
+    try {
+      doc.image(BRAND_LOGO, cx - ir * 0.78, cy - ir * 0.78, { fit: [ir * 1.56, ir * 1.56], align: "center", valign: "center" });
+    } catch {
+      /* undecodable logo — plain seal */
+    }
+    return;
+  }
   const mono = "EP";
   doc.font("Times-Bold").fontSize(r * 0.62).fillColor(GOLD_LIGHT);
   const w = doc.widthOfString(mono);
@@ -194,7 +254,7 @@ function newLandscapeDoc(title: string, subject: string): PDFKit.PDFDocument {
     layout: "landscape",
     margins: { top: 0, bottom: 0, left: 0, right: 0 },
     bufferPages: true,
-    info: { Title: pdfSafe(title), Author: "Eleventh Press International Publishing", Subject: pdfSafe(subject), Creator: "Eleventh Press International Publishing — certificates" },
+    info: { Title: pdfSafe(title), Author: ISSUER, Subject: pdfSafe(subject), Creator: `${ISSUER} — certificates` },
   });
 }
 
@@ -333,7 +393,10 @@ async function buildFormalCertificate(payload: CertificatePayload, avatarPng: Bu
   return result;
 }
 
-export async function buildRecognitionCertificate(payload: CertificatePayload, avatarPng: Buffer | null): Promise<Buffer> {
+export async function buildRecognitionCertificate(payload: CertificatePayload, avatarPng: Buffer | null, brand?: CertificateBrand | null): Promise<Buffer> {
+  return withBrand(brand, () => renderRecognition(payload, avatarPng));
+}
+async function renderRecognition(payload: CertificatePayload, avatarPng: Buffer | null): Promise<Buffer> {
   const isWork = payload.category === "AUTHOR" && !!payload.workTitle;
   return buildFormalCertificate(payload, avatarPng, {
     kicker: "IN RECOGNITION OF DISTINCTION",
@@ -344,7 +407,10 @@ export async function buildRecognitionCertificate(payload: CertificatePayload, a
   });
 }
 
-export async function buildMembershipCertificate(payload: CertificatePayload, avatarPng: Buffer | null): Promise<Buffer> {
+export async function buildMembershipCertificate(payload: CertificatePayload, avatarPng: Buffer | null, brand?: CertificateBrand | null): Promise<Buffer> {
+  return withBrand(brand, () => renderMembership(payload, avatarPng));
+}
+async function renderMembership(payload: CertificatePayload, avatarPng: Buffer | null): Promise<Buffer> {
   return buildFormalCertificate(payload, avatarPng, {
     kicker: "IN GOOD STANDING",
     title: "Certificate of Membership",
@@ -419,6 +485,20 @@ function drawCardFront(doc: PDFKit.PDFDocument, payload: CertificatePayload, ava
   const pad = 22;
   cardLabel(doc, pdfSafe(payload.journalName).toUpperCase(), x + pad, y + 18, BRAND_GOLD, CARD_W - pad * 2 - 90);
   doc.font("Times-Bold").fontSize(12.5).fillColor("#ffffff").text("Professional Affiliation Card", x + pad, y + 28, { lineBreak: false });
+
+  // Institution logo, top-right, on a white tab (tenant cards only).
+  if (BRAND_LOGO) {
+    const lw = 70;
+    const lh = 30;
+    const lx = x + CARD_W - pad - lw;
+    const ly = y + 12;
+    doc.roundedRect(lx, ly, lw, lh, 5).fill("#ffffff");
+    try {
+      doc.image(BRAND_LOGO, lx + 4, ly + 3, { fit: [lw - 8, lh - 6], align: "center", valign: "center" });
+    } catch {
+      /* undecodable logo — leave the tab blank */
+    }
+  }
 
   drawChip(doc, x + pad, y + 66);
 
@@ -519,16 +599,19 @@ function drawCardBack(doc: PDFKit.PDFDocument, payload: CertificatePayload, qr: 
   drawCardEdge(doc, x, y);
 }
 
-export async function buildAffiliationCard(payload: CertificatePayload, avatarPng: Buffer | null): Promise<Buffer> {
+export async function buildAffiliationCard(payload: CertificatePayload, avatarPng: Buffer | null, brand?: CertificateBrand | null): Promise<Buffer> {
+  return withBrand(brand, () => renderAffiliationCard(payload, avatarPng));
+}
+async function renderAffiliationCard(payload: CertificatePayload, avatarPng: Buffer | null): Promise<Buffer> {
   const doc = new PDFDocument({
     size: "LETTER",
     margins: { top: 0, bottom: 0, left: 0, right: 0 },
     bufferPages: true,
     info: {
       Title: pdfSafe(`Professional Affiliation Card — ${payload.recipientName}`),
-      Author: "Eleventh Press International Publishing",
+      Author: ISSUER,
       Subject: pdfSafe(`${payload.serialNumber} · SHA-256 ${contentHashOf(payload)}`),
-      Creator: "Eleventh Press International Publishing — certificates",
+      Creator: `${ISSUER} — certificates`,
     },
   });
   const result = collect(doc);

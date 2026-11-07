@@ -1,5 +1,6 @@
 "use client";
 import { create } from "zustand";
+import { leaveSessionWorkspace } from "./workspace-client";
 import { persist } from "zustand/middleware";
 import { apiFetch } from "./api-client";
 
@@ -68,6 +69,7 @@ export type DashboardTab =
   | "researchIntegrity"
   | "admin"
   | "branding"
+  | "team"
   | "tenants"
   | "departments"
   | "ethics"
@@ -97,6 +99,11 @@ interface SessionUser {
   // 2FA confirm/disable handlers both read/write twoFactorEnabled here.
   twoFactorEnabled?: boolean;
   emailVerifiedAt?: string | null;
+  // Whitelabel: the tenant this account belongs to, and whether an
+  // administrator issued a temporary password that must be changed first.
+  tenantId?: string | null;
+  mustChangePassword?: boolean;
+  workspace?: { tenantId: string; isPlatform: boolean } | null;
 }
 
 export type Locale = "en" | "es" | "fr" | "fil" | "zh-Hans";
@@ -177,7 +184,10 @@ export const useApp = create<AppState>()(
         // immediately regardless of whether this call succeeds. Uses
         // apiFetch (not a raw fetch) so the CSRF header is attached —
         // middleware.ts requires it on every mutating request now.
-        apiFetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+        apiFetch("/api/auth/logout", { method: "POST" })
+          .catch(() => {})
+          // Signing out of a tenant platform returns to the official site.
+          .finally(() => leaveSessionWorkspace());
         set({
           user: null,
           view: "home",

@@ -5,6 +5,7 @@ import { checkRateLimit } from "@/lib/ratelimit";
 import { generateEmailVerificationToken } from "@/lib/email-verification";
 import { sendEmail, notificationEmailHtml } from "@/lib/email";
 import { APP_BASE_URL } from "@/lib/site";
+import { emailBrandForTenantId, brandName } from "@/lib/email-brand";
 
 /**
  * POST /api/auth/resend-verification
@@ -26,7 +27,7 @@ export async function POST(req: NextRequest) {
 
   const user = await db.user.findUnique({
     where: { id: session.userId },
-    select: { email: true, fullName: true, emailVerifiedAt: true },
+    select: { email: true, fullName: true, emailVerifiedAt: true, tenantId: true },
   });
   if (!user) {
     return NextResponse.json({ error: "Account not found" }, { status: 404 });
@@ -38,14 +39,16 @@ export async function POST(req: NextRequest) {
   const emailVerificationToken = generateEmailVerificationToken();
   await db.user.update({ where: { id: session.userId }, data: { emailVerificationToken } });
 
+  const brand = await emailBrandForTenantId(user.tenantId);
   const result = await sendEmail({
     to: user.email,
-    subject: "Verify your email — Eleventh Press",
+    subject: `Verify your email — ${brandName(brand)}`,
     html: notificationEmailHtml({
       title: "Verify your email",
       message: `Hi ${user.fullName}, confirm this is really your email address to finish securing your account.`,
       ctaUrl: `${APP_BASE_URL}/api/auth/verify-email?token=${emailVerificationToken}`,
       ctaLabel: "Verify email",
+      brand,
     }),
   });
 

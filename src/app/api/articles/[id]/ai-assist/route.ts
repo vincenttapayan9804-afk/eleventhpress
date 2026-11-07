@@ -25,7 +25,7 @@ export async function POST(
     return NextResponse.json({ error: "Article not found" }, { status: 404 });
   }
 
-  const isEditor = ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"].includes(session.role);
+  const isEditor = ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN", "TENANT_ADMIN"].includes(session.role);
   const isOwner = article.correspondingAuthorId === session.userId;
   if (!isEditor && !isOwner) {
     return NextResponse.json({ error: "Not authorized for this article" }, { status: 403 });

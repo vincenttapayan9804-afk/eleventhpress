@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { fetchWorkCitationMetrics } from "@/lib/citation-metrics";
-import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { resolveTenantFromHeaders, tenantCacheControl } from "@/lib/tenant";
 import { withTenantRlsContext } from "@/lib/db-rls";
 
 /**
@@ -41,7 +41,7 @@ export async function GET(
   if (!metrics) {
     return NextResponse.json(
       { available: false, reason: "not_indexed" },
-      { headers: { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400" } }
+      { headers: { "Cache-Control": tenantCacheControl(req, tenant, "public, s-maxage=3600, stale-while-revalidate=86400") } }
     );
   }
 
@@ -54,6 +54,6 @@ export async function GET(
       percentileYearMax: metrics.percentileYearMax,
       source: "openalex",
     },
-    { headers: { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400" } }
+    { headers: { "Cache-Control": tenantCacheControl(req, tenant, "public, s-maxage=3600, stale-while-revalidate=86400") } }
   );
 }

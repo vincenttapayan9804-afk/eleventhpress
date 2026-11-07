@@ -44,6 +44,13 @@ function guessContentType(key: string): string {
       return "application/xml; charset=utf-8";
     case "md":
       return "text/markdown; charset=utf-8";
+    case "png":
+      return "image/png";
+    case "jpg":
+    case "jpeg":
+      return "image/jpeg";
+    case "webp":
+      return "image/webp";
     case "docx":
       return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
     default:

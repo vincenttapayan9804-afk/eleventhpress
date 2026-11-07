@@ -1,3 +1,4 @@
+import { workspaceOf } from "@/lib/workspace";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -95,6 +96,9 @@ export async function POST(req: NextRequest) {
       orcid: user.orcid,
       bio: user.bio,
       avatarUrl: user.avatarUrl,
+      tenantId: user.tenantId ?? null,
+      mustChangePassword: user.mustChangePassword,
+      workspace: await workspaceOf(user.tenantId),
     },
   });
   res.cookies.set(SESSION_COOKIE_NAME, sessionToken, sessionCookieOptions());

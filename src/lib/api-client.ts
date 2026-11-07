@@ -5,6 +5,20 @@ import { CSRF_HEADER_NAME } from "./csrf";
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 /**
+ * On a whitelabel tenant platform reached through the official host, tags
+ * GET API requests with `__ws=<tenant slug>` (set by the root layout on
+ * <body data-ws>). The CDN keys its cache on the URL, so this keeps a
+ * tenant's responses and the official site's cached responses apart. The
+ * server ignores the value for anything except cache decisions.
+ */
+export function withWorkspaceTag(path: string): string {
+  if (typeof document === "undefined" || !path.startsWith("/api/")) return path;
+  const ws = document.body?.dataset.ws;
+  if (!ws) return path;
+  return `${path}${path.includes("?") ? "&" : "?"}__ws=${encodeURIComponent(ws)}`;
+}
+
+/**
  * Thin fetch wrapper. Auth is carried by the httpOnly session cookie, which
  * the browser attaches automatically on same-origin requests. Mutating
  * requests also echo back the (non-httpOnly) CSRF cookie as a header —
@@ -24,7 +38,7 @@ export async function apiFetch<T = any>(
     if (csrfToken) headers[CSRF_HEADER_NAME] = csrfToken;
   }
 
-  const res = await fetch(path, { ...init, headers, credentials: "same-origin" });
+  const res = await fetch(method === "GET" ? withWorkspaceTag(path) : path, { ...init, headers, credentials: "same-origin" });
   if (!res.ok) {
     let msg = `Request failed (${res.status})`;
     let body: any = null;

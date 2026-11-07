@@ -28,6 +28,7 @@ const BUCKET_DIRS: Record<string, string> = {
   "anonymized-manuscripts": path.join(STORAGE_ROOT, "anonymized-manuscripts"),
   "published-galleys": path.join(STORAGE_ROOT, "published-galleys"),
   avatars: path.join(STORAGE_ROOT, "avatars"),
+  "brand-assets": path.join(STORAGE_ROOT, "brand-assets"),
   applications: path.join(STORAGE_ROOT, "applications"),
   "book-covers": path.join(STORAGE_ROOT, "book-covers"),
   "book-manuscripts": path.join(STORAGE_ROOT, "book-manuscripts"),
