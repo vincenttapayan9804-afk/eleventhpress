@@ -88,6 +88,15 @@ const nextConfig: NextConfig = {
           (route): [string, string[]] => [route, ["./src/assets/fonts/*.ttf"]]
         )
       )
+      // Kokoro voice embeddings (kokoro-js reads voices/*.bin from disk at runtime).
+      .concat(
+        [
+          "/api/narration",
+          "/api/admin/narration-jobs/*/retry",
+          "/api/cron/narration-sweep",
+          "/api/cron/sweep-all",
+        ].map((route): [string, string[]] => [route, ["./node_modules/kokoro-js/voices/*.bin"]])
+      )
   ),
   async headers() {
     return [
