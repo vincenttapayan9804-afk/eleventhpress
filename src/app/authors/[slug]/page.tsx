@@ -8,6 +8,7 @@ import { getAuthorProfile } from "@/lib/author-profile";
 import { articlePath } from "@/lib/spa-routes";
 import { AuthorProfileShell } from "@/components/authors/author-profile-shell";
 import { FollowAuthorButton } from "@/components/authors/follow-author-button";
+import { AlertMeButton } from "@/components/alert-me-button";
 
 /**
  * GET /authors/[slug] — a public, crawlable profile for every author with
@@ -96,11 +97,10 @@ export default async function AuthorProfilePage({ params }: { params: Promise<{ 
                 ))}
               </div>
             )}
-            {p.accountId && (
-              <div className="mt-4">
-                <FollowAuthorButton accountId={p.accountId} initialCount={p.followerCount} />
-              </div>
-            )}
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              {p.accountId && <FollowAuthorButton accountId={p.accountId} initialCount={p.followerCount} />}
+              <AlertMeButton kind="AUTHOR" query={p.orcid || p.name} label="Alert me about new work" size="default" />
+            </div>
           </div>
         </header>
 

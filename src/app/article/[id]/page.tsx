@@ -100,7 +100,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
       authors: authorNames,
     },
     twitter: {
-      card: "summary",
+      card: "summary_large_image",
       title: article.title,
       description: summary,
     },

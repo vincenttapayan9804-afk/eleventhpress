@@ -40,6 +40,7 @@ export type ViewKey =
 export type DashboardTab =
   | "overview"
   | "secondBrain"
+  | "library"
   | "expertDashboard"
   | "profile"
   | "submit"

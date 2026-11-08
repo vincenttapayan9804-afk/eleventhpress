@@ -2760,3 +2760,44 @@ model AuthorshipConfirmation {
 
   @@index([articleId])
 }
+
+// Reader library: saved articles in named lists ("Saved" by default).
+// src/app/api/library. No foreign keys, so removing an article never
+// blocks; reads skip items whose article is gone.
+model LibraryItem {
+  id        String   @id @default(cuid())
+  userId    String
+  articleId String
+  listName  String   @default("Saved")
+  createdAt DateTime @default(now())
+
+  @@unique([userId, articleId, listName])
+  @@index([userId, createdAt])
+}
+
+// Private highlights and notes a reader keeps on an article.
+model ArticleHighlight {
+  id        String   @id @default(cuid())
+  userId    String
+  articleId String
+  quote     String
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, articleId])
+}
+
+// Email/in-app alerts for new publications (src/lib/reading-alerts.ts).
+model ReadingAlert {
+  id         String    @id @default(cuid())
+  userId     String
+  // SEARCH (words in title/abstract/keywords) | DISCIPLINE | AUTHOR (name or ORCID) | MAGAZINE (new issues)
+  kind       String
+  query      String
+  // DAILY | WEEKLY
+  frequency  String    @default("WEEKLY")
+  lastSentAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+}

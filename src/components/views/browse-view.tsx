@@ -1,5 +1,6 @@
 "use client";
 
+import { AlertMeButton } from "@/components/alert-me-button";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useApp } from "@/lib/store";
@@ -215,6 +216,14 @@ export function BrowseView() {
                 <BarChart3 className="mr-1.5 h-3.5 w-3.5" />
                 {t("cluster3d")}
               </Button>
+              {(q.trim().length >= 3 || discipline !== "ALL") && (
+                <AlertMeButton
+                  key={`${q.trim()}|${discipline}`}
+                  kind={q.trim().length >= 3 ? "SEARCH" : "DISCIPLINE"}
+                  query={q.trim().length >= 3 ? q.trim() : discipline}
+                  className="col-span-2 h-11 sm:col-span-1"
+                />
+              )}
             </div>
           </div>
           <div

@@ -153,6 +153,10 @@ export async function POST(req: NextRequest) {
     // ----- On PUBLISH: fire the full production + indexing fan-out -----
     if (next === "PUBLISHED") {
       const publishEvents: string[] = [];
+      // Followers of the corresponding author hear about it (reading alerts).
+      await import("@/lib/reading-alerts")
+        .then(({ notifyFollowersOfPublication }) => notifyFollowersOfPublication(article))
+        .catch((e) => console.error("[workflow] follower notifications failed:", e));
 
       // 1. Production: generate galleys via the pandoc-worker mini-service.
       //    Runs before the DOI deposit below so a real PDF galley is

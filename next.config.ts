@@ -80,7 +80,14 @@ const nextConfig: NextConfig = {
       "/api/search/semantic",
       "/api/recommendations",
       "/api/research-lab/gap-analysis",
-    ].map((route) => [route, ["./node_modules/onnxruntime-node/bin/napi-v3/linux/x64/*"]])
+    ]
+      .map((route): [string, string[]] => [route, ["./node_modules/onnxruntime-node/bin/napi-v3/linux/x64/*"]])
+      // Share-image fonts (src/lib/og-card.tsx reads them from disk).
+      .concat(
+        ["/opengraph-image", "/article/[id]/opengraph-image", "/authors/[slug]/opengraph-image", "/pwa-icon/[size]"].map(
+          (route): [string, string[]] => [route, ["./src/assets/fonts/*.ttf"]]
+        )
+      )
   ),
   async headers() {
     return [

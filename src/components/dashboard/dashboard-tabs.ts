@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  Bookmark,
   Award,
   BarChart3,
   BookOpen,
@@ -56,6 +57,7 @@ export interface DashboardTabDef {
 export const TABS: DashboardTabDef[] = [
   // --- Home ---
   { key: "overview", label: "Overview", icon: LayoutDashboard, roles: ["*"], group: "Home" },
+  { key: "library", label: "Library", icon: Bookmark, roles: ["*"], group: "Home" },
   { key: "secondBrain", label: "Second Brain", icon: NotebookPen, roles: ["*"], group: "Home" },
   { key: "profile", label: "Profile", icon: UserCircle, roles: ["*"], group: "Home" },
   { key: "expertDashboard", label: "Professional Dashboard", icon: Briefcase, roles: ["EXPERT", "SUPER_ADMIN"], group: "Home" },
