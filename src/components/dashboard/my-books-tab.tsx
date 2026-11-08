@@ -35,7 +35,7 @@ import {
   FileCheck2,
   ChevronDown,
   ChevronUp,
-  Sparkles,
+  Lightbulb,
   Copy,
   CheckCircle2,
   Link as LinkIcon,
@@ -187,7 +187,7 @@ function BookDistribution({ book }: { book: any }) {
                   </Button>
                 ) : (
                   <Button size="sm" variant="outline" disabled={!canGenerate} onClick={() => generate(item.platform, consentChecked[item.platform])}>
-                    <Sparkles className="mr-1.5 h-3.5 w-3.5" /> {item.id ? "Regenerate" : "Generate"} package
+                    <Lightbulb className="mr-1.5 h-3.5 w-3.5" /> {item.id ? "Regenerate" : "Generate"} package
                   </Button>
                 )}
                 {pkg && (

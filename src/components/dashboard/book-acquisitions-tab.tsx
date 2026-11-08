@@ -25,7 +25,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { BookOpen, Loader2, ListChecks, CheckCircle2, XCircle, Sparkles, Rocket, DollarSign, Trash2 } from "lucide-react";
+import { BookOpen, Loader2, ListChecks, CheckCircle2, XCircle, Lightbulb, Rocket, DollarSign, Trash2 } from "lucide-react";
 
 const ROYALTY_PLATFORMS = [
   { value: "DRAFT2DIGITAL", label: "Draft2Digital" },
@@ -51,7 +51,7 @@ const ACTIONS: Record<string, { label: string; icon: any }[]> = {
     { label: "REJECT", icon: XCircle },
   ],
   ACCEPTED: [
-    { label: "SEND_TO_PRODUCTION", icon: Sparkles },
+    { label: "SEND_TO_PRODUCTION", icon: Lightbulb },
     { label: "REJECT", icon: XCircle },
   ],
   IN_PRODUCTION: [{ label: "PUBLISH", icon: Rocket }],

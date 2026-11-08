@@ -3,7 +3,7 @@
 import { useApp } from "@/lib/store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Accessibility, Eye, Keyboard, Sparkles, Mail } from "lucide-react";
+import { Accessibility, Eye, Keyboard, Lightbulb, Mail } from "lucide-react";
 
 /**
  * Describes what's actually been verified and what's automated, matching
@@ -57,7 +57,7 @@ export function AccessibilityView() {
 
       <section className="mt-10">
         <div className="flex flex-wrap items-center gap-2">
-          <Sparkles className="h-5 w-5 text-primary" />
+          <Lightbulb className="h-5 w-5 text-primary" />
           <h2 className="font-display text-2xl font-semibold">Automated & AI-assisted</h2>
         </div>
         <Card className="paper-card mt-4">

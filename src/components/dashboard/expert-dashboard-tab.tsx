@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Crown,
-  Sparkles,
+  Lightbulb,
   FileText,
   Eye,
   Users,
@@ -127,7 +127,7 @@ export function ExpertDashboardTab() {
               </p>
             </div>
             <Button onClick={() => openDashboard("submit")}>
-              <Sparkles className="mr-1.5 h-4 w-4" /> Submit an Insight
+              <Lightbulb className="mr-1.5 h-4 w-4" /> Submit an Insight
             </Button>
           </div>
         </CardContent>

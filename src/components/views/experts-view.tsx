@@ -30,7 +30,7 @@ import {
   Share2,
   Users,
   Crown,
-  Sparkles,
+  Lightbulb,
   BadgeCheck,
   Loader2,
   Globe2,

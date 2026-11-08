@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Circle, Sparkles, X } from "lucide-react";
+import { Check, Circle, ListChecks, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useApp, type DashboardTab } from "@/lib/store";
 import { useTenantBranding } from "@/lib/tenant-branding-context";
@@ -82,7 +82,7 @@ export function OnboardingChecklist({ hasSubmissions }: { hasSubmissions: boolea
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 id="onboarding-heading" className="flex items-center gap-2 font-display text-lg font-semibold">
-            <Sparkles className="h-4 w-4 text-primary" /> Get set up
+            <ListChecks className="h-4 w-4 text-primary" /> Get set up
           </h2>
           <p className="text-xs text-muted-foreground">{done} of {steps.length} done</p>
         </div>

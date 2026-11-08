@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { PLATFORMS, type ShareKit, type SubmissionPackage } from "@/lib/distribution";
 import { DISTRIBUTION_PACKAGE_ARTICLE_USD } from "@/lib/pricing";
 import { PaymentProviderPicker } from "@/components/billing/payment-provider-picker";
-import { Share2, Sparkles, Copy, CheckCircle2, Link as LinkIcon, ChevronDown, ChevronUp, ExternalLink, Zap, Lock } from "lucide-react";
+import { Share2, Lightbulb, Copy, CheckCircle2, Link as LinkIcon, ChevronDown, ChevronUp, ExternalLink, Zap, Lock } from "lucide-react";
 
 interface Props {
   submissions: any[];
@@ -204,7 +204,7 @@ function ArticleDistribution({ article, bloggerBlogUrl }: { article: any; blogge
                       </Button>
                     ) : (
                       <Button size="sm" variant="outline" disabled={!canGenerate} onClick={() => generate(item.platform, consentChecked[item.platform])}>
-                        <Sparkles className="mr-1.5 h-3.5 w-3.5" /> {item.id ? "Regenerate" : "Generate"} package
+                        <Lightbulb className="mr-1.5 h-3.5 w-3.5" /> {item.id ? "Regenerate" : "Generate"} package
                       </Button>
                     )}
                     {kit && (

@@ -19,7 +19,7 @@ import {
   Award,
   Briefcase,
   Crown,
-  Sparkles,
+  Lightbulb,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { toast } from "sonner";
@@ -59,7 +59,7 @@ const APPLICATION_TIERS = [
     value: "EXPERT_CONTRIBUTOR",
     label: "Council of Experts — Contributor",
     description: "Publish one-off Expert Insight pieces in your field.",
-    icon: Sparkles,
+    icon: Lightbulb,
   },
   {
     value: "EXPERT_COUNCIL_MEMBER",

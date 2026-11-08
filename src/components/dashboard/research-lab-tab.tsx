@@ -16,7 +16,7 @@ import {
   Search,
   X,
   Loader2,
-  Sparkles,
+  Lightbulb,
   FileText,
   Mic,
   Upload,
@@ -852,7 +852,7 @@ function GapFinderPanel({ onChainToPrisma }: { onChainToPrisma: (seed: PrismaSee
           <ExternalSourceSearch selected={externalSources} onChange={setExternalSources} maxSelected={8} />
         </div>
         <Button size="sm" onClick={run} disabled={loading} className="gap-1.5">
-          {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+          {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Lightbulb className="h-3.5 w-3.5" />}
           Analyze for gaps
         </Button>
 
@@ -1226,7 +1226,7 @@ function PrismaDraftPanel({ seed }: { seed: PrismaSeed | null }) {
           )}
         </div>
         <Button size="sm" onClick={run} disabled={loading} className="gap-1.5">
-          {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+          {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Lightbulb className="h-3.5 w-3.5" />}
           Draft scaffold
         </Button>
 

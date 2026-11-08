@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Brain, Loader2, Plus, Sparkles, Building2, Waves, Palette, Check } from "lucide-react";
+import { Brain, Loader2, Plus, Lightbulb, Building2, Waves, Palette, Check } from "lucide-react";
 import {
   SECOND_BRAIN_VIEWS,
   ACCENT_PRESETS,
@@ -24,8 +24,8 @@ import { ConstellationView } from "./second-brain/constellation-view";
 import { TideView } from "./second-brain/tide-view";
 import { SecondBrainGraph3D } from "./second-brain/graph-3d-panel";
 
-const VIEW_META: Record<SecondBrainView, { label: string; icon: typeof Sparkles }> = {
-  constellation: { label: "3D Constellation", icon: Sparkles },
+const VIEW_META: Record<SecondBrainView, { label: string; icon: typeof Lightbulb }> = {
+  constellation: { label: "3D Constellation", icon: Lightbulb },
   atrium: { label: "Atrium", icon: Building2 },
   tide: { label: "3D Tide", icon: Waves },
 };

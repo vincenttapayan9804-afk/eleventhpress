@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import {
-  Sparkles,
+  Lightbulb,
   Loader2,
   Star,
   AlertCircle,
@@ -105,7 +105,7 @@ export function TriagePanel({ articleId }: Props) {
               </p>
             </div>
             <Button size="sm" onClick={runTriage} disabled={loading}>
-              <Sparkles className="mr-1.5 h-3.5 w-3.5" /> Run triage
+              <Lightbulb className="mr-1.5 h-3.5 w-3.5" /> Run triage
             </Button>
           </div>
         </CardContent>

@@ -16,7 +16,7 @@ import type { DisciplineStat } from "@/components/three-d/discipline-analytics-s
 import { useReveal } from "@/hooks/use-scroll-reveal";
 import {
   Search, SlidersHorizontal, FileX, ChevronLeft, ChevronRight,
-  Quote, Eye, Download, Sparkles, X, BarChart3, CalendarDays, CalendarRange, ArrowUpDown,
+  Quote, Eye, Download, Lightbulb, X, BarChart3, CalendarDays, CalendarRange, ArrowUpDown,
 } from "lucide-react";
 
 const DISCIPLINE_COLORS: Record<string, string> = Object.fromEntries(
@@ -191,7 +191,7 @@ export function BrowseView() {
                 className="btn-royal-glow h-11"
                 onClick={() => { setSemanticMode(!semanticMode); setPage(1); setCursor(null); }}
               >
-                <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                <Lightbulb className="mr-1.5 h-3.5 w-3.5" />
                 {semanticMode ? t("semantic") : t("lexical")}
               </Button>
               <Button
@@ -326,7 +326,7 @@ export function BrowseView() {
                   <Badge variant="outline" className={`border ${DISCIPLINE_COLORS[a.discipline] || DISCIPLINE_COLORS["Physics"]}`}>{a.discipline}</Badge>
                   {semanticScores[a.id] ? (
                     <Badge variant="outline" className="border-[var(--royal-300)]/30 bg-[var(--royal-100)]/50 text-[0.6rem] font-mono text-primary">
-                      <Sparkles className="mr-1 h-2.5 w-2.5" />
+                      <Lightbulb className="mr-1 h-2.5 w-2.5" />
                       {(semanticScores[a.id].score * 100).toFixed(0)}% · {semanticScores[a.id].matchType}
                     </Badge>
                   ) : (

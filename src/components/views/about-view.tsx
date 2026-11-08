@@ -48,7 +48,6 @@ import {
   Lock,
   RefreshCw,
   EyeOff,
-  Sparkles,
 } from "lucide-react";
 
 interface BoardCitationMetrics {
@@ -417,7 +416,7 @@ export function AboutView() {
                 desc="Authors are ethically obligated to notify the editor of a significant error and cooperate fully with any correction or retraction."
               />
               <IndexItem
-                icon={Sparkles}
+                icon={Lightbulb}
                 title="AI-assisted integrity screening"
                 desc="Plagiarism screening, statistical sanity checks, and citation validation run alongside human review — built to catch what a manual read misses, never to replace the reviewer's judgment."
               />

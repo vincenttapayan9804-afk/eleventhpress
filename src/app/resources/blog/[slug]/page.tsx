@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BookOpen, Clock, FileDown, FileText, Sparkles } from "lucide-react";
+import { BookOpen, Clock, FileDown, FileText, Lightbulb } from "lucide-react";
 import { APP_BASE_URL, ARTICLE_LANGUAGE, JOURNAL_IDENTITY } from "@/lib/site";
 import { BLOGS } from "@/lib/resources-content";
 import { blogPath, blogPlainText, fmtLongDate, getBlogPost, guideById, guidePath, guidePdfPath, wordCount } from "@/lib/resources";
@@ -145,7 +145,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
 
             <section id="key-takeaways" className="scroll-mt-24 rounded-xl border border-border bg-[var(--royal-50)]/60 p-5 dark:bg-white/[0.03] sm:p-6">
               <h2 className="flex items-center gap-2 font-display text-xl font-semibold">
-                <Sparkles className="h-5 w-5 text-primary" /> Top 10 key takeaways
+                <Lightbulb className="h-5 w-5 text-primary" /> Top 10 key takeaways
               </h2>
               <div className="mt-4">
                 <NumberedList items={post.keyTakeaways} label="Top 10 key takeaways" />

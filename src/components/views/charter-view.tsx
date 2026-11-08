@@ -16,7 +16,7 @@ import {
   BrainCircuit,
   Handshake,
   Award,
-  Sparkles,
+  Lightbulb,
   FileCheck2,
   ListChecks,
   Quote,
@@ -101,7 +101,7 @@ export function CharterView() {
       {/* Enterprise-Grade Formatting */}
       <section className="mt-10">
         <div className="flex flex-wrap items-center gap-2">
-          <Sparkles className="h-5 w-5 text-primary" />
+          <Lightbulb className="h-5 w-5 text-primary" />
           <h2 className="font-display text-2xl font-semibold">Enterprise-Grade Formatting</h2>
         </div>
         <p className="mt-2 max-w-3xl text-sm text-muted-foreground text-justify">

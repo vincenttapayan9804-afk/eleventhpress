@@ -26,7 +26,7 @@ import {
   ShieldCheck,
   CreditCard,
   XCircle,
-  Sparkles,
+  Lightbulb,
   Users,
   Download,
   Loader2 as Spinner,
@@ -380,9 +380,9 @@ const ACTION_ICONS: Record<string, any> = {
   SUBMIT_REVIEW: PenSquare,
   ACCEPT: CheckCircle2,
   REJECT: XCircle,
-  PUBLISH: Sparkles,
+  PUBLISH: Lightbulb,
   DOI_MINT: FileText,
-  DOI_PUBLISH: Sparkles,
+  DOI_PUBLISH: Lightbulb,
   PAYMENT_RECEIVED: CreditCard,
 };
 
