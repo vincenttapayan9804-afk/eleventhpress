@@ -10,13 +10,14 @@ import { db } from "@/lib/db";
  * and sign-in emails don't go through here and are always sent.
  */
 
-export const NOTIFICATION_CATEGORIES = ["SUBMISSIONS", "REVIEWS", "EDITORIAL", "ACCOUNT", "BILLING", "GENERAL"] as const;
+export const NOTIFICATION_CATEGORIES = ["SUBMISSIONS", "REVIEWS", "EDITORIAL", "ALERTS", "ACCOUNT", "BILLING", "GENERAL"] as const;
 export type NotificationCategory = (typeof NOTIFICATION_CATEGORIES)[number];
 
 export const CATEGORY_LABELS: Record<NotificationCategory, { label: string; description: string }> = {
   SUBMISSIONS: { label: "My submissions", description: "Decisions, status changes, DOIs and corrections on your work" },
   REVIEWS: { label: "Reviewing", description: "Review invitations, reminders and reviews of articles you handle" },
   EDITORIAL: { label: "Editorial", description: "New submissions and completed reviews for editors" },
+  ALERTS: { label: "Reading alerts", description: "New publications matching your alerts, and from authors you follow" },
   ACCOUNT: { label: "Account", description: "Applications, roles and account updates" },
   BILLING: { label: "Payments", description: "Receipts, invoices and royalties" },
   GENERAL: { label: "Other updates", description: "Everything else" },

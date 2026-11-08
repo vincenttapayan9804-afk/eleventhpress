@@ -1,3 +1,4 @@
+import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register";
 import type { Metadata } from "next";
 import { Inter, Fraunces, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
@@ -40,6 +41,8 @@ const DEFAULT_DESCRIPTION = `A Full-Stack Peer Reviewed Press & Multidisciplinar
  * unbranded tenant (including today's single-tenant deployment) renders
  * byte-for-byte the same <title>/description/favicon it always has.
  */
+export const viewport = { themeColor: "#3b1466" };
+
 export async function generateMetadata(): Promise<Metadata> {
   const tenant = await getCurrentTenant();
   const title = tenant?.siteName
@@ -77,8 +80,9 @@ export async function generateMetadata(): Promise<Metadata> {
       types: { "application/rss+xml": "/api/feed/articles.xml" },
     },
     ...(tenant?.faviconUrl || (tenant && !tenant.isPlatform && tenant.logoUrl)
-      ? { icons: { icon: (tenant.faviconUrl || tenant.logoUrl)! } }
-      : {}),
+      ? { icons: { icon: (tenant.faviconUrl || tenant.logoUrl)!, apple: "/pwa-icon/180" } }
+      : { icons: { apple: "/pwa-icon/180" } }),
+    appleWebApp: { capable: true, title, statusBarStyle: "default" },
   };
 }
 
@@ -130,6 +134,7 @@ export default async function RootLayout({
             <Toaster />
             <CookieConsentBanner />
             <UiSoundEffects />
+            <ServiceWorkerRegister />
           </TenantBrandingProvider>
         </ThemeProvider>
       </body>

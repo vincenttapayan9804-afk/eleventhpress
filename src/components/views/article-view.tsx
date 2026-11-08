@@ -1,6 +1,7 @@
 "use client";
 
 import { articlePath } from "@/lib/spa-routes";
+import { ReaderToolsCard, HighlightCapture } from "@/components/article-reader-tools";
 import { authorPath } from "@/lib/author-path";
 import { useEffect, useState } from "react";
 import { useApp } from "@/lib/store";
@@ -579,6 +580,7 @@ export function ArticleView() {
                 <h2 className="mt-8 font-display text-xl font-semibold">Article body</h2>
                 {bodyHtml ? (
                   <div
+                    id="article-body"
                     className="mt-2 text-sm leading-relaxed text-foreground/80 [&_h1]:mt-6 [&_h1]:font-display [&_h1]:text-lg [&_h1]:font-semibold [&_h2]:mt-6 [&_h2]:font-display [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:mt-4 [&_h3]:font-semibold [&_p]:mt-2 [&_table]:mt-4 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-border [&_td]:p-1.5 [&_th]:border [&_th]:border-border [&_th]:bg-muted/50 [&_th]:p-1.5"
                     dangerouslySetInnerHTML={{ __html: bodyHtml }}
                   />
@@ -934,6 +936,8 @@ export function ArticleView() {
 
         {/* Sidebar */}
         <aside className="@container space-y-4">
+          <ReaderToolsCard articleId={article.id} />
+          <HighlightCapture articleId={article.id} targetId="article-body" />
           {/* PDF galley */}
           <Card className="paper-card">
             <CardContent className="p-5">

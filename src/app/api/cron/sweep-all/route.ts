@@ -9,6 +9,7 @@ import { sweepStuckTranscriptionJobs } from "@/lib/transcription";
 import { purgeExpiredResearchData } from "@/lib/research-assistant";
 import { sendNotificationDigests } from "@/lib/notification-digest";
 import { sendReviewReminders } from "@/lib/review-reminders";
+import { sendReadingAlerts } from "@/lib/reading-alerts";
 
 /**
  * GET /api/cron/sweep-all
@@ -48,7 +49,11 @@ const SWEEPS = [
   // today's reminders in it.
   {
     name: "reviewRemindersAndDigest",
-    run: async () => ({ reminders: await sendReviewReminders(), digest: await sendNotificationDigests() }),
+    run: async () => ({
+      reminders: await sendReviewReminders(),
+      readingAlerts: await sendReadingAlerts(),
+      digest: await sendNotificationDigests(),
+    }),
   },
 ] as const;
 
