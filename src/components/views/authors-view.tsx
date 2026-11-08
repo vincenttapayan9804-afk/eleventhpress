@@ -1,5 +1,6 @@
 "use client";
 
+import { authorPath } from "@/lib/author-path";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useApp } from "@/lib/store";
@@ -499,6 +500,12 @@ export function AuthorsView() {
                 </div>
               </DialogHeader>
 
+              <a
+                href={authorPath({ name: selected.name, orcid: selected.orcid })}
+                className="inline-flex w-fit items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+              >
+                View full profile →
+              </a>
               {selected.bio && (
                 <p className="mt-1 text-sm leading-relaxed text-foreground/85">{selected.bio}</p>
               )}
