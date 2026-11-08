@@ -52,17 +52,22 @@ export interface SessionPayload {
   // keep verifying — a decoded session missing it is treated as the
   // platform tenant by any code that starts relying on it in later phases.
   tenantId?: string;
+  /** Session id (one per sign-in), for the "where you're signed in" list. Absent on older tokens. */
+  sid?: string;
+  /** Issued-at, seconds since epoch (set by jwt). */
+  iat?: number;
 }
 
 export function signToken(payload: SessionPayload): string {
-  return jwt.sign(payload, SESSION_SECRET!, { expiresIn: TOKEN_TTL });
+  const { iat: _iat, ...rest } = payload;
+  return jwt.sign({ ...rest, sid: rest.sid ?? crypto.randomUUID() }, SESSION_SECRET!, { expiresIn: TOKEN_TTL });
 }
 
 export function verifyToken(token: string): SessionPayload | null {
   try {
     const decoded = jwt.verify(token, SESSION_SECRET!);
     if (typeof decoded !== "object" || decoded === null) return null;
-    const { userId, email, role, fullName, tenantId } = decoded as Record<string, unknown>;
+    const { userId, email, role, fullName, tenantId, sid, iat } = decoded as Record<string, unknown>;
     if (
       typeof userId !== "string" ||
       typeof email !== "string" ||
@@ -72,7 +77,15 @@ export function verifyToken(token: string): SessionPayload | null {
     ) {
       return null;
     }
-    return { userId, email, role, fullName, ...(typeof tenantId === "string" ? { tenantId } : {}) };
+    return {
+      userId,
+      email,
+      role,
+      fullName,
+      ...(typeof tenantId === "string" ? { tenantId } : {}),
+      ...(typeof sid === "string" ? { sid } : {}),
+      ...(typeof iat === "number" ? { iat } : {}),
+    };
   } catch {
     return null;
   }

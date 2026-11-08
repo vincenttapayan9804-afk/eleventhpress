@@ -149,7 +149,7 @@
     "backToHome": "返回首页",
     "signInEyebrow": "登录",
     "returningUser": "老用户登录",
-    "signInHint": "使用下方的演示账号登录，或在右侧注册新账号。",
+    "signInHint": "使用电子邮件和密码、通行密钥或 ORCID iD 登录，或在右侧创建账户。",
     "emailLabel": "邮箱",
     "passwordLabel": "密码",
     "signInButton": "登录",

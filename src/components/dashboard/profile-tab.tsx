@@ -13,6 +13,8 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { TwoFactorSetup } from "@/components/two-factor-setup";
 import { ChangeEmailForm } from "@/components/change-email-form";
 import { NotificationPreferences } from "@/components/notification-preferences";
+import { ActiveSessions } from "@/components/active-sessions";
+import { PasskeysCard } from "@/components/passkeys-card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PRIVILEGED_ROLES_LIST, ACADEMIC_STATUS_OPTIONS } from "@/lib/roles";
 import { toast } from "sonner";
@@ -836,6 +838,10 @@ export function ProfileTab() {
           )}
         </CardContent>
       </Card>
+
+      <PasskeysCard />
+
+      <ActiveSessions />
 
       <NotificationPreferences />
 

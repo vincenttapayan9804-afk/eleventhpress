@@ -6,6 +6,7 @@ import { checkRateLimit } from "@/lib/ratelimit";
 import { parseBody } from "@/lib/validate";
 import { isPasswordBreached } from "@/lib/password-breach";
 import { sendSecurityEmail } from "@/lib/account-emails";
+import { revokeOtherSessions } from "@/lib/user-sessions";
 
 const ChangeSchema = z.object({
   currentPassword: z.string().min(1).max(200),
@@ -63,6 +64,8 @@ export async function POST(req: NextRequest) {
   // A first-sign-in swap of an admin-issued temporary password isn't news.
   if (!user.mustChangePassword) {
     await sendSecurityEmail(user, { kind: "password_changed", via: "profile" });
+    // A new password ends every other sign-in (src/lib/user-sessions.ts).
+    await revokeOtherSessions(session.userId, session.sid).catch(() => {});
   }
 
   return NextResponse.json({ ok: true });

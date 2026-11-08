@@ -1,3 +1,4 @@
+import { startSession } from "@/lib/user-sessions";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { signToken, hashPassword, SESSION_COOKIE_NAME, sessionCookieOptions } from "@/lib/auth";
@@ -154,7 +155,7 @@ export async function GET(req: NextRequest) {
     redirectUrl.searchParams.set("orcid_linked", "1");
     redirectUrl.searchParams.set("orcid_id", orcidId);
     const res = NextResponse.redirect(redirectUrl);
-    res.cookies.set(SESSION_COOKIE_NAME, epipToken, sessionCookieOptions());
+    await startSession(req, res, epipToken);
     res.cookies.delete("orcid_oauth_state");
     return res;
   } catch (e: any) {
@@ -207,7 +208,7 @@ async function simulatedMode(req: NextRequest) {
   redirectUrl.searchParams.set("orcid_id", fakeOrcid);
   redirectUrl.searchParams.set("orcid_simulated", "1");
   const res = NextResponse.redirect(redirectUrl);
-  res.cookies.set(SESSION_COOKIE_NAME, epipToken, sessionCookieOptions());
+  await startSession(req, res, epipToken);
   res.cookies.delete("orcid_oauth_state");
   return res;
 }

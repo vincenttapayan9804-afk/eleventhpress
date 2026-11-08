@@ -94,3 +94,18 @@ for that, if you want it later).
 3. Deploy (or redeploy, if the project already existed before the database
    was connected). The build creates the schema and loads starter data
    automatically — nothing else to run by hand.
+
+## Optional sign-in methods
+
+- **Passkeys** work out of the box (no configuration). Each passkey is
+  bound to the domain it was created on, so tenants on their own domains
+  get their own.
+- **Sign in with Google** appears once `GOOGLE_CLIENT_ID` and
+  `GOOGLE_CLIENT_SECRET` are set (Google Cloud Console → APIs & Services →
+  Credentials → OAuth client ID, type "Web application"). Add
+  `https://<your-domain>/api/auth/google/callback` as an authorised
+  redirect URI for every domain in use. Accounts with two-step sign-in
+  keep using their password or a passkey.
+- **Signed-out devices** are refused on their next page load. With
+  `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` set, they're also
+  refused on every API call immediately.

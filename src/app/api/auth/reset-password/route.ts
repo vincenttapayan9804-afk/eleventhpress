@@ -7,6 +7,7 @@ import { checkRateLimit } from "@/lib/ratelimit";
 import { parseBody } from "@/lib/validate";
 import { isPasswordBreached } from "@/lib/password-breach";
 import { sendSecurityEmail } from "@/lib/account-emails";
+import { revokeOtherSessions } from "@/lib/user-sessions";
 
 /**
  * GET  /api/auth/reset-password?token=…  — is this reset link still valid?
@@ -103,6 +104,8 @@ export async function POST(req: NextRequest) {
       .catch(() => {});
 
     await sendSecurityEmail(user, { kind: "password_changed", via: "reset" });
+    // A reset ends every existing sign-in, in case the old password leaked.
+    await revokeOtherSessions(user.id).catch(() => {});
 
     return NextResponse.json({ ok: true, twoFactorEnabled: user.twoFactorEnabled });
   } catch (e) {

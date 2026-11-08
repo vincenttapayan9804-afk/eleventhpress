@@ -72,6 +72,7 @@ export type SecurityEvent =
   | { kind: "password_changed"; via: "profile" | "reset" }
   | { kind: "two_factor_on"; method: "EMAIL" | "TOTP" }
   | { kind: "two_factor_off" }
+  | { kind: "passkey_added"; name: string }
   | { kind: "account_locked"; minutes: number }
   | { kind: "account_deleted" }
   | { kind: "new_sign_in"; ip: string | null; userAgent: string | null };
@@ -112,6 +113,17 @@ export function sendSecurityEmail(user: AccountEmailUser, event: SecurityEvent) 
         (site) => ({
           title: "Two-factor sign-in was turned off",
           message: `Your ${site} account now signs in with just your password. ${IF_NOT_YOU(site)}`,
+          ctaUrl: FORGOT_URL(),
+          ctaLabel: "Reset my password",
+        })
+      );
+    case "passkey_added":
+      return send(
+        user,
+        (site) => `A passkey was added to your account — ${site}`,
+        (site) => ({
+          title: "A passkey was added",
+          message: `A passkey named “${escapeHtml(event.name)}” can now sign in to your ${site} account. ${IF_NOT_YOU(site)}`,
           ctaUrl: FORGOT_URL(),
           ctaLabel: "Reset my password",
         })

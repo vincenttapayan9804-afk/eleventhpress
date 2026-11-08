@@ -1,3 +1,4 @@
+import { startSession } from "@/lib/user-sessions";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -157,7 +158,7 @@ export async function POST(req: NextRequest) {
         avatarUrl: user.avatarUrl,
       },
     });
-    res.cookies.set(SESSION_COOKIE_NAME, token, sessionCookieOptions());
+    await startSession(req, res, token);
     // The browser that created the account isn't a "new device" next time.
     rememberDevice(req, res, user.id);
     return res;

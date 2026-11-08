@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME, generateCsrfToken } from "@/lib/csrf";
+import { isRevokedFast, sidOfToken } from "@/lib/session-revocation";
 
 /**
  * Single Proxy entry point for this app (Next.js only supports one; this
@@ -44,6 +45,8 @@ const CSRF_EXEMPT_PREFIXES = [
   "/api/auth/login",
   "/api/auth/register",
   "/api/auth/2fa/challenge",
+  // Passkey sign-in, like password sign-in, happens before any session exists.
+  "/api/auth/passkeys/login/",
   // One-click unsubscribe from mail clients (RFC 8058): authenticated by
   // the signed token in the URL, never by the session cookie.
   "/api/notifications/unsubscribe",
@@ -54,7 +57,17 @@ const CSRF_EXEMPT_PREFIXES = [
 
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
-export function proxy(req: NextRequest) {
+export async function proxy(req: NextRequest) {
+  // A session signed out from another device (Profile → Where you're
+  // signed in) is refused on every API call when Redis is configured.
+  const sessionToken = req.cookies.get("epip_session")?.value;
+  const sid = sessionToken ? sidOfToken(sessionToken) : null;
+  if (sid && (await isRevokedFast(sid))) {
+    const denied = NextResponse.json({ error: "This session was signed out" }, { status: 401 });
+    denied.cookies.set("epip_session", "", { path: "/", maxAge: 0, httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production" });
+    return denied;
+  }
+
   const res = NextResponse.next();
 
   // Ensure every visitor has a CSRF cookie to double-submit against.

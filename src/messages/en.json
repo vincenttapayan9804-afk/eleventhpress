@@ -149,7 +149,7 @@
     "backToHome": "Back to home",
     "signInEyebrow": "Sign in",
     "returningUser": "Returning user",
-    "signInHint": "Use one of the demo accounts below, or register a new account on the right.",
+    "signInHint": "Sign in with your email and password, a passkey or your ORCID iD — or create an account on the right.",
     "emailLabel": "Email",
     "passwordLabel": "Password",
     "signInButton": "Sign in",

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { getSessionFromHeaders } from "@/lib/auth";
+import { getSessionFromHeaders, SESSION_COOKIE_NAME, sessionCookieOptions } from "@/lib/auth";
+import { checkSession } from "@/lib/user-sessions";
 import { ACADEMIC_STATUS_OPTIONS } from "@/lib/roles";
 
 const PROFILE_SELECT = {
@@ -37,6 +38,12 @@ export async function GET(req: NextRequest) {
   const session = getSessionFromHeaders(req.headers);
   if (!session) {
     return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  }
+  // A session signed out from another device ends here (src/lib/user-sessions.ts).
+  if (!(await checkSession(session, req))) {
+    const res = NextResponse.json({ error: "This session was signed out" }, { status: 401 });
+    res.cookies.set(SESSION_COOKIE_NAME, "", { ...sessionCookieOptions(), maxAge: 0 });
+    return res;
   }
   const user = await db.user.findUnique({
     where: { id: session.userId },

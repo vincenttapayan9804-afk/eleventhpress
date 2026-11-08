@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Loader2, Mail, Lock, User as UserIcon, Building2, Globe2, Tag, BookOpen, ArrowLeft, KeyRound, ShieldCheck, MailCheck } from "lucide-react";
+import { Loader2, Mail, Lock, User as UserIcon, Building2, Globe2, Tag, BookOpen, ArrowLeft, KeyRound, ShieldCheck, MailCheck, Fingerprint } from "lucide-react";
 
 // Only roles a registrant can grant themselves — matches the backend's
 // SELF_SELECTABLE_ROLES in src/app/api/auth/register/route.ts. Reviewer,
@@ -43,6 +43,45 @@ export function AuthView() {
   const [referralCode] = useState<string | null>(() =>
     typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("ref") : null
   );
+
+  // Optional sign-in methods this deployment offers, and errors from them.
+  const [googleEnabled, setGoogleEnabled] = useState(false);
+  useEffect(() => {
+    apiFetch<{ google: boolean }>("/api/auth/providers").then((r) => setGoogleEnabled(r.google)).catch(() => {});
+    const err = new URLSearchParams(window.location.search).get("error");
+    const messages: Record<string, string> = {
+      google_2fa: "This account uses two-step sign-in. Sign in with your password or a passkey instead.",
+      google_unverified: "Google didn't confirm that email address.",
+      google_state: "That sign-in link expired. Please try again.",
+      google_token: "Google sign-in didn't complete. Please try again.",
+      google_unreachable: "Couldn't reach Google. Please try again.",
+      google_unavailable: "Google sign-in isn't available here.",
+      account_closed: "That account has been closed.",
+      account_locked: "Sign-in is paused after failed attempts. Try again later.",
+    };
+    if (err && messages[err]) toast.error(messages[err]);
+  }, []);
+
+  // Passkey sign-in (src/lib/passkeys.ts): Face ID, Touch ID, Windows Hello, phone or security key.
+  const [passkeyBusy, setPasskeyBusy] = useState(false);
+  async function signInWithPasskey() {
+    setPasskeyBusy(true);
+    try {
+      const { startAuthentication } = await import("@simplewebauthn/browser");
+      const optionsJSON = await apiFetch<any>("/api/auth/passkeys/login/options", { method: "POST" });
+      const response = await startAuthentication({ optionsJSON });
+      const res = await apiFetch<{ user: any }>("/api/auth/passkeys/login/verify", { method: "POST", body: JSON.stringify({ response }) });
+      setAuth(res.user);
+      toast.success(`Welcome back, ${res.user.fullName.split(" ")[0]}`);
+      announceSessionChange();
+      if (enterWorkspaceIfNeeded(res.user)) return;
+      openDashboard(takeReturnTab());
+    } catch (e: any) {
+      if (e?.name !== "NotAllowedError") toast.error("Passkey sign-in failed", { description: e?.message });
+    } finally {
+      setPasskeyBusy(false);
+    }
+  }
 
   // Login form
   const [loginEmail, setLoginEmail] = useState("");
@@ -379,6 +418,23 @@ export function AuthView() {
             {/* ORCID OAuth */}
             <div className="mt-4">
               <Separator className="mb-3" />
+              <Button type="button" variant="outline" className="mb-2 w-full" disabled={passkeyBusy} onClick={signInWithPasskey}>
+                {passkeyBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Fingerprint className="mr-2 h-4 w-4" />}
+                Sign in with a passkey
+              </Button>
+              {googleEnabled && (
+                <a href="/api/auth/google" className="mb-2 block">
+                  <Button type="button" variant="outline" className="w-full">
+                    <svg className="mr-2 h-4 w-4" viewBox="0 0 48 48" aria-hidden>
+                      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+                      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+                      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+                      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+                    </svg>
+                    Continue with Google
+                  </Button>
+                </a>
+              )}
               <a href="/api/auth/orcid" className="block">
                 <Button type="button" variant="outline" className="w-full bg-[#a6ce39] text-[#373737] hover:bg-[#94c62f] hover:text-[#373737] border-[#a6ce39]">
                   <svg className="mr-2 h-4 w-4" viewBox="0 0 256 256" fill="currentColor">
