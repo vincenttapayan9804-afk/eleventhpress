@@ -822,10 +822,20 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
                               {r.reviewer?.affiliation}
                             </p>
                           </div>
-                          <Badge variant="outline" className="font-mono text-[0.6rem]">
-                            {r.status}
-                          </Badge>
+                          <div className="flex items-center gap-1.5">
+                            {r.dueDate && ["ACCEPTED", "IN_PROGRESS"].includes(r.status) && new Date(r.dueDate) < new Date() && (
+                              <Badge variant="outline" className="border-rose-300 bg-rose-50 text-[0.6rem] text-rose-700">Overdue</Badge>
+                            )}
+                            <Badge variant="outline" className="font-mono text-[0.6rem]">
+                              {r.status}
+                            </Badge>
+                          </div>
                         </div>
+                        {r.status === "DECLINED" && r.declineReason && (
+                          <p className="mt-2 whitespace-pre-line border-t border-border pt-2 text-xs text-muted-foreground">
+                            Declined: {r.declineReason}
+                          </p>
+                        )}
                         {r.recommendation && (
                           <div className="mt-2 border-t border-border pt-2 text-xs">
                             <p className="text-muted-foreground">

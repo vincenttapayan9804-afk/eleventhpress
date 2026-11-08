@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { clearDraft, loadDraft, saveDraft, savedAgo, type SubmissionDraft } from "@/lib/submission-draft";
 import { apiFetch } from "@/lib/api-client";
 import { useApp } from "@/lib/store";
 import { Button } from "@/components/ui/button";
@@ -120,6 +121,50 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ── Auto-saved draft (src/lib/submission-draft.ts) ──────────────────
+  // A draft found on arrival is offered, not applied, so the author
+  // chooses between resuming it and starting fresh.
+  const [pendingDraft, setPendingDraft] = useState<SubmissionDraft | null>(() =>
+    typeof window === "undefined" ? null : loadDraft(user?.id)
+  );
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+  const draftReady = useRef(false);
+
+  function resumeDraft(d: SubmissionDraft) {
+    const data = d.data as any;
+    if (data.form) setForm((f) => ({ ...f, ...data.form }));
+    if (Array.isArray(data.keyTakeaways)) setKeyTakeaways(data.keyTakeaways);
+    if (Array.isArray(data.authors) && data.authors.length) setAuthors(data.authors);
+    if (Array.isArray(data.funders)) setFunders(data.funders);
+    if (typeof data.references === "string") setReferences(data.references);
+    if (data.uploadedFile) setUploadedFile(data.uploadedFile);
+    setStep(Math.min(3, Math.max(1, d.step || 1)));
+    setSavedAt(d.savedAt);
+    setPendingDraft(null);
+    toast.success("Draft restored");
+  }
+
+  useEffect(() => {
+    // Don't overwrite a stored draft before the author has chosen what to do with it.
+    if (pendingDraft) return;
+    if (!draftReady.current) {
+      draftReady.current = true;
+      return;
+    }
+    const hasContent =
+      form.title.trim() || form.abstract.trim() || form.keywords.trim() || references.trim() || uploadedFile || authors.length > 1;
+    if (!hasContent) return;
+    const t = window.setTimeout(() => {
+      const at = saveDraft(user?.id, {
+        step,
+        title: form.title.trim(),
+        data: { form, keyTakeaways, authors, funders, references, uploadedFile },
+      });
+      if (at) setSavedAt(at);
+    }, 800);
+    return () => window.clearTimeout(t);
+  }, [form, keyTakeaways, authors, funders, references, uploadedFile, step, pendingDraft, user?.id]);
 
   function addAuthor() {
     setAuthors([...authors, { name: "", affiliation: "", email: "", rorId: "", creditRoles: [] }]);
@@ -302,6 +347,8 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
         }
       );
       setResult(res.article);
+      clearDraft(user?.id);
+      setSavedAt(null);
       celebrate();
       toast.success("Submission received", {
         description: `Draft DOI: ${res.article.doi} · Plagiarism: ${res.article.plagiarismScore}%`,
@@ -369,6 +416,34 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
           </p>
         </CardHeader>
         <CardContent>
+          {pendingDraft && (
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium">Resume your draft?</p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {pendingDraft.title ? `“${pendingDraft.title}”` : "Untitled submission"} · saved {savedAgo(pendingDraft.savedAt)}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    clearDraft(user?.id);
+                    setPendingDraft(null);
+                  }}
+                >
+                  Discard
+                </Button>
+                <Button size="sm" onClick={() => resumeDraft(pendingDraft)}>Resume draft</Button>
+              </div>
+            </div>
+          )}
+          {!pendingDraft && savedAt && (
+            <p className="mb-4 text-right text-[0.7rem] text-muted-foreground" aria-live="polite">
+              Draft saved on this device · {savedAgo(savedAt)}
+            </p>
+          )}
           {/* Stepper */}
           <div className="mb-8 flex items-center justify-between">
             {[

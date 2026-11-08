@@ -47,6 +47,9 @@ const CSRF_EXEMPT_PREFIXES = [
   // One-click unsubscribe from mail clients (RFC 8058): authenticated by
   // the signed token in the URL, never by the session cookie.
   "/api/notifications/unsubscribe",
+  // Co-author confirmation from the emailed link: authenticated by its
+  // unguessable token, and the co-author may have no account at all.
+  "/api/authorship/respond",
 ];
 
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);

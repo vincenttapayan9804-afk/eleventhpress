@@ -8,6 +8,7 @@ import { sweepStuckNarrationJobs } from "@/lib/kokoro-tts";
 import { sweepStuckTranscriptionJobs } from "@/lib/transcription";
 import { purgeExpiredResearchData } from "@/lib/research-assistant";
 import { sendNotificationDigests } from "@/lib/notification-digest";
+import { sendReviewReminders } from "@/lib/review-reminders";
 
 /**
  * GET /api/cron/sweep-all
@@ -42,7 +43,13 @@ const SWEEPS = [
   // (conversations inactive past RESEARCH_CHAT_RETENTION_DAYS, old feedback).
   { name: "researchRetention", run: () => purgeExpiredResearchData() },
   // Daily notification digest for people who chose one email a day.
-  { name: "notificationDigest", run: () => sendNotificationDigests() },
+  // Review invitation nudges, due-soon and overdue reminders, then the
+  // daily notification digest — in that order, so a daily-summary user gets
+  // today's reminders in it.
+  {
+    name: "reviewRemindersAndDigest",
+    run: async () => ({ reminders: await sendReviewReminders(), digest: await sendNotificationDigests() }),
+  },
 ] as const;
 
 export async function GET(req: NextRequest) {

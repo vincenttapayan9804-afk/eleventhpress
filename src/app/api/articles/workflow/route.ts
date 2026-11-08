@@ -36,6 +36,35 @@ import { withRlsContext } from "@/lib/db-rls";
  *   5. Updates the OAI-PMH feed implicitly (next harvester request will
  *      include the new record).
  */
+/** Author emails for the stages that didn't have one (accept and publish have their own). */
+const STATUS_UPDATES: Partial<Record<ArticleStatus, { type: "INFO" | "WARNING" | "ERROR"; title: string; message: (t: string) => string }>> = {
+  UNDER_REVIEW: {
+    type: "INFO",
+    title: "Your manuscript is under review",
+    message: (t) => `"${t}" passed editorial screening and has been sent to peer reviewers. We'll let you know when there's a decision.`,
+  },
+  REVISIONS_REQUIRED: {
+    type: "WARNING",
+    title: "Revisions requested",
+    message: (t) => `The editor has requested revisions to "${t}". Open My Articles to read the reviews and submit your revised manuscript.`,
+  },
+  REJECTED: {
+    type: "ERROR",
+    title: "Decision on your manuscript",
+    message: (t) => `After consideration, "${t}" has not been accepted for publication. The decision letter and any reviews are in My Articles.`,
+  },
+  IN_PRODUCTION: {
+    type: "INFO",
+    title: "Your article is in production",
+    message: (t) => `"${t}" is being typeset and prepared for publication. You'll be notified when it goes live.`,
+  },
+  WITHDRAWN: {
+    type: "WARNING",
+    title: "Submission withdrawn",
+    message: (t) => `"${t}" has been withdrawn.`,
+  },
+};
+
 export async function POST(req: NextRequest) {
   const session = getSessionFromHeaders(req.headers);
   if (!session) {
@@ -470,6 +499,19 @@ export async function POST(req: NextRequest) {
           .then(({ depositReviewReportToZenodo }) => depositReviewReportToZenodo(articleId))
           .catch((e) => console.error(`[workflow] review report deposit failed for ${articleId}:`, e));
       }
+    } else if (STATUS_UPDATES[next] && article.correspondingAuthorId) {
+      // Keep the author informed at every stage (the submission tracker in
+      // My Articles shows the same steps).
+      const u = STATUS_UPDATES[next]!;
+      await notify({
+        userId: article.correspondingAuthorId,
+        type: u.type,
+        category: "SUBMISSIONS",
+        link: "/dashboard/my-articles",
+        title: u.title,
+        message: u.message(article.title),
+        articleId,
+      });
     } else if (next === "ACCEPTED" && article.correspondingAuthorId) {
       // Generate APC invoice on acceptance
       await db.invoice.create({
