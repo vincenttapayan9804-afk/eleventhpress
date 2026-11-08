@@ -1,5 +1,6 @@
 "use client";
 
+import { trDashboard } from "@/lib/dashboard-i18n";
 import { Fragment, useMemo, useState } from "react";
 import { ChevronDown, Pin, PinOff, Search, LayoutGrid } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -30,6 +31,8 @@ function readPins(userId: string | undefined): string[] {
  */
 export function DashboardNav({ tabs, active, onOpen }: { tabs: DashboardTabDef[]; active: string; onOpen: (key: string) => void }) {
   const userId = useApp((s) => s.user?.id);
+  const locale = useApp((s) => s.locale);
+  const tr = (text: string) => trDashboard(text, locale);
   const [pins, setPins] = useState<string[]>(() => readPins(userId));
   const [sheetOpen, setSheetOpen] = useState(false);
   const [filter, setFilter] = useState("");
@@ -72,7 +75,7 @@ export function DashboardNav({ tabs, active, onOpen }: { tabs: DashboardTabDef[]
             isActive ? "bg-primary text-primary-foreground" : "text-foreground/80 hover:bg-accent"
           }`}
         >
-          <Icon className="h-4 w-4 flex-shrink-0" /> <span className="truncate">{t.label}</span>
+          <Icon className="h-4 w-4 flex-shrink-0" /> <span className="truncate">{tr(t.label)}</span>
         </button>
         <button
           type="button"
@@ -99,7 +102,7 @@ export function DashboardNav({ tabs, active, onOpen }: { tabs: DashboardTabDef[]
           className="flex min-h-[44px] min-w-0 flex-1 items-center gap-2 rounded-lg border border-border bg-card px-3 text-left text-sm font-medium"
         >
           {current ? <current.icon className="h-4 w-4 flex-shrink-0 text-primary" /> : <LayoutGrid className="h-4 w-4" />}
-          <span className="truncate">{current?.label ?? "Sections"}</span>
+          <span className="truncate">{current ? tr(current.label) : "Sections"}</span>
           <ChevronDown className="ml-auto h-4 w-4 flex-shrink-0 text-muted-foreground" />
         </button>
         {pinned
@@ -112,8 +115,8 @@ export function DashboardNav({ tabs, active, onOpen }: { tabs: DashboardTabDef[]
                 key={t.key}
                 type="button"
                 onClick={() => onOpen(t.key)}
-                aria-label={t.label}
-                title={t.label}
+                aria-label={tr(t.label)}
+                title={tr(t.label)}
                 className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg border border-border bg-card text-foreground/80"
               >
                 <Icon className="h-4 w-4" />
@@ -134,13 +137,13 @@ export function DashboardNav({ tabs, active, onOpen }: { tabs: DashboardTabDef[]
           <div className="space-y-4 px-3 py-4">
             {!filter && pinned.length > 0 && (
               <div>
-                <p className="px-3 pb-1 text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">Pinned</p>
+                <p className="px-3 pb-1 text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">{tr("Pinned")}</p>
                 {pinned.map((t) => item(t, { inPinned: true, onDone: () => setSheetOpen(false) }))}
               </div>
             )}
             {groups.map(([group, list]) => (
               <div key={group}>
-                <p className="px-3 pb-1 text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">{group}</p>
+                <p className="px-3 pb-1 text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">{tr(group)}</p>
                 {list.map((t) => item(t, { onDone: () => setSheetOpen(false) }))}
               </div>
             ))}
@@ -153,7 +156,7 @@ export function DashboardNav({ tabs, active, onOpen }: { tabs: DashboardTabDef[]
       <nav aria-label="Dashboard" className="hidden flex-col gap-0.5 lg:flex">
         {pinned.length > 0 && (
           <>
-            <p className="px-3 pb-1 pt-1 font-sans text-[0.6rem] font-semibold uppercase tracking-wide text-muted-foreground">Pinned</p>
+            <p className="px-3 pb-1 pt-1 font-sans text-[0.6rem] font-semibold uppercase tracking-wide text-muted-foreground">{tr("Pinned")}</p>
             {pinned.map((t) => item(t, { inPinned: true }))}
           </>
         )}
@@ -161,7 +164,7 @@ export function DashboardNav({ tabs, active, onOpen }: { tabs: DashboardTabDef[]
           <Fragment key={t.key}>
             {(i === 0 || tabs[i - 1].group !== t.group) && (
               <p className={`px-3 pb-1 font-sans text-[0.6rem] font-semibold uppercase tracking-wide text-muted-foreground ${i === 0 && pinned.length === 0 ? "pt-1" : "pt-4"}`}>
-                {t.group}
+                {tr(t.group)}
               </p>
             )}
             {item(t)}

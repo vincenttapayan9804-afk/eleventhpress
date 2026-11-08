@@ -2860,3 +2860,21 @@ model ArticleRevision {
 
   @@index([articleId, round])
 }
+
+// Post-publication discussion on articles (src/app/api/articles/[id]/comments).
+// Signed-in readers post; anyone can read visible comments; editors hide
+// comments and see reports.
+model ArticleComment {
+  id        String   @id @default(cuid())
+  articleId String
+  userId    String
+  parentId  String?
+  body      String
+  // VISIBLE | HIDDEN
+  status    String   @default("VISIBLE")
+  reports   Int      @default(0)
+  createdAt DateTime @default(now())
+  editedAt  DateTime?
+
+  @@index([articleId, createdAt])
+}

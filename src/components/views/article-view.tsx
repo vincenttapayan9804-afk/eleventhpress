@@ -2,6 +2,7 @@
 
 import { articlePath } from "@/lib/spa-routes";
 import { ReaderToolsCard, HighlightCapture } from "@/components/article-reader-tools";
+import { ArticleDiscussion } from "@/components/article-discussion";
 import { authorPath } from "@/lib/author-path";
 import { useEffect, useState } from "react";
 import { useApp } from "@/lib/store";
@@ -647,6 +648,8 @@ export function ArticleView() {
                     </ol>
                   </>
                 )}
+
+                {article.status === "PUBLISHED" && <ArticleDiscussion articleId={article.id} />}
 
                 {/* Publication Governance Standard's mandatory quality-
                     assurance disclaimer — every published Expert Insight
