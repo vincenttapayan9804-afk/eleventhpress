@@ -12,11 +12,11 @@ import { APP_BASE_URL } from "@/lib/site";
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: [
-      { userAgent: "Googlebot", allow: "/" },
-      { userAgent: "Bingbot", allow: "/" },
-      { userAgent: "Twitterbot", allow: "/" },
-      { userAgent: "facebookexternalhit", allow: "/" },
-      { userAgent: "*", allow: "/" },
+      { userAgent: "Googlebot", allow: "/", disallow: ["/dashboard", "/admin", "/api/"] },
+      { userAgent: "Bingbot", allow: "/", disallow: ["/dashboard", "/admin", "/api/"] },
+      { userAgent: "Twitterbot", allow: "/", disallow: ["/dashboard", "/admin", "/api/"] },
+      { userAgent: "facebookexternalhit", allow: "/", disallow: ["/dashboard", "/admin", "/api/"] },
+      { userAgent: "*", allow: "/", disallow: ["/dashboard", "/admin", "/api/"] },
     ],
     sitemap: `${APP_BASE_URL}/sitemap.xml`,
   };

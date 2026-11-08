@@ -50,8 +50,22 @@ Three more env vars matter beyond the database:
 
 ## Schema + seed data run automatically on every build
 
-The `build` script (`package.json`) chains `prisma db push` and `bun run
-scripts/seed.ts` before `next build`. Vercel's build environment has normal
+The `build` script (`package.json`) runs `prisma db push`, then
+`scripts/build-maintenance.ts` (the seed plus the data backfills), before
+`next build`.
+
+`prisma db push` runs **without** `--accept-data-loss`: a schema change
+that would drop a column, table or data (or add a unique constraint over
+existing duplicates) stops the deploy instead of silently deleting data.
+To make such a change deliberately, back up the database, run
+`bun run db:push:accept-data-loss` against it yourself, then redeploy.
+
+`scripts/build-maintenance.ts` runs each step in order and reports its
+time. Recurring catch-ups (galley re-rendering, provenance seals, citation
+metrics, retention purges) run on every deploy; one-time historical
+backfills run once and are recorded in the `MaintenanceRun` table so later
+deploys never re-apply them to new data. Only the seed is required — any
+other failing step is logged and the deploy continues. Vercel's build environment has normal
 internet access (unlike, say, a network-restricted sandbox trying to reach
 the database directly), so this runs cleanly there with no manual step.
 `scripts/seed.ts` checks for an existing `Journal` row first and exits

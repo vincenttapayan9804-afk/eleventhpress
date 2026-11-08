@@ -2704,3 +2704,10 @@ model ResearchFeedback {
   @@index([rating, createdAt])
   @@index([createdAt])
 }
+
+// One-time build maintenance steps that have completed (scripts/build-maintenance.ts),
+// so a backfill meant to run once is never re-applied on later deploys.
+model MaintenanceRun {
+  name        String   @id
+  completedAt DateTime @default(now())
+}

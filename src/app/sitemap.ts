@@ -5,6 +5,7 @@ import { APP_BASE_URL } from "@/lib/site";
 import { resolveTenantFromHeaders } from "@/lib/tenant";
 import { withTenantRlsContext } from "@/lib/db-rls";
 import { BLOGS, GUIDES } from "@/lib/resources-content";
+import { articlePath, SITEMAP_PATHS } from "@/lib/spa-routes";
 
 // Next.js treats sitemap.ts as a static metadata route by default and
 // tries to prerender it at build time — this environment (like the rest of
@@ -22,17 +23,16 @@ export const dynamic = "force-dynamic";
  * have actively pointed crawlers at dead links).
  *
  * Also lists the server-rendered Resources blog posts and guides
- * (src/app/resources/...). The rest of this app (browse, about, dashboard,
- * etc.) is a client-side SPA view-switch under "/" with no distinct URL per
- * view (see src/app/page.tsx) — nothing to list here for those until that
- * changes.
+ * (src/app/resources/...) and the public pages of the single-page site
+ * (/articles, /about, ... — src/lib/spa-routes.ts), each of which now has
+ * its own URL.
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const tenant = await resolveTenantFromHeaders(await headers());
   const articles = await withTenantRlsContext(tenant?.id ?? null, (tx) =>
     tx.article.findMany({
       where: { status: "PUBLISHED" },
-      select: { id: true, publishedAt: true },
+      select: { id: true, title: true, publishedAt: true },
       orderBy: { publishedAt: "desc" },
     })
   );
@@ -40,6 +40,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return [
     { url: APP_BASE_URL, changeFrequency: "daily", priority: 1 },
     { url: `${APP_BASE_URL}/cookie-policy`, changeFrequency: "yearly", priority: 0.2 },
+    ...SITEMAP_PATHS.map((path) => ({
+      url: `${APP_BASE_URL}${path}`,
+      changeFrequency: (path === "/articles" ? "daily" : "monthly") as "daily" | "monthly",
+      priority: path === "/articles" ? 0.9 : 0.5,
+    })),
     // Resources blog posts and official guides (server-rendered pages).
     ...BLOGS.map((b) => ({
       url: `${APP_BASE_URL}/resources/blog/${b.slug}`,
@@ -54,7 +59,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.7,
     })),
     ...articles.map((a) => ({
-      url: `${APP_BASE_URL}/article/${a.id}`,
+      url: `${APP_BASE_URL}${articlePath(a.id, a.title)}`,
       lastModified: a.publishedAt ?? undefined,
       changeFrequency: "monthly" as const,
       priority: 0.8,

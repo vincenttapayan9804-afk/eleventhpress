@@ -1,5 +1,6 @@
 "use client";
 
+import { SpaLink } from "@/components/spa-link";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useApp } from "@/lib/store";
@@ -88,7 +89,7 @@ export function SiteHeader() {
               Now always visible; the wrapper can shrink+truncate (instead
               of the whole button being flex-shrink-0) so on the tightest
               screens it degrades to an ellipsis rather than overflowing. */}
-          <button onClick={() => setView("home")} className="flex min-w-0 items-center gap-2.5 text-left group sm:gap-3">
+          <SpaLink to={{ view: "home" }} onNavigate={() => setView("home")} className="flex min-w-0 items-center gap-2.5 text-left group sm:gap-3">
             {branding.logoUrl ? (
               <img
                 src={branding.logoUrl}
@@ -109,17 +110,18 @@ export function SiteHeader() {
                 {branding.tagline || (branding.isPlatform ? tHeader("brandTagline") : "Research Platform")}
               </span>
             </span>
-          </button>
+          </SpaLink>
 
           {/* Desktop nav */}
           <nav className="hidden min-w-0 flex-1 flex-wrap items-center justify-center gap-x-3.5 gap-y-1.5 px-2 xl:flex 2xl:gap-x-5">
-            <button
-              onClick={() => setView("home")}
+            <SpaLink
+              to={{ view: "home" }}
+              onNavigate={() => setView("home")}
               data-active={view === "home"}
               className="nav-underline flex-shrink-0 whitespace-nowrap font-sans text-[0.83rem] font-medium text-foreground/80 hover:text-foreground transition-colors 2xl:text-sm"
             >
               {t("home")}
-            </button>
+            </SpaLink>
 
             {/* Publications dropdown — replaces the old flat "Articles"
                 link so Journal Articles and Books can share one nav slot. */}
@@ -132,32 +134,36 @@ export function SiteHeader() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="glass-strong">
                 {PUBLICATIONS_ITEMS.map((item) => (
-                  <DropdownMenuItem key={item.view} onClick={() => setView(item.view)}>
-                    {item.label}
+                  <DropdownMenuItem key={item.view} asChild>
+                    <SpaLink to={{ view: item.view }} onNavigate={() => setView(item.view)}>
+                      {item.label}
+                    </SpaLink>
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
 
             {NAV_ITEMS.filter((item) => item.view !== "home").map((item) => (
-              <button
+              <SpaLink
                 key={item.view}
-                onClick={() => setView(item.view)}
+                to={{ view: item.view }}
+                onNavigate={() => setView(item.view)}
                 data-active={view === item.view || (item.view === "resources" && view === "resourcePage")}
                 data-testid={`nav-${item.view}`}
                 className="nav-underline flex-shrink-0 whitespace-nowrap font-sans text-[0.83rem] font-medium text-foreground/80 hover:text-foreground transition-colors 2xl:text-sm"
               >
                 {item.label}
-              </button>
+              </SpaLink>
             ))}
             {user && (
-              <button
-                onClick={() => openDashboard("overview")}
+              <SpaLink
+                to={{ view: "dashboard" }}
+                onNavigate={() => openDashboard("overview")}
                 data-active={view === "dashboard"}
                 className="nav-underline flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap font-sans text-[0.83rem] font-medium text-foreground/80 hover:text-foreground transition-colors 2xl:text-sm"
               >
                 <LayoutDashboard className="h-3.5 w-3.5" /> {t("dashboard")}
-              </button>
+              </SpaLink>
             )}
           </nav>
 
@@ -241,35 +247,38 @@ export function SiteHeader() {
                   </SheetTitle>
                 </SheetHeader>
                 <nav className="mt-6 flex flex-col gap-1">
-                  <button
-                    onClick={() => { setView("home"); setMobileNavOpen(false); }}
+                  <SpaLink
+                    to={{ view: "home" }}
+                    onNavigate={() => { setView("home"); setMobileNavOpen(false); }}
                     className="rounded-md px-3 py-2 text-left font-sans text-sm font-medium hover:bg-[var(--royal-100)] transition-colors"
                   >
                     {t("home")}
-                  </button>
+                  </SpaLink>
 
                   {/* Publications group */}
                   <p className="mt-2 px-3 text-[0.65rem] font-semibold uppercase tracking-wider text-muted-foreground">
                     {t("publications")}
                   </p>
                   {PUBLICATIONS_ITEMS.map((item) => (
-                    <button
+                    <SpaLink
                       key={item.view}
-                      onClick={() => { setView(item.view); setMobileNavOpen(false); }}
+                      to={{ view: item.view }}
+                      onNavigate={() => { setView(item.view); setMobileNavOpen(false); }}
                       className="rounded-md px-3 py-2 pl-5 text-left font-sans text-sm font-medium hover:bg-[var(--royal-100)] transition-colors"
                     >
                       {item.label}
-                    </button>
+                    </SpaLink>
                   ))}
 
                   {NAV_ITEMS.filter((item) => item.view !== "home").map((item) => (
-                    <button
+                    <SpaLink
                       key={item.view}
-                      onClick={() => { setView(item.view); setMobileNavOpen(false); }}
+                      to={{ view: item.view }}
+                      onNavigate={() => { setView(item.view); setMobileNavOpen(false); }}
                       className="rounded-md px-3 py-2 text-left font-sans text-sm font-medium hover:bg-[var(--royal-100)] transition-colors"
                     >
                       {item.label}
-                    </button>
+                    </SpaLink>
                   ))}
                   {user && (
                     <button

@@ -1,3 +1,4 @@
+import { articlePath } from "@/lib/spa-routes";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { APP_BASE_URL } from "@/lib/site";
@@ -42,7 +43,7 @@ export async function GET(req: NextRequest) {
       authors: a.authors,
       doi: a.doi,
       publishedAt: a.publishedAt,
-      canonicalUrl: `${APP_BASE_URL}/article/${a.id}`,
+      canonicalUrl: `${APP_BASE_URL}${articlePath(a.id, a.title)}`,
     }))
   );
 

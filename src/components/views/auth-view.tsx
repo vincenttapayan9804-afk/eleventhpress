@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { enterWorkspaceIfNeeded, announceSessionChange } from "@/lib/workspace-client";
 import { useTranslations } from "next-intl";
-import { useApp } from "@/lib/store";
+import { takeReturnTab, useApp } from "@/lib/store";
 import { apiFetch } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -58,7 +58,7 @@ export function AuthView() {
     if (!params.has("forgot")) return;
     params.delete("forgot");
     const rest = params.toString();
-    window.history.replaceState({}, "", rest ? `/?${rest}` : "/");
+    window.history.replaceState({}, "", rest ? `${window.location.pathname}?${rest}` : window.location.pathname);
   }, []);
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotSentTo, setForgotSentTo] = useState<string | null>(null);
@@ -102,7 +102,7 @@ export function AuthView() {
       toast.success(`Welcome back, ${res.user.fullName.split(" ")[0]}`);
       announceSessionChange();
       if (enterWorkspaceIfNeeded(res.user)) return;
-      openDashboard("overview");
+      openDashboard(takeReturnTab());
     } catch (e: any) {
       toast.error("Sign in failed", { description: e.message });
     } finally {
@@ -145,7 +145,7 @@ export function AuthView() {
       toast.success(`Welcome back, ${res.user.fullName.split(" ")[0]}`);
       announceSessionChange();
       if (enterWorkspaceIfNeeded(res.user)) return;
-      openDashboard("overview");
+      openDashboard(takeReturnTab());
     } catch (e: any) {
       toast.error("Verification failed", { description: e.message });
     } finally {

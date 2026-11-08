@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/lib/store";
+import { pathForState } from "@/lib/spa-routes";
 import { I18nProvider } from "@/components/i18n-provider";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
@@ -23,7 +24,7 @@ export function ResourcePageShell({ tab, children }: { tab: "blogs" | "guides"; 
   useEffect(() => {
     useApp.setState({ view: "resourcePage", resourcesTab: tab });
     const unsubscribe = useApp.subscribe((s, prev) => {
-      if (s.view !== prev.view && s.view !== "resourcePage") router.push("/");
+      if (s.view !== prev.view && s.view !== "resourcePage") router.push(pathForState(s) ?? "/");
     });
     return () => {
       unsubscribe();
