@@ -137,6 +137,12 @@ export function DashboardView() {
 
   useEffect(() => {
     if (!user) {
+      // Come back to the tab that was asked for once signed in.
+      const asked = useApp.getState().dashboardTab;
+      if (asked !== "overview") useApp.setState({ returnTab: asked });
+      // Replace (not push) the dashboard address, so Back doesn't land on
+      // it and bounce straight back to sign-in.
+      window.history.replaceState(null, "", "/login");
       setView("login");
       return;
     }

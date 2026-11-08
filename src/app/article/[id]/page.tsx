@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
+import { articleIdFromSegment, articlePath } from "@/lib/spa-routes";
 import { db } from "@/lib/db";
 import { presignGet } from "@/lib/storage";
 import { parseAuthors, formatCitation } from "@/lib/article";
@@ -33,11 +34,19 @@ import { ArticleRouteBootstrap } from "@/components/article-route-bootstrap";
  * once the client hydrates (see ArticleRouteBootstrap).
  */
 
-async function getPublishedArticle(id: string) {
-  const article = await db.article.findUnique({
-    where: { id },
-    include: { journal: true, issue: true },
-  });
+// The URL segment is either the bare id (DOIs, feeds, provenance records,
+// older links) or the readable "<title-slug>--<id>" form (spa-routes.ts).
+async function findArticle(segment: string) {
+  const include = { journal: true, issue: true } as const;
+  const raw = decodeURIComponent(segment);
+  return (
+    (await db.article.findUnique({ where: { id: raw }, include })) ??
+    (raw.includes("--") ? await db.article.findUnique({ where: { id: articleIdFromSegment(segment) }, include }) : null)
+  );
+}
+
+async function getPublishedArticle(segment: string) {
+  const article = await findArticle(segment);
   if (!article || article.status !== "PUBLISHED") return null;
   return article;
 }
@@ -45,12 +54,18 @@ async function getPublishedArticle(id: string) {
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
   const article = await getPublishedArticle(id);
-  if (!article) return { title: "Article not found" };
+  if (!article) {
+    // Not public (a draft or a manuscript under review): the page still
+    // opens for a signed-in author or editor, whose session the client
+    // checks, but nothing about it is rendered or indexed.
+    const any = await findArticle(id);
+    return any ? { title: "Article", robots: { index: false, follow: false } } : { title: "Article not found" };
+  }
 
   const authors = parseAuthors(article.authors);
   const authorNames = authors.map((a) => a.name).filter(Boolean);
   const summary = (article.laySummary || article.abstract).slice(0, 300);
-  const canonicalUrl = `${APP_BASE_URL}/article/${article.id}`;
+  const canonicalUrl = `${APP_BASE_URL}${articlePath(article.id, article.title)}`;
 
   const other: Record<string, string | string[]> = {
     citation_title: article.title,
@@ -96,7 +111,29 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 export default async function ArticlePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const article = await getPublishedArticle(id);
-  if (!article) notFound();
+  if (!article) {
+    const unpublished = await findArticle(id);
+    if (!unpublished) notFound();
+    return (
+      <I18nProvider>
+        <div className="min-h-dvh flex flex-col bg-background">
+          <SiteHeader />
+          <main className="flex-1">
+            <ArticleRouteBootstrap articleId={unpublished.id}>
+              <div className="min-h-[50vh]" aria-busy="true" />
+            </ArticleRouteBootstrap>
+          </main>
+          <SiteFooter />
+          <Toaster richColors position="top-right" />
+        </div>
+      </I18nProvider>
+    );
+  }
+  // One address per article: old /article/<id> links land on the readable one.
+  const canonicalPath = articlePath(article.id, article.title);
+  if (`/article/${id}` !== canonicalPath && decodeURIComponent(`/article/${id}`) !== decodeURIComponent(canonicalPath)) {
+    permanentRedirect(canonicalPath);
+  }
 
   const authors = parseAuthors(article.authors);
   const authorNames = authors.map((a) => a.name).filter(Boolean).join(", ") || "the authors";
@@ -148,7 +185,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ id: st
       name: article.journal?.publisher || "Eleventh Press International Publishing",
     },
     identifier: article.doi ? `https://doi.org/${article.doi}` : undefined,
-    url: `${APP_BASE_URL}/article/${article.id}`,
+    url: `${APP_BASE_URL}${articlePath(article.id, article.title)}`,
     inLanguage: ARTICLE_LANGUAGE,
   };
 

@@ -117,6 +117,9 @@ interface AppState {
   mediaPostId: string | null;
   departmentSlug: string | null;
   dashboardTab: DashboardTab;
+  /** Dashboard tab a signed-out visitor asked for (a /dashboard/... link),
+   * opened once they sign in. */
+  returnTab: DashboardTab | null;
   reviewId: string | null;
   /** Active tab of the Resources view, so returning from a blog post or
    * guide page lands back on the tab the reader came from. */
@@ -152,6 +155,13 @@ interface AppState {
   setLocale: (l: Locale) => void;
 }
 
+/** The dashboard tab to open after signing in (see AppState.returnTab). */
+export function takeReturnTab(): DashboardTab {
+  const tab = useApp.getState().returnTab;
+  useApp.setState({ returnTab: null });
+  return tab ?? "overview";
+}
+
 export const useApp = create<AppState>()(
   persist(
     (set) => ({
@@ -161,6 +171,7 @@ export const useApp = create<AppState>()(
       mediaPostId: null,
       departmentSlug: null,
       dashboardTab: "overview",
+      returnTab: null,
       reviewId: null,
       resourcesTab: "trainings",
       setView: (v) => set({ view: v }),

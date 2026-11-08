@@ -1,5 +1,6 @@
 "use client";
 
+import { articlePath } from "@/lib/spa-routes";
 import { useEffect, useState } from "react";
 import { useApp } from "@/lib/store";
 import { apiFetch } from "@/lib/api-client";
@@ -187,6 +188,11 @@ export function ArticleView() {
     apiFetch<ArticleDetail>(`/api/articles/${articleId}`)
       .then((a) => {
         setArticle(a);
+        // Show the readable /article/<title>--<id> address (spa-routes.ts).
+        if (window.location.pathname.startsWith("/article/")) {
+          const readable = articlePath(a.id, a.title);
+          if (window.location.pathname !== readable) window.history.replaceState(null, "", readable);
+        }
         // Fetch correction/retraction history
         apiFetch<{ corrections: any[] }>(`/api/articles/${articleId}/corrections`)
           .then((r) => setCorrections(r.corrections || []))
@@ -1580,7 +1586,7 @@ function HeadMetas({ article, authors }: { article: ArticleDetail; authors: any[
     if (article.doi) push("citation_doi", article.doi);
     // window.location.origin (not a hardcoded domain) so this is always
     // correct for whatever host is actually serving the page.
-    push("citation_abstract_html_url", `${window.location.origin}/article/${article.id}`);
+    push("citation_abstract_html_url", `${window.location.origin}${articlePath(article.id, article.title)}`);
 
     // Published-article galleys are now genuinely public (no auth wall —
     // see the updated /api/articles/[id]/galley route), so this can safely
