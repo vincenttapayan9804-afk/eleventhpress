@@ -11,7 +11,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Newspaper, Plus, Loader2, ChevronDown, ChevronUp, Trash2, Rocket, CheckCircle2 } from "lucide-react";
+import {
+  Newspaper,
+  Plus,
+  Loader2,
+  ChevronDown,
+  ChevronUp,
+  Trash2,
+  CheckCircle2,
+  BookCheck,
+} from "lucide-react";
 import { MAGAZINE_PLATFORMS } from "@/lib/magazine-distribution";
 
 const ISSUE_STATUS_BADGE: Record<string, string> = {
@@ -239,7 +248,7 @@ function IssueDetail({ issueId, onChanged }: { issueId: string; onChanged: () =>
       <div className="flex flex-wrap gap-2">
         {issue.status === "DRAFT" && (
           <Button disabled={workflowBusy || issue.pieces.length === 0} onClick={() => runWorkflow("SEND_TO_PRODUCTION")}>
-            {workflowBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Rocket className="mr-2 h-4 w-4" />} Compile EPUB/PDF
+            {workflowBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BookCheck className="mr-2 h-4 w-4" />} Compile EPUB/PDF
           </Button>
         )}
         {issue.status === "IN_PRODUCTION" && (

@@ -13,7 +13,6 @@ import {
   Search,
   AlertTriangle,
   Mail,
-  Lightbulb,
   Eye,
   Compass,
   ClipboardCheck,
@@ -22,11 +21,12 @@ import {
   UserCheck,
   Ban,
   HandCoins,
-  Cpu,
   Microscope,
   Quote,
   FileText,
   BookOpen,
+  Server,
+  GraduationCap,
 } from "lucide-react";
 
 /**
@@ -138,7 +138,7 @@ export function PoliciesView() {
                 desc="Authors must transparently disclose all financial, personal, or sponsor-related competing interests."
               />
               <PolicyItem
-                icon={Cpu}
+                icon={Server}
                 title="Generative AI disclosure"
                 desc="Authors must follow the press's AI disclosure policy for any use of generative AI in writing, data, or image generation."
               />
@@ -167,7 +167,7 @@ export function PoliciesView() {
           <CardContent className="p-6">
             <div className="grid gap-4 sm:grid-cols-2">
               <PolicyItem
-                icon={Lightbulb}
+                icon={GraduationCap}
                 title="Academic contribution"
                 desc="The work must offer a distinct contribution to the field."
               />

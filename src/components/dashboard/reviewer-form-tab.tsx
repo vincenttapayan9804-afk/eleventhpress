@@ -31,8 +31,8 @@ import {
   ShieldAlert,
   FileText,
   CheckCircle2,
-  Sparkles,
   X,
+  ScanSearch,
 } from "lucide-react";
 
 interface Props {
@@ -281,7 +281,7 @@ export function ReviewerFormTab({ reviewId, onRefresh }: Props) {
               {checkingAi ? (
                 <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
               ) : (
-                <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                <ScanSearch className="mr-1.5 h-3.5 w-3.5" />
               )}
               AI check — anything missing?
             </Button>

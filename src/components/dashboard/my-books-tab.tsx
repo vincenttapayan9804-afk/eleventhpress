@@ -35,7 +35,6 @@ import {
   FileCheck2,
   ChevronDown,
   ChevronUp,
-  Sparkles,
   Copy,
   CheckCircle2,
   Link as LinkIcon,
@@ -43,6 +42,7 @@ import {
   Lock,
   DollarSign,
   Trash2,
+  Package,
 } from "lucide-react";
 import { BOOK_PLATFORMS, type BookDistributionPackage } from "@/lib/book-distribution";
 import { DISTRIBUTION_PACKAGE_BOOK_USD } from "@/lib/pricing";
@@ -187,7 +187,7 @@ function BookDistribution({ book }: { book: any }) {
                   </Button>
                 ) : (
                   <Button size="sm" variant="outline" disabled={!canGenerate} onClick={() => generate(item.platform, consentChecked[item.platform])}>
-                    <Sparkles className="mr-1.5 h-3.5 w-3.5" /> {item.id ? "Regenerate" : "Generate"} package
+                    <Package className="mr-1.5 h-3.5 w-3.5" /> {item.id ? "Regenerate" : "Generate"} package
                   </Button>
                 )}
                 {pkg && (

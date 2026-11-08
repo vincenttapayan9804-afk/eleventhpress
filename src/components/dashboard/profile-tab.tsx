@@ -35,7 +35,7 @@ import {
   GraduationCap,
   Copy,
   Users,
-  Trophy,
+  Award,
 } from "lucide-react";
 
 interface Profile {
@@ -664,7 +664,7 @@ export function ProfileTab() {
               </div>
               {referral.milestone && (
                 <Badge variant="outline" className="gap-1 border-primary/30 bg-primary/5 text-primary">
-                  <Trophy className="h-3 w-3" /> {referral.milestone}
+                  <Award className="h-3 w-3" /> {referral.milestone}
                 </Badge>
               )}
             </div>

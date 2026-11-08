@@ -41,7 +41,6 @@ import {
   ArrowRight,
   Loader2,
   PenSquare,
-  Sparkles,
   XCircle,
   Send,
   Users,
@@ -53,6 +52,8 @@ import {
   Trash2,
   ExternalLink,
   Plus,
+  BookCheck,
+  Printer,
 } from "lucide-react";
 
 interface Props {
@@ -66,8 +67,8 @@ const ACTIONS: { key: string; label: string; target: ArticleStatus; icon: any; c
   { key: "REQUEST_REVISIONS", label: "Request revisions", target: "REVISIONS_REQUIRED", icon: PenSquare, color: "outline" },
   { key: "ACCEPT", label: "Accept", target: "ACCEPTED", icon: CheckCircle2, color: "default" },
   { key: "REJECT", label: "Reject", target: "REJECTED", icon: XCircle, color: "destructive" },
-  { key: "SEND_TO_PRODUCTION", label: "Send to production", target: "IN_PRODUCTION", icon: Sparkles, color: "default" },
-  { key: "PUBLISH", label: "Publish & index", target: "PUBLISHED", icon: Sparkles, color: "default" },
+  { key: "SEND_TO_PRODUCTION", label: "Send to production", target: "IN_PRODUCTION", icon: Printer, color: "default" },
+  { key: "PUBLISH", label: "Publish & index", target: "PUBLISHED", icon: BookCheck, color: "default" },
 ];
 
 export function EditorQueueTab({ queue, stats, onRefresh }: Props) {

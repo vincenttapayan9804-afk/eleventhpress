@@ -23,18 +23,15 @@ import {
   Quote,
   Scale,
   Microscope,
-  Cpu,
   Landmark,
   Workflow,
   Database,
-  Cloud,
   Bell,
   CreditCard,
   Search,
   Share2,
   AlertTriangle,
   Mail,
-  Lightbulb,
   Eye,
   Compass,
   ClipboardCheck,
@@ -48,7 +45,9 @@ import {
   Lock,
   RefreshCw,
   EyeOff,
-  Sparkles,
+  ScanSearch,
+  Server,
+  GraduationCap,
 } from "lucide-react";
 
 interface BoardCitationMetrics {
@@ -288,7 +287,7 @@ export function AboutView() {
             <Separator className="my-4" />
             <div className="grid gap-4 sm:grid-cols-2">
               <IndexItem
-                icon={Lightbulb}
+                icon={GraduationCap}
                 title="Academic contribution"
                 desc="The work must offer a distinct contribution to the field."
               />
@@ -355,7 +354,7 @@ export function AboutView() {
                 desc="Authors must transparently disclose all financial, personal, or sponsor-related competing interests."
               />
               <IndexItem
-                icon={Cpu}
+                icon={Server}
                 title="Generative AI"
                 desc="Authors must follow the press's AI disclosure policy for any use of generative AI in writing, data, or image generation."
               />
@@ -417,7 +416,7 @@ export function AboutView() {
                 desc="Authors are ethically obligated to notify the editor of a significant error and cooperate fully with any correction or retraction."
               />
               <IndexItem
-                icon={Sparkles}
+                icon={ScanSearch}
                 title="AI-assisted integrity screening"
                 desc="Plagiarism screening, statistical sanity checks, and citation validation run alongside human review — built to catch what a manual read misses, never to replace the reviewer's judgment."
               />

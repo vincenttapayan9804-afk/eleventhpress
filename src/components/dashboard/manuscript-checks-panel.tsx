@@ -19,7 +19,6 @@ import {
   BarChart3,
   BookOpen,
   CheckCircle2,
-  Sparkles,
   Tag,
   ExternalLink,
   ImageIcon,
@@ -27,6 +26,7 @@ import {
   SpellCheck2,
   Table2,
   Download,
+  FileText,
 } from "lucide-react";
 
 interface SimilarityMatch {
@@ -520,7 +520,7 @@ export function ManuscriptChecksPanel({ articleId }: Props) {
         {/* AI lay summary + keywords */}
         <div>
           <div className="flex items-center justify-between">
-            <p className="eyebrow flex items-center gap-1"><Sparkles className="h-3 w-3" /> AI lay summary + keywords</p>
+            <p className="eyebrow flex items-center gap-1"><FileText className="h-3 w-3" /> AI lay summary + keywords</p>
             <Button size="sm" variant="outline" onClick={runAiAssist} disabled={loading === "ai-assist"}>
               {loading === "ai-assist" ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
             </Button>

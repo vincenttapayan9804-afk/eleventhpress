@@ -18,8 +18,7 @@ import {
   GraduationCap,
   Award,
   Briefcase,
-  Crown,
-  Sparkles,
+  PenLine,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { toast } from "sonner";
@@ -59,13 +58,13 @@ const APPLICATION_TIERS = [
     value: "EXPERT_CONTRIBUTOR",
     label: "Council of Experts — Contributor",
     description: "Publish one-off Expert Insight pieces in your field.",
-    icon: Sparkles,
+    icon: PenLine,
   },
   {
     value: "EXPERT_COUNCIL_MEMBER",
     label: "Council of Experts — Council Member",
     description: "A committed expert providing recurring monthly insights, the platform's most prestigious contributor tier.",
-    icon: Crown,
+    icon: Award,
   },
 ];
 
@@ -347,7 +346,7 @@ export function ApplicationTab({ onRefresh }: Props) {
       <Card className="paper-card">
         <CardHeader className="pb-3">
           <div className="flex items-center gap-2">
-            {isExpertTier ? <Crown className="h-4 w-4 text-primary" /> : <Briefcase className="h-4 w-4 text-primary" />}
+            {isExpertTier ? <Award className="h-4 w-4 text-primary" /> : <Briefcase className="h-4 w-4 text-primary" />}
             <p className="eyebrow">{isExpertTier ? "Prestige Application — Vetting Details" : "Qualifications & Documents"}</p>
           </div>
           <p className="text-xs text-muted-foreground">

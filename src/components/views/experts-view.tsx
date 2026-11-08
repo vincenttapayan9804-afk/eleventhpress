@@ -29,8 +29,6 @@ import {
   Eye,
   Share2,
   Users,
-  Crown,
-  Sparkles,
   BadgeCheck,
   Loader2,
   Globe2,
@@ -44,6 +42,7 @@ import {
   MessageCircleQuestion,
   Send,
   Filter,
+  Award,
 } from "lucide-react";
 import { INSIGHT_CATEGORIES, INSIGHT_CATEGORY_LABELS, type InsightCategory } from "@/lib/article";
 import { toast } from "sonner";
@@ -196,7 +195,7 @@ export function ExpertsView() {
             <ShieldCheck className="mr-1.5 h-4 w-4" /> {t("charterCta")}
           </Button>
           <Button onClick={() => (user ? openDashboard("application") : setView("login"))}>
-            <Crown className="mr-1.5 h-4 w-4" /> {t("applyCta")}
+            <Award className="mr-1.5 h-4 w-4" /> {t("applyCta")}
           </Button>
         </div>
       </div>
@@ -231,7 +230,7 @@ export function ExpertsView() {
                 </p>
                 {featured.expertTier && (
                   <span className="inline-flex items-center gap-1 rounded-full border border-white/30 bg-white/10 px-2 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wide text-white/90">
-                    {featured.expertTier === "COUNCIL_MEMBER" && <Crown className="h-3 w-3" />}
+                    {featured.expertTier === "COUNCIL_MEMBER" && <Award className="h-3 w-3" />}
                     {TIER_LABELS[featured.expertTier]}
                   </span>
                 )}
@@ -286,7 +285,7 @@ export function ExpertsView() {
                 <div className="absolute inset-0 bg-gradient-to-t from-[oklch(0.16_0.06_295/0.9)] via-transparent to-transparent" />
                 {e.expertTier === "COUNCIL_MEMBER" && (
                   <div className="absolute right-2 top-2 rounded-full bg-white/15 p-1 backdrop-blur-sm">
-                    <Crown className="h-3.5 w-3.5 text-white" />
+                    <Award className="h-3.5 w-3.5 text-white" />
                   </div>
                 )}
                 <div className="absolute inset-x-0 bottom-0 p-3 text-left">
@@ -356,7 +355,7 @@ export function ExpertsView() {
 
       {experts !== null && experts.length === 0 && (
         <div className="mt-16 text-center">
-          <Crown className="mx-auto h-10 w-10 text-muted-foreground/50" />
+          <Award className="mx-auto h-10 w-10 text-muted-foreground/50" />
           <p className="mt-3 font-display text-lg font-semibold">{t("noExpertsFound")}</p>
           <p className="mt-1 text-sm text-muted-foreground">{t("noExpertsHint")}</p>
         </div>
@@ -392,7 +391,7 @@ export function ExpertsView() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <p className="truncate font-display text-base font-semibold">{e.name}</p>
-                    {e.expertTier === "COUNCIL_MEMBER" && <Crown className="h-3.5 w-3.5 shrink-0 text-[oklch(0.55_0.16_80)]" />}
+                    {e.expertTier === "COUNCIL_MEMBER" && <Award className="h-3.5 w-3.5 shrink-0 text-[oklch(0.55_0.16_80)]" />}
                   </div>
                   <p className="truncate text-xs text-muted-foreground">{e.profession || t("noProfession")}</p>
                   <div className="mt-1 flex flex-wrap gap-1 sm:hidden">
@@ -439,7 +438,7 @@ export function ExpertsView() {
                       <DialogTitle className="font-display text-lg">{selected.name}</DialogTitle>
                       {selected.expertTier && (
                         <Badge variant="outline" className="gap-1 text-[0.6rem]">
-                          {selected.expertTier === "COUNCIL_MEMBER" && <Crown className="h-3 w-3" />}
+                          {selected.expertTier === "COUNCIL_MEMBER" && <Award className="h-3 w-3" />}
                           {TIER_LABELS[selected.expertTier]}
                         </Badge>
                       )}

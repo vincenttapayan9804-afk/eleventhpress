@@ -7,8 +7,6 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Crown,
-  Sparkles,
   FileText,
   Eye,
   Users,
@@ -18,6 +16,7 @@ import {
   Loader2,
   ArrowRight,
   ShieldCheck,
+  FilePlus2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -116,7 +115,7 @@ export function ExpertDashboardTab() {
           <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="eyebrow flex items-center gap-1.5">
-                {tier === "COUNCIL_MEMBER" && <Crown className="h-3.5 w-3.5" />}
+                {tier === "COUNCIL_MEMBER" && <Award className="h-3.5 w-3.5" />}
                 Council of Experts {tier ? `· ${TIER_LABELS[tier] || tier}` : ""}
               </p>
               <h2 className="mt-1 font-display text-2xl font-semibold">
@@ -127,7 +126,7 @@ export function ExpertDashboardTab() {
               </p>
             </div>
             <Button onClick={() => openDashboard("submit")}>
-              <Sparkles className="mr-1.5 h-4 w-4" /> Submit an Insight
+              <FilePlus2 className="mr-1.5 h-4 w-4" /> Submit an Insight
             </Button>
           </div>
         </CardContent>
