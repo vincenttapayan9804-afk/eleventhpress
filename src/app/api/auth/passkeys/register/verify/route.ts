@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     select: { id: true, name: true, createdAt: true, lastUsedAt: true },
   });
   await db.auditLog.create({ data: { userId: session.userId, action: "PASSKEY_ADDED", entityType: "USER", entityId: session.userId } }).catch(() => {});
-  const user = await db.user.findUnique({ where: { id: session.userId }, select: { email: true, fullName: true, tenantId: true } });
+  const user = await db.user.findUnique({ where: { id: session.userId }, select: { id: true, email: true, fullName: true, tenantId: true } });
   if (user) await sendSecurityEmail(user, { kind: "passkey_added", name: passkey.name }).catch(() => {});
   const res = NextResponse.json({ passkey });
   clearChallenge(res);

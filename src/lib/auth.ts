@@ -52,10 +52,15 @@ export interface SessionPayload {
   // keep verifying — a decoded session missing it is treated as the
   // platform tenant by any code that starts relying on it in later phases.
   tenantId?: string;
+  /** Session id (one per sign-in), for the "where you're signed in" list. Absent on older tokens. */
+  sid?: string;
+  /** Issued-at, seconds since epoch (set by jwt). */
+  iat?: number;
 }
 
 export function signToken(payload: SessionPayload): string {
-  return jwt.sign(payload, SESSION_SECRET!, { expiresIn: TOKEN_TTL });
+  const { iat: _iat, ...rest } = payload;
+  return jwt.sign({ ...rest, sid: rest.sid ?? crypto.randomUUID() }, SESSION_SECRET!, { expiresIn: TOKEN_TTL });
 }
 
 export function verifyToken(token: string): SessionPayload | null {
