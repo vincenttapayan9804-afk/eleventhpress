@@ -1,7 +1,7 @@
 "use client";
 
 import { useApp } from "@/lib/store";
-import { enterWorkspaceIfNeeded } from "@/lib/workspace-client";
+import { enterWorkspaceIfNeeded, announceSessionChange } from "@/lib/workspace-client";
 import {
   Sheet,
   SheetContent,
@@ -99,6 +99,7 @@ export function AuthSheet() {
       toast.success(`Signed in as ${res.user.fullName}`, {
         description: `Role: ${res.user.role.replace(/_/g, " ")}`,
       });
+      announceSessionChange();
       if (enterWorkspaceIfNeeded(res.user)) return;
       openDashboard("overview");
     } catch (e: any) {

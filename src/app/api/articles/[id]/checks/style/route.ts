@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { canActOnArticle, OTHER_INSTITUTION_ERROR } from "@/lib/tenant-auth";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { checkHouseStyle } from "@/lib/manuscript-checks";
@@ -17,6 +18,7 @@ export async function GET(
     return NextResponse.json({ error: "Editor role required" }, { status: 403 });
   }
   const { id } = await params;
+  if (!(await canActOnArticle(session, id))) return NextResponse.json({ error: OTHER_INSTITUTION_ERROR }, { status: 403 });
   const article = await withRlsContext(session, (tx) =>
     tx.article.findUnique({
       where: { id },
@@ -49,6 +51,7 @@ export async function POST(
     return NextResponse.json({ error: "Editor role required" }, { status: 403 });
   }
   const { id } = await params;
+  if (!(await canActOnArticle(session, id))) return NextResponse.json({ error: OTHER_INSTITUTION_ERROR }, { status: 403 });
   const article = await withRlsContext(session, (tx) =>
     tx.article.findUnique({
       where: { id },

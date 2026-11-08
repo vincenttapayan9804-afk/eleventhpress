@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { canActOnArticle, OTHER_INSTITUTION_ERROR } from "@/lib/tenant-auth";
 import { db } from "@/lib/db";
 import { notify } from "@/lib/notify";
 import { getSessionFromHeaders } from "@/lib/auth";
@@ -48,6 +49,8 @@ export async function POST(
   }
 
   const { id } = await params;
+
+  if (!(await canActOnArticle(session, id))) return NextResponse.json({ error: OTHER_INSTITUTION_ERROR }, { status: 403 });
   const { type, title, description } = (await req.json()) as {
     type: CorrectionType;
     title: string;

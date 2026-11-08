@@ -61,3 +61,27 @@ export function isSameEditorialTenant(session: SessionPayload, articleTenantId: 
   if (!session.tenantId || !articleTenantId) return true;
   return session.tenantId === articleTenantId;
 }
+
+const EDITORIAL_TENANT_ROLES = new Set(["EDITOR", "ASSOCIATE_EDITOR", "TENANT_ADMIN"]);
+
+/**
+ * Tenant isolation for per-article editorial tools. An editorial session
+ * (EDITOR / ASSOCIATE_EDITOR / TENANT_ADMIN) may act only on articles of
+ * its own institution's journal; SUPER_ADMIN and every non-editorial role
+ * pass through (their access is decided by the route's own owner checks).
+ * A TENANT_ADMIN without a tenant is never allowed — it can't be confined.
+ * An unknown article passes, so the route's own 404 still applies.
+ */
+export async function canActOnArticle(session: SessionPayload | null | undefined, articleId: string): Promise<boolean> {
+  if (!session || session.role === "SUPER_ADMIN" || !EDITORIAL_TENANT_ROLES.has(session.role)) return true;
+  if (session.role === "TENANT_ADMIN" && !session.tenantId) return false;
+  const { db } = await import("./db");
+  const article = await db.article
+    .findUnique({ where: { id: articleId }, select: { journal: { select: { tenantId: true } } } })
+    .catch(() => null);
+  if (!article) return true;
+  return isSameEditorialTenant(session, article.journal?.tenantId ?? null);
+}
+
+/** 403 body for an article outside the caller's institution. */
+export const OTHER_INSTITUTION_ERROR = "This article belongs to another institution";

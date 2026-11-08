@@ -98,6 +98,8 @@ export async function POST(req: NextRequest) {
       avatarUrl: user.avatarUrl,
       tenantId: user.tenantId ?? null,
       mustChangePassword: user.mustChangePassword,
+      twoFactorEnabled: user.twoFactorEnabled,
+      emailVerifiedAt: user.emailVerifiedAt,
       workspace: await workspaceOf(user.tenantId),
     },
   });

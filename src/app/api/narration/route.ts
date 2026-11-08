@@ -11,7 +11,7 @@ import {
 } from "@/lib/kokoro-tts";
 
 const CONTENT_TYPES: NarrationContentType[] = ["ARTICLE", "MAGAZINE_PIECE", "MEDIA_POST"];
-const EDITORIAL_ROLES = ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN", "TENANT_ADMIN"];
+const EDITORIAL_ROLES = ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"];
 
 /**
  * POST /api/narration

@@ -34,3 +34,17 @@ export function leaveSessionWorkspace(): boolean {
   window.location.assign("/");
   return true;
 }
+
+/** BroadcastChannel name SessionSync listens on. */
+export const SESSION_CHANNEL = "ep-auth";
+
+/** Tells the browser's other tabs that the session changed (sign-in or sign-out). */
+export function announceSessionChange() {
+  try {
+    const c = new BroadcastChannel(SESSION_CHANNEL);
+    c.postMessage("changed");
+    c.close();
+  } catch {
+    /* unsupported */
+  }
+}

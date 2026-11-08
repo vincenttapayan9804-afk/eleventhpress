@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { canActOnArticle, OTHER_INSTITUTION_ERROR } from "@/lib/tenant-auth";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 
@@ -18,6 +19,7 @@ export async function DELETE(
   }
 
   const { id, articleId } = await params;
+  if (!(await canActOnArticle(session, articleId))) return NextResponse.json({ error: OTHER_INSTITUTION_ERROR }, { status: 403 });
   await db.collectionArticle
     .delete({ where: { collectionId_articleId: { collectionId: id, articleId } } })
     .catch(() => {});

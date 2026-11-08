@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { canActOnArticle, OTHER_INSTITUTION_ERROR } from "@/lib/tenant-auth";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 
@@ -19,6 +20,7 @@ export async function GET(req: NextRequest) {
     if (!["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN", "TENANT_ADMIN"].includes(session.role)) {
       return NextResponse.json({ error: "Editor role required" }, { status: 403 });
     }
+    if (!(await canActOnArticle(session, articleId))) return NextResponse.json({ error: OTHER_INSTITUTION_ERROR }, { status: 403 });
     const reviews = await db.review.findMany({
       where: { articleId },
       include: {

@@ -5,7 +5,7 @@ import { presignGet } from "@/lib/storage";
 import { KOKORO_VOICES, type NarrationContentType } from "@/lib/kokoro-tts";
 import { withRlsContext } from "@/lib/db-rls";
 
-const EDITORIAL_ROLES = ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN", "TENANT_ADMIN"];
+const EDITORIAL_ROLES = ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"];
 
 /**
  * GET /api/narration/candidates?contentType=ARTICLE&query=foo
