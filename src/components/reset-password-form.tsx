@@ -134,7 +134,7 @@ export function ResetPasswordForm() {
               <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-emerald-600 dark:text-emerald-400" />
               <p className="text-foreground">
                 Your password has been changed. Sign in with your new password
-                {state.twoFactorEnabled ? " and the code from your authenticator app" : ""}. We&apos;ve also emailed you a confirmation.
+                {state.twoFactorEnabled ? " and your two-factor code" : ""}. We&apos;ve also emailed you a confirmation.
               </p>
             </div>
             <Button asChild className="w-full">

@@ -68,7 +68,9 @@ async function main() {
       passwordHash: hashPassword(password),
       failedLoginCount: 0,
       lockedUntil: null,
-      ...(disable2fa ? { twoFactorEnabled: false, twoFactorSecret: null, twoFactorBackupCodes: null } : {}),
+      ...(disable2fa
+        ? { twoFactorEnabled: false, twoFactorSecret: null, twoFactorBackupCodes: null, twoFactorMethod: "TOTP", twoFactorEmailCodeHash: null, twoFactorEmailCodeExpiresAt: null }
+        : {}),
     },
   });
   await db.auditLog.create({

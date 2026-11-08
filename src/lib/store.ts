@@ -98,6 +98,7 @@ interface SessionUser {
   // first fetch resolves. src/components/mfa-gate.tsx and profile-tab.tsx's
   // 2FA confirm/disable handlers both read/write twoFactorEnabled here.
   twoFactorEnabled?: boolean;
+  twoFactorMethod?: "TOTP" | "EMAIL";
   emailVerifiedAt?: string | null;
   // Whitelabel: the tenant this account belongs to, and whether an
   // administrator issued a temporary password that must be changed first.
