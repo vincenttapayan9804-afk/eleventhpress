@@ -35,7 +35,15 @@ export async function POST(req: NextRequest) {
 
   await db.user.update({
     where: { id: session.userId },
-    data: { twoFactorEnabled: false, twoFactorSecret: null, twoFactorBackupCodes: null },
+    data: {
+      twoFactorEnabled: false,
+      twoFactorSecret: null,
+      twoFactorBackupCodes: null,
+      twoFactorMethod: "TOTP",
+      twoFactorEmailCodeHash: null,
+      twoFactorEmailCodeExpiresAt: null,
+      twoFactorEmailCodeAttempts: 0,
+    },
   });
 
   return NextResponse.json({ ok: true });

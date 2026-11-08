@@ -72,6 +72,8 @@ export function AuthView() {
   // Two-factor challenge step (only entered when login reports twoFactorRequired)
   const [pendingToken, setPendingToken] = useState<string | null>(null);
   const [twoFactorCode, setTwoFactorCode] = useState("");
+  const [twoFactorEmail, setTwoFactorEmail] = useState<{ sentTo: string; delivered: boolean } | null>(null);
+  const [resending, setResending] = useState(false);
 
   // Register form
   const [reg, setReg] = useState({
@@ -88,13 +90,18 @@ export function AuthView() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await apiFetch<{ user?: any; twoFactorRequired?: boolean; pendingToken?: string }>(
-        "/api/auth/login",
-        { method: "POST", body: JSON.stringify({ email: loginEmail, password: loginPassword }) }
-      );
+      const res = await apiFetch<{
+        user?: any;
+        twoFactorRequired?: boolean;
+        pendingToken?: string;
+        method?: "totp" | "email";
+        sentTo?: string;
+        emailDelivered?: boolean;
+      }>("/api/auth/login", { method: "POST", body: JSON.stringify({ email: loginEmail, password: loginPassword }) });
       if (res.twoFactorRequired && res.pendingToken) {
         setPendingToken(res.pendingToken);
         setTwoFactorCode("");
+        setTwoFactorEmail(res.method === "email" ? { sentTo: res.sentTo ?? "", delivered: !!res.emailDelivered } : null);
         return;
       }
       setAuth(res.user);
@@ -152,6 +159,24 @@ export function AuthView() {
     }
   }
 
+  async function resendTwoFactorEmail() {
+    if (!pendingToken) return;
+    setResending(true);
+    try {
+      const res = await apiFetch<{ sentTo: string }>("/api/auth/2fa/email/resend", {
+        method: "POST",
+        body: JSON.stringify({ pendingToken }),
+      });
+      setTwoFactorEmail({ sentTo: res.sentTo, delivered: true });
+      setTwoFactorCode("");
+      toast.success(`New code sent to ${res.sentTo}`);
+    } catch (e: any) {
+      toast.error("Couldn't send a new code", { description: e.message });
+    } finally {
+      setResending(false);
+    }
+  }
+
   async function submitRegister(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
@@ -188,7 +213,11 @@ export function AuthView() {
             </p>
             <h1 className="font-display text-2xl font-semibold text-primary">Enter your code</h1>
             <p className="text-sm text-muted-foreground">
-              Enter the 6-digit code from your authenticator app, or one of your backup codes.
+              {twoFactorEmail
+                ? twoFactorEmail.delivered
+                  ? `We emailed a 6-digit code to ${twoFactorEmail.sentTo}. It expires in 10 minutes.`
+                  : "We couldn't email your code just now. Send a new one, or use one of your backup codes."
+                : "Enter the 6-digit code from your authenticator app, or one of your backup codes."}
             </p>
           </CardHeader>
           <CardContent>
@@ -200,19 +229,27 @@ export function AuthView() {
                   autoFocus
                   required
                   value={twoFactorCode}
+                  autoComplete="one-time-code"
                   onChange={(e) => setTwoFactorCode(e.target.value)}
                   className="h-10 font-mono tracking-widest"
                   placeholder="123456"
                 />
                 <p className="text-[0.65rem] text-muted-foreground">
-                  Enter your 6-digit authenticator code, or a backup code (e.g. AB12C-D3E4F) if
-                  you've lost access to your device.
+                  {twoFactorEmail
+                    ? "Check your spam folder if it isn't in your inbox. A backup code (e.g. AB12C-D3E4F) also works."
+                    : "Enter your 6-digit authenticator code, or a backup code (e.g. AB12C-D3E4F) if you've lost access to your device."}
                 </p>
               </div>
               <Button type="submit" className="w-full" disabled={loading || twoFactorCode.length === 0}>
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Verify and sign in
               </Button>
+              {twoFactorEmail && (
+                <Button type="button" variant="ghost" size="sm" className="w-full" disabled={resending} onClick={resendTwoFactorEmail}>
+                  {resending ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
+                  Email me a new code
+                </Button>
+              )}
             </form>
           </CardContent>
         </Card>

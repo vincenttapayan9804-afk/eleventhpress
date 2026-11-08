@@ -7,6 +7,7 @@ import { extractRequestIp } from "@/lib/institutions";
 import { checkRateLimit } from "@/lib/ratelimit";
 import { isLocked, lockoutMinutesFor, minutesRemaining } from "@/lib/account-lockout";
 import { parseBody } from "@/lib/validate";
+import { issueEmailCode } from "@/lib/twofactor-email";
 
 // Not `.email()` — that would reject a request before we ever compare it
 // against an existing account, disclosing "well-formed vs not" for free.
@@ -101,9 +102,20 @@ export async function POST(req: NextRequest) {
       // Password alone is not enough — hand back a narrow, 5-minute
       // "pending" token that only /api/auth/2fa/challenge can redeem, and
       // no session cookie yet.
+      if (user.twoFactorMethod === "EMAIL") {
+        const sent = await issueEmailCode(user, "signin").catch(() => ({ delivered: false, sentTo: "" }));
+        return NextResponse.json({
+          twoFactorRequired: true,
+          pendingToken: signPendingTwoFactorToken(user.id),
+          method: "email",
+          sentTo: sent.sentTo,
+          emailDelivered: sent.delivered,
+        });
+      }
       return NextResponse.json({
         twoFactorRequired: true,
         pendingToken: signPendingTwoFactorToken(user.id),
+        method: "totp",
       });
     }
 
@@ -142,6 +154,7 @@ export async function POST(req: NextRequest) {
         // So the 2FA-required gate (MfaGate) applies straight after sign-in,
         // not only after the next page load re-reads /api/auth/me.
         twoFactorEnabled: user.twoFactorEnabled,
+        twoFactorMethod: user.twoFactorMethod,
         emailVerifiedAt: user.emailVerifiedAt,
         workspace: await workspaceOf(user.tenantId),
       },

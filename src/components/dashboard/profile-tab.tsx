@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { TwoFactorSetup } from "@/components/two-factor-setup";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PRIVILEGED_ROLES_LIST, ACADEMIC_STATUS_OPTIONS } from "@/lib/roles";
 import { toast } from "sonner";
@@ -28,7 +28,6 @@ import {
   Save,
   ShieldCheck,
   ShieldAlert,
-  KeyRound,
   Download,
   AlertOctagon,
   GraduationCap,
@@ -51,6 +50,7 @@ interface Profile {
   contactEmail: string | null;
   contactPhone: string | null;
   twoFactorEnabled: boolean;
+  twoFactorMethod?: "TOTP" | "EMAIL";
   emailVerifiedAt: string | null;
   departmentId: string | null;
   academicStatus: string | null;
@@ -96,9 +96,7 @@ export function ProfileTab() {
   const [verificationResent, setVerificationResent] = useState(false);
 
   // Two-factor authentication (TOTP)
-  const [twoFactorSetup, setTwoFactorSetup] = useState<{ secret: string; qrCode: string } | null>(null);
-  const [verifyCode, setVerifyCode] = useState("");
-  const [backupCodes, setBackupCodes] = useState<string[] | null>(null);
+  const [enrolling2fa, setEnrolling2fa] = useState(false);
   const [disablePassword, setDisablePassword] = useState("");
   const [showDisableForm, setShowDisableForm] = useState(false);
   const [twoFactorBusy, setTwoFactorBusy] = useState(false);
@@ -309,44 +307,6 @@ export function ProfileTab() {
     }
   }
 
-  async function startTwoFactorSetup() {
-    setTwoFactorBusy(true);
-    try {
-      const res = await apiFetch<{ secret: string; qrCode: string }>("/api/auth/2fa/setup", { method: "POST" });
-      setTwoFactorSetup(res);
-      setVerifyCode("");
-    } catch (e: any) {
-      toast.error("Couldn't start setup", { description: e.message });
-    } finally {
-      setTwoFactorBusy(false);
-    }
-  }
-
-  async function confirmTwoFactorSetup() {
-    if (verifyCode.length !== 6) return;
-    setTwoFactorBusy(true);
-    try {
-      const res = await apiFetch<{ backupCodes: string[] }>("/api/auth/2fa/confirm", {
-        method: "POST",
-        body: JSON.stringify({ token: verifyCode }),
-      });
-      setBackupCodes(res.backupCodes);
-      setTwoFactorSetup(null);
-      setVerifyCode("");
-      setProfile((p) => (p ? { ...p, twoFactorEnabled: true } : p));
-      // Also updates the global session user, not just this tab's own
-      // profile state — src/components/mfa-gate.tsx reads twoFactorEnabled
-      // off the global store to know when to stop blocking the dashboard,
-      // and shouldn't need a full page reload to notice this just happened.
-      if (user) setAuth({ ...user, twoFactorEnabled: true });
-      toast.success("Two-factor authentication enabled");
-    } catch (e: any) {
-      toast.error("Invalid code", { description: e.message });
-    } finally {
-      setTwoFactorBusy(false);
-    }
-  }
-
   async function disableTwoFactor(e: React.FormEvent) {
     e.preventDefault();
     setTwoFactorBusy(true);
@@ -355,8 +315,8 @@ export function ProfileTab() {
         method: "POST",
         body: JSON.stringify({ password: disablePassword }),
       });
-      setProfile((p) => (p ? { ...p, twoFactorEnabled: false } : p));
-      if (user) setAuth({ ...user, twoFactorEnabled: false });
+      setProfile((p) => (p ? { ...p, twoFactorEnabled: false, twoFactorMethod: "TOTP" } : p));
+      if (user) setAuth({ ...user, twoFactorEnabled: false, twoFactorMethod: "TOTP" });
       setShowDisableForm(false);
       setDisablePassword("");
       toast.success("Two-factor authentication disabled");
@@ -776,66 +736,32 @@ export function ProfileTab() {
           <p className="eyebrow">Security</p>
           <h3 className="font-display text-lg font-semibold">Two-factor authentication</h3>
           <p className="text-xs text-muted-foreground">
-            Adds a second step to sign-in — a 6-digit code from an authenticator app (Google
-            Authenticator, Authy, 1Password) — in addition to your password.
+            Adds a second step to sign-in — a 6-digit code emailed to you, or one from an
+            authenticator app — in addition to your password.
             {user && PRIVILEGED_ROLES_LIST.includes(user.role) && !profile.twoFactorEnabled && (
               <span className="ml-1 font-medium text-amber-700">Recommended for your role.</span>
             )}
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
-          {backupCodes ? (
-            <div className="space-y-3 rounded-md border border-amber-300 bg-amber-50 p-4">
-              <p className="flex items-center gap-1.5 text-sm font-semibold text-amber-900">
-                <KeyRound className="h-4 w-4" /> Save your backup codes
-              </p>
-              <p className="text-xs text-amber-800">
-                Each code can be used once to sign in if you lose access to your authenticator app.
-                They won't be shown again.
-              </p>
-              <div className="grid grid-cols-2 gap-1.5 font-mono text-xs sm:grid-cols-5">
-                {backupCodes.map((code) => (
-                  <span key={code} className="rounded border border-amber-300 bg-white px-2 py-1 text-center">
-                    {code}
-                  </span>
-                ))}
-              </div>
-              <Button type="button" size="sm" onClick={() => setBackupCodes(null)}>
-                I've saved these codes
-              </Button>
-            </div>
-          ) : twoFactorSetup ? (
-            <div className="space-y-3">
-              <p className="text-sm">Scan this QR code with your authenticator app, then enter the 6-digit code it shows.</p>
-              <img src={twoFactorSetup.qrCode} alt="Two-factor authentication QR code" className="h-40 w-40 rounded-md border border-border" />
-              <p className="text-[0.65rem] text-muted-foreground">
-                Can't scan? Enter this key manually:{" "}
-                <span className="font-mono">{twoFactorSetup.secret}</span>
-              </p>
-              <div className="space-y-1.5">
-                <Label>Verification code</Label>
-                <InputOTP maxLength={6} value={verifyCode} onChange={setVerifyCode}>
-                  <InputOTPGroup>
-                    {Array.from({ length: 6 }).map((_, i) => (
-                      <InputOTPSlot key={i} index={i} />
-                    ))}
-                  </InputOTPGroup>
-                </InputOTP>
-              </div>
-              <div className="flex gap-2">
-                <Button type="button" size="sm" disabled={twoFactorBusy || verifyCode.length !== 6} onClick={confirmTwoFactorSetup}>
-                  {twoFactorBusy && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
-                  Confirm and enable
-                </Button>
-                <Button type="button" size="sm" variant="ghost" onClick={() => setTwoFactorSetup(null)}>
-                  Cancel
-                </Button>
-              </div>
-            </div>
+          {enrolling2fa ? (
+            <TwoFactorSetup
+              onCancel={() => setEnrolling2fa(false)}
+              onEnabled={(method) => {
+                setEnrolling2fa(false);
+                setProfile((p) => (p ? { ...p, twoFactorEnabled: true, twoFactorMethod: method } : p));
+                // Also updates the global session user — src/components/mfa-gate.tsx
+                // reads twoFactorEnabled off the store.
+                if (user) setAuth({ ...user, twoFactorEnabled: true, twoFactorMethod: method });
+              }}
+            />
           ) : profile.twoFactorEnabled ? (
             <div className="space-y-3">
               <p className="flex items-center gap-1.5 text-sm font-medium text-emerald-700">
                 <ShieldCheck className="h-4 w-4" /> Two-factor authentication is enabled
+                <span className="font-normal text-muted-foreground">
+                  · {profile.twoFactorMethod === "EMAIL" ? "codes emailed to you" : "authenticator app"}
+                </span>
               </p>
               {showDisableForm ? (
                 <form onSubmit={disableTwoFactor} className="space-y-2">
@@ -869,8 +795,7 @@ export function ProfileTab() {
               <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
                 <ShieldAlert className="h-4 w-4" /> Not enabled
               </p>
-              <Button type="button" size="sm" disabled={twoFactorBusy} onClick={startTwoFactorSetup}>
-                {twoFactorBusy && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+              <Button type="button" size="sm" onClick={() => setEnrolling2fa(true)}>
                 Enable two-factor authentication
               </Button>
             </div>

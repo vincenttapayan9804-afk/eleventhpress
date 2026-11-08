@@ -70,6 +70,13 @@ model User {
   twoFactorSecret       String?
   twoFactorEnabled      Boolean   @default(false)
   twoFactorBackupCodes  String?
+  // "TOTP" (authenticator app) or "EMAIL" (a 6-digit code emailed at each
+  // sign-in, for people without an authenticator app). The emailed code is
+  // stored only as an HMAC, expires after 10 minutes and allows 5 attempts.
+  twoFactorMethod             String    @default("TOTP")
+  twoFactorEmailCodeHash      String?
+  twoFactorEmailCodeExpiresAt DateTime?
+  twoFactorEmailCodeAttempts  Int       @default(0)
   // Account-lockout brute-force hardening, layered on top of the existing
   // per-IP/per-account rate limit (src/lib/ratelimit.ts) rather than
   // replacing it — the rate limit is the fast, cheap first line (and fails
