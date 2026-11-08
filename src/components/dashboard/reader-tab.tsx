@@ -11,12 +11,11 @@ import { PaymentProviderPicker } from "@/components/billing/payment-provider-pic
 import {
   Library,
   CheckCircle2,
-  Clock,
   CreditCard,
   Loader2,
-  Star,
   Download,
   Search,
+  BadgeCheck,
 } from "lucide-react";
 
 interface Props {
@@ -149,7 +148,7 @@ export function ReaderTab({ subscription, onRefresh }: Props) {
                 <CardContent className="p-5">
                   <div className="flex items-center justify-between">
                     <p className="font-display text-lg font-semibold">{p.name}</p>
-                    {p.popular && <Star className="h-4 w-4 text-primary" />}
+                    {p.popular && <BadgeCheck className="h-4 w-4 text-primary" />}
                   </div>
                   <div className="mt-2 flex items-baseline gap-1">
                     <span className="font-display text-3xl font-semibold">USD {p.price}</span>

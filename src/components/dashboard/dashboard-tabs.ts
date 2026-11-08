@@ -3,11 +3,9 @@ import {
   Award,
   BarChart3,
   BookOpen,
-  Brain,
   Building2,
   ClipboardCheck,
   Coins,
-  Crown,
   FilePlus2,
   FileText,
   FlaskConical,
@@ -31,11 +29,13 @@ import {
   Search,
   Share2,
   ShieldCheck,
-  Trophy,
   UserCircle,
   Users,
   Users2,
   Volume2,
+  Briefcase,
+  ListOrdered,
+  NotebookPen,
 } from "lucide-react";
 
 /**
@@ -56,9 +56,9 @@ export interface DashboardTabDef {
 export const TABS: DashboardTabDef[] = [
   // --- Home ---
   { key: "overview", label: "Overview", icon: LayoutDashboard, roles: ["*"], group: "Home" },
-  { key: "secondBrain", label: "Second Brain", icon: Brain, roles: ["*"], group: "Home" },
+  { key: "secondBrain", label: "Second Brain", icon: NotebookPen, roles: ["*"], group: "Home" },
   { key: "profile", label: "Profile", icon: UserCircle, roles: ["*"], group: "Home" },
-  { key: "expertDashboard", label: "Professional Dashboard", icon: Crown, roles: ["EXPERT", "SUPER_ADMIN"], group: "Home" },
+  { key: "expertDashboard", label: "Professional Dashboard", icon: Briefcase, roles: ["EXPERT", "SUPER_ADMIN"], group: "Home" },
 
   // --- Publishing — My Work ---
   { key: "submit", label: "New submission", icon: FilePlus2, roles: ["AUTHOR", "EXPERT", "SUPER_ADMIN", "TENANT_ADMIN"], group: "Publishing — My Work" },
@@ -130,7 +130,7 @@ export const TABS: DashboardTabDef[] = [
     roles: ["SUPER_ADMIN", "TENANT_ADMIN"],
     group: "Analytics & Reporting",
   },
-  { key: "rankings", label: "Institutional rankings", icon: Trophy, roles: ["SUPER_ADMIN"], group: "Analytics & Reporting" },
+  { key: "rankings", label: "Institutional rankings", icon: ListOrdered, roles: ["SUPER_ADMIN"], group: "Analytics & Reporting" },
 
   // --- Executive Command Intelligence ---
   // A single module with each phase as a sub-section under this one group

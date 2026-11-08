@@ -26,7 +26,6 @@ import {
   ShieldCheck,
   CreditCard,
   XCircle,
-  Lightbulb,
   Users,
   Download,
   Loader2 as Spinner,
@@ -35,6 +34,8 @@ import {
   Plus,
   CircleCheck,
   Trash2,
+  BookCheck,
+  Link2,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { toast } from "sonner";
@@ -380,9 +381,9 @@ const ACTION_ICONS: Record<string, any> = {
   SUBMIT_REVIEW: PenSquare,
   ACCEPT: CheckCircle2,
   REJECT: XCircle,
-  PUBLISH: Lightbulb,
+  PUBLISH: BookCheck,
   DOI_MINT: FileText,
-  DOI_PUBLISH: Lightbulb,
+  DOI_PUBLISH: Link2,
   PAYMENT_RECEIVED: CreditCard,
 };
 

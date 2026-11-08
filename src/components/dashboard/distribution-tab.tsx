@@ -13,7 +13,19 @@ import { toast } from "sonner";
 import { PLATFORMS, type ShareKit, type SubmissionPackage } from "@/lib/distribution";
 import { DISTRIBUTION_PACKAGE_ARTICLE_USD } from "@/lib/pricing";
 import { PaymentProviderPicker } from "@/components/billing/payment-provider-picker";
-import { Share2, Lightbulb, Copy, CheckCircle2, Link as LinkIcon, ChevronDown, ChevronUp, ExternalLink, Zap, Lock } from "lucide-react";
+import {
+  Share2,
+  Copy,
+  CheckCircle2,
+  Link as LinkIcon,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  Lock,
+  RefreshCw,
+  Send,
+  Package,
+} from "lucide-react";
 
 interface Props {
   submissions: any[];
@@ -155,12 +167,12 @@ function ArticleDistribution({ article, bloggerBlogUrl }: { article: any; blogge
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{platform.label}</span>
-                      <Badge variant="outline"><Zap className="mr-1 h-3 w-3" /> Auto-publish</Badge>
+                      <Badge variant="outline"><RefreshCw className="mr-1 h-3 w-3" /> Auto-publish</Badge>
                       <Badge className={STATUS_BADGE[item.status] || ""}>{item.status.replace(/_/g, " ")}</Badge>
                     </div>
                     {bloggerBlogUrl ? (
                       <Button size="sm" onClick={publishBlogger} disabled={publishing}>
-                        <Zap className="mr-1.5 h-3.5 w-3.5" /> {item.status === "LIVE" ? "Republish" : "Publish"} to Blogger
+                        <Send className="mr-1.5 h-3.5 w-3.5" /> {item.status === "LIVE" ? "Republish" : "Publish"} to Blogger
                       </Button>
                     ) : (
                       <Button size="sm" variant="outline" asChild>
@@ -204,7 +216,7 @@ function ArticleDistribution({ article, bloggerBlogUrl }: { article: any; blogge
                       </Button>
                     ) : (
                       <Button size="sm" variant="outline" disabled={!canGenerate} onClick={() => generate(item.platform, consentChecked[item.platform])}>
-                        <Lightbulb className="mr-1.5 h-3.5 w-3.5" /> {item.id ? "Regenerate" : "Generate"} package
+                        <Package className="mr-1.5 h-3.5 w-3.5" /> {item.id ? "Regenerate" : "Generate"} package
                       </Button>
                     )}
                     {kit && (

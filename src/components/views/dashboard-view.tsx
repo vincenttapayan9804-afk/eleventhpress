@@ -17,7 +17,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
   LayoutDashboard,
-  Crown,
   FilePlus2,
   FolderOpen,
   Receipt,
@@ -50,13 +49,11 @@ import {
   Gavel,
   Coins,
   Landmark,
-  Trophy,
   LineChart,
   Scale,
   Presentation,
   Users2,
   ClipboardCheck,
-  Brain,
 } from "lucide-react";
 import { toast } from "sonner";
 

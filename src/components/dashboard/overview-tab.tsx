@@ -7,18 +7,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   FileText,
-  Quote,
   Eye,
-  Download,
   ListChecks,
   PenSquare,
   Search,
-  Users,
-  Lightbulb,
   ArrowRight,
   CheckCircle2,
   Clock,
   Library,
+  BookCheck,
+  FilePlus2,
 } from "lucide-react";
 import {
   AuroraField,
@@ -78,7 +76,7 @@ export function OverviewTab({ data }: Props) {
             <div className="flex gap-2">
               {canSubmit(role) && (
                 <Button onClick={() => openDashboard("submit")}>
-                  <Lightbulb className="mr-1.5 h-4 w-4" /> New submission
+                  <FilePlus2 className="mr-1.5 h-4 w-4" /> New submission
                 </Button>
               )}
               {role === "EDITOR" || role === "ASSOCIATE_EDITOR" || role === "SUPER_ADMIN" || role === "TENANT_ADMIN" ? (
@@ -377,7 +375,7 @@ function getStatCards(data: any): { icon: any; label: string; value: any }[] {
       { icon: FileText, label: "Total submissions", value: subs.length },
       { icon: Clock, label: "In review", value: subs.filter((s: any) => s.status === "UNDER_REVIEW" || s.status === "SUBMITTED").length },
       { icon: CheckCircle2, label: "Accepted", value: subs.filter((s: any) => s.status === "ACCEPTED" || s.status === "IN_PRODUCTION").length },
-      { icon: Lightbulb, label: "Published", value: subs.filter((s: any) => s.status === "PUBLISHED").length },
+      { icon: BookCheck, label: "Published", value: subs.filter((s: any) => s.status === "PUBLISHED").length },
     ];
   }
   if (role === "EXPERT") {
@@ -386,7 +384,7 @@ function getStatCards(data: any): { icon: any; label: string; value: any }[] {
       { icon: FileText, label: "Total insights", value: subs.length },
       { icon: Clock, label: "In review", value: subs.filter((s: any) => s.status === "UNDER_REVIEW" || s.status === "SUBMITTED").length },
       { icon: CheckCircle2, label: "Accepted", value: subs.filter((s: any) => s.status === "ACCEPTED" || s.status === "IN_PRODUCTION").length },
-      { icon: Lightbulb, label: "Published", value: subs.filter((s: any) => s.status === "PUBLISHED").length },
+      { icon: BookCheck, label: "Published", value: subs.filter((s: any) => s.status === "PUBLISHED").length },
     ];
   }
   // READER

@@ -6,7 +6,10 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Loader2, Trophy } from "lucide-react";
+import {
+  Loader2,
+  BarChart3,
+} from "lucide-react";
 
 interface InstitutionRanking {
   tenantId: string;
@@ -71,7 +74,7 @@ export function RankingsTab() {
         <CardHeader className="pb-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <Trophy className="h-4 w-4 text-primary" />
+              <BarChart3 className="h-4 w-4 text-primary" />
               <p className="eyebrow">Institutional rankings — {rows.length} tenant{rows.length === 1 ? "" : "s"}</p>
             </div>
             <div className="flex flex-wrap gap-1">

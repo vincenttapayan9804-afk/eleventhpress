@@ -32,13 +32,15 @@ import {
   X,
   ShieldCheck,
   FileCheck2,
-  Lightbulb,
   Upload,
   CloudUpload,
   Globe2,
   Landmark,
   Database,
   Scale,
+  Send,
+  Route,
+  ListOrdered,
 } from "lucide-react";
 import { DISCIPLINES, CREDIT_ROLES, INSIGHT_CATEGORIES, INSIGHT_CATEGORY_LABELS, KEY_TAKEAWAYS_COUNT, type InsightCategory } from "@/lib/article";
 
@@ -504,7 +506,7 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
               {isExpert && (
                 <div className="space-y-1.5 rounded-md border border-primary/30 bg-primary/5 p-4">
                   <Label className="flex items-center gap-1.5">
-                    <Lightbulb className="h-3.5 w-3.5 text-primary" /> Key Takeaways (5 required Executive Insights)
+                    <ListOrdered className="h-3.5 w-3.5 text-primary" /> Key Takeaways (5 required Executive Insights)
                   </Label>
                   <p className="text-xs text-muted-foreground">
                     Per the Enterprise-Grade Formatting standard, every Insight opens with exactly
@@ -897,7 +899,7 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
               <Separator className="my-4" />
               <div className="rounded-md border border-primary/30 bg-primary/5 p-4">
                 <p className="flex items-center gap-2 font-display text-sm font-semibold">
-                  <Lightbulb className="h-4 w-4 text-primary" /> What happens next?
+                  <Route className="h-4 w-4 text-primary" /> What happens next?
                 </p>
                 <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
                   <li>· A tracking reference is assigned (your real DOI is minted upon publication).</li>
@@ -929,7 +931,7 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
               </Button>
             ) : (
               <Button onClick={() => { const err = validateStep(); if (err) { toast.error("Cannot submit", { description: err }); return; } submit(); }} disabled={loading}>
-                {loading ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Lightbulb className="mr-1.5 h-4 w-4" />}
+                {loading ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Send className="mr-1.5 h-4 w-4" />}
                 {isExpert ? "Submit insight" : "Submit manuscript"}
               </Button>
             )}

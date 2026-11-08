@@ -8,7 +8,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Brain, Loader2, Plus, Lightbulb, Building2, Waves, Palette, Check } from "lucide-react";
+import {
+  Loader2,
+  Plus,
+  Building2,
+  Waves,
+  Palette,
+  Check,
+  NotebookPen,
+  Network,
+} from "lucide-react";
 import {
   SECOND_BRAIN_VIEWS,
   ACCENT_PRESETS,
@@ -24,8 +33,8 @@ import { ConstellationView } from "./second-brain/constellation-view";
 import { TideView } from "./second-brain/tide-view";
 import { SecondBrainGraph3D } from "./second-brain/graph-3d-panel";
 
-const VIEW_META: Record<SecondBrainView, { label: string; icon: typeof Lightbulb }> = {
-  constellation: { label: "3D Constellation", icon: Lightbulb },
+const VIEW_META: Record<SecondBrainView, { label: string; icon: typeof Network }> = {
+  constellation: { label: "3D Constellation", icon: Network },
   atrium: { label: "Atrium", icon: Building2 },
   tide: { label: "3D Tide", icon: Waves },
 };
@@ -220,7 +229,7 @@ export function SecondBrainTab() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
-              <Brain className="h-4 w-4 text-primary" />
+              <NotebookPen className="h-4 w-4 text-primary" />
               <p className="eyebrow">Your personal knowledge graph</p>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">

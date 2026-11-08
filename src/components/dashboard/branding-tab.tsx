@@ -27,7 +27,6 @@ import {
   Globe,
   MapPin,
   Share2,
-  Lightbulb,
   Check,
   AlertTriangle,
   Eye,
@@ -298,7 +297,7 @@ export function BrandingTab({ tenantId, onSaved }: { tenantId?: string; onSaved?
             </Section>
 
             {/* Colours */}
-            <Section icon={Lightbulb} title="Colours">
+            <Section icon={Palette} title="Colours">
               {logoColors.length > 0 && (
                 <div className="rounded-lg border border-border bg-muted/30 p-3">
                   <p className="text-xs font-medium">Colours from your logo</p>

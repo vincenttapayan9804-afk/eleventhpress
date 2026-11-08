@@ -9,16 +9,14 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import {
-  Lightbulb,
   Loader2,
   Star,
   AlertCircle,
-  CheckCircle2,
   Info,
   Users,
   ShieldAlert,
-  Brain,
   RefreshCw,
+  ScanSearch,
 } from "lucide-react";
 
 interface TriageReport {
@@ -97,7 +95,7 @@ export function TriagePanel({ articleId }: Props) {
           <div className="flex items-center justify-between">
             <div>
               <p className="eyebrow flex items-center gap-1.5">
-                <Brain className="h-3 w-3" /> AI Editorial Triage
+                <ScanSearch className="h-3 w-3" /> AI Editorial Triage
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
                 Run the LLM-assisted triage to get a scope-fit score, methodology flags,
@@ -105,7 +103,7 @@ export function TriagePanel({ articleId }: Props) {
               </p>
             </div>
             <Button size="sm" onClick={runTriage} disabled={loading}>
-              <Lightbulb className="mr-1.5 h-3.5 w-3.5" /> Run triage
+              <ScanSearch className="mr-1.5 h-3.5 w-3.5" /> Run triage
             </Button>
           </div>
         </CardContent>
@@ -143,7 +141,7 @@ export function TriagePanel({ articleId }: Props) {
         <div className="flex items-center justify-between">
           <div>
             <p className="eyebrow flex items-center gap-1.5">
-              <Brain className="h-3 w-3" /> AI Editorial Triage
+              <ScanSearch className="h-3 w-3" /> AI Editorial Triage
             </p>
             <p className="mt-1 font-display text-base font-semibold">
               {report.model === "heuristic-fallback" ? "Heuristic analysis" : `LLM analysis · ${report.model}`}

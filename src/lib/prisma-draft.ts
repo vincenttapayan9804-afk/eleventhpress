@@ -101,7 +101,7 @@ function markdownTableCell(text: string): string {
  * draft is plain markdown text, not an interactive UI element. */
 function cellWithVerification(field: { value: string; verified: boolean }): string {
   if (!field.value) return "—";
-  return field.verified ? `${field.value} ✓` : `${field.value} ⚠️`;
+  return field.verified ? `${field.value} ✓` : `${field.value} (unverified)`;
 }
 
 /** Builds the Literature Matrix table and References list deterministically
@@ -218,7 +218,7 @@ export async function draftSystematicReview(input: {
       `## PRISMA Flow Diagram\n${renderFlowDiagram(flowCounts)}\n\n` +
       `## Screening Log\n${renderScreeningLog(screeningLog)}\n\n` +
       `## Rationale\n${data.rationale?.trim() ?? ""}\n\n` +
-      `## Literature Matrix\n${matrixTable}\n\n_✓ = quoted evidence confirmed in the source's own text. ⚠️ = the model's claimed quote could not be verified against the source excerpt — check this cell by hand before relying on it._\n\n` +
+      `## Literature Matrix\n${matrixTable}\n\n_✓ = quoted evidence confirmed in the source's own text. (unverified) = the model's claimed quote could not be verified against the source excerpt — check this cell by hand before relying on it._\n\n` +
       `## Synthesis of Findings\n${data.synthesis?.trim() ?? ""}\n\n` +
       `## Limitations\n${data.limitations?.trim() ?? ""}\n\n` +
       `## Suggested Discussion Points\n${discussionPoints}\n\n` +

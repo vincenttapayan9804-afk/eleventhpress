@@ -1,7 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CalendarCheck2, ExternalLink, FileDown, FileText, ListChecks, ShieldCheck, Lightbulb } from "lucide-react";
+import {
+  CalendarCheck2,
+  ExternalLink,
+  FileDown,
+  FileText,
+  ListChecks,
+  ShieldCheck,
+  ListOrdered,
+} from "lucide-react";
 import { APP_BASE_URL, ARTICLE_LANGUAGE, JOURNAL_IDENTITY } from "@/lib/site";
 import { GUIDES } from "@/lib/resources-content";
 import { fmtLongDate, getGuideDoc, guideById, guideCitation, guidePath, guidePdfPath } from "@/lib/resources";
@@ -180,7 +188,7 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
 
             <section id="key-requirements" className="scroll-mt-24 rounded-xl border border-border bg-[var(--royal-50)]/60 p-5 dark:bg-white/[0.03] sm:p-6">
               <h2 className="flex items-center gap-2 font-display text-xl font-semibold">
-                <Lightbulb className="h-5 w-5 text-primary" /> At a glance: ten key requirements
+                <ListOrdered className="h-5 w-5 text-primary" /> At a glance: ten key requirements
               </h2>
               <div className="mt-4">
                 <NumberedList items={g.keyPoints} label="Ten key requirements" />

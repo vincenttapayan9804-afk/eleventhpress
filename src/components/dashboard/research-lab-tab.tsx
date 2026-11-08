@@ -16,7 +16,6 @@ import {
   Search,
   X,
   Loader2,
-  Lightbulb,
   FileText,
   Mic,
   Upload,
@@ -40,6 +39,7 @@ import {
   Trash2,
   FileUp,
   ArrowRightCircle,
+  ScanSearch,
 } from "lucide-react";
 import { parseBibTeX } from "@/lib/citation-import";
 
@@ -852,7 +852,7 @@ function GapFinderPanel({ onChainToPrisma }: { onChainToPrisma: (seed: PrismaSee
           <ExternalSourceSearch selected={externalSources} onChange={setExternalSources} maxSelected={8} />
         </div>
         <Button size="sm" onClick={run} disabled={loading} className="gap-1.5">
-          {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Lightbulb className="h-3.5 w-3.5" />}
+          {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ScanSearch className="h-3.5 w-3.5" />}
           Analyze for gaps
         </Button>
 
@@ -1226,7 +1226,7 @@ function PrismaDraftPanel({ seed }: { seed: PrismaSeed | null }) {
           )}
         </div>
         <Button size="sm" onClick={run} disabled={loading} className="gap-1.5">
-          {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Lightbulb className="h-3.5 w-3.5" />}
+          {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ScanSearch className="h-3.5 w-3.5" />}
           Draft scaffold
         </Button>
 

@@ -16,9 +16,22 @@ import { HeroGlobe, ImpactSphere } from "@/components/three-d/lazy";
 import { useReveal } from "@/hooks/use-scroll-reveal";
 import { Tilt3D } from "@/components/tilt-3d";
 import {
-  Search, ArrowRight, Lightbulb, FileText, Quote, TrendingUp, Globe2,
-  Cog, BookOpen, Share2, ShieldCheck,
-  Database, ClipboardCheck, Link2,
+  Search,
+  ArrowRight,
+  FileText,
+  Quote,
+  TrendingUp,
+  Globe2,
+  Cog,
+  BookOpen,
+  Share2,
+  ShieldCheck,
+  Database,
+  ClipboardCheck,
+  Link2,
+  PenLine,
+  ScanSearch,
+  Users,
 } from "lucide-react";
 
 
@@ -155,7 +168,7 @@ export function HomeView() {
                   {t("aboutJournal")}
                 </Button>
                 <Button size="sm" variant="ghost" className="text-[oklch(0.86_0.07_292)] hover:bg-white/10 hover:text-white" onClick={() => setView("login")}>
-                  <Lightbulb className="mr-1.5 h-3.5 w-3.5" /> {t("signInToSubmit")}
+                  <PenLine className="mr-1.5 h-3.5 w-3.5" /> {t("signInToSubmit")}
                 </Button>
               </div>
             </div>
@@ -499,12 +512,12 @@ const REACH_FEATURES = [
   { title: "8-Platform Syndication, Automatically", description: "Blogger publishes itself the moment you approve it — genuinely, via the real Blogger API, not a link. Ready-to-post kits for ResearchGate, Academia.edu, Substack, Medium, LinkedIn, and HubPages, plus formatted preprint packages for arXiv and SSRN, all generated from the same manuscript.", icon: Share2 },
   { title: "A Real Book-Publishing Division", description: "Compile your published articles into a genuine EPUB and print-ready PDF, or submit a standalone monograph. Distributed wide through Draft2Digital and IngramSpark — reaching Amazon KDP, Apple Books, Barnes & Noble, Kobo, and more from one submission.", icon: BookOpen },
   { title: "Real DOIs, Genuinely Open Access", description: `Every published article gets a permanently-resolving ${DOI_REGISTRAR} DOI and is freely downloadable — no login wall, no subscription required, matching our CC BY 4.0 license and ready for Google Scholar to index.`, icon: ShieldCheck },
-  { title: "AI-Accelerated Editorial Review", description: "Plagiarism screening, statistical sanity checks, citation validation, and discipline-matched reviewer suggestions, powered by real AI analysis — built to catch what a manual read misses, not to replace peer review.", icon: Lightbulb },
+  { title: "AI-Accelerated Editorial Review", description: "Plagiarism screening, statistical sanity checks, citation validation, and discipline-matched reviewer suggestions, powered by real AI analysis — built to catch what a manual read misses, not to replace peer review.", icon: ScanSearch },
 ];
 
 const PIPELINE_STEPS = [
   { title: "Submit & Anonymise", description: "Author uploads the manuscript to raw-submissions storage. A double-blind copy is generated automatically for reviewers.", icon: FileText },
-  { title: "Peer Review", description: "Editor assigns discipline-matched reviewers. Reviewers submit scores, recommendations, and confidential editor comments.", icon: Lightbulb },
+  { title: "Peer Review", description: "Editor assigns discipline-matched reviewers. Reviewers submit scores, recommendations, and confidential editor comments.", icon: Users },
   { title: "Production", description: "After acceptance and APC payment, the production service renders HTML, PDF, and XML JATS galleys in the journal brand.", icon: TrendingUp },
   { title: "Index & Publish", description: `DOI is minted via ${DOI_REGISTRAR}, OAI-PMH 2.0 feed is regenerated, and Google Scholar is pinged via citation meta tags.`, icon: Globe2 },
 ];

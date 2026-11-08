@@ -6,21 +6,20 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
   ShieldCheck,
-  Crown,
   ClipboardCheck,
   Users2,
   BookOpenCheck,
   EyeOff,
   MessageSquareWarning,
   Scale,
-  BrainCircuit,
   Handshake,
   Award,
-  Lightbulb,
   FileCheck2,
   ListChecks,
   Quote,
   Mail,
+  ScanSearch,
+  LayoutTemplate,
 } from "lucide-react";
 
 /**
@@ -101,7 +100,7 @@ export function CharterView() {
       {/* Enterprise-Grade Formatting */}
       <section className="mt-10">
         <div className="flex flex-wrap items-center gap-2">
-          <Lightbulb className="h-5 w-5 text-primary" />
+          <LayoutTemplate className="h-5 w-5 text-primary" />
           <h2 className="font-display text-2xl font-semibold">Enterprise-Grade Formatting</h2>
         </div>
         <p className="mt-2 max-w-3xl text-sm text-muted-foreground text-justify">
@@ -140,7 +139,7 @@ export function CharterView() {
           <CardContent className="p-6">
             <div className="grid gap-4 sm:grid-cols-2">
               <PolicyItem
-                icon={BrainCircuit}
+                icon={ScanSearch}
                 title="Intellectual rigor"
                 desc="Claims must be supportable — by data, by cited precedent, or by clearly-attributed professional experience. Vague assertion is not analysis."
               />
@@ -185,7 +184,7 @@ export function CharterView() {
                 desc="Issued only after the Prestige Application's vetting process — proof of license or certification, 3-5+ years of professional experience, and a reviewed application statement."
               />
               <PolicyItem
-                icon={Crown}
+                icon={Award}
                 title="Elite status symbol"
                 desc="Displayed on the Council of Experts' Directory and on the holder's public profile as a Council Member or Contributor credential, alongside real insight/view/follower counts — never a fabricated metric."
               />
@@ -216,7 +215,7 @@ export function CharterView() {
         </p>
         <div className="mt-5 flex flex-wrap justify-center gap-3">
           <Button onClick={() => (user ? openDashboard("application") : setView("login"))}>
-            <Crown className="mr-2 h-4 w-4" /> Apply to the Council
+            <Award className="mr-2 h-4 w-4" /> Apply to the Council
           </Button>
           <Button variant="outline" onClick={() => setView("experts")}>
             <Users2 className="mr-2 h-4 w-4" /> Council of Experts' Directory
