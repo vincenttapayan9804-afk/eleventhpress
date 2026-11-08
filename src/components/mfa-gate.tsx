@@ -5,8 +5,10 @@ import { useApp } from "@/lib/store";
 import { MFA_REQUIRED_ROLES } from "@/lib/roles";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useState } from "react";
 import { TwoFactorSetup } from "@/components/two-factor-setup";
-import { ShieldCheck, LogOut } from "lucide-react";
+import { ChangeEmailForm } from "@/components/change-email-form";
+import { ShieldCheck, LogOut, Mail } from "lucide-react";
 
 /**
  * Blocks dashboard access for a privileged role (MFA_REQUIRED_ROLES, src/
@@ -23,6 +25,7 @@ import { ShieldCheck, LogOut } from "lucide-react";
  */
 export function MfaGate({ children }: { children: React.ReactNode }) {
   const { user, setAuth, logout } = useApp();
+  const [changingEmail, setChangingEmail] = useState(false);
 
   // A temporary password issued by an administrator is replaced first.
   if (user?.mustChangePassword) return <PasswordChangeGate />;
@@ -49,7 +52,28 @@ export function MfaGate({ children }: { children: React.ReactNode }) {
         <CardContent className="space-y-4">
           {/* TwoFactorSetup reports success only after the backup codes are acknowledged,
               so flipping twoFactorEnabled here can't skip them. */}
-          <TwoFactorSetup onEnabled={(method) => user && setAuth({ ...user, twoFactorEnabled: true, twoFactorMethod: method })} />
+          {changingEmail && user ? (
+            <ChangeEmailForm
+              currentEmail={user.email}
+              onCancel={() => setChangingEmail(false)}
+              onChanged={(u) => {
+                setAuth({ ...user, ...u });
+                setChangingEmail(false);
+              }}
+            />
+          ) : (
+            <>
+              <TwoFactorSetup onEnabled={(method) => user && setAuth({ ...user, twoFactorEnabled: true, twoFactorMethod: method })} />
+              {/* Codes and password resets go to the sign-in email, so fix it first if it isn't a real inbox. */}
+              <p className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+                <Mail className="h-3.5 w-3.5" /> Signed in as <span className="font-medium text-foreground">{user?.email}</span>
+                <span aria-hidden>·</span>
+                <button type="button" className="font-medium text-primary underline-offset-2 hover:underline" onClick={() => setChangingEmail(true)}>
+                  Not your real inbox? Change it first
+                </button>
+              </p>
+            </>
+          )}
           <Button variant="ghost" size="sm" className="w-full" onClick={logout}>
             <LogOut className="mr-1.5 h-3.5 w-3.5" /> Sign out instead
           </Button>

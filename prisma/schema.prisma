@@ -77,6 +77,13 @@ model User {
   twoFactorEmailCodeHash      String?
   twoFactorEmailCodeExpiresAt DateTime?
   twoFactorEmailCodeAttempts  Int       @default(0)
+  // Sign-in email change in progress (Profile -> Security): the new address
+  // and an HMAC of the code emailed to it, so the switch only happens once
+  // the new inbox is proven.
+  pendingEmail              String?
+  pendingEmailCodeHash      String?
+  pendingEmailExpiresAt     DateTime?
+  pendingEmailAttempts      Int       @default(0)
   // Account-lockout brute-force hardening, layered on top of the existing
   // per-IP/per-account rate limit (src/lib/ratelimit.ts) rather than
   // replacing it — the rate limit is the fast, cheap first line (and fails

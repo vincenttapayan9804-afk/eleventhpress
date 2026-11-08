@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { TwoFactorSetup } from "@/components/two-factor-setup";
+import { ChangeEmailForm } from "@/components/change-email-form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PRIVILEGED_ROLES_LIST, ACADEMIC_STATUS_OPTIONS } from "@/lib/roles";
 import { toast } from "sonner";
@@ -97,6 +98,7 @@ export function ProfileTab() {
 
   // Two-factor authentication (TOTP)
   const [enrolling2fa, setEnrolling2fa] = useState(false);
+  const [changingEmail, setChangingEmail] = useState(false);
   const [disablePassword, setDisablePassword] = useState("");
   const [showDisableForm, setShowDisableForm] = useState(false);
   const [twoFactorBusy, setTwoFactorBusy] = useState(false);
@@ -711,8 +713,8 @@ export function ProfileTab() {
             <p className="eyebrow">Security</p>
             <h3 className="font-display text-lg font-semibold">Verify your email</h3>
             <p className="text-xs text-muted-foreground">
-              We sent a verification link to <span className="font-medium">{profile.email}</span> when
-              you registered. Confirming it helps keep your account recoverable.
+              Confirm that <span className="font-medium">{profile.email}</span> is your address — it keeps your
+              account recoverable.
             </p>
           </CardHeader>
           <CardContent>
@@ -729,6 +731,37 @@ export function ProfileTab() {
           </CardContent>
         </Card>
       )}
+
+      {/* Sign-in email */}
+      <Card className="paper-card">
+        <CardHeader>
+          <p className="eyebrow">Security</p>
+          <h3 className="font-display text-lg font-semibold">Sign-in email</h3>
+          {!changingEmail && (
+            <p className="text-xs text-muted-foreground">
+              You sign in with <span className="font-medium text-foreground">{profile.email}</span>. Sign-in codes and
+              password-reset links are sent here.
+            </p>
+          )}
+        </CardHeader>
+        <CardContent>
+          {changingEmail ? (
+            <ChangeEmailForm
+              currentEmail={profile.email}
+              onCancel={() => setChangingEmail(false)}
+              onChanged={(u) => {
+                setChangingEmail(false);
+                setProfile((p) => (p ? { ...p, email: u.email, emailVerifiedAt: u.emailVerifiedAt } : p));
+                if (user) setAuth({ ...user, ...u });
+              }}
+            />
+          ) : (
+            <Button type="button" size="sm" variant="outline" onClick={() => setChangingEmail(true)}>
+              Change sign-in email
+            </Button>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Two-factor authentication */}
       <Card className="paper-card">

@@ -38,7 +38,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: accountRl.message }, { status: 429 });
     }
 
-    const user = await db.user.findUnique({ where: { email } });
+    // Exact match first; then the lowercase form, so "Name@Gmail.com" finds
+    // an account stored as "name@gmail.com" (same fallback as forgot-password).
+    const trimmedEmail = email.trim();
+    const user =
+      (await db.user.findUnique({ where: { email: trimmedEmail } })) ??
+      (trimmedEmail !== trimmedEmail.toLowerCase()
+        ? await db.user.findUnique({ where: { email: trimmedEmail.toLowerCase() } })
+        : null);
 
     // Checked before the password itself: a locked account should reject
     // every attempt — including the correct password — until the lock
