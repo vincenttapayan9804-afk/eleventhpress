@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { canActOnArticle, OTHER_INSTITUTION_ERROR } from "@/lib/tenant-auth";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { runTableAccessibilityJob } from "@/lib/table-accessibility";
@@ -20,6 +21,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   const { id: articleId } = await params;
+
+  if (!(await canActOnArticle(session, articleId))) return NextResponse.json({ error: OTHER_INSTITUTION_ERROR }, { status: 403 });
   const article = await withRlsContext(session, (tx) => tx.article.findUnique({ where: { id: articleId } }));
   if (!article) {
     return NextResponse.json({ error: "Article not found" }, { status: 404 });
@@ -58,6 +61,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   const { id: articleId } = await params;
+
+  if (!(await canActOnArticle(session, articleId))) return NextResponse.json({ error: OTHER_INSTITUTION_ERROR }, { status: 403 });
   const jobs = await db.tableAccessibilityJob.findMany({
     where: { articleId },
     orderBy: { createdAt: "desc" },

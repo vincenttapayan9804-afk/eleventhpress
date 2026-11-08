@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch, SESSION_ENDED_EVENT } from "@/lib/api-client";
 import { getCsrfToken } from "@/lib/csrf-client";
 import { CSRF_HEADER_NAME } from "@/lib/csrf";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -657,6 +657,7 @@ function AssetUploader({
         credentials: "same-origin",
       });
       const json = await res.json().catch(() => ({}));
+      if (res.status === 401) window.dispatchEvent(new CustomEvent(SESSION_ENDED_EVENT));
       if (!res.ok) throw new Error(json.error || `Upload failed (${res.status})`);
       onChange(json.url);
       toast.success(`${kind === "logo" ? "Logo" : "Favicon"} uploaded — save branding to publish it`);

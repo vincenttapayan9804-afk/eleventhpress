@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { canActOnArticle, OTHER_INSTITUTION_ERROR } from "@/lib/tenant-auth";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import {
@@ -36,6 +37,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (auth.error) return auth.error;
 
   const { id: articleId } = await params;
+
+  if (!(await canActOnArticle(auth.session, articleId))) return NextResponse.json({ error: OTHER_INSTITUTION_ERROR }, { status: 403 });
   const article = await withRlsContext(auth.session!, (tx) =>
     tx.article.findUnique({ where: { id: articleId }, select: { id: true } })
   );
@@ -68,6 +71,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (auth.error) return auth.error;
 
   const { id: articleId } = await params;
+
+  if (!(await canActOnArticle(auth.session, articleId))) return NextResponse.json({ error: OTHER_INSTITUTION_ERROR }, { status: 403 });
   const article = await withRlsContext(auth.session!, (tx) =>
     tx.article.findUnique({ where: { id: articleId }, select: { id: true } })
   );
@@ -123,6 +128,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   if (auth.error) return auth.error;
 
   const { id: articleId } = await params;
+
+  if (!(await canActOnArticle(auth.session, articleId))) return NextResponse.json({ error: OTHER_INSTITUTION_ERROR }, { status: 403 });
   const { reviewId } = (await req.json()) as { reviewId?: string };
   if (!reviewId) {
     return NextResponse.json({ error: "reviewId is required" }, { status: 400 });

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { canActOnArticle, OTHER_INSTITUTION_ERROR } from "@/lib/tenant-auth";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { applyAltTextResults } from "@/lib/alt-text";
@@ -22,6 +23,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   const { id: articleId } = await params;
+
+  if (!(await canActOnArticle(session, articleId))) return NextResponse.json({ error: OTHER_INSTITUTION_ERROR }, { status: 403 });
   const { jobId, results } = (await req.json()) as { jobId: string; results: { src: string; altText: string }[] };
   if (!jobId || !Array.isArray(results)) {
     return NextResponse.json({ error: "jobId and results are required" }, { status: 400 });

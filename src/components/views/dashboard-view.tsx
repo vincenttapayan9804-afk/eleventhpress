@@ -228,7 +228,7 @@ export function DashboardView() {
     { key: "magazines", label: "Magazines", icon: Newspaper, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN", "TENANT_ADMIN"], group: "Content Channels" },
     { key: "podcasts", label: "Podcasts", icon: Mic, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN", "TENANT_ADMIN"], group: "Content Channels" },
     { key: "media", label: "Media (News/Blog)", icon: FileText, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN", "TENANT_ADMIN"], group: "Content Channels" },
-    { key: "narration", label: "Narration", icon: Volume2, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN", "TENANT_ADMIN"], group: "Content Channels" },
+    { key: "narration", label: "Narration", icon: Volume2, roles: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"], group: "Content Channels" },
 
     // --- Analytics & Reporting ---
     { key: "counter", label: "COUNTER 5 / SUSHI", icon: BarChart3, roles: ["SUPER_ADMIN", "EDITOR"], group: "Analytics & Reporting" },

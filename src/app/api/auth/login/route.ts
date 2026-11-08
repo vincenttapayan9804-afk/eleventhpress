@@ -139,6 +139,10 @@ export async function POST(req: NextRequest) {
         avatarUrl: user.avatarUrl,
         tenantId: user.tenantId ?? null,
         mustChangePassword: user.mustChangePassword,
+        // So the 2FA-required gate (MfaGate) applies straight after sign-in,
+        // not only after the next page load re-reads /api/auth/me.
+        twoFactorEnabled: user.twoFactorEnabled,
+        emailVerifiedAt: user.emailVerifiedAt,
         workspace: await workspaceOf(user.tenantId),
       },
     });

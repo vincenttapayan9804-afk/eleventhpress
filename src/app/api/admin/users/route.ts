@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   }
 
   const users = await db.user.findMany({
-    where: auth.session.role === "TENANT_ADMIN" ? { tenantId: auth.session.tenantId ?? "__none__" } : undefined,
+    where: auth.session.role === "TENANT_ADMIN" ? { tenantId: auth.session.tenantId ?? "__none__", deletedAt: null } : undefined,
     orderBy: { createdAt: "desc" },
     select: {
       id: true,

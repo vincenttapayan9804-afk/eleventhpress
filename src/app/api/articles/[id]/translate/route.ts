@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { canActOnArticle } from "@/lib/tenant-auth";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { translateAbstract, TRANSLATABLE_LOCALES, type TranslatableLocale } from "@/lib/manuscript-checks";
@@ -32,7 +33,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Article not found" }, { status: 404 });
   }
 
-  const isEditor = ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN", "TENANT_ADMIN"].includes(session.role);
+  // Editors of another institution are treated as non-editors here.
+  const isEditor = ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN", "TENANT_ADMIN"].includes(session.role) && (await canActOnArticle(session, id));
   const isOwner = article.correspondingAuthorId === session.userId;
   if (!isEditor && !isOwner) {
     return NextResponse.json({ error: "Not authorized for this article" }, { status: 403 });

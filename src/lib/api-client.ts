@@ -4,6 +4,9 @@ import { CSRF_HEADER_NAME } from "./csrf";
 
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
+/** Fired on window when an API call finds the session has ended. */
+export const SESSION_ENDED_EVENT = "ep:session-ended";
+
 /**
  * On a whitelabel tenant platform reached through the official host, tags
  * GET API requests with `__ws=<tenant slug>` (set by the root layout on
@@ -47,6 +50,12 @@ export async function apiFetch<T = any>(
       msg = body.error || msg;
     } catch {
       // ignore parse errors
+    }
+    // A 401 outside the sign-in endpoints means the session cookie is gone
+    // or was replaced (e.g. signed out in another tab) while this page still
+    // shows someone signed in — SessionSync (session-sync.tsx) resets the UI.
+    if (res.status === 401 && typeof window !== "undefined" && !/^\/api\/auth\/(login|2fa|register|forgot|reset)/.test(path)) {
+      window.dispatchEvent(new CustomEvent(SESSION_ENDED_EVENT));
     }
     const err = new Error(msg) as Error & { status: number; body: any };
     err.status = res.status;

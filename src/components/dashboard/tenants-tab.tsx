@@ -1061,7 +1061,8 @@ export function TenantsTab() {
                             collections, empty magazines/podcasts/journals). Books with distribution or royalty
                             history, journals with articles, and magazines with issues are never deleted
                             automatically — remove those first, or opt into the destructive option below.
-                            Requires zero users on the tenant.
+                            Its accounts (administrator, editors, members) are closed and anonymized, the same
+                            as a self-service account deletion.
                           </p>
                           {purgeBlockers[t.id] && (
                             <div className="space-y-2 rounded bg-background/60 p-2 text-xs">

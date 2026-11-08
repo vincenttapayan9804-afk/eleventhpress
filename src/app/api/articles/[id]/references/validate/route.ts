@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { canActOnArticle, OTHER_INSTITUTION_ERROR } from "@/lib/tenant-auth";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { validateReference } from "@/lib/citations";
@@ -25,6 +26,8 @@ export async function POST(
   }
 
   const { id } = await params;
+
+  if (!(await canActOnArticle(session, id))) return NextResponse.json({ error: OTHER_INSTITUTION_ERROR }, { status: 403 });
   const [references, article] = await Promise.all([
     db.reference.findMany({ where: { articleId: id } }),
     db.article.findUnique({ where: { id }, select: { title: true, abstract: true } }),

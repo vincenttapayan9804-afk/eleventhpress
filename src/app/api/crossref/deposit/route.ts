@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { canActOnArticle, OTHER_INSTITUTION_ERROR } from "@/lib/tenant-auth";
 import { db } from "@/lib/db";
 import { notify } from "@/lib/notify";
 import { getSessionFromHeaders } from "@/lib/auth";
@@ -24,6 +25,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { articleId } = (await req.json()) as { articleId: string };
+  if (!(await canActOnArticle(session, articleId))) return NextResponse.json({ error: OTHER_INSTITUTION_ERROR }, { status: 403 });
   const article = await withRlsContext(session, (tx) =>
     tx.article.findUnique({
       where: { id: articleId },

@@ -1,6 +1,6 @@
 "use client";
 import { create } from "zustand";
-import { leaveSessionWorkspace } from "./workspace-client";
+import { leaveSessionWorkspace, announceSessionChange } from "./workspace-client";
 import { persist } from "zustand/middleware";
 import { apiFetch } from "./api-client";
 
@@ -186,8 +186,12 @@ export const useApp = create<AppState>()(
         // middleware.ts requires it on every mutating request now.
         apiFetch("/api/auth/logout", { method: "POST" })
           .catch(() => {})
-          // Signing out of a tenant platform returns to the official site.
-          .finally(() => leaveSessionWorkspace());
+          .finally(() => {
+            // Other open tabs drop their signed-in view too.
+            announceSessionChange();
+            // Signing out of a tenant platform returns to the official site.
+            leaveSessionWorkspace();
+          });
         set({
           user: null,
           view: "home",

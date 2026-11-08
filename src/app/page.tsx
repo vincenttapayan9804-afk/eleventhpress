@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { SessionSync } from "@/components/session-sync";
 import dynamic from "next/dynamic";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useApp } from "@/lib/store";
@@ -198,6 +199,7 @@ export default function Page() {
           <CorpusChatWidget />
         )}
         <Toaster richColors position="top-right" />
+        <SessionSync />
       </div>
     </I18nProvider>
   );

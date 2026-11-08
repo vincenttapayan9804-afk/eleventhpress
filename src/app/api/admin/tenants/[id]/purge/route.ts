@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
+import { anonymizeUserAccount } from "@/lib/account-privacy";
 import { withRlsContext } from "@/lib/db-rls";
 import { parseBody } from "@/lib/validate";
 import { z } from "zod";
@@ -115,9 +116,16 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     return NextResponse.json({ error: "confirmSlug does not match this tenant's slug" }, { status: 400 });
   }
 
-  const userCount = await db.user.count({ where: { tenantId: id } });
-  if (userCount > 0) {
-    return NextResponse.json({ error: `Tenant has ${userCount} user(s) — reassign or remove them first` }, { status: 400 });
+  // The tenant's own accounts (its administrator, editors, members) go
+  // with it: each is closed exactly like a self-service account deletion
+  // (anonymized, sign-in disabled) and detached from the tenant. A platform
+  // SUPER_ADMIN is never closed this way.
+  const members = await db.user.findMany({ where: { tenantId: id }, select: { id: true, role: true, deletedAt: true } });
+  if (members.some((m) => m.role === "SUPER_ADMIN")) {
+    return NextResponse.json(
+      { error: "A platform super admin belongs to this tenant — move that account to the platform tenant first" },
+      { status: 400 }
+    );
   }
 
   const [books, magazines, podcasts, journals] = await withRlsContext(auth.session, (tx) =>
@@ -163,7 +171,14 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     );
   }
 
+  for (const m of members) {
+    if (!m.deletedAt) await anonymizeUserAccount(m.id);
+  }
+  await db.user.updateMany({ where: { tenantId: id }, data: { tenantId: null } });
+  await db.tenant.update({ where: { id }, data: { billingOwnerId: null } });
+
   const purgedCounts: Record<string, number> = {
+    accountsClosed: members.filter((m) => !m.deletedAt).length,
     books: books.length,
     magazines: magazines.length,
     podcasts: podcasts.length,
@@ -204,6 +219,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     await tx.mediaPost.deleteMany({ where: { tenantId: id } });
     await tx.collection.deleteMany({ where: { tenantId: id } });
     await tx.tenantDomain.deleteMany({ where: { tenantId: id } });
+    await tx.tenantEntitlement.deleteMany({ where: { tenantId: id } });
     await tx.tenant.delete({ where: { id } });
   });
 

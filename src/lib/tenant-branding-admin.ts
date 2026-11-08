@@ -29,6 +29,13 @@ export async function resolveBrandingTarget(req: { url: string; headers: Headers
     const current = await resolveTenantFromHeaders(req.headers);
     if (!current) return { ok: false, status: 404, error: "No tenant resolved for this request" };
     tenantId = current.id;
+    // A super admin who opened a tenant's portal link (which is remembered
+    // for the whole browser) still edits the official site from their own
+    // Branding tab; a tenant is edited through ?tenantId= (Tenants tab).
+    if (current.source === "portal") {
+      const platform = await db.tenant.findFirst({ where: { isPlatform: true }, select: { id: true } });
+      if (platform) tenantId = platform.id;
+    }
   }
   const auth = requireTenantScope(req.headers, tenantId, TENANT_SCOPED_ADMIN_ROLES);
   if (!auth.ok) return auth;
