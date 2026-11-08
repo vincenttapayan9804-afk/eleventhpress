@@ -96,6 +96,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   await notify({
     userId: application.userId,
     type: action === "APPROVE" ? "SUCCESS" : "INFO",
+    category: "ACCOUNT",
+    link: "/dashboard",
     title: action === "APPROVE"
       ? `Your ${roleLabel} application has been approved`
       : `Your ${roleLabel} application was not approved`,

@@ -87,6 +87,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     await notify({
       userId: article.correspondingAuthorId,
       type: "INFO",
+      category: "SUBMISSIONS",
       title: "Decision letter published",
       message: `The editor's decision letter for "${article.title}" is now visible on the article's Review History tab.`,
       articleId,

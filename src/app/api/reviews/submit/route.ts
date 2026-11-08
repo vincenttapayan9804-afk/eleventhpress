@@ -106,6 +106,8 @@ export async function POST(req: NextRequest) {
     editors.map((e) => ({
       userId: e.id,
       type: body.status === "COMPLETED" ? ("SUCCESS" as const) : ("INFO" as const),
+      category: "EDITORIAL",
+      link: "/dashboard/editor-queue",
       title: body.status === "COMPLETED" ? "Review Completed" : `Review ${body.status}`,
       message: `A reviewer has ${body.status.toLowerCase()} review for "${review.article.title}"${
         body.recommendation ? ` — recommendation: ${body.recommendation}` : ""

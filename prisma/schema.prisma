@@ -916,10 +916,18 @@ model Notification {
   id        String   @id @default(cuid())
   userId    String
   type      String // INFO | SUCCESS | WARNING | ERROR
+  // What it's about, for per-category email preferences (src/lib/notification-prefs.ts):
+  // SUBMISSIONS | REVIEWS | EDITORIAL | ACCOUNT | BILLING | GENERAL
+  category  String   @default("GENERAL")
+  // In-app path to open when the notification is clicked (e.g. /dashboard/reviewer-queue).
+  link      String?
   title     String
   message   String
   read      Boolean  @default(false)
   articleId String?
+  // When this notification went out by email (instantly or in a daily digest);
+  // null while it's waiting for a digest or wasn't emailed.
+  emailedAt DateTime?
   createdAt DateTime @default(now())
 
   user    User     @relation(fields: [userId], references: [id])
@@ -2710,4 +2718,17 @@ model ResearchFeedback {
 model MaintenanceRun {
   name        String   @id
   completedAt DateTime @default(now())
+}
+
+// A user's email preferences for notifications. Absent = defaults
+// (instant email for every category). Security and sign-in emails
+// (src/lib/account-emails.ts) are always sent and aren't governed by this.
+model NotificationPreference {
+  userId          String   @id
+  // INSTANT | DAILY (one digest a day) | OFF (in-app only)
+  emailMode       String   @default("INSTANT")
+  // Categories the user doesn't want emails for (still shown in-app).
+  mutedCategories String[] @default([])
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
 }

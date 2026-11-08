@@ -117,6 +117,7 @@ export async function POST(req: NextRequest) {
       await notify({
         userId: referrer.id,
         type: "SUCCESS",
+        category: "ACCOUNT",
         title: "Your referral joined Eleventh Press",
         message: `${fullName} signed up using your referral link.`,
       }).catch(() => {});

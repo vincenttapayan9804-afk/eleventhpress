@@ -77,6 +77,7 @@ export async function POST(req: NextRequest) {
         editors.map((e) => ({
           userId: e.id,
           type: "WARNING" as const,
+          category: "EDITORIAL",
           title: "Research Assistant answer reported",
           message: `${ISSUE_LABELS[issueType ?? "OTHER"]}. Question: “${question.slice(0, 200)}”${comment ? ` Reader's note: “${comment.slice(0, 300)}”` : ""} (report ${row.id})`,
           ...(articleIds[0] ? { articleId: articleIds[0] } : {}),

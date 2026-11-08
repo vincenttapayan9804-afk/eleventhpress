@@ -79,6 +79,7 @@ export async function POST(req: NextRequest) {
     await notify({
       userId: article.correspondingAuthorId,
       type: result.ok ? "SUCCESS" : "ERROR",
+      category: "SUBMISSIONS",
       title: result.ok ? "Dataset deposited on Zenodo" : "Dataset deposit failed",
       message: result.ok
         ? `Dataset "${body.title}" for "${article.title}" is now available at ${result.datasetUrl} (DOI: ${result.datasetDoi}). The dataset will be linked on the article page and the Crossref relation will be deposited on next publication.`

@@ -139,6 +139,8 @@ export async function POST(req: NextRequest) {
   await notify({
     userId: reviewerId,
     type: "INFO",
+    category: "REVIEWS",
+    link: "/dashboard/reviewer-queue",
     title: "Review Invitation",
     message: `You have been invited to review "${targetArticle.title}". The review model is ${targetArticle.reviewModel ?? "DOUBLE_BLIND"} and the due date is ${review.dueDate?.toDateString()}.`,
     articleId,

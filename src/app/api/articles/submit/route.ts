@@ -194,6 +194,8 @@ export async function POST(req: NextRequest) {
       editors.map((e) => ({
         userId: e.id,
         type: "INFO" as const,
+        category: "EDITORIAL",
+        link: "/dashboard/editor-queue",
         title: isExpert ? "New Expert Insight Submission" : "New Submission",
         message: isExpert
           ? `New "${effectiveDiscipline}" Expert Insight submitted: "${title}" (DOI ${draftDoi}).`

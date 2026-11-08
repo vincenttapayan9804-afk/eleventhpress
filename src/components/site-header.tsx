@@ -1,7 +1,7 @@
 "use client";
 
+import { NotificationBell } from "@/components/notification-bell";
 import { SpaLink } from "@/components/spa-link";
-import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useApp } from "@/lib/store";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { Menu, Bell, LogOut, LayoutDashboard, ChevronDown } from "lucide-react";
+import { Menu, LogOut, LayoutDashboard, ChevronDown } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,7 +23,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { apiFetch } from "@/lib/api-client";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SoundToggle } from "@/components/ui-sound";
@@ -32,7 +31,6 @@ import { useTenantBranding } from "@/lib/tenant-branding-context";
 export function SiteHeader() {
   const { view, setView, user, logout, openDashboard, mobileNavOpen, setMobileNavOpen } = useApp();
   const branding = useTenantBranding();
-  const [unread, setUnread] = useState(0);
   const t = useTranslations("nav");
   const tHeader = useTranslations("header");
 
@@ -57,15 +55,6 @@ export function SiteHeader() {
   const publicationsActive =
     view === "browse" || view === "books" || view === "magazines" || view === "magazineIssue" ||
     view === "podcasts" || view === "media" || view === "mediaPost";
-
-  useState(() => {
-    if (!user) return;
-    apiFetch<{ notifications: any[] }>("/api/notifications")
-      .then(({ notifications }) => {
-        setUnread(notifications.filter((n) => !n.read).length);
-      })
-      .catch(() => {});
-  });
 
   const initials = user?.fullName?.split(" ").map((s) => s[0]).slice(0, 2).join("") ?? "EP";
 
@@ -171,21 +160,7 @@ export function SiteHeader() {
           <div className="flex flex-shrink-0 items-center gap-2">
             {user ? (
               <>
-                {unread > 0 && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => openDashboard("overview")}
-                    className="relative size-11 sm:size-9"
-                    aria-label={t("notifications")}
-                  >
-                    <Bell className="h-4 w-4" />
-                    <span className="absolute right-1 top-1 flex h-2 w-2">
-                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--royal-500)] opacity-75" />
-                      <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--royal-500)]" />
-                    </span>
-                  </Button>
-                )}
+                <NotificationBell label={t("notifications")} />
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="flex items-center gap-2 pl-2 pr-3">

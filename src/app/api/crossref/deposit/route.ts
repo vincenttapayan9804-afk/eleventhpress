@@ -81,6 +81,7 @@ export async function POST(req: NextRequest) {
   await notify({
     userId: session.userId,
     type: result.ok ? "SUCCESS" : "ERROR",
+    category: "SUBMISSIONS",
     title: result.ok ? "Crossref deposit submitted" : "Crossref deposit failed",
     message:
       (result.ok
