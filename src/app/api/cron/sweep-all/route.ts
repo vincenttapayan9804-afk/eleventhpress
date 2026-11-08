@@ -10,6 +10,7 @@ import { purgeExpiredResearchData } from "@/lib/research-assistant";
 import { sendNotificationDigests } from "@/lib/notification-digest";
 import { sendReviewReminders } from "@/lib/review-reminders";
 import { sendReadingAlerts } from "@/lib/reading-alerts";
+import { sendInvoiceReminders } from "@/lib/invoice-reminders";
 
 /**
  * GET /api/cron/sweep-all
@@ -52,6 +53,7 @@ const SWEEPS = [
     run: async () => ({
       reminders: await sendReviewReminders(),
       readingAlerts: await sendReadingAlerts(),
+      invoiceReminders: await sendInvoiceReminders(),
       digest: await sendNotificationDigests(),
     }),
   },

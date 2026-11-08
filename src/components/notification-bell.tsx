@@ -95,6 +95,7 @@ export function NotificationBell({ label }: { label: string }) {
     setOpen(false);
     const target = n.link ? stateForPath(n.link.split("#")[0].split("?")[0], n.link.includes("?") ? n.link.slice(n.link.indexOf("?")) : "") : null;
     if (target) applyRoute(target);
+    else if (n.link) window.location.assign(n.link);
     else if (n.articleId) useApp.getState().openArticle(n.articleId);
   };
 

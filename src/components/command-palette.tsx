@@ -30,7 +30,7 @@ const GROUP_ICON: Record<string, typeof FileText> = {
   resources: GraduationCap,
 };
 
-const PAGES = (["browse", "books", "magazines", "podcasts", "media", "authors", "experts", "collections", "resources", "about", "faqs", "policies", "charter"] as const)
+const PAGES = (["browse", "books", "magazines", "podcasts", "media", "authors", "experts", "collections", "resources", "about", "pricing", "faqs", "policies", "charter"] as const)
   .map((view) => ({ view, title: VIEW_META[view]?.title ?? view }));
 
 /** Opens a path: in place when the single-page site has it, otherwise as a page load. */

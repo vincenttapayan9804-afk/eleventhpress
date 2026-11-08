@@ -36,6 +36,7 @@ import {
   MediaPostView,
   DepartmentsView,
   DepartmentView,
+  PricingView,
 } from "@/components/views/lazy";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
@@ -56,7 +57,7 @@ const CorpusChatWidget = dynamic(() => import("@/components/corpus-chat-widget")
 const SSR_SAFE_VIEWS = new Set([
   "home", "browse", "books", "about", "login", "register", "collections", "authors", "experts",
   "charter", "faqs", "policies", "privacy", "terms", "accessibility", "magazines", "podcasts",
-  "media", "departments", "resources",
+  "media", "departments", "resources", "pricing",
 ]);
 
 /**
@@ -220,6 +221,7 @@ export function SpaShell({ initialRoute }: { initialRoute?: RouteState }) {
               {renderView && view === "mediaPost" && <MediaPostView />}
               {renderView && view === "departments" && <DepartmentsView />}
               {renderView && view === "department" && <DepartmentView />}
+              {renderView && view === "pricing" && <PricingView />}
             </motion.div>
           </AnimatePresence>
         </main>

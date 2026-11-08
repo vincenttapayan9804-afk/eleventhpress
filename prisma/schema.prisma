@@ -897,6 +897,8 @@ model Invoice {
   metadata        String? // JSON — e.g. { "plan": "READER_YEARLY" } for SUBSCRIPTION invoices
   paidAt          DateTime?
   createdAt       DateTime  @default(now())
+  // Payment reminders sent for an open invoice (src/lib/invoice-reminders.ts).
+  remindersSent   Int       @default(0)
 
   // PO-based billing — an enterprise/institutional contract settled by
   // purchase order rather than a card charge. billingMethod null means an
