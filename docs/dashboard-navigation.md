@@ -37,16 +37,19 @@ organized once visible.
 
 ## Implementation notes
 
-- Each `TABS` entry gained a `group: string` field; the array itself was
-  reordered so tabs sharing a group sit contiguously (rendering order
-  drives the section-header placement — there's no separate grouping
-  data structure to keep in sync).
-- Section headers render only at `lg` and above (`hidden ... lg:block`).
-  Below `lg` the sidebar is unchanged from before this change: a flat,
-  horizontally-scrolling row of buttons. Inline group labels would break
-  that scroll rhythm rather than help it on a narrow screen, so mobile/
-  tablet intentionally keeps the flat list.
-- No new components, no new state — `visibleTabs.map` now also tracks
-  whether the previous item's `group` differs from the current one, and
-  renders a `<p>` label immediately before the first button of each new
-  group.
+- `TABS` lives in `src/components/dashboard/dashboard-tabs.ts` (with
+  `tabsForRole`), shared by the dashboard and the ⌘K command palette. Each
+  entry has a `group`; tabs sharing a group sit contiguously, and
+  rendering order drives where section headers appear.
+- `src/components/dashboard/dashboard-nav.tsx` renders the navigation:
+  - **Wide screens (`lg`+):** the grouped sidebar. Any section can be
+    pinned from its hover pin icon; pinned sections (up to 6, saved per
+    user on the device) appear in a "Pinned" group at the top.
+  - **Phones and tablets:** a bar showing the current section plus up to
+    three pinned shortcuts. "All sections" opens a bottom sheet with a
+    search box and the grouped list — replacing the old sideways-scrolling
+    row of every tab.
+- The overview opens with "Needs your attention" (`attention-panel.tsx`:
+  the role's pending work, built from the dashboard data) and a first-run
+  "Get set up" checklist (`onboarding-checklist.tsx`), which disappears
+  once complete or dismissed.

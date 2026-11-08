@@ -1,8 +1,11 @@
 "use client";
 
+import { DashboardNav } from "@/components/dashboard/dashboard-nav";
+import { AttentionPanel } from "@/components/dashboard/attention-panel";
+import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
 import { TABS as ALL_TABS } from "@/components/dashboard/dashboard-tabs";
 import { ResumeDraftCard } from "@/components/dashboard/resume-draft-card";
-import { useEffect, useState, useCallback, Fragment } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useTenantBranding, isWhitelabel } from "@/lib/tenant-branding-context";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { useApp } from "@/lib/store";
@@ -232,43 +235,9 @@ export function DashboardView() {
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
         {/* Sidebar */}
         <aside className="min-w-0 lg:sticky lg:top-20 lg:self-start">
-          {/* Edge fade hints that more tabs exist off-screen when this
-              scrolls horizontally on mobile/tablet (below lg it's not a
-              vertical list yet); no-op on lg+ where it's a static column.
-              Below lg, group boundaries render as compact vertical-divider
-              labels inline in the scroll row (rather than being hidden
-              entirely) so a thumb scrolling through ~30+ tabs still has
-              landmarks to orient by. */}
-          <nav className="flex flex-row items-stretch gap-1 overflow-x-auto pb-1 [mask-image:linear-gradient(to_right,transparent,black_16px,black_calc(100%-16px),transparent)] lg:flex-col lg:items-stretch lg:pb-0 lg:[mask-image:none]">
-            {visibleTabs.map((t, i) => {
-              const Icon = t.icon;
-              const active = dashboardTab === t.key;
-              const isNewGroup = i === 0 || visibleTabs[i - 1].group !== t.group;
-              return (
-                <Fragment key={t.key}>
-                  {isNewGroup && (
-                    <p
-                      className={`flex shrink-0 items-center whitespace-nowrap border-l border-border pl-2 pr-1 font-sans text-[0.6rem] font-semibold uppercase tracking-wide text-muted-foreground lg:block lg:border-l-0 lg:px-3 lg:pb-1 ${
-                        i === 0 ? "border-l-0 pl-0 lg:pt-1" : "ml-1 lg:ml-0 lg:pt-4"
-                      }`}
-                    >
-                      {t.group}
-                    </p>
-                  )}
-                  <button
-                    onClick={() => openDashboard(t.key as any)}
-                    className={`flex min-h-[44px] shrink-0 items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-left font-sans text-sm font-medium transition-colors ${
-                      active
-                        ? "bg-primary text-primary-foreground"
-                        : "text-foreground/80 hover:bg-accent"
-                    }`}
-                  >
-                    <Icon className="h-4 w-4" /> {t.label}
-                  </button>
-                </Fragment>
-              );
-            })}
-          </nav>
+          {/* Grouped sidebar on wide screens; a current-section bar with a
+              searchable sections sheet on phones (dashboard-nav.tsx). */}
+          <DashboardNav tabs={visibleTabs} active={dashboardTab} onOpen={(k) => openDashboard(k as any)} />
 
           {/* Admin Portal shortcut — a separate, password-gated view (not a
               dashboardTab), so it's kept visually distinct from the tab
@@ -340,6 +309,8 @@ export function DashboardView() {
           {dashboardTab === "overview" && (
             <>
               <ResumeDraftCard />
+              <AttentionPanel data={data} />
+              <OnboardingChecklist hasSubmissions={(data.submissions ?? []).length > 0} />
               <OverviewTab data={data} />
             </>
           )}

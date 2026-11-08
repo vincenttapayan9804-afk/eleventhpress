@@ -207,8 +207,10 @@ export function SiteHeader() {
               </Button>
             )}
 
-            <ThemeToggle className="size-11 sm:size-9" />
-            <SoundToggle className="size-11 sm:size-9" />
+            {/* On phones these live in the menu sheet, so the header row
+                keeps room for search, notifications and the account menu. */}
+            <ThemeToggle className="hidden size-9 sm:inline-flex" />
+            <SoundToggle className="hidden size-9 sm:inline-flex" />
             <LanguageSwitcher />
 
             {/* Mobile nav */}
@@ -275,6 +277,11 @@ export function SiteHeader() {
                     </button>
                   )}
                 </nav>
+                <div className="mt-6 flex items-center gap-2 border-t border-border px-3 pt-4 sm:hidden">
+                  <ThemeToggle className="size-11" />
+                  <SoundToggle className="size-11" />
+                  <span className="text-xs text-muted-foreground">Theme &amp; sounds</span>
+                </div>
               </SheetContent>
             </Sheet>
           </div>
