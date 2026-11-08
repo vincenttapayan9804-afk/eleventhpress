@@ -11,6 +11,8 @@ const StartSchema = z.object({
   newEmail: z.string().trim().min(3).max(254).email("Enter a valid email address"),
   confirmEmail: z.string().trim().min(3).max(254),
   password: z.string().min(1).max(200),
+  // Super admin only: take the address over from the account that holds it.
+  releaseFromOtherAccount: z.boolean().optional(),
 });
 
 /**
@@ -35,7 +37,7 @@ export async function POST(req: NextRequest) {
 
   const user = await db.user.findUnique({
     where: { id: session.userId },
-    select: { id: true, email: true, fullName: true, tenantId: true, passwordHash: true, deletedAt: true },
+    select: { id: true, email: true, fullName: true, tenantId: true, passwordHash: true, deletedAt: true, role: true },
   });
   if (!user || user.deletedAt) return NextResponse.json({ error: "Account not found" }, { status: 404 });
   if (!verifyPassword(parsed.data.password, user.passwordHash)) {
@@ -46,10 +48,42 @@ export async function POST(req: NextRequest) {
   }
   const taken = await db.user.findFirst({
     where: { email: { equals: newEmail, mode: "insensitive" }, NOT: { id: user.id } },
-    select: { id: true },
+    select: {
+      id: true,
+      email: true,
+      fullName: true,
+      role: true,
+      createdAt: true,
+      tenant: { select: { name: true } },
+      _count: { select: { submissions: true } },
+    },
   });
   if (taken) {
-    return NextResponse.json({ error: "Another account already uses that email address." }, { status: 409 });
+    const isSuperAdmin = user.role === "SUPER_ADMIN";
+    if (isSuperAdmin && parsed.data.releaseFromOtherAccount) {
+      await releaseEmail(taken.id, taken.email, user.id);
+    } else {
+      return NextResponse.json(
+        {
+          error: "Another account already uses that email address.",
+          code: "EMAIL_TAKEN",
+          // Only the platform owner sees who holds it — anyone else learns
+          // nothing beyond what registration would already reveal.
+          ...(isSuperAdmin
+            ? {
+                holder: {
+                  fullName: taken.fullName,
+                  role: taken.role,
+                  tenantName: taken.tenant?.name ?? null,
+                  createdAt: taken.createdAt.toISOString(),
+                  submissions: taken._count.submissions,
+                },
+              }
+            : {}),
+        },
+        { status: 409 }
+      );
+    }
   }
 
   if (emailTwoFactorAvailable()) {
@@ -61,4 +95,29 @@ export async function POST(req: NextRequest) {
   }
 
   return applyEmailChange(user.id, newEmail, false, { mode: "changed" });
+}
+
+/**
+ * Moves the other account onto a placeholder address so this one is free.
+ * Nothing else about that account changes (its work, role and history stay);
+ * it simply can no longer sign in with the address. The audit log keeps the
+ * original address so it can be restored by hand if needed.
+ */
+async function releaseEmail(holderId: string, heldEmail: string, byUserId: string) {
+  const placeholder = `released-${holderId.slice(-8)}-${Date.now().toString(36)}@released.eleventhpress.invalid`;
+  await db.user.update({
+    where: { id: holderId },
+    data: { email: placeholder, emailVerifiedAt: null, emailVerificationToken: null },
+  });
+  await db.auditLog
+    .create({
+      data: {
+        userId: byUserId,
+        action: "EMAIL_RELEASED",
+        entityType: "USER",
+        entityId: holderId,
+        metadata: JSON.stringify({ from: heldEmail, to: placeholder }),
+      },
+    })
+    .catch(() => {});
 }
