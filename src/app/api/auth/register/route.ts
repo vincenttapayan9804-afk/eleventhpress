@@ -12,9 +12,8 @@ import { tenantHasUserCapacity } from "@/lib/tenant-quota";
 import { notify } from "@/lib/notify";
 import { generateReferralCode } from "@/lib/referrals";
 import { generateEmailVerificationToken } from "@/lib/email-verification";
-import { sendEmail, notificationEmailHtml } from "@/lib/email";
-import { APP_BASE_URL } from "@/lib/site";
-import { emailBrandOf, brandName } from "@/lib/email-brand";
+import { emailBrandOf } from "@/lib/email-brand";
+import { sendWelcomeEmail, rememberDevice } from "@/lib/account-emails";
 
 // `role` intentionally accepts any non-empty string here, not an enum of
 // SELF_SELECTABLE_ROLES/APPLICATION_ROLES — the handler below already
@@ -105,22 +104,10 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Best-effort, same posture as the referral notification below: the
-    // account is already created, so a send failure must never surface as
-    // a failed registration. Verification is informational, not a login
-    // gate — see User.emailVerifiedAt's schema comment.
-    const brand = emailBrandOf(tenant);
-    sendEmail({
-      to: user.email,
-      subject: `Verify your email — ${brandName(brand)}`,
-      html: notificationEmailHtml({
-        title: "Verify your email",
-        message: `Welcome to ${brandName(brand)}, ${fullName}. Confirm this is really your email address to finish securing your account.`,
-        ctaUrl: `${APP_BASE_URL}/api/auth/verify-email?token=${emailVerificationToken}`,
-        ctaLabel: "Verify email",
-        brand,
-      }),
-    }).catch(() => {});
+    // Welcome + confirm-your-email. Awaited: on Vercel a send still pending
+    // when the response returns can be frozen and never go out. Never
+    // throws, so a delivery problem can't fail the sign-up.
+    await sendWelcomeEmail(user, emailVerificationToken, emailBrandOf(tenant));
 
     if (referrer) {
       // Best-effort: the account above is already created and committed,
@@ -170,6 +157,8 @@ export async function POST(req: NextRequest) {
       },
     });
     res.cookies.set(SESSION_COOKIE_NAME, token, sessionCookieOptions());
+    // The browser that created the account isn't a "new device" next time.
+    rememberDevice(req, res, user.id);
     return res;
   } catch (e) {
     console.error("[register]", e);

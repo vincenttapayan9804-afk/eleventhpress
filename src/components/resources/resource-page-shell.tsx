@@ -6,7 +6,6 @@ import { useApp } from "@/lib/store";
 import { I18nProvider } from "@/components/i18n-provider";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
-import { AuthSheet } from "@/components/auth-sheet";
 import { Toaster } from "@/components/ui/sonner";
 
 /**
@@ -42,7 +41,6 @@ export function ResourcePageShell({ tab, children }: { tab: "blogs" | "guides"; 
           {children}
         </main>
         <SiteFooter />
-        <AuthSheet />
         <Toaster richColors position="top-right" />
       </div>
     </I18nProvider>

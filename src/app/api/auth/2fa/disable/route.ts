@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { sendSecurityEmail } from "@/lib/account-emails";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders, verifyPassword } from "@/lib/auth";
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.ok) return parsed.response;
   const { password } = parsed.data;
 
-  const user = await db.user.findUnique({ where: { id: session.userId }, select: { passwordHash: true } });
+  const user = await db.user.findUnique({ where: { id: session.userId }, select: { id: true, email: true, fullName: true, tenantId: true, passwordHash: true, twoFactorEnabled: true } });
   if (!user || !verifyPassword(password, user.passwordHash)) {
     return NextResponse.json({ error: "Incorrect password" }, { status: 401 });
   }
@@ -45,6 +46,9 @@ export async function POST(req: NextRequest) {
       twoFactorEmailCodeAttempts: 0,
     },
   });
+  if (user.twoFactorEnabled) {
+    await sendSecurityEmail(user, { kind: "two_factor_off" });
+  }
 
   return NextResponse.json({ ok: true });
 }

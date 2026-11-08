@@ -31,12 +31,6 @@ const ROLES = [
   { value: "EDITOR", label: "Editor — requires qualification review" },
 ];
 
-// Demo account credentials are only ever a local convenience — showing
-// plaintext admin/editor/reviewer passwords on a public login page in
-// production would hand out real privileged access. Opt-in only, via an
-// env var set for demo/staging deployments.
-const SHOW_DEMO_ACCOUNTS = process.env.NEXT_PUBLIC_SHOW_DEMO_ACCOUNTS === "true";
-
 export function AuthView() {
   const { view, setView, setAuth, openDashboard } = useApp();
   const [loading, setLoading] = useState(false);
@@ -51,8 +45,8 @@ export function AuthView() {
   );
 
   // Login form
-  const [loginEmail, setLoginEmail] = useState(SHOW_DEMO_ACCOUNTS ? "author@eleventhpress.org" : "");
-  const [loginPassword, setLoginPassword] = useState(SHOW_DEMO_ACCOUNTS ? "author" : "");
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
 
   // "Forgot password?" — replaces the sign-in form in the same card.
   // "/?view=login&forgot=1" (the reset page's "request a new link") opens it directly.
@@ -398,28 +392,6 @@ export function AuthView() {
               </p>
             </div>
 
-            {SHOW_DEMO_ACCOUNTS && (
-              <div className="mt-6">
-                <Separator className="mb-4" />
-                <p className="mb-2 text-xs font-medium text-muted-foreground">Demo accounts:</p>
-                <div className="grid grid-cols-2 gap-1.5 text-[0.7rem]">
-                  {DEMO_ACCOUNTS.map((a) => (
-                    <button
-                      key={a.email}
-                      onClick={() => {
-                        setLoginEmail(a.email);
-                        setLoginPassword(a.password);
-                      }}
-                      className="rounded border border-border bg-muted/30 px-2 py-1.5 text-left font-mono hover:border-primary/40 hover:bg-muted/60"
-                    >
-                      <span className="font-semibold text-foreground">{a.role}</span>
-                      <br />
-                      <span className="text-muted-foreground">{a.email}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
           </CardContent>
           </>
           )}
@@ -561,12 +533,3 @@ export function AuthView() {
     </div>
   );
 }
-
-const DEMO_ACCOUNTS = [
-  { role: "Admin", email: "admin@eleventhpress.org", password: "admin" },
-  { role: "Editor", email: "editor@eleventhpress.org", password: "editor" },
-  { role: "Reviewer", email: "reviewer@eleventhpress.org", password: "reviewer" },
-  { role: "Reviewer 2", email: "reviewer2@eleventhpress.org", password: "reviewer" },
-  { role: "Author", email: "author@eleventhpress.org", password: "author" },
-  { role: "Reader", email: "reader@eleventhpress.org", password: "reader" },
-];

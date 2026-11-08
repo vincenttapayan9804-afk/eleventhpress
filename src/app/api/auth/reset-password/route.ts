@@ -6,9 +6,7 @@ import { extractRequestIp } from "@/lib/institutions";
 import { checkRateLimit } from "@/lib/ratelimit";
 import { parseBody } from "@/lib/validate";
 import { isPasswordBreached } from "@/lib/password-breach";
-import { sendEmail, notificationEmailHtml } from "@/lib/email";
-import { APP_BASE_URL } from "@/lib/site";
-import { emailBrandForTenantId, brandName } from "@/lib/email-brand";
+import { sendSecurityEmail } from "@/lib/account-emails";
 
 /**
  * GET  /api/auth/reset-password?token=…  — is this reset link still valid?
@@ -104,19 +102,7 @@ export async function POST(req: NextRequest) {
       })
       .catch(() => {});
 
-    const brand = await emailBrandForTenantId(user.tenantId);
-    await sendEmail({
-      to: user.email,
-      subject: `Your password was changed — ${brandName(brand)}`,
-      html: notificationEmailHtml({
-        title: "Your password was changed",
-        message:
-          `The password for your ${brandName(brand)} account was just changed using a reset link. If this was you, there's nothing else to do. If it wasn't, reset your password again straight away from the sign-in page and contact the editorial office.`,
-        ctaUrl: `${APP_BASE_URL}/?view=login`,
-        ctaLabel: "Sign in",
-        brand,
-      }),
-    }).catch(() => {});
+    await sendSecurityEmail(user, { kind: "password_changed", via: "reset" });
 
     return NextResponse.json({ ok: true, twoFactorEnabled: user.twoFactorEnabled });
   } catch (e) {

@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getSessionFromHeaders, verifyPassword, SESSION_COOKIE_NAME, sessionCookieOptions } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/ratelimit";
 import { anonymizeUserAccount } from "@/lib/account-privacy";
+import { sendSecurityEmail } from "@/lib/account-emails";
 
 /**
  * POST /api/account/delete
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
 
   const user = await db.user.findUnique({
     where: { id: session.userId },
-    select: { passwordHash: true, role: true, deletedAt: true },
+    select: { id: true, email: true, fullName: true, tenantId: true, passwordHash: true, role: true, deletedAt: true },
   });
   if (!user || !verifyPassword(password, user.passwordHash)) {
     return NextResponse.json({ error: "Incorrect password" }, { status: 401 });
@@ -54,6 +55,8 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Sent first: anonymizing replaces the address.
+  await sendSecurityEmail(user, { kind: "account_deleted" });
   await anonymizeUserAccount(session.userId);
 
   await db.auditLog.create({

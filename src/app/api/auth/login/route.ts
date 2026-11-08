@@ -8,6 +8,7 @@ import { checkRateLimit } from "@/lib/ratelimit";
 import { isLocked, lockoutMinutesFor, minutesRemaining } from "@/lib/account-lockout";
 import { parseBody } from "@/lib/validate";
 import { issueEmailCode } from "@/lib/twofactor-email";
+import { noteSignIn, sendSecurityEmail } from "@/lib/account-emails";
 
 // Not `.email()` — that would reject a request before we ever compare it
 // against an existing account, disclosing "well-formed vs not" for free.
@@ -86,6 +87,10 @@ export async function POST(req: NextRequest) {
             ...(lockMinutes ? { lockedUntil: new Date(Date.now() + lockMinutes * 60_000) } : {}),
           },
         }).catch(() => {});
+        // Tell the owner the moment their account gets locked.
+        if (lockMinutes && !user.deletedAt) {
+          await sendSecurityEmail(user, { kind: "account_locked", minutes: lockMinutes });
+        }
       }
 
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
@@ -167,6 +172,7 @@ export async function POST(req: NextRequest) {
       },
     });
     res.cookies.set(SESSION_COOKIE_NAME, token, sessionCookieOptions());
+    await noteSignIn(req, res, user, { ip, userAgent });
     return res;
   } catch (e) {
     console.error("[login]", e);

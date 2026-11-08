@@ -139,8 +139,6 @@ interface AppState {
   logout: () => void;
 
   // UI
-  authSheetOpen: boolean;
-  setAuthSheetOpen: (v: boolean) => void;
   mobileNavOpen: boolean;
   setMobileNavOpen: (v: boolean) => void;
 
@@ -200,8 +198,6 @@ export const useApp = create<AppState>()(
         });
       },
 
-      authSheetOpen: false,
-      setAuthSheetOpen: (v) => set({ authSheetOpen: v }),
       mobileNavOpen: false,
       setMobileNavOpen: (v) => set({ mobileNavOpen: v }),
 

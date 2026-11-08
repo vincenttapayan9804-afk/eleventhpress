@@ -771,7 +771,7 @@ export function AboutView() {
           {t("ctaHeadline")}
         </h2>
         <div className="mt-5 flex flex-wrap justify-center gap-3">
-          <Button onClick={() => useApp.getState().setAuthSheetOpen(true)}>
+          <Button onClick={() => setView("login")}>
             {t("signInToSubmit")}
           </Button>
           <Button variant="outline" onClick={() => setView("browse")}>
