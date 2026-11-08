@@ -35,7 +35,8 @@ export type ViewKey =
   | "media"
   | "mediaPost"
   | "departments"
-  | "department";
+  | "department"
+  | "pricing";
 
 export type DashboardTab =
   | "overview"
@@ -123,6 +124,8 @@ interface AppState {
   /** Dashboard tab a signed-out visitor asked for (a /dashboard/... link),
    * opened once they sign in. */
   returnTab: DashboardTab | null;
+  /** Plan chosen on the Pricing page, opened in the Reader tab's checkout. */
+  pendingPlan: string | null;
   reviewId: string | null;
   /** Active tab of the Resources view, so returning from a blog post or
    * guide page lands back on the tab the reader came from. */
@@ -175,6 +178,7 @@ export const useApp = create<AppState>()(
       departmentSlug: null,
       dashboardTab: "overview",
       returnTab: null,
+      pendingPlan: null,
       reviewId: null,
       resourcesTab: "trainings",
       setView: (v) => set({ view: v }),

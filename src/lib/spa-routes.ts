@@ -61,6 +61,7 @@ const STATIC_PATHS: Partial<Record<ViewKey, string>> = {
   podcasts: "/podcasts",
   media: "/media",
   departments: "/departments",
+  pricing: "/pricing",
 };
 
 const PATH_TO_VIEW: Record<string, ViewKey> = Object.fromEntries(
@@ -197,6 +198,7 @@ export const VIEW_META: Partial<Record<ViewKey, { title: string; description: st
   podcasts: { title: "Podcasts", description: "Research conversations and episodes." },
   media: { title: "Media", description: "News, video and media from Eleventh Press." },
   departments: { title: "Departments", description: "Academic departments on the platform." },
+  pricing: { title: "Pricing", description: "Reader plans, author fees and how billing works — every article is free to read." },
   resources: { title: "Resources", description: "Trainings, webinars, blogs, guides and books for researchers." },
   login: { title: "Sign in", description: "Sign in to your account.", index: false },
   register: { title: "Create an account", description: "Join as an author, reviewer or reader.", index: false },

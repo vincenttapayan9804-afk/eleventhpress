@@ -1,5 +1,7 @@
 "use client";
 
+import { useApp } from "@/lib/store";
+import { READER_PLANS } from "@/lib/plans";
 import { useState } from "react";
 import { apiFetch } from "@/lib/api-client";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -23,56 +25,16 @@ interface Props {
   onRefresh: () => void;
 }
 
-const PLANS = [
-  {
-    id: "READER_MONTHLY",
-    name: "Monthly Reader",
-    price: 10,
-    period: "month",
-    description: "Convenience features on top of already-free PDF access, for active readers and visiting researchers.",
-    features: [
-      "Bundled/batch PDF downloads",
-      "Full-text search across all articles",
-      "Email alerts for new issues",
-      "Cancel anytime",
-    ],
-    popular: false,
-  },
-  {
-    id: "READER_YEARLY",
-    name: "Annual Reader",
-    price: 97,
-    period: "year",
-    description: "Best value for active scholars and doctoral candidates.",
-    features: [
-      "Everything in Monthly",
-      "Save ~19% vs. monthly billing",
-      "Early access to forthcoming articles",
-      "Citation export in BibTeX / RIS / APA",
-      "Priority support",
-    ],
-    popular: true,
-  },
-  {
-    id: "INSTITUTIONAL",
-    name: "Institutional",
-    price: 997,
-    period: "year",
-    description: "Site-wide access for libraries, universities, and research institutes.",
-    features: [
-      "Everything in Annual",
-      "IP-range or SSO authentication",
-      "Unlimited concurrent users",
-      "COUNTER 5 usage reports",
-      "Dedicated account manager",
-    ],
-    popular: false,
-  },
-];
+const PLANS = READER_PLANS;
 
 export function ReaderTab({ subscription, onRefresh }: Props) {
   const [subscribing, setSubscribing] = useState<string | null>(null);
-  const [pickerPlan, setPickerPlan] = useState<string | null>(null);
+  // A plan chosen on the public Pricing page opens straight into checkout.
+  const [pickerPlan, setPickerPlan] = useState<string | null>(() => {
+    const p = useApp.getState().pendingPlan;
+    if (p) useApp.setState({ pendingPlan: null });
+    return p;
+  });
 
   async function checkoutSubscription(providerId: string) {
     if (!pickerPlan) return;

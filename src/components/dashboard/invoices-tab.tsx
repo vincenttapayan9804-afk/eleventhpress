@@ -201,11 +201,11 @@ export function InvoicesTab({ invoices, subscription, onRefresh }: Props) {
                         Pay now
                       </Button>
                     )}
-                    {inv.status === "PAID" && (
-                      <Button size="sm" variant="ghost" disabled>
-                        <Download className="mr-1.5 h-3.5 w-3.5" /> Receipt
-                      </Button>
-                    )}
+                    <Button size="sm" variant="ghost" asChild>
+                      <a href={`/billing/${inv.id}`} target="_blank" rel="noopener">
+                        <Download className="mr-1.5 h-3.5 w-3.5" /> {inv.status === "PAID" ? "Receipt" : "Invoice"}
+                      </a>
+                    </Button>
                   </div>
                 </div>
               ))}
