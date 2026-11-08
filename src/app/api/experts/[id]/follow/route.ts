@@ -2,6 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 
+/** GET: whether the signed-in user follows this person. */
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = getSessionFromHeaders(req.headers);
+  if (!session) return NextResponse.json({ following: false });
+  const { id: followingId } = await params;
+  const row = await db.follow.findUnique({ where: { followerId_followingId: { followerId: session.userId, followingId } } });
+  return NextResponse.json({ following: !!row });
+}
+
 /** POST to follow, DELETE to unfollow. Idempotent either way. */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = getSessionFromHeaders(req.headers);

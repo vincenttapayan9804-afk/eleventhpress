@@ -17,6 +17,8 @@ export type ViewKey =
   // A server-rendered /resources/blog|guides/... page is on screen (see
   // ResourcePageShell); the SPA under "/" never renders this view.
   | "resourcePage"
+  // A server-rendered /authors/<slug> profile is on screen (AuthorProfileShell).
+  | "authorProfile"
   | "collections"
   | "authors"
   | "experts"

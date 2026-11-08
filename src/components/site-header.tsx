@@ -1,5 +1,6 @@
 "use client";
 
+import { CommandPalette, SearchButton } from "@/components/command-palette";
 import { NotificationBell } from "@/components/notification-bell";
 import { SpaLink } from "@/components/spa-link";
 import { useTranslations } from "next-intl";
@@ -137,7 +138,7 @@ export function SiteHeader() {
                 key={item.view}
                 to={{ view: item.view }}
                 onNavigate={() => setView(item.view)}
-                data-active={view === item.view || (item.view === "resources" && view === "resourcePage")}
+                data-active={view === item.view || (item.view === "resources" && view === "resourcePage") || (item.view === "authors" && view === "authorProfile")}
                 data-testid={`nav-${item.view}`}
                 className="nav-underline flex-shrink-0 whitespace-nowrap font-sans text-[0.83rem] font-medium text-foreground/80 hover:text-foreground transition-colors 2xl:text-sm"
               >
@@ -158,6 +159,8 @@ export function SiteHeader() {
 
           {/* Right side */}
           <div className="flex flex-shrink-0 items-center gap-2">
+            <SearchButton />
+            <CommandPalette />
             {user ? (
               <>
                 <NotificationBell label={t("notifications")} />

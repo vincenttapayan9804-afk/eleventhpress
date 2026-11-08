@@ -136,6 +136,7 @@ export function pathForState(s: RouteState): string | null {
       return tab === "overview" ? "/dashboard" : `/dashboard/${kebab(tab)}`;
     }
     case "resourcePage":
+    case "authorProfile":
       return null;
     default:
       return STATIC_PATHS[s.view] ?? null;

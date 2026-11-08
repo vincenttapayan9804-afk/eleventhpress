@@ -1,6 +1,7 @@
 "use client";
 
 import { articlePath } from "@/lib/spa-routes";
+import { authorPath } from "@/lib/author-path";
 import { useEffect, useState } from "react";
 import { useApp } from "@/lib/store";
 import { apiFetch } from "@/lib/api-client";
@@ -443,7 +444,9 @@ export function ArticleView() {
                 </AvatarFallback>
               </Avatar>
               <div>
-                <p className="font-sans text-sm font-medium leading-tight">{a.name}</p>
+                <a href={authorPath(a)} className="font-sans text-sm font-medium leading-tight hover:text-primary hover:underline">
+                  {a.name}
+                </a>
                 <p className="text-xs text-muted-foreground">
                   {a.affiliation}
                   {a.rorId && (

@@ -6,6 +6,8 @@ import { resolveTenantFromHeaders } from "@/lib/tenant";
 import { withTenantRlsContext } from "@/lib/db-rls";
 import { BLOGS, GUIDES } from "@/lib/resources-content";
 import { articlePath, SITEMAP_PATHS } from "@/lib/spa-routes";
+import { authorPath } from "@/lib/author-path";
+import { parseAuthors } from "@/lib/article";
 
 // Next.js treats sitemap.ts as a static metadata route by default and
 // tries to prerender it at build time — this environment (like the rest of
@@ -32,13 +34,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const articles = await withTenantRlsContext(tenant?.id ?? null, (tx) =>
     tx.article.findMany({
       where: { status: "PUBLISHED" },
-      select: { id: true, title: true, publishedAt: true },
+      select: { id: true, title: true, authors: true, publishedAt: true },
       orderBy: { publishedAt: "desc" },
     })
   );
 
+  // One public profile per author (src/app/authors/[slug]).
+  const authorPaths = [...new Set(articles.flatMap((a) => parseAuthors(a.authors).filter((x) => x.name).map((x) => authorPath(x))))];
+
   return [
     { url: APP_BASE_URL, changeFrequency: "daily", priority: 1 },
+    ...authorPaths.map((path) => ({ url: `${APP_BASE_URL}${path}`, changeFrequency: "weekly" as const, priority: 0.6 })),
     { url: `${APP_BASE_URL}/cookie-policy`, changeFrequency: "yearly", priority: 0.2 },
     ...SITEMAP_PATHS.map((path) => ({
       url: `${APP_BASE_URL}${path}`,
