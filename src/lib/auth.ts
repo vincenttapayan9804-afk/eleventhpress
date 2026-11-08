@@ -62,7 +62,7 @@ export function verifyToken(token: string): SessionPayload | null {
   try {
     const decoded = jwt.verify(token, SESSION_SECRET!);
     if (typeof decoded !== "object" || decoded === null) return null;
-    const { userId, email, role, fullName, tenantId } = decoded as Record<string, unknown>;
+    const { userId, email, role, fullName, tenantId, sid, iat } = decoded as Record<string, unknown>;
     if (
       typeof userId !== "string" ||
       typeof email !== "string" ||
@@ -72,7 +72,15 @@ export function verifyToken(token: string): SessionPayload | null {
     ) {
       return null;
     }
-    return { userId, email, role, fullName, ...(typeof tenantId === "string" ? { tenantId } : {}) };
+    return {
+      userId,
+      email,
+      role,
+      fullName,
+      ...(typeof tenantId === "string" ? { tenantId } : {}),
+      ...(typeof sid === "string" ? { sid } : {}),
+      ...(typeof iat === "number" ? { iat } : {}),
+    };
   } catch {
     return null;
   }

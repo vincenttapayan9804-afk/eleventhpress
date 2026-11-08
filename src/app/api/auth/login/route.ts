@@ -1,3 +1,4 @@
+import { startSession } from "@/lib/user-sessions";
 import { workspaceOf } from "@/lib/workspace";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -171,7 +172,7 @@ export async function POST(req: NextRequest) {
         workspace: await workspaceOf(user.tenantId),
       },
     });
-    res.cookies.set(SESSION_COOKIE_NAME, token, sessionCookieOptions());
+    await startSession(req, res, token);
     await noteSignIn(req, res, user, { ip, userAgent });
     return res;
   } catch (e) {

@@ -149,7 +149,7 @@
     "backToHome": "Bumalik sa home",
     "signInEyebrow": "Mag-sign in",
     "returningUser": "Balik na gumagamit",
-    "signInHint": "Gamitin ang isa sa mga demo account sa ibaba, o magrehistro ng bagong account sa kanan.",
+    "signInHint": "Mag-sign in gamit ang iyong email at password, isang passkey o ang iyong ORCID iD — o gumawa ng account sa kanan.",
     "emailLabel": "Email",
     "passwordLabel": "Password",
     "signInButton": "Mag-sign in",

@@ -1,3 +1,4 @@
+import { startSession } from "@/lib/user-sessions";
 import { workspaceOf } from "@/lib/workspace";
 import { NextRequest, NextResponse } from "next/server";
 import { noteSignIn } from "@/lib/account-emails";
@@ -122,7 +123,7 @@ export async function POST(req: NextRequest) {
       workspace: await workspaceOf(user.tenantId),
     },
   });
-  res.cookies.set(SESSION_COOKIE_NAME, sessionToken, sessionCookieOptions());
+  await startSession(req, res, sessionToken);
   // Email-code users already got an email for this sign-in.
   await noteSignIn(req, res, user, { ip, userAgent, alreadyEmailed: user.twoFactorMethod === "EMAIL" });
   return res;

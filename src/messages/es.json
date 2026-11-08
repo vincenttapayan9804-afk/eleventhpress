@@ -149,7 +149,7 @@
     "backToHome": "Volver al inicio",
     "signInEyebrow": "Iniciar sesión",
     "returningUser": "Usuario registrado",
-    "signInHint": "Usa una de las cuentas de demostración a continuación, o regístrate con una cuenta nueva a la derecha.",
+    "signInHint": "Inicia sesión con tu correo y contraseña, una llave de acceso o tu ORCID iD, o crea una cuenta a la derecha.",
     "emailLabel": "Correo electrónico",
     "passwordLabel": "Contraseña",
     "signInButton": "Iniciar sesión",

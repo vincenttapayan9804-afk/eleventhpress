@@ -149,7 +149,7 @@
     "backToHome": "Retour à l'accueil",
     "signInEyebrow": "Connexion",
     "returningUser": "Utilisateur déjà inscrit",
-    "signInHint": "Utilisez l'un des comptes de démonstration ci-dessous, ou inscrivez-vous avec un nouveau compte à droite.",
+    "signInHint": "Connectez-vous avec votre e-mail et votre mot de passe, une clé d’accès ou votre ORCID iD — ou créez un compte à droite.",
     "emailLabel": "E-mail",
     "passwordLabel": "Mot de passe",
     "signInButton": "Se connecter",
