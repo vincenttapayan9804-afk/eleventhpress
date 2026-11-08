@@ -190,6 +190,11 @@ export function SiteFooter() {
                     {t("accessibilityStatement")}
                   </button>
                 </li>
+                <li>
+                  <a href="/status" className="text-left underline-offset-2 hover:text-primary hover:underline transition-colors">
+                    Platform status
+                  </a>
+                </li>
               </ul>
             </div>
           </div>
