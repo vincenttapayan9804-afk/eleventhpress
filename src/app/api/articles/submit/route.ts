@@ -186,6 +186,23 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Ask every listed co-author to confirm their authorship (src/lib/authorship.ts).
+    const submitter = await db.user.findUnique({ where: { id: session.userId }, select: { email: true, fullName: true, tenantId: true } });
+    if (submitter) {
+      await import("@/lib/authorship")
+        .then(({ requestAuthorshipConfirmations }) =>
+          requestAuthorshipConfirmations({
+            articleId: article.id,
+            title,
+            authors,
+            submitterEmail: submitter.email,
+            submitterName: submitter.fullName,
+            tenantId: submitter.tenantId,
+          })
+        )
+        .catch((e) => console.error("[submit] co-author confirmations failed:", e));
+    }
+
     // Notify all editors
     const editors = await db.user.findMany({
       where: { role: { in: ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"] } },

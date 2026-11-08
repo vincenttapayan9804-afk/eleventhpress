@@ -738,6 +738,14 @@ model Review {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
+  // Invitation response (POST /api/reviews/[id]/respond).
+  respondedAt   DateTime?
+  declineReason String?
+  // Reminder emails already sent (src/lib/review-reminders.ts), so each goes out once.
+  invitationNudgedAt DateTime?
+  dueSoonRemindedAt  DateTime?
+  overdueRemindedAt  DateTime?
+
   // Open peer review: set to true when article is published with openReview enabled
   madePublic Boolean @default(false)
 
@@ -2731,4 +2739,24 @@ model NotificationPreference {
   mutedCategories String[] @default([])
   updatedAt       DateTime @updatedAt
   createdAt       DateTime @default(now())
+}
+
+// Co-author confirmation: each listed co-author is emailed a private link to
+// confirm they are an author of the submission (and their CRediT roles), or
+// to flag that something is wrong. src/lib/authorship.ts.
+model AuthorshipConfirmation {
+  id          String    @id @default(cuid())
+  articleId   String
+  email       String
+  name        String
+  // SHA-256 of the emailed token; the token itself is never stored.
+  tokenHash   String    @unique
+  creditRoles String[]  @default([])
+  // PENDING | CONFIRMED | DISPUTED
+  status      String    @default("PENDING")
+  comment     String?
+  respondedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([articleId])
 }

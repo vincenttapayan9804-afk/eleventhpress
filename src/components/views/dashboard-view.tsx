@@ -1,5 +1,6 @@
 "use client";
 
+import { ResumeDraftCard } from "@/components/dashboard/resume-draft-card";
 import { useEffect, useState, useCallback, Fragment } from "react";
 import { useTenantBranding, isWhitelabel } from "@/lib/tenant-branding-context";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
@@ -461,7 +462,12 @@ export function DashboardView() {
 
         {/* Main panel */}
         <div className="min-w-0">
-          {dashboardTab === "overview" && <OverviewTab data={data} />}
+          {dashboardTab === "overview" && (
+            <>
+              <ResumeDraftCard />
+              <OverviewTab data={data} />
+            </>
+          )}
           {dashboardTab === "secondBrain" && <SecondBrainTab />}
           {dashboardTab === "expertDashboard" && <ExpertDashboardTab />}
           {dashboardTab === "profile" && <ProfileTab />}

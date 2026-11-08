@@ -1,5 +1,6 @@
 "use client";
 
+import { SubmissionTracker } from "@/components/dashboard/submission-tracker";
 import { useState } from "react";
 import { useApp } from "@/lib/store";
 import { apiFetch } from "@/lib/api-client";
@@ -202,6 +203,8 @@ export function AuthorArticlesTab({ submissions, onRefresh }: Props) {
                   </div>
                 </div>
               )}
+
+              <SubmissionTracker articleId={s.id} />
 
               {/* Reviews summary */}
               {s.reviews?.length > 0 && (
