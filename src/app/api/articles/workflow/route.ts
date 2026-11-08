@@ -379,6 +379,7 @@ export async function POST(req: NextRequest) {
         await notify({
           userId: article.correspondingAuthorId,
           type: "SUCCESS",
+          category: "SUBMISSIONS",
           title: "Article Published",
           message: `"${article.title}" is now live. DOI: ${finalDoi}. Production events: ${publishEvents.join(" · ")}`,
           articleId,
@@ -484,6 +485,8 @@ export async function POST(req: NextRequest) {
       await notify({
         userId: article.correspondingAuthorId,
         type: "INFO",
+        category: "SUBMISSIONS",
+        link: "/dashboard/invoices",
         title: "Article Accepted — APC Invoice Issued",
         message: `Your article "${article.title}" has been accepted. An Article Processing Charge invoice for USD ${APC_USD.toFixed(2)} has been issued. Production will commence upon payment confirmation.`,
         articleId,

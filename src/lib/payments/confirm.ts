@@ -52,6 +52,8 @@ export async function confirmPayment({ referenceId, provider, providerRef }: Con
     await notify({
       userId: invoice.userId,
       type: "SUCCESS",
+      category: "BILLING",
+      link: "/dashboard/invoices",
       title: "APC Payment Confirmed",
       message: `Your payment of USD ${invoice.amount.toFixed(2)} has been received. Article "${invoice.article?.title}" is now in production. The Production Service will generate HTML, PDF, and XML galleys and the article will be published automatically once galleys are ready.`,
       articleId: invoice.articleId,
@@ -86,6 +88,8 @@ export async function confirmPayment({ referenceId, provider, providerRef }: Con
     await notify({
       userId: invoice.userId,
       type: "SUCCESS",
+      category: "BILLING",
+      link: "/dashboard/invoices",
       title: "Subscription Active",
       message: `Your ${plan.replace(/_/g, " ").toLowerCase()} subscription is now active. Payment of USD ${invoice.amount.toFixed(2)} received via ${provider}.`,
     });
@@ -98,6 +102,8 @@ export async function confirmPayment({ referenceId, provider, providerRef }: Con
       await notify({
         userId: invoice.userId,
         type: "SUCCESS",
+        category: "BILLING",
+        link: "/dashboard/invoices",
         title: "Distribution Package Unlocked",
         message: `Preprint distribution (arXiv/SSRN) is now unlocked for "${invoice.article?.title}". Payment of USD ${invoice.amount.toFixed(2)} received via ${provider}.`,
         articleId: invoice.articleId,
@@ -107,6 +113,8 @@ export async function confirmPayment({ referenceId, provider, providerRef }: Con
       await notify({
         userId: invoice.userId,
         type: "SUCCESS",
+        category: "BILLING",
+        link: "/dashboard/invoices",
         title: "Distribution Package Unlocked",
         message: `Wide book distribution (Draft2Digital/IngramSpark) is now unlocked for "${invoice.book?.title}". Payment of USD ${invoice.amount.toFixed(2)} received via ${provider}.`,
       });

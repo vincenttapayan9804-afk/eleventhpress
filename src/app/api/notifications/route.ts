@@ -3,7 +3,8 @@ import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 
 /**
- * GET /api/notifications  — current user's notifications.
+ * GET /api/notifications  — current user's notifications (latest 50) and unread count.
+ *   ?count=1 returns only { unread } (the header bell polls this).
  * POST /api/notifications — mark all (or single) as read.
  *   Body: { notificationId?: string }
  */
@@ -12,18 +13,26 @@ export async function GET(req: NextRequest) {
   if (!session) {
     return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
-  const notifications = await db.notification.findMany({
+  if (req.nextUrl.searchParams.get("count") === "1") {
+    const unread = await db.notification.count({ where: { userId: session.userId, read: false } });
+    return NextResponse.json({ unread });
+  }
+  const [notifications, unread] = await Promise.all([db.notification.findMany({
     where: { userId: session.userId },
     orderBy: { createdAt: "desc" },
     take: 50,
     include: { article: { select: { title: true, doi: true } } },
-  });
+  }), db.notification.count({ where: { userId: session.userId, read: false } })]);
   return NextResponse.json({
+    unread,
     notifications: notifications.map((n) => ({
       id: n.id,
       type: n.type,
       title: n.title,
       message: n.message,
+      category: n.category,
+      link: n.link,
+      articleId: n.articleId,
       read: n.read,
       createdAt: n.createdAt,
       article: n.article,

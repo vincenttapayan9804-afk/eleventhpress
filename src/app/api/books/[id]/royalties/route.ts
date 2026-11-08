@@ -122,6 +122,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     await notify({
       userId: book.correspondingAuthorId,
       type: "INFO",
+      category: "BILLING",
+      link: "/dashboard/my-books",
       title: "Royalty Statement Recorded",
       message: `A royalty statement for "${book.title}" (${body.platform.replace(/_/g, " ")}) was recorded: ${unitsSold} unit(s), USD ${grossRevenue.toFixed(2)} gross, USD ${authorPayout.toFixed(2)} payable to you.`,
     });

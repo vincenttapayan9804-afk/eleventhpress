@@ -78,6 +78,7 @@ export async function POST(req: NextRequest) {
       completedReviews.map((r) => ({
         userId: r.reviewerId,
         type: "INFO" as const,
+        category: "REVIEWS",
         title: "Your review is now public",
         message: `The editor has enabled Open Peer Review for "${article.title}". Your name, recommendation, and review comments are now visible on the public article page.`,
         articleId,

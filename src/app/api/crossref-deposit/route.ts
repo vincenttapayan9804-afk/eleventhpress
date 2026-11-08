@@ -89,6 +89,7 @@ export async function POST(req: NextRequest) {
   await notify({
     userId: session.userId,
     type: result.success ? "SUCCESS" : "ERROR",
+    category: "SUBMISSIONS",
     title: result.success ? "Crossref deposit accepted" : "Crossref deposit failed",
     message: result.success
       ? `Deposit for "${article.title}" accepted by the Crossref sandbox. Batch ID: ${result.batchId}. DOI ${article.doi} is now in REGISTERED state.`

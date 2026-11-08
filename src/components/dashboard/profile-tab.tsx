@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { TwoFactorSetup } from "@/components/two-factor-setup";
 import { ChangeEmailForm } from "@/components/change-email-form";
+import { NotificationPreferences } from "@/components/notification-preferences";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PRIVILEGED_ROLES_LIST, ACADEMIC_STATUS_OPTIONS } from "@/lib/roles";
 import { toast } from "sonner";
@@ -835,6 +836,8 @@ export function ProfileTab() {
           )}
         </CardContent>
       </Card>
+
+      <NotificationPreferences />
 
       {/* GDPR/CCPA data rights — see /privacy for the full policy this implements */}
       <Card className="paper-card">

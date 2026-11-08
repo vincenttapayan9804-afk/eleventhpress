@@ -137,6 +137,7 @@ export async function POST(
     await notify({
       userId: article.correspondingAuthorId,
       type: type === "RETRACTION" ? "ERROR" : "WARNING",
+      category: "SUBMISSIONS",
       title: `${CORRECTION_TYPE_LABELS[type]} issued`,
       message: `A ${CORRECTION_TYPE_LABELS[type].toLowerCase()} has been issued for "${article.title}": ${title}`,
       articleId: article.id,

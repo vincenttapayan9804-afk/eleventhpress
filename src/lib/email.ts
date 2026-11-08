@@ -33,6 +33,8 @@ export interface SendEmailParams {
   subject: string;
   html: string;
   text?: string;
+  /** Extra headers, e.g. List-Unsubscribe for notification emails. */
+  headers?: Record<string, string>;
 }
 
 export interface SendEmailResult {
@@ -55,6 +57,7 @@ export async function sendEmail(params: SendEmailParams): Promise<SendEmailResul
       subject: params.subject,
       html: params.html,
       text: params.text,
+      ...(params.headers ? { headers: params.headers } : {}),
     });
     if (error) {
       console.error(`[email] Resend rejected "${params.subject}" to ${params.to}: ${error.message}`);
@@ -87,6 +90,9 @@ export function notificationEmailHtml(params: {
   ctaUrl?: string;
   ctaLabel?: string;
   brand?: EmailBrand;
+  /** One-click "stop these emails" link and the preferences page, shown in the footer. */
+  unsubscribeUrl?: string;
+  preferencesUrl?: string;
 }): string {
   const brand = params.brand;
   const name = escapeAttr(brand?.name ?? "Eleventh Press");
@@ -116,7 +122,11 @@ export function notificationEmailHtml(params: {
             <tr><td style="padding-top:8px;font-size:18px;font-weight:600;color:#1a1a1a;">${params.title}</td></tr>
             <tr><td style="padding-top:12px;font-size:14px;line-height:1.6;color:#44404c;">${params.message}</td></tr>
             ${cta}
-            <tr><td style="padding-top:28px;font-size:12px;color:#9a94a6;">You're receiving this because of activity on your ${name} account. Manage notification preferences from your dashboard.</td></tr>
+            <tr><td style="padding-top:28px;font-size:12px;color:#9a94a6;">You're receiving this because of activity on your ${name} account. ${
+              params.preferencesUrl
+                ? `<a href="${escapeAttr(params.preferencesUrl)}" style="color:#6b6478;">Email preferences</a>`
+                : "Manage notification preferences from your dashboard."
+            }${params.unsubscribeUrl ? ` · <a href="${escapeAttr(params.unsubscribeUrl)}" style="color:#6b6478;">Unsubscribe from these emails</a>` : ""}</td></tr>
             ${contact}
           </table>
         </td>
