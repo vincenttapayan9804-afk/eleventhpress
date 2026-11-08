@@ -1,6 +1,7 @@
 "use client";
 
 import { LibraryTab } from "@/components/dashboard/library-tab";
+import { AuthorAnalyticsTab } from "@/components/dashboard/author-analytics-tab";
 import { DashboardNav } from "@/components/dashboard/dashboard-nav";
 import { AttentionPanel } from "@/components/dashboard/attention-panel";
 import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
@@ -305,6 +306,7 @@ export function DashboardView() {
         {/* Main panel */}
         <div className="min-w-0">
           {dashboardTab === "library" && <LibraryTab />}
+          {dashboardTab === "authorAnalytics" && <AuthorAnalyticsTab />}
           {dashboardTab === "overview" && (
             <>
               <ResumeDraftCard />

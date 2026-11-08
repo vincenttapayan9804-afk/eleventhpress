@@ -187,7 +187,7 @@ export function ArticleView() {
     setOpenReviewStatus(null);
     setReviewHistory(null);
     setBodyHtml(null);
-    apiFetch<ArticleDetail>(`/api/articles/${articleId}`)
+    apiFetch<ArticleDetail>(`/api/articles/${articleId}`, document.referrer ? { headers: { "X-Source-Referrer": document.referrer.slice(0, 300) } } : undefined)
       .then((a) => {
         setArticle(a);
         // Show the readable /article/<title>--<id> address (spa-routes.ts).

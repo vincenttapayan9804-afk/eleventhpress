@@ -1,5 +1,7 @@
 "use client";
 
+import { RevisionHistory } from "@/components/dashboard/revision-tools";
+import { EditorBoard } from "@/components/dashboard/editor-board";
 import { useState } from "react";
 import { apiFetch } from "@/lib/api-client";
 import { useApp } from "@/lib/store";
@@ -74,6 +76,21 @@ const ACTIONS: { key: string; label: string; target: ArticleStatus; icon: any; c
 export function EditorQueueTab({ queue, stats, onRefresh }: Props) {
   const [filter, setFilter] = useState<string>("ALL");
   const [selectedArticle, setSelectedArticle] = useState<any | null>(null);
+  const [layout, setLayout] = useState<"list" | "board">(() => {
+    try {
+      return localStorage.getItem("epip-editor-layout") === "board" ? "board" : "list";
+    } catch {
+      return "list";
+    }
+  });
+  const chooseLayout = (l: "list" | "board") => {
+    setLayout(l);
+    try {
+      localStorage.setItem("epip-editor-layout", l);
+    } catch {
+      /* storage unavailable */
+    }
+  };
 
   const filtered = filter === "ALL" ? queue : queue.filter((a) => a.status === filter);
 
@@ -89,6 +106,27 @@ export function EditorQueueTab({ queue, stats, onRefresh }: Props) {
         </div>
       )}
 
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground">{queue.length} manuscript{queue.length === 1 ? "" : "s"}</p>
+        <div className="flex rounded-md border border-border p-0.5 text-xs" role="group" aria-label="Layout">
+          {(["list", "board"] as const).map((l) => (
+            <button
+              key={l}
+              type="button"
+              aria-pressed={layout === l}
+              onClick={() => chooseLayout(l)}
+              className={`rounded px-3 py-1 font-medium capitalize ${layout === l ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              {l}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {layout === "board" ? (
+        <EditorBoard queue={queue} onOpen={setSelectedArticle} onRefresh={onRefresh} />
+      ) : (
+      <>
       {/* Filter tabs */}
       <div className="flex gap-1 overflow-x-auto pb-1">
         {["ALL", "SUBMITTED", "UNDER_REVIEW", "REVISIONS_REQUIRED", "ACCEPTED", "IN_PRODUCTION", "PUBLISHED"].map((s) => (
@@ -192,6 +230,8 @@ export function EditorQueueTab({ queue, stats, onRefresh }: Props) {
             );
           })}
         </div>
+      )}
+      </>
       )}
 
       {/* Article detail dialog */}
@@ -786,6 +826,7 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
                   <p className="eyebrow mb-1">Abstract</p>
                   <p className="text-xs leading-relaxed text-foreground/80">{article.abstract}</p>
                 </div>
+                <RevisionHistory articleId={article.id} />
               </div>
             </ScrollArea>
           </TabsContent>

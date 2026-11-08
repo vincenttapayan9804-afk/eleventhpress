@@ -48,7 +48,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const [decisions, reviews, confirmations] = await Promise.all([
+  const [decisions, reviews, confirmations, revisions] = await Promise.all([
     db.editorialDecision.findMany({ where: { articleId: id }, orderBy: { createdAt: "asc" }, select: { decision: true, createdAt: true } }),
     db.review.findMany({
       where: { articleId: id },
@@ -60,6 +60,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       orderBy: { createdAt: "asc" },
       select: { name: true, status: true, respondedAt: true },
     }),
+    db.articleRevision.findMany({ where: { articleId: id }, select: { round: true, createdAt: true } }),
   ]);
 
   const events: { at: string; label: string; kind: "stage" | "review" | "decision" }[] = [];
@@ -68,6 +69,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   reviews.forEach((r, i) => {
     if (r.completedAt) events.push({ at: r.completedAt.toISOString(), label: `Review ${i + 1} completed`, kind: "review" });
   });
+  for (const r of revisions) events.push({ at: r.createdAt.toISOString(), label: `Revision ${r.round} submitted`, kind: "stage" });
   if (article.publishedAt && !decisions.some((d) => d.decision === "PUBLISH")) {
     events.push({ at: article.publishedAt.toISOString(), label: "Published", kind: "stage" });
   }

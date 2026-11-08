@@ -65,6 +65,7 @@ export const TABS: DashboardTabDef[] = [
   // --- Publishing — My Work ---
   { key: "submit", label: "New submission", icon: FilePlus2, roles: ["AUTHOR", "EXPERT", "SUPER_ADMIN", "TENANT_ADMIN"], group: "Publishing — My Work" },
   { key: "myArticles", label: "My articles", icon: FolderOpen, roles: ["AUTHOR", "EXPERT", "SUPER_ADMIN", "TENANT_ADMIN"], group: "Publishing — My Work" },
+  { key: "authorAnalytics", label: "Article analytics", icon: LineChart, roles: ["AUTHOR", "EXPERT", "SUPER_ADMIN"], group: "Publishing — My Work" },
   { key: "myBooks", label: "My books", icon: BookOpen, roles: ["AUTHOR", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"], group: "Publishing — My Work" },
   { key: "distribution", label: "Article distribution", icon: Share2, roles: ["AUTHOR", "SUPER_ADMIN"], group: "Publishing — My Work" },
   { key: "reviewerQueue", label: "My reviews", icon: PenSquare, roles: ["REVIEWER", "SUPER_ADMIN"], group: "Publishing — My Work" },

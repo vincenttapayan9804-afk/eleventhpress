@@ -142,6 +142,23 @@ export async function resolveRequestInstitution(
 }
 
 /**
+ * The external site that sent the reader, hostname only: the page passes
+ * document.referrer as X-Source-Referrer (API calls themselves always come
+ * from this site). Visits from this site itself count as direct.
+ */
+function referrerHost(headers: Headers): string | null {
+  const raw = headers.get("x-source-referrer");
+  if (!raw) return null;
+  try {
+    const host = new URL(raw).hostname.replace(/^www\./, "").toLowerCase();
+    const own = (headers.get("host") || "").split(":")[0].replace(/^www\./, "").toLowerCase();
+    return host && host !== own ? host.slice(0, 120) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Best-effort usage telemetry: resolves the requesting institution (if any)
  * and records a real CounterEvent row keyed by the institution's
  * counterCustomerId — the same value COUNTER5/SUSHI report routes filter
@@ -163,6 +180,8 @@ export async function recordCounterEvent(params: {
         articleId: params.articleId,
         institutionId: institution?.counterCustomerId ?? null,
         metricType: params.metricType,
+        country: (params.headers.get("x-vercel-ip-country") || "").slice(0, 2).toUpperCase() || null,
+        referrer: referrerHost(params.headers),
       },
     });
   } catch {
