@@ -35,7 +35,6 @@ import {
   DepartmentsView,
   DepartmentView,
 } from "@/components/views/lazy";
-import { AuthSheet } from "@/components/auth-sheet";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { I18nProvider } from "@/components/i18n-provider";
@@ -194,7 +193,6 @@ export default function Page() {
           </AnimatePresence>
         </main>
         <SiteFooter />
-        <AuthSheet />
         {view !== "dashboard" && view !== "adminPortal" && view !== "login" && view !== "register" && (
           <CorpusChatWidget />
         )}

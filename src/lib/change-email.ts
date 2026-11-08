@@ -140,7 +140,7 @@ export async function applyEmailChange(
 
   // Heads-up to the old address (fails open — it may not be a real inbox).
   const brand = await emailBrandForTenantId(before.tenantId);
-  void sendEmail({
+  await sendEmail({
     to: before.email,
     subject: `Your ${brandName(brand)} sign-in email was changed`,
     html: notificationEmailHtml({

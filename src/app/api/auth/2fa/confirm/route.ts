@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { sendSecurityEmail } from "@/lib/account-emails";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest) {
 
   const user = await db.user.findUnique({
     where: { id: session.userId },
-    select: { twoFactorSecret: true, twoFactorEnabled: true },
+    select: { id: true, email: true, fullName: true, tenantId: true, twoFactorSecret: true, twoFactorEnabled: true },
   });
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -71,6 +72,8 @@ export async function POST(req: NextRequest) {
       twoFactorBackupCodes: hashed,
     },
   });
+
+  await sendSecurityEmail(user, { kind: "two_factor_on", method: method === "email" ? "EMAIL" : "TOTP" });
 
   return NextResponse.json({ ok: true, backupCodes: plaintext });
 }

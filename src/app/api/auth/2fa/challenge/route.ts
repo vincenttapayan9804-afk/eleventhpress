@@ -1,5 +1,6 @@
 import { workspaceOf } from "@/lib/workspace";
 import { NextRequest, NextResponse } from "next/server";
+import { noteSignIn } from "@/lib/account-emails";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { verifyPendingTwoFactorToken, signToken, SESSION_COOKIE_NAME, sessionCookieOptions } from "@/lib/auth";
@@ -122,5 +123,7 @@ export async function POST(req: NextRequest) {
     },
   });
   res.cookies.set(SESSION_COOKIE_NAME, sessionToken, sessionCookieOptions());
+  // Email-code users already got an email for this sign-in.
+  await noteSignIn(req, res, user, { ip, userAgent, alreadyEmailed: user.twoFactorMethod === "EMAIL" });
   return res;
 }

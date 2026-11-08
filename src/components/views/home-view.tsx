@@ -154,7 +154,7 @@ export function HomeView() {
                 <Button variant="outline" size="sm" onClick={() => setView("about")} className="border-white/25 bg-white/10 text-white backdrop-blur-xl hover:bg-white/20 hover:text-white">
                   {t("aboutJournal")}
                 </Button>
-                <Button size="sm" variant="ghost" className="text-[oklch(0.86_0.07_292)] hover:bg-white/10 hover:text-white" onClick={() => useApp.getState().setAuthSheetOpen(true)}>
+                <Button size="sm" variant="ghost" className="text-[oklch(0.86_0.07_292)] hover:bg-white/10 hover:text-white" onClick={() => setView("login")}>
                   <Sparkles className="mr-1.5 h-3.5 w-3.5" /> {t("signInToSubmit")}
                 </Button>
               </div>
@@ -459,7 +459,7 @@ export function HomeView() {
                 </p>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row">
-                <Button size="lg" variant="secondary" className="btn-royal-glow bg-white text-[oklch(0.42_0.18_295)] hover:bg-[oklch(0.97_0.004_285)]" onClick={() => useApp.getState().setAuthSheetOpen(true)}>
+                <Button size="lg" variant="secondary" className="btn-royal-glow bg-white text-[oklch(0.42_0.18_295)] hover:bg-[oklch(0.97_0.004_285)]" onClick={() => setView("login")}>
                   Author sign-in
                 </Button>
                 <Button size="lg" variant="outline" className="border-white/40 bg-transparent text-white hover:bg-white/10 hover:text-white" onClick={() => setView("about")}>

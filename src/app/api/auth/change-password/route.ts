@@ -5,6 +5,7 @@ import { getSessionFromHeaders, hashPassword, verifyPassword, MIN_PASSWORD_LENGT
 import { checkRateLimit } from "@/lib/ratelimit";
 import { parseBody } from "@/lib/validate";
 import { isPasswordBreached } from "@/lib/password-breach";
+import { sendSecurityEmail } from "@/lib/account-emails";
 
 const ChangeSchema = z.object({
   currentPassword: z.string().min(1).max(200),
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
 
   const user = await db.user.findUnique({
     where: { id: session.userId },
-    select: { id: true, passwordHash: true, deletedAt: true },
+    select: { id: true, email: true, fullName: true, tenantId: true, passwordHash: true, deletedAt: true, mustChangePassword: true },
   });
   if (!user || user.deletedAt) return NextResponse.json({ error: "Account not found" }, { status: 404 });
 
@@ -59,6 +60,10 @@ export async function POST(req: NextRequest) {
       data: { userId: user.id, action: "PASSWORD_CHANGED", entityType: "USER", entityId: user.id },
     })
     .catch(() => {});
+  // A first-sign-in swap of an admin-issued temporary password isn't news.
+  if (!user.mustChangePassword) {
+    await sendSecurityEmail(user, { kind: "password_changed", via: "profile" });
+  }
 
   return NextResponse.json({ ok: true });
 }

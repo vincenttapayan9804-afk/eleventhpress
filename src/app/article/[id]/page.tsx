@@ -9,7 +9,6 @@ import { I18nProvider } from "@/components/i18n-provider";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { Toaster } from "@/components/ui/sonner";
-import { AuthSheet } from "@/components/auth-sheet";
 import { ArticleRouteBootstrap } from "@/components/article-route-bootstrap";
 
 /**
@@ -198,7 +197,6 @@ export default async function ArticlePage({ params }: { params: Promise<{ id: st
           </ArticleRouteBootstrap>
         </main>
         <SiteFooter />
-        <AuthSheet />
         <Toaster richColors position="top-right" />
       </div>
     </I18nProvider>
