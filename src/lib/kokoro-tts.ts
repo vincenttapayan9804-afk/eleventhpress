@@ -21,7 +21,6 @@
  * within the triggering API request (same as MagazineIssueProductionJob).
  * The cap is disclosed in the stored job, never silently applied.
  */
-import { env } from "@huggingface/transformers";
 import { db } from "@/lib/db";
 import { getObject, putObject } from "@/lib/storage";
 
@@ -31,8 +30,11 @@ import { getObject, putObject } from "@/lib/storage";
 // (node_modules/@huggingface/transformers/dist/.cache/), which isn't
 // writable there — the first attempt to cache a downloaded model file would
 // throw before narration could ever succeed. Redirect it to /tmp, same fix
-// as every other write path in this codebase.
-env.cacheDir = "/tmp/kokoro-cache/";
+// as every other write path in this codebase. Set inside getTts() rather
+// than at module load: importing @huggingface/transformers loads the native
+// ONNX runtime, and routes that only need KOKORO_VOICES (e.g. the dashboard
+// candidates list) must not pay for or depend on that.
+const KOKORO_CACHE_DIR = "/tmp/kokoro-cache/";
 
 const MODEL_ID = process.env.KOKORO_MODEL || "onnx-community/Kokoro-82M-v1.0-ONNX";
 const SAMPLE_GAP_SEC = 0.35;
@@ -66,6 +68,8 @@ function getTts(): Promise<any | null> {
   if (!ttsPromise) {
     ttsPromise = (async () => {
       try {
+        const { env } = await import("@huggingface/transformers");
+        env.cacheDir = KOKORO_CACHE_DIR;
         const { KokoroTTS } = await import("kokoro-js");
         return await KokoroTTS.from_pretrained(MODEL_ID, { dtype: "q8", device: "cpu" });
       } catch (e) {

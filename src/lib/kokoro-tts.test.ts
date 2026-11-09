@@ -116,6 +116,7 @@ mock.module("kokoro-js", () => ({
 }));
 mock.module("@huggingface/transformers", () => ({
   RawAudio: FakeRawAudio,
+  env: {},
 }));
 
 const {
