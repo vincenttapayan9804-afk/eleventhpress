@@ -50,6 +50,11 @@ const fakeDb = {
     }),
     findMany: mock(async ({ where, take }: any) => {
       const all = Object.values(jobStore) as any[];
+      if (where.status === "FAILED") {
+        return all
+          .filter((j) => j.status === "FAILED" && where.OR.some((c: any) => (j.errorMessage || "").includes(c.errorMessage.contains)))
+          .slice(0, take);
+      }
       const matching = all.filter((j) =>
         where.OR.some((cond: any) => {
           if (cond.status === "QUEUED") return j.status === "QUEUED";
@@ -116,6 +121,7 @@ mock.module("kokoro-js", () => ({
 }));
 mock.module("@huggingface/transformers", () => ({
   RawAudio: FakeRawAudio,
+  env: {},
 }));
 
 const {
@@ -300,5 +306,24 @@ describe("sweepStuckNarrationJobs", () => {
     expect(jobStore["queued-1"].status).toBe("COMPLETED");
     expect(jobStore["stale-1"].status).toBe("COMPLETED");
     expect(jobStore["fresh-1"].status).toBe("PROCESSING");
+  });
+});
+
+describe("sweepStuckNarrationJobs — auto-retry of deployment failures", () => {
+  test("retries a job that FAILED on a deployment error, exactly once", async () => {
+    makeJob({ id: "infra-1", status: "FAILED", errorMessage: "ENOENT: no such file or directory, open '/x/voices/am_adam.bin'" });
+    makeJob({ id: "content-1", status: "FAILED", errorMessage: "Content has no narratable text" });
+
+    await sweepStuckNarrationJobs(5, 20);
+    expect(jobStore["infra-1"].status).toBe("COMPLETED");
+    expect(jobStore["infra-1"].workerLog).toContain("[auto-retry]");
+    expect(jobStore["content-1"].status).toBe("FAILED");
+
+    // A second failure on the same deployment error is not retried again.
+    jobStore["infra-1"].status = "FAILED";
+    jobStore["infra-1"].errorMessage = "libonnxruntime.so.1: cannot open shared object file";
+    const second = await sweepStuckNarrationJobs(5, 20);
+    expect(second.swept).toBe(0);
+    expect(jobStore["infra-1"].status).toBe("FAILED");
   });
 });

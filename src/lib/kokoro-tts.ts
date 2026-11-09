@@ -21,7 +21,6 @@
  * within the triggering API request (same as MagazineIssueProductionJob).
  * The cap is disclosed in the stored job, never silently applied.
  */
-import { env } from "@huggingface/transformers";
 import { db } from "@/lib/db";
 import { getObject, putObject } from "@/lib/storage";
 
@@ -31,8 +30,11 @@ import { getObject, putObject } from "@/lib/storage";
 // (node_modules/@huggingface/transformers/dist/.cache/), which isn't
 // writable there — the first attempt to cache a downloaded model file would
 // throw before narration could ever succeed. Redirect it to /tmp, same fix
-// as every other write path in this codebase.
-env.cacheDir = "/tmp/kokoro-cache/";
+// as every other write path in this codebase. Set inside getTts() rather
+// than at module load: importing @huggingface/transformers loads the native
+// ONNX runtime, and routes that only need KOKORO_VOICES (e.g. the dashboard
+// candidates list) must not pay for or depend on that.
+const KOKORO_CACHE_DIR = "/tmp/kokoro-cache/";
 
 const MODEL_ID = process.env.KOKORO_MODEL || "onnx-community/Kokoro-82M-v1.0-ONNX";
 const SAMPLE_GAP_SEC = 0.35;
@@ -66,6 +68,8 @@ function getTts(): Promise<any | null> {
   if (!ttsPromise) {
     ttsPromise = (async () => {
       try {
+        const { env } = await import("@huggingface/transformers");
+        env.cacheDir = KOKORO_CACHE_DIR;
         const { KokoroTTS } = await import("kokoro-js");
         return await KokoroTTS.from_pretrained(MODEL_ID, { dtype: "q8", device: "cpu" });
       } catch (e) {
@@ -73,6 +77,11 @@ function getTts(): Promise<any | null> {
         return null;
       }
     })();
+    // Don't pin a failed load for the life of a warm instance (a transient
+    // model-download error would otherwise fail every later job there).
+    ttsPromise.then((tts) => {
+      if (!tts) ttsPromise = null;
+    });
   }
   return ttsPromise;
 }
@@ -266,8 +275,50 @@ export async function runNarrationJob(jobId: string, claimFilter: Record<string,
 /** Batch entry point for a future cron sweep — mirrors
  * sweepStuckTranscriptionJobs, currently unregistered in vercel.json for the
  * same Hobby-tier cron-count reason those are. */
+/** Error messages from deployment/runtime problems (not from the content
+ * itself) — jobs that failed this way are worth one automatic retry once the
+ * platform is fixed, instead of staying FAILED until someone clicks Re-generate. */
+const RETRYABLE_NARRATION_ERRORS = [
+  "is not a constructor",
+  "ENOENT",
+  "libonnxruntime",
+  "cannot open shared object file",
+  "Failed to load external module",
+  "is not available in this deployment",
+];
+const AUTO_RETRY_MARKER = "[auto-retry]";
+
+/** Re-queues FAILED jobs whose error was a deployment/runtime problem. Each
+ * job is auto-retried at most once (marked in workerLog), so a still-broken
+ * deployment can't loop a job forever. */
+export async function requeueRetryableFailedNarrationJobs(limit = 20): Promise<string[]> {
+  const failed = await db.narrationJob.findMany({
+    where: {
+      status: "FAILED",
+      OR: RETRYABLE_NARRATION_ERRORS.map((m) => ({ errorMessage: { contains: m } })),
+    },
+    orderBy: { createdAt: "asc" },
+    take: limit * 3,
+  });
+  const ids: string[] = [];
+  for (const job of failed) {
+    if (ids.length >= limit) break;
+    if ((job.workerLog || "").includes(AUTO_RETRY_MARKER)) continue;
+    const res = await db.narrationJob.updateMany({
+      where: { id: job.id, status: "FAILED" },
+      data: {
+        status: "QUEUED",
+        workerLog: `${job.workerLog ? job.workerLog + "\n" : ""}${AUTO_RETRY_MARKER} ${new Date().toISOString()} after: ${job.errorMessage}`,
+      },
+    });
+    if (res.count === 1) ids.push(job.id);
+  }
+  return ids;
+}
+
 export async function sweepStuckNarrationJobs(limit = 5, staleMinutes = 20): Promise<{ swept: number; jobIds: string[] }> {
   const staleCutoff = new Date(Date.now() - staleMinutes * 60 * 1000);
+  await requeueRetryableFailedNarrationJobs(limit);
   const stuck = await db.narrationJob.findMany({
     where: {
       OR: [

@@ -95,7 +95,14 @@ const nextConfig: NextConfig = {
           "/api/admin/narration-jobs/*/retry",
           "/api/cron/narration-sweep",
           "/api/cron/sweep-all",
-        ].map((route): [string, string[]] => [route, ["./node_modules/kokoro-js/voices/*.bin"]])
+        ].map((route): [string, string[]] => [
+          route,
+          [
+            "./node_modules/kokoro-js/voices/*.bin",
+            // onnxruntime-node 1.21 native libs used by @huggingface/transformers.
+            "./node_modules/@huggingface/transformers/node_modules/onnxruntime-node/bin/napi-v3/linux/x64/*",
+          ],
+        ])
       )
   ),
   async headers() {
