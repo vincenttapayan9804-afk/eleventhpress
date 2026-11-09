@@ -107,6 +107,7 @@ export async function resolveTenantFromHost(
   opts: { sessionTenantId?: string | null; portalSlug?: string | null } = {}
 ): Promise<TenantContext | null> {
   const host = hostHeader ? normalizeHost(hostHeader) : null;
+  let platformRow: TenantRow | null = null;
 
   try {
     if (host) {
@@ -118,7 +119,13 @@ export async function resolveTenantFromHost(
         where: { hostname: host, verified: true },
         include: { tenant: true },
       });
-      if (domain) return toTenantContext(domain.tenant, "domain");
+      // The official site's own hostname is a verified domain of the
+      // platform tenant. Matching it means "on the official site", not "show
+      // the platform": the session and portal checks below must still run,
+      // or a whitelabel portal link (/t/<slug>) and a tenant member signed in
+      // on the official host would both always see Eleventh Press.
+      if (domain && !domain.tenant.isPlatform) return toTenantContext(domain.tenant, "domain");
+      if (domain) platformRow = domain.tenant;
     }
 
     // On the official site: a signed-in member of a whitelabel tenant
@@ -136,7 +143,7 @@ export async function resolveTenantFromHost(
       if (portal && !portal.isPlatform && portal.status === "ACTIVE") return toTenantContext(portal, "portal");
     }
 
-    const platform = await db.tenant.findFirst({ where: { isPlatform: true } });
+    const platform = platformRow ?? (await db.tenant.findFirst({ where: { isPlatform: true } }));
     return platform ? toTenantContext(platform, "platform") : null;
   } catch (err) {
     console.error("[tenant] resolveTenantFromHost failed, falling back to default branding:", err);
