@@ -1,6 +1,8 @@
 import type { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { verifyToken, SESSION_COOKIE_NAME, sessionCookieOptions, type SessionPayload } from "@/lib/auth";
+import { verifyToken, sessionCookieOptions, type SessionPayload } from "@/lib/auth";
+import { PORTAL_COOKIE_NAME, portalSlugFromHeaders, sessionCookieNameFor, validPortalSlug } from "@/lib/session-cookie";
+import { APP_HOST } from "@/lib/site";
 import { describeDevice } from "@/lib/account-emails";
 import { markRevoked } from "@/lib/session-revocation";
 
@@ -28,10 +30,42 @@ function locationOf(req: NextRequest): string | null {
   return parts.length ? parts.join(", ") : null;
 }
 
-/** Sets the session cookie and records the session. Use wherever a sign-in completes. */
+/**
+ * The portal a sign-in belongs to. On the official host with no portal
+ * open, a whitelabel tenant's member signs in to their own institution's
+ * portal (as they already land there), so the official site's own sign-in
+ * in the same browser is left untouched.
+ */
+async function portalForSignIn(req: NextRequest, session: SessionPayload | null): Promise<{ slug: string | null; open: boolean }> {
+  const current = portalSlugFromHeaders(req.headers);
+  if (current || !session?.tenantId) return { slug: current, open: false };
+  const bare = (h: string) => h.split(":")[0].toLowerCase().replace(/^www\./, "");
+  if (bare(req.headers.get("host") ?? "") !== bare(APP_HOST)) return { slug: null, open: false };
+  const tenant = await db.tenant
+    .findUnique({ where: { id: session.tenantId }, select: { slug: true, isPlatform: true, status: true } })
+    .catch(() => null);
+  const slug = tenant && !tenant.isPlatform && tenant.status === "ACTIVE" ? validPortalSlug(tenant.slug) : null;
+  return { slug, open: !!slug };
+}
+
+/**
+ * Sets this site's session cookie and records the session. Use wherever a
+ * sign-in completes. Only this site is signed in: the official site and
+ * every tenant portal keep separate sign-ins (src/lib/session-cookie.ts).
+ */
 export async function startSession(req: NextRequest, res: NextResponse, token: string): Promise<void> {
-  res.cookies.set(SESSION_COOKIE_NAME, token, sessionCookieOptions());
   const s = verifyToken(token);
+  const portal = await portalForSignIn(req, s);
+  if (portal.open && portal.slug) {
+    res.cookies.set(PORTAL_COOKIE_NAME, portal.slug, {
+      path: "/",
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 60 * 60 * 24 * 30,
+    });
+  }
+  res.cookies.set(sessionCookieNameFor(portal.slug), token, sessionCookieOptions());
   if (!s?.sid) return;
   await db.userSession
     .upsert({

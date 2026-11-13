@@ -7,6 +7,7 @@
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { BASE_SESSION_COOKIE_NAME, cookieFromHeader, sessionCookieNameForHeaders } from "./session-cookie";
 
 const BCRYPT_ROUNDS = 10;
 const TOKEN_TTL = "7d";
@@ -91,8 +92,12 @@ export function verifyToken(token: string): SessionPayload | null {
   }
 }
 
-/** Name of the httpOnly cookie carrying the session JWT. */
-export const SESSION_COOKIE_NAME = "epip_session";
+/**
+ * Name of the httpOnly cookie carrying the official site's session JWT.
+ * A tenant portal (/t/<slug>) keeps its own — use sessionCookieNameForHeaders
+ * / setSessionCookie / clearSessionCookie rather than this name directly.
+ */
+export const SESSION_COOKIE_NAME = BASE_SESSION_COOKIE_NAME;
 
 /**
  * Options for the httpOnly session cookie. `secure` is conditional on
@@ -127,12 +132,24 @@ export function getSessionFromHeaders(headers: Headers): SessionPayload | null {
     const session = verifyToken(auth.replace(/^Bearer\s+/i, ""));
     if (session) return session;
   }
-  const cookieHeader = headers.get("cookie");
-  if (cookieHeader) {
-    const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE_NAME}=([^;]+)`));
-    if (match) return verifyToken(decodeURIComponent(match[1]));
-  }
-  return null;
+  // Each site (official site, each tenant portal) has its own cookie, so
+  // signing in or out of one never affects another.
+  const token = cookieFromHeader(headers.get("cookie"), sessionCookieNameForHeaders(headers));
+  return token ? verifyToken(token) : null;
+}
+
+interface CookieWriter {
+  cookies: { set(name: string, value: string, options: ReturnType<typeof sessionCookieOptions>): unknown };
+}
+
+/** Signs this site in: writes the token to the session cookie of the site the request is on. */
+export function setSessionCookie(res: CookieWriter, headers: Headers, token: string): void {
+  res.cookies.set(sessionCookieNameForHeaders(headers), token, sessionCookieOptions());
+}
+
+/** Signs this site out — only this site; other portals and the official site keep their sign-ins. */
+export function clearSessionCookie(res: CookieWriter, headers: Headers): void {
+  res.cookies.set(sessionCookieNameForHeaders(headers), "", { ...sessionCookieOptions(), maxAge: 0 });
 }
 
 export type RequireRoleResult =

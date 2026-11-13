@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { getSessionFromHeaders, SESSION_COOKIE_NAME, sessionCookieOptions } from "@/lib/auth";
+import { getSessionFromHeaders, clearSessionCookie, verifyToken, sessionCookieOptions, SESSION_COOKIE_NAME, type SessionPayload } from "@/lib/auth";
+import { cookieFromHeader, portalSlugFromHeaders, sessionCookieNameFor } from "@/lib/session-cookie";
 import { checkSession } from "@/lib/user-sessions";
 import { ACADEMIC_STATUS_OPTIONS } from "@/lib/roles";
 
@@ -34,15 +35,37 @@ const PROFILE_SELECT = {
   mustChangePassword: true,
 } as const;
 
+/**
+ * One-time move for sign-ins made before each site had its own cookie: a
+ * tenant member signed in inside their own portal still has their token in
+ * the official site's cookie. Moves it to the portal's cookie (and off the
+ * official site's), so they stay signed in there and the official site is
+ * signed out independently. Only the tenant's own members move — anyone
+ * else's sign-in stays with the official site.
+ */
+async function migrateLegacyPortalSession(req: NextRequest): Promise<{ session: SessionPayload; token: string; slug: string } | null> {
+  const slug = portalSlugFromHeaders(req.headers);
+  if (!slug) return null;
+  const cookieHeader = req.headers.get("cookie");
+  if (cookieFromHeader(cookieHeader, sessionCookieNameFor(slug))) return null;
+  const token = cookieFromHeader(cookieHeader, SESSION_COOKIE_NAME);
+  const legacy = token ? verifyToken(token) : null;
+  if (!token || !legacy?.tenantId) return null;
+  const tenant = await db.tenant.findUnique({ where: { id: legacy.tenantId }, select: { slug: true } }).catch(() => null);
+  return tenant?.slug === slug ? { session: legacy, token, slug } : null;
+}
+
 export async function GET(req: NextRequest) {
-  const session = getSessionFromHeaders(req.headers);
+  const migrated = await migrateLegacyPortalSession(req);
+  const session = migrated?.session ?? getSessionFromHeaders(req.headers);
   if (!session) {
     return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
   // A session signed out from another device ends here (src/lib/user-sessions.ts).
   if (!(await checkSession(session, req))) {
     const res = NextResponse.json({ error: "This session was signed out" }, { status: 401 });
-    res.cookies.set(SESSION_COOKIE_NAME, "", { ...sessionCookieOptions(), maxAge: 0 });
+    clearSessionCookie(res, req.headers);
+    if (migrated) res.cookies.set(SESSION_COOKIE_NAME, "", { ...sessionCookieOptions(), maxAge: 0 });
     return res;
   }
   const user = await db.user.findUnique({
@@ -52,7 +75,12 @@ export async function GET(req: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
-  return NextResponse.json({ user });
+  const res = NextResponse.json({ user });
+  if (migrated) {
+    res.cookies.set(sessionCookieNameFor(migrated.slug), migrated.token, sessionCookieOptions());
+    res.cookies.set(SESSION_COOKIE_NAME, "", { ...sessionCookieOptions(), maxAge: 0 });
+  }
+  return res;
 }
 
 /**

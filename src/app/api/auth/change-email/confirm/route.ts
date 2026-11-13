@@ -20,5 +20,5 @@ export async function POST(req: NextRequest) {
 
   const check = await checkChangeEmailCode(session.userId, parsed.data.code);
   if (!check.ok) return NextResponse.json({ error: check.error }, { status: 400 });
-  return applyEmailChange(session.userId, check.newEmail, true);
+  return applyEmailChange(session.userId, check.newEmail, true, {}, req.headers);
 }

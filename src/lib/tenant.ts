@@ -18,6 +18,7 @@
  * from "next/headers").
  */
 import { cache } from "react";
+import { PORTAL_COOKIE_NAME } from "@/lib/session-cookie";
 import { db } from "./db";
 import { APP_BASE_URL, APP_HOST } from "./site";
 import { getSessionFromHeaders } from "./auth";
@@ -80,7 +81,7 @@ export interface TenantContext extends TenantBranding {
 }
 
 /** Cookie remembering which tenant portal a visitor opened via /t/<slug>. */
-export const PORTAL_COOKIE_NAME = "ep_portal";
+export { PORTAL_COOKIE_NAME };
 
 /** Valid values for Tenant.fontFamily — matches the CSS variables already defined in src/app/layout.tsx. */
 export const FONT_FAMILY_OPTIONS = ["inter", "fraunces", "system"] as const;

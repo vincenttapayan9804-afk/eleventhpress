@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME, generateCsrfToken } from "@/lib/csrf";
 import { isRevokedFast, sidOfToken } from "@/lib/session-revocation";
+import { PORTAL_COOKIE_NAME, sessionCookieNameFor } from "@/lib/session-cookie";
 
 /**
  * Single Proxy entry point for this app (Next.js only supports one; this
@@ -60,11 +61,13 @@ const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 export async function proxy(req: NextRequest) {
   // A session signed out from another device (Profile → Where you're
   // signed in) is refused on every API call when Redis is configured.
-  const sessionToken = req.cookies.get("epip_session")?.value;
+  // Each site has its own session cookie (src/lib/session-cookie.ts).
+  const sessionCookie = sessionCookieNameFor(req.cookies.get(PORTAL_COOKIE_NAME)?.value);
+  const sessionToken = req.cookies.get(sessionCookie)?.value;
   const sid = sessionToken ? sidOfToken(sessionToken) : null;
   if (sid && (await isRevokedFast(sid))) {
     const denied = NextResponse.json({ error: "This session was signed out" }, { status: 401 });
-    denied.cookies.set("epip_session", "", { path: "/", maxAge: 0, httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production" });
+    denied.cookies.set(sessionCookie, "", { path: "/", maxAge: 0, httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production" });
     return denied;
   }
 

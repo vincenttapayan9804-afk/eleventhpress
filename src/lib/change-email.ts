@@ -9,7 +9,7 @@
  */
 import { NextResponse } from "next/server";
 import { db } from "./db";
-import { signToken, SESSION_COOKIE_NAME, sessionCookieOptions } from "./auth";
+import { signToken, setSessionCookie } from "./auth";
 import { sendEmail, notificationEmailHtml } from "./email";
 import { emailBrandForTenantId, brandName } from "./email-brand";
 import { workspaceOf } from "./workspace";
@@ -100,7 +100,8 @@ export async function applyEmailChange(
   userId: string,
   newEmail: string,
   verified: boolean,
-  extra: Record<string, unknown> = {}
+  extra: Record<string, unknown> = {},
+  requestHeaders: Headers = new Headers()
 ): Promise<NextResponse> {
   const before = await db.user.findUnique({ where: { id: userId }, select: { email: true, fullName: true, tenantId: true } });
   if (!before) return NextResponse.json({ error: "Account not found" }, { status: 404 });
@@ -172,16 +173,17 @@ export async function applyEmailChange(
       workspace: await workspaceOf(user.tenantId),
     },
   });
-  res.cookies.set(
-    SESSION_COOKIE_NAME,
+  // The fresh token replaces this site's sign-in only (see src/lib/session-cookie.ts).
+  setSessionCookie(
+    res,
+    requestHeaders,
     signToken({
       userId: user.id,
       email: user.email,
       role: user.role,
       fullName: user.fullName,
       ...(user.tenantId ? { tenantId: user.tenantId } : {}),
-    }),
-    sessionCookieOptions()
+    })
   );
   return res;
 }

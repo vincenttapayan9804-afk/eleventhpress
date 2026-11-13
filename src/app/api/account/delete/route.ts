@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { getSessionFromHeaders, verifyPassword, SESSION_COOKIE_NAME, sessionCookieOptions } from "@/lib/auth";
+import { getSessionFromHeaders, verifyPassword, clearSessionCookie } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/ratelimit";
 import { anonymizeUserAccount } from "@/lib/account-privacy";
 import { sendSecurityEmail } from "@/lib/account-emails";
@@ -69,6 +69,6 @@ export async function POST(req: NextRequest) {
   });
 
   const res = NextResponse.json({ ok: true });
-  res.cookies.set(SESSION_COOKIE_NAME, "", { ...sessionCookieOptions(), maxAge: 0 });
+  clearSessionCookie(res, req.headers);
   return res;
 }
