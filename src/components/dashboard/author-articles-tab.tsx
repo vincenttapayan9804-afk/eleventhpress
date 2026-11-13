@@ -1,5 +1,6 @@
 "use client";
 
+import { SubmitRevisionDialog } from "@/components/dashboard/revision-tools";
 import { SubmissionTracker } from "@/components/dashboard/submission-tracker";
 import { useState } from "react";
 import { useApp } from "@/lib/store";
@@ -20,6 +21,7 @@ import {
   Loader2,
   MessageSquareReply,
   Globe2,
+  Send,
 } from "lucide-react";
 import { STATUS_FLOW } from "@/lib/article";
 import { toast } from "sonner";
@@ -38,6 +40,7 @@ export function AuthorArticlesTab({ submissions, onRefresh }: Props) {
   const [submittingResponse, setSubmittingResponse] = useState(false);
   const [togglingPreprintId, setTogglingPreprintId] = useState<string | null>(null);
   const [postingVersionId, setPostingVersionId] = useState<string | null>(null);
+  const [revisingArticle, setRevisingArticle] = useState<any | null>(null);
 
   async function togglePreprint(articleId: string, enable: boolean) {
     setTogglingPreprintId(articleId);
@@ -250,9 +253,14 @@ export function AuthorArticlesTab({ submissions, onRefresh }: Props) {
                       </div>
                     </div>
                   ) : (
-                    <Button size="sm" variant="outline" onClick={() => setRespondingId(s.id)}>
-                      <MessageSquareReply className="mr-1.5 h-3.5 w-3.5" /> Respond to reviewers
-                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                      <Button size="sm" onClick={() => setRevisingArticle(s)}>
+                        <Send className="mr-1.5 h-3.5 w-3.5" /> Submit revision
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setRespondingId(s.id)}>
+                        <MessageSquareReply className="mr-1.5 h-3.5 w-3.5" /> Reply without a new version
+                      </Button>
+                    </div>
                   )}
                 </div>
               )}
@@ -359,6 +367,7 @@ export function AuthorArticlesTab({ submissions, onRefresh }: Props) {
           </Card>
         );
       })}
+      <SubmitRevisionDialog article={revisingArticle} open={!!revisingArticle} onOpenChange={(o) => !o && setRevisingArticle(null)} onDone={onRefresh} />
     </div>
   );
 }

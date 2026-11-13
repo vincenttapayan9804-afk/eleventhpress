@@ -3,6 +3,7 @@
 import { isWhitelabel, useTenantBranding } from "@/lib/tenant-branding-context";
 import { articlePath } from "@/lib/spa-routes";
 import { ReaderToolsCard, HighlightCapture } from "@/components/article-reader-tools";
+import { ArticleDiscussion } from "@/components/article-discussion";
 import { authorPath } from "@/lib/author-path";
 import { useEffect, useState } from "react";
 import { useApp } from "@/lib/store";
@@ -188,7 +189,7 @@ export function ArticleView() {
     setOpenReviewStatus(null);
     setReviewHistory(null);
     setBodyHtml(null);
-    apiFetch<ArticleDetail>(`/api/articles/${articleId}`)
+    apiFetch<ArticleDetail>(`/api/articles/${articleId}`, document.referrer ? { headers: { "X-Source-Referrer": document.referrer.slice(0, 300) } } : undefined)
       .then((a) => {
         setArticle(a);
         // Show the readable /article/<title>--<id> address (spa-routes.ts).
@@ -648,6 +649,8 @@ export function ArticleView() {
                     </ol>
                   </>
                 )}
+
+                {article.status === "PUBLISHED" && <ArticleDiscussion articleId={article.id} />}
 
                 {/* Publication Governance Standard's mandatory quality-
                     assurance disclaimer — every published Expert Insight

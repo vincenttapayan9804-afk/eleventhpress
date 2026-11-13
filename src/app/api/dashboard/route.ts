@@ -39,7 +39,16 @@ export async function GET(req: NextRequest) {
         tx.article.findMany({
           where: { correspondingAuthorId: userId },
           orderBy: { createdAt: "desc" },
-          include: { issue: true, reviews: true },
+          // Authors see their reviews' progress and the comments meant for
+          // them — never the reviewer's identity or their confidential
+          // comments to the editor (double-blind review).
+          include: {
+            issue: true,
+            reviews: {
+              select: { id: true, status: true, recommendation: true, commentsToAuthor: true, completedAt: true, dueDate: true, createdAt: true },
+              orderBy: { createdAt: "asc" },
+            },
+          },
         }),
         tx.invoice.findMany({
           where: { userId },

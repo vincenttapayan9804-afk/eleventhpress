@@ -1729,6 +1729,10 @@ model CounterEvent {
   sessionId     String?
   userAgent     String?
   ipAddress     String?
+  // Reader's country (ISO code, from the hosting platform's geo header) and
+  // the site that sent them (hostname only), for author analytics.
+  country       String?
+  referrer      String?
   createdAt     DateTime @default(now())
 
   @@index([articleId, createdAt])
@@ -2835,4 +2839,42 @@ model Passkey {
   lastUsedAt   DateTime?
 
   @@index([userId])
+}
+
+// A revised manuscript submitted in response to "revisions requested":
+// what changed (title, abstract, manuscript file) and the point-by-point
+// response to reviewers. src/app/api/articles/[id]/revision.
+model ArticleRevision {
+  id                    String   @id @default(cuid())
+  articleId             String
+  round                 Int
+  previousTitle         String
+  previousAbstract      String
+  previousManuscriptKey String?
+  title                 String
+  abstract              String
+  manuscriptKey         String?
+  manuscriptName        String?
+  responseLetter        String
+  createdAt             DateTime @default(now())
+
+  @@index([articleId, round])
+}
+
+// Post-publication discussion on articles (src/app/api/articles/[id]/comments).
+// Signed-in readers post; anyone can read visible comments; editors hide
+// comments and see reports.
+model ArticleComment {
+  id        String   @id @default(cuid())
+  articleId String
+  userId    String
+  parentId  String?
+  body      String
+  // VISIBLE | HIDDEN
+  status    String   @default("VISIBLE")
+  reports   Int      @default(0)
+  createdAt DateTime @default(now())
+  editedAt  DateTime?
+
+  @@index([articleId, createdAt])
 }

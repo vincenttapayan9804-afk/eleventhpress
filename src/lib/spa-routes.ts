@@ -16,7 +16,7 @@
 import type { DashboardTab, ViewKey } from "./store";
 
 export const DASHBOARD_TABS: DashboardTab[] = [
-  "overview", "secondBrain", "library", "expertDashboard", "profile", "submit", "myArticles", "invoices",
+  "overview", "secondBrain", "library", "authorAnalytics", "expertDashboard", "profile", "submit", "myArticles", "invoices",
   "editorQueue", "reviewerQueue", "reviewerForm", "indexing", "counter", "institutions", "reader",
   "application", "distribution", "myBooks", "bookAcquisitions", "magazines", "podcasts", "media",
   "certificates", "researchLab", "researchLabActivity", "benchmarking", "boardIntelligence",

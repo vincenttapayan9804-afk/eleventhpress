@@ -42,6 +42,7 @@ export type DashboardTab =
   | "overview"
   | "secondBrain"
   | "library"
+  | "authorAnalytics"
   | "expertDashboard"
   | "profile"
   | "submit"

@@ -1,5 +1,6 @@
 "use client";
 
+import { trDashboard } from "@/lib/dashboard-i18n";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FileText, User, BookOpen, Newspaper, Mic, GraduationCap, Compass, LogOut, Loader2, Search } from "lucide-react";
 import {
@@ -54,6 +55,7 @@ export function CommandPalette() {
   const [groups, setGroups] = useState<ResultGroup[]>([]);
   const [loading, setLoading] = useState(false);
   const user = useApp((s) => s.user);
+  const locale = useApp((s) => s.locale);
   const seq = useRef(0);
 
   useEffect(() => {
@@ -184,8 +186,8 @@ export function CommandPalette() {
                     onSelect={() => run(() => useApp.getState().openDashboard(t.key as any))}
                   >
                     <Icon className="text-muted-foreground" />
-                    <span className="flex-1">{t.label}</span>
-                    <CommandShortcut>{t.group.replace(/ — .*/, "")}</CommandShortcut>
+                    <span className="flex-1">{trDashboard(t.label, locale)}</span>
+                    <CommandShortcut>{trDashboard(t.group, locale).replace(/ — .*/, "")}</CommandShortcut>
                   </CommandItem>
                 );
               })}
