@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
-import { APP_BASE_URL } from "@/lib/site";
+import { headers } from "next/headers";
+import { requestBaseUrl, resolveTenantFromHeaders } from "@/lib/tenant";
 
 /**
  * Next.js's native robots convention — auto-served at /robots.txt,
@@ -9,7 +10,10 @@ import { APP_BASE_URL } from "@/lib/site";
  * deployment on a custom domain (see src/lib/site.ts) would otherwise
  * point crawlers at the wrong host for /sitemap.xml.
  */
-export default function robots(): MetadataRoute.Robots {
+export default async function robots(): Promise<MetadataRoute.Robots> {
+  // A tenant's own domain points crawlers at its own sitemap.
+  const tenant = await resolveTenantFromHeaders(await headers()).catch(() => null);
+  const base = await requestBaseUrl(tenant);
   return {
     rules: [
       { userAgent: "Googlebot", allow: "/", disallow: ["/dashboard", "/admin", "/api/"] },
@@ -18,6 +22,6 @@ export default function robots(): MetadataRoute.Robots {
       { userAgent: "facebookexternalhit", allow: "/", disallow: ["/dashboard", "/admin", "/api/"] },
       { userAgent: "*", allow: "/", disallow: ["/dashboard", "/admin", "/api/"] },
     ],
-    sitemap: `${APP_BASE_URL}/sitemap.xml`,
+    sitemap: `${base}/sitemap.xml`,
   };
 }

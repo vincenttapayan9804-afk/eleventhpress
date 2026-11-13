@@ -20,6 +20,11 @@ import type { ProvenanceCheckResult } from "@/lib/article-provenance-server";
 
 export const PROVENANCE_WATERMARK = "Published at Eleventh Press International Publishing";
 
+/** Diagonal watermark naming the publisher that issued the work (a whitelabel tenant, or the platform). */
+export function provenanceWatermark(publisher: string | null | undefined): string {
+  return publisher ? `Published at ${publisher}` : PROVENANCE_WATERMARK;
+}
+
 export const PURPLE = "#4c1d95";
 export const PURPLE_DEEP = "#2a1458";
 export const GOLD = "#c9a55c";
@@ -128,6 +133,9 @@ export async function buildProvenanceCertificatePdf(record: ProvenanceRecord): P
     color: { dark: INK, light: "#ffffff" },
   });
 
+  const publisher = pdfSafe(record.brand?.publisher || record.journal.publisher || "Eleventh Press International Publishing");
+  const watermark = pdfSafe(provenanceWatermark(publisher));
+
   return new Promise<Buffer>((resolve, reject) => {
     const doc = new PDFDocument({
       size: "A4",
@@ -135,10 +143,10 @@ export async function buildProvenanceCertificatePdf(record: ProvenanceRecord): P
       bufferPages: true,
       info: {
         Title: pdfSafe(`Certificate of Digital Provenance — ${record.title}`),
-        Author: "Eleventh Press International Publishing",
+        Author: publisher,
         Subject: pdfSafe(`Provenance verification ${record.sealReference} · ${record.verdict} · checked ${record.checkedAt}`),
-        Keywords: pdfSafe(`digital provenance, SHA-256, ${record.doi ?? record.id}, ${PROVENANCE_WATERMARK}`),
-        Creator: "Eleventh Press International Publishing — provenance service",
+        Keywords: pdfSafe(`digital provenance, SHA-256, ${record.doi ?? record.id}, ${watermark}`),
+        Creator: `${publisher} — provenance service`,
       },
     });
     const chunks: Buffer[] = [];
@@ -198,7 +206,7 @@ export async function buildProvenanceCertificatePdf(record: ProvenanceRecord): P
     doc.rect(0, 0, PAGE_W, 112).fill(doc.linearGradient(0, 0, PAGE_W, 112).stop(0, PURPLE_DEEP).stop(1, PURPLE));
     doc.rect(0, 112, PAGE_W, 2.2).fill(GOLD);
     doc.font("Helvetica-Bold").fontSize(7.2).fillColor(GOLD)
-      .text("ELEVENTH PRESS INTERNATIONAL PUBLISHING", M, 30, { characterSpacing: 2.2, lineBreak: false });
+      .text(publisher.toUpperCase(), M, 30, { characterSpacing: 2.2, lineBreak: false, width: CW - 150, ellipsis: true });
     doc.font("Times-Bold").fontSize(23).fillColor("#ffffff").text("Certificate of Digital Provenance", M, 46, { lineBreak: false });
     doc.font("Helvetica").fontSize(8.2).fillColor("#d9cff0")
       .text("Cryptographic integrity verification of a published scholarly record", M, 76, { lineBreak: false });
@@ -389,7 +397,7 @@ export async function buildProvenanceCertificatePdf(record: ProvenanceRecord): P
     doc.font("Helvetica").fontSize(7.6);
     const sealedList = `Sealed inputs: ${SEALED_FIELDS.join("; ")}.`;
     const disclaimer =
-      "Verification depends on Eleventh Press International Publishing's own records and archive storage; it is tamper-evident, not blockchain-anchored. When the platform itself updates a sealed field — assigning a DOI or regenerating the galleys — the record is resealed and the event is written to the audit log shown in the timeline above. Individually downloaded copies carry a per-reader provenance stamp and therefore have different file hashes from the archived galleys. This certificate attests authenticity only; it does not restrict reading, sharing or reuse — the work is licensed CC BY 4.0.";
+      `Verification depends on ${publisher}'s own records and archive storage; it is tamper-evident, not blockchain-anchored. When the platform itself updates a sealed field — assigning a DOI or regenerating the galleys — the record is resealed and the event is written to the audit log shown in the timeline above. Individually downloaded copies carry a per-reader provenance stamp and therefore have different file hashes from the archived galleys. This certificate attests authenticity only; it does not restrict reading, sharing or reuse — the work is licensed CC BY 4.0.`;
     ensure(doc.heightOfString(sealedList, { width: CW }) + doc.heightOfString(disclaimer, { width: CW }) + 16);
     doc.fillColor(MUTED).text(sealedList, M, doc.y, { width: CW, lineGap: 0.8 });
     doc.moveDown(0.5);
@@ -410,8 +418,8 @@ export async function buildProvenanceCertificatePdf(record: ProvenanceRecord): P
       doc.save();
       doc.rotate(-54, { origin: [PAGE_W / 2, PAGE_H / 2] });
       doc.font("Helvetica-Bold").fontSize(26).fillColor(PURPLE).fillOpacity(0.075);
-      const wmW = doc.widthOfString(PROVENANCE_WATERMARK, { characterSpacing: 1 });
-      doc.text(PROVENANCE_WATERMARK, PAGE_W / 2 - wmW / 2, PAGE_H / 2 - 14, { lineBreak: false, characterSpacing: 1 });
+      const wmW = doc.widthOfString(watermark, { characterSpacing: 1 });
+      doc.text(watermark, PAGE_W / 2 - wmW / 2, PAGE_H / 2 - 14, { lineBreak: false, characterSpacing: 1 });
       doc.font("Helvetica").fontSize(9).fillOpacity(0.07);
       const subW = doc.widthOfString(record.sealReference, { characterSpacing: 3 });
       doc.text(record.sealReference, PAGE_W / 2 - subW / 2, PAGE_H / 2 + 20, { lineBreak: false, characterSpacing: 3 });
@@ -421,7 +429,7 @@ export async function buildProvenanceCertificatePdf(record: ProvenanceRecord): P
       const fy = PAGE_H - 50;
       doc.moveTo(M, fy).lineTo(M + CW, fy).lineWidth(0.5).strokeColor(GOLD).stroke();
       doc.font("Helvetica-Bold").fontSize(6.6).fillColor(PURPLE)
-        .text(`ELEVENTH PRESS INTERNATIONAL PUBLISHING  ·  ${record.sealReference}`, M, fy + 7, { characterSpacing: 0.8, lineBreak: false });
+        .text(`${publisher.toUpperCase()}  ·  ${record.sealReference}`, M, fy + 7, { characterSpacing: 0.8, lineBreak: false });
       doc.font("Helvetica").fontSize(6.8).fillColor(MUTED)
         .text(`Page ${i - range.start + 1} of ${range.count}`, M, fy + 7, { width: CW, align: "right", lineBreak: false });
       doc.font("Helvetica").fontSize(6.4).fillColor(MUTED)

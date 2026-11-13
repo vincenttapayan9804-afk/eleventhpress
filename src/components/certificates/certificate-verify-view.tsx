@@ -32,6 +32,7 @@ import {
   Field,
   HashRow,
   SealEmblem,
+  sealRingName,
   SectionCard,
   VERDICT_UI,
   checkTag,
@@ -153,7 +154,7 @@ export function CertificateVerifyView({ record, qrDataUrl }: { record: Certifica
         {/* Verdict */}
         <section className={cn("rounded-3xl border p-5 shadow-sm sm:p-7", ui.panel)} aria-live="polite">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-            <SealEmblem verdict={live.verdict} spinning={running} ringText="ELEVENTH PRESS · CERTIFICATE VERIFICATION · SHA-256 ·" />
+            <SealEmblem verdict={live.verdict} spinning={running} ringText={`${sealRingName(record.issuer)} · CERTIFICATE VERIFICATION · SHA-256 ·`} />
             <div className="min-w-0 flex-1">
               <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider", ui.chip)}>
                 <ShieldCheck className="h-3.5 w-3.5" />
@@ -339,7 +340,7 @@ export function CertificateVerifyView({ record, qrDataUrl }: { record: Certifica
                 </button>
               </div>
               <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
-                Verification depends on Eleventh Press International Publishing&rsquo;s own records — it is tamper-evident, not
+                Verification depends on {record.issuer || "Eleventh Press International Publishing"}&rsquo;s own records — it is tamper-evident, not
                 blockchain-anchored. The verification report confirms this check; the certificate itself stays private to its holder.
               </p>
             </SectionCard>

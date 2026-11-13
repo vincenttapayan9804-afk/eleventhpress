@@ -27,8 +27,12 @@ export function generateTwoFactorSecret(): string {
   return generateSecret();
 }
 
-export async function generateTwoFactorQrCode(email: string, secret: string): Promise<string> {
-  const otpauthUrl = generateURI({ issuer: ISSUER, label: email, secret });
+/**
+ * `issuer` is the name the authenticator app shows for this account — the
+ * whitelabel tenant's own name for its members, "Eleventh Press" otherwise.
+ */
+export async function generateTwoFactorQrCode(email: string, secret: string, issuer: string = ISSUER): Promise<string> {
+  const otpauthUrl = generateURI({ issuer: issuer.replace(/:/g, " ").trim() || ISSUER, label: email, secret });
   return QRCode.toDataURL(otpauthUrl);
 }
 

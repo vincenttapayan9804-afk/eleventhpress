@@ -1,5 +1,6 @@
 "use client";
 
+import { isWhitelabel, useTenantBranding } from "@/lib/tenant-branding-context";
 import { useEffect, useState } from "react";
 import { useApp } from "@/lib/store";
 import { apiFetch } from "@/lib/api-client";
@@ -78,6 +79,9 @@ interface DirectoryListing {
 }
 
 export function IndexingTab() {
+  // Examples show the tenant's own site, never Eleventh Press's ISSN/domain.
+  const whitelabel = isWhitelabel(useTenantBranding());
+  const siteOrigin = whitelabel ? "https://…" : "https://eleventhpress.org";
   const user = useApp((s) => s.user);
   const isAdmin = user?.role === "SUPER_ADMIN";
   const [preservationDeposits, setPreservationDeposits] = useState<PreservationDeposit[]>([]);
@@ -746,11 +750,11 @@ export function IndexingTab() {
                   <div>&lt;meta name="citation_author" content="…" /&gt; <span className="text-muted-foreground">— once per author</span></div>
                   <div>&lt;meta name="citation_publication_date" content="YYYY-MM-DD" /&gt;</div>
                   <div>&lt;meta name="citation_journal_title" content="…" /&gt;</div>
-                  <div>&lt;meta name="citation_issn" content="2945-1138" /&gt;</div>
+                  <div>&lt;meta name="citation_issn" content="{whitelabel ? "…" : "2945-1138"}" /&gt;</div>
                   <div>&lt;meta name="citation_volume" content="4" /&gt;</div>
                   <div>&lt;meta name="citation_issue" content="2" /&gt;</div>
                   <div>&lt;meta name="citation_doi" content="10.52011/epip.2024.XXXX" /&gt;</div>
-                  <div>&lt;meta name="citation_pdf_url" content="https://eleventhpress.org/galleys/…" /&gt;</div>
+                  <div>&lt;meta name="citation_pdf_url" content="{siteOrigin}/galleys/…" /&gt;</div>
                   <div>&lt;meta name="citation_abstract_html_url" content="…" /&gt;</div>
                 </div>
                 <p className="mt-2 text-muted-foreground">

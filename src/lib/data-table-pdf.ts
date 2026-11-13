@@ -49,6 +49,12 @@ export interface DataTablePdfArticle {
   issueNumber?: number | null;
   year?: number | null;
   articleUrl: string;
+  /**
+   * Set for a whitelabel tenant's article: the tenant's own name, tagline
+   * and contact email replace Eleventh Press's, and no platform ISSN is
+   * ever printed.
+   */
+  whitelabel?: { name: string; tagline?: string | null; email?: string | null } | null;
 }
 
 export interface DataTablePdfInput {
@@ -136,6 +142,9 @@ export function dataTablePdfFileName(article: { title: string }, tableNumber: nu
 
 export async function buildDataTablePdf(input: DataTablePdfInput): Promise<Buffer> {
   const { article, table, tableNumber, tableCount } = input;
+  const wl = article.whitelabel ?? null;
+  const orgName = wl?.name || J.name;
+  const issnLine = article.journalIssn || (wl ? null : J.issn);
   const generatedAt = input.generatedAt ?? new Date();
   const t = (s: string | null | undefined) => pdfSafe(s ?? "");
   const qr = await QRCode.toBuffer(article.articleUrl, { errorCorrectionLevel: "M", margin: 1, width: 220, color: { dark: INK, light: "#ffffff" } });
@@ -184,11 +193,11 @@ export async function buildDataTablePdf(input: DataTablePdfInput): Promise<Buffe
       bufferPages: true,
       info: {
         Title: t(`${tableLabel} — ${article.title}`),
-        Author: t(authors.map((a) => a.name).join(", ")) || J.name,
+        Author: t(authors.map((a) => a.name).join(", ")) || t(orgName),
         Subject: t(`Supplemental data: ${tableLabel} of "${article.title}", ${article.journalName}`),
         Keywords: t(article.keywords ?? ""),
-        Creator: `${J.name} — Supplemental Materials`,
-        Producer: J.name,
+        Creator: t(`${orgName} — Supplemental Materials`),
+        Producer: t(orgName),
       },
     });
     const chunks: Buffer[] = [];
@@ -212,8 +221,8 @@ export async function buildDataTablePdf(input: DataTablePdfInput): Promise<Buffe
     const bandH = 150;
     doc.rect(0, 0, PAGE_W, bandH).fill(doc.linearGradient(0, 0, PAGE_W, bandH).stop(0, PURPLE_DEEP).stop(1, PURPLE));
     doc.rect(0, bandH, PAGE_W, 3).fill(GOLD);
-    doc.font("Helvetica-Bold").fontSize(7.6).fillColor(GOLD).text(J.name.toUpperCase(), M, 34, { characterSpacing: 2.2, lineBreak: false });
-    doc.font("Times-Italic").fontSize(9).fillColor("#d9cff0").text(J.tagline, M, 47, { width: CW - 170, lineBreak: false });
+    doc.font("Helvetica-Bold").fontSize(7.6).fillColor(GOLD).text(t(orgName).toUpperCase(), M, 34, { characterSpacing: 2.2, lineBreak: false, width: CW - 170, ellipsis: true });
+    doc.font("Times-Italic").fontSize(9).fillColor("#d9cff0").text(t(wl ? wl.tagline || article.journalName : J.tagline), M, 47, { width: CW - 170, lineBreak: false });
     const chip = `SUPPLEMENTAL DATA  ·  TABLE ${tableNumber} OF ${tableCount}`;
     doc.font("Helvetica-Bold").fontSize(6.8);
     const chipW = doc.widthOfString(chip, { characterSpacing: 1.1 }) + 18;
@@ -249,8 +258,8 @@ export async function buildDataTablePdf(input: DataTablePdfInput): Promise<Buffe
       ["Article", article.title],
       ["Authors", authorLine],
       ["Journal", article.journalName],
-      ["Publisher", article.publisher || J.name],
-      ["ISSN", article.journalIssn ? `${article.journalIssn} (Online)` : `${J.issn} (Online)`],
+      ["Publisher", article.publisher || orgName],
+      ["ISSN", issnLine ? `${issnLine} (Online)` : "—"],
       ...(issueBits ? ([["Issue", issueBits]] as [string, string][]) : []),
       ["Published", [fmtDate(article.publishedAt), article.acceptedAt ? `accepted ${fmtDate(article.acceptedAt)}` : "", article.submittedAt ? `received ${fmtDate(article.submittedAt)}` : ""].filter(Boolean).join("  ·  ") || "—"],
       ...(article.doi ? ([["DOI", `https://doi.org/${article.doi}`, `https://doi.org/${article.doi}`]] as [string, string, string][]) : []),
@@ -409,17 +418,17 @@ export async function buildDataTablePdf(input: DataTablePdfInput): Promise<Buffe
         doc.font("Helvetica-Bold").fontSize(6.5).fillColor(GOLD_DEEP)
           .text(t(`SUPPLEMENTAL DATA  ·  ${tableLabel.toUpperCase()}  ·  ${article.title.toUpperCase()}`), M, 32, { width: CW - 120, characterSpacing: 1, lineBreak: false, ellipsis: true, height: 9 });
         doc.font("Helvetica").fontSize(7).fillColor(MUTED)
-          .text(article.doi ? `doi:${article.doi}` : J.shortName, M, 32, { width: CW, align: "right", lineBreak: false });
+          .text(article.doi ? `doi:${article.doi}` : t(wl ? wl.name : J.shortName), M, 32, { width: CW, align: "right", lineBreak: false });
         doc.moveTo(M, 45).lineTo(M + CW, 45).lineWidth(0.5).strokeColor(RULE).stroke();
       }
 
       const fy = PAGE_H - 46;
       doc.moveTo(M, fy).lineTo(M + CW, fy).lineWidth(0.5).strokeColor(GOLD).stroke();
       doc.font("Helvetica-Bold").fontSize(6.6).fillColor(PURPLE)
-        .text(t([...new Set([article.publisher || J.name, article.journalName])].join("  ·  ").toUpperCase()), M, fy + 7, { width: CW - 80, characterSpacing: 0.6, lineBreak: false, ellipsis: true, height: 9 });
+        .text(t([...new Set([article.publisher || orgName, article.journalName])].join("  ·  ").toUpperCase()), M, fy + 7, { width: CW - 80, characterSpacing: 0.6, lineBreak: false, ellipsis: true, height: 9 });
       doc.font("Helvetica").fontSize(6.8).fillColor(MUTED).text(`Page ${pageNo} of ${range.count}`, M, fy + 7, { width: CW, align: "right", lineBreak: false });
       doc.font("Helvetica").fontSize(6.3).fillColor(MUTED)
-        .text(t(`ISSN ${article.journalIssn || J.issn} (Online)  ·  ${J.license}  ·  ${J.editorialEmail}  ·  Generated ${generated}`), M, fy + 17, { width: CW, lineBreak: false, ellipsis: true, height: 9 });
+        .text(t([issnLine ? `ISSN ${issnLine} (Online)` : null, J.license, wl ? wl.email : J.editorialEmail, `Generated ${generated}`].filter(Boolean).join("  ·  ")), M, fy + 17, { width: CW, lineBreak: false, ellipsis: true, height: 9 });
 
       doc.page.margins.bottom = savedBottom;
     }

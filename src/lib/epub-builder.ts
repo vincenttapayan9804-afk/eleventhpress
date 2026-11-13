@@ -8,7 +8,7 @@
  * EPUB without creating a circular import between the two.
  */
 import { buildZip, type ZipEntry } from "@/lib/zip-writer";
-import { ARTICLE_LANGUAGE } from "@/lib/site";
+import { ARTICLE_LANGUAGE, JOURNAL_IDENTITY } from "@/lib/site";
 
 export interface EpubChapter {
   title: string;
@@ -29,7 +29,15 @@ function escapeXml(s: string): string {
 }
 
 export function buildEpub(
-  book: { id: string; title: string; subtitle?: string | null; authors: string[]; rights?: string | null },
+  book: {
+    id: string;
+    title: string;
+    subtitle?: string | null;
+    authors: string[];
+    rights?: string | null;
+    /** Publishing organisation — the whitelabel tenant's name, or the platform's. */
+    publisher?: string | null;
+  },
   chapters: EpubChapter[]
 ): Buffer {
   const authorNames = book.authors.filter(Boolean);
@@ -48,7 +56,7 @@ export function buildEpub(
     <dc:title>${escapeXml(book.title)}</dc:title>
     ${book.subtitle ? `<dc:description>${escapeXml(book.subtitle)}</dc:description>` : ""}
     <dc:language>${ARTICLE_LANGUAGE}</dc:language>
-    <dc:publisher>Eleventh Press International Publishing</dc:publisher>
+    <dc:publisher>${escapeXml(book.publisher || JOURNAL_IDENTITY.name)}</dc:publisher>
 ${authorNames.map((n) => `    <dc:creator>${escapeXml(n)}</dc:creator>`).join("\n")}
     ${book.rights ? `<dc:rights>${escapeXml(book.rights)}</dc:rights>` : ""}
     <meta property="dcterms:modified">${modified}</meta>

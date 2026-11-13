@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { verifySushiApiKey } from "@/lib/institutions";
 import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { publisherIdentityForTenantId, type PublisherIdentity } from "@/lib/publisher-identity";
 import { withTenantRlsContext } from "@/lib/db-rls";
 
 /**
@@ -69,6 +70,9 @@ export async function GET(req: NextRequest) {
   // For articles with no recorded events, synthesise plausible metrics from
   // the Article.views / Article.downloads fields so the report is meaningful.
   const tenant = await resolveTenantFromHeaders(req.headers);
+  // A whitelabel tenant's report names itself as publisher; "Platform" stays
+  // the hosting platform (Eleventh Press), as COUNTER defines that field.
+  const identity = await publisherIdentityForTenantId(tenant && !tenant.isPlatform ? tenant.id : null);
   const publishedArticles = await withTenantRlsContext(tenant?.id ?? null, (tx) =>
     tx.article.findMany({
       where: {
@@ -78,7 +82,7 @@ export async function GET(req: NextRequest) {
     })
   );
 
-  const report = buildReport(reportType, publishedArticles, events, beginDate, endDate, customerId, requestorId);
+  const report = buildReport(reportType, publishedArticles, events, beginDate, endDate, customerId, requestorId, identity);
   return NextResponse.json(report, {
     headers: {
       "Content-Type": "application/json",
@@ -94,7 +98,8 @@ function buildReport(
   beginDate: string,
   endDate: string,
   customerId: string,
-  requestorId: string
+  requestorId: string,
+  identity: PublisherIdentity
 ): any {
   const reportId = `${reportType}_${beginDate}_${endDate}`;
   const created = new Date().toISOString();
@@ -130,10 +135,8 @@ function buildReport(
     return {
       Platform: PLATFORM_NAME,
       Title: article.title,
-      Publisher: "Eleventh Press International Publishing",
-      Publisher_ID: [
-        { Type: "ISNI", ID: "0000000506692423" },
-      ],
+      Publisher: identity.publisher,
+      Publisher_ID: identity.whitelabel ? [] : [{ Type: "ISNI", ID: "0000000506692423" }],
       Item_ID: [
         { Type: "DOI", ID: article.doi },
       ],
@@ -153,7 +156,7 @@ function buildReport(
       ],
       Performance: performance,
       Item_Component: [],
-      Parent_Title: article.journalName || "Eleventh Press International Journal",
+      Parent_Title: article.journalName || (identity.whitelabel ? identity.journalName : "Eleventh Press International Journal"),
       Item_Type: "Article",
     };
   });

@@ -121,6 +121,10 @@ interface ArticleForKit {
   doi?: string | null;
   laySummary?: string | null;
   journalName?: string;
+  /** Publishing organisation (a whitelabel tenant), used when the journal has no name. */
+  publisherName?: string;
+  /** Base URL for the "read the full article" link (a tenant's own domain). */
+  baseUrl?: string;
 }
 
 export interface ShareKit {
@@ -143,12 +147,12 @@ export interface ShareKit {
 export function buildShareKit(article: ArticleForKit): ShareKit {
   const authors = parseAuthors(article.authors);
   const authorNames = authors.map((a) => a.name).filter(Boolean).join(", ") || "the authors";
-  const canonicalUrl = `${APP_BASE_URL}/article/${article.id}`;
+  const canonicalUrl = `${article.baseUrl || APP_BASE_URL}/article/${article.id}`;
   const summary = (article.laySummary || article.abstract).trim();
 
   const blurb = `${article.title}\n\nBy ${authorNames}${article.journalName ? ` — published in ${article.journalName}` : ""}.\n\n${summary}\n\nRead the full article: ${canonicalUrl}`;
 
-  const excerpt = `## ${article.title}\n\n*By ${authorNames}*\n\n${summary}\n\n*Originally published in ${article.journalName || "Eleventh Press International Publishing"} (${article.discipline}). Read the full peer-reviewed article: [${canonicalUrl}](${canonicalUrl})*`;
+  const excerpt = `## ${article.title}\n\n*By ${authorNames}*\n\n${summary}\n\n*Originally published in ${article.journalName || article.publisherName || "Eleventh Press International Publishing"} (${article.discipline}). Read the full peer-reviewed article: [${canonicalUrl}](${canonicalUrl})*`;
 
   return { blurb, excerpt, canonicalUrl };
 }
@@ -173,8 +177,8 @@ export interface SubmissionPackage {
 export function buildSubmissionPackage(article: ArticleForKit, platformId: string): SubmissionPackage {
   const authors = parseAuthors(article.authors);
   const authorList = authors.map((a) => (a.affiliation ? `${a.name} (${a.affiliation})` : a.name)).join("; ") || "the authors";
-  const canonicalUrl = `${APP_BASE_URL}/article/${article.id}`;
-  const journalName = article.journalName || "Eleventh Press International Publishing";
+  const canonicalUrl = `${article.baseUrl || APP_BASE_URL}/article/${article.id}`;
+  const journalName = article.journalName || article.publisherName || "Eleventh Press International Publishing";
 
   return {
     title: article.title,
@@ -199,9 +203,9 @@ export interface BloggerPost {
 export function buildBloggerPost(article: ArticleForKit): BloggerPost {
   const authors = parseAuthors(article.authors);
   const authorNames = authors.map((a) => a.name).filter(Boolean).join(", ") || "the authors";
-  const canonicalUrl = `${APP_BASE_URL}/article/${article.id}`;
+  const canonicalUrl = `${article.baseUrl || APP_BASE_URL}/article/${article.id}`;
   const summary = (article.laySummary || article.abstract).trim();
-  const journalName = article.journalName || "Eleventh Press International Publishing";
+  const journalName = article.journalName || article.publisherName || "Eleventh Press International Publishing";
 
   const html = [
     `<p><em>By ${escapeHtml(authorNames)} — published in ${escapeHtml(journalName)}</em></p>`,

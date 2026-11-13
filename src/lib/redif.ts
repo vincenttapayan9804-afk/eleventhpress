@@ -31,26 +31,26 @@ export function repecArchiveCode(): string {
 const SERIES_CODE = "articles";
 const REDIF_BASE_URL = `${APP_BASE_URL}/api/redif`;
 
-export function buildArchiveTemplate(journal: { name: string; publisher: string }): string {
+export function buildArchiveTemplate(journal: { name: string; publisher: string; maintainerEmail?: string | null }): string {
   const code = repecArchiveCode();
   return [
     "Template-Type: ReDIF-Archive 1.0",
     `Handle: RePEc:${code}`,
     `Name: ${journal.publisher}`,
     "Maintainer-Name: Editorial Office",
-    "Maintainer-Email: editorial@eleventhpress.org",
+    `Maintainer-Email: ${journal.maintainerEmail || "editorial@eleventhpress.org"}`,
     `Description: ${journal.name} — real-time open-access article metadata, harvested for RePEc/IDEAS/EconPapers.`,
     `URL: ${REDIF_BASE_URL}?type=series`,
   ].join("\n");
 }
 
-export function buildSeriesTemplate(journal: { name: string; publisher: string }): string {
+export function buildSeriesTemplate(journal: { name: string; publisher: string; homepage?: string | null }): string {
   const code = repecArchiveCode();
   return [
     "Template-Type: ReDIF-Series 1.0",
     `Name: ${journal.name}`,
     `Provider-Name: ${journal.publisher}`,
-    `Provider-Homepage: ${APP_BASE_URL}`,
+    `Provider-Homepage: ${journal.homepage || APP_BASE_URL}`,
     "Type: ReDIF-Paper",
     `Handle: RePEc:${code}:${SERIES_CODE}`,
     `URL: ${REDIF_BASE_URL}?type=papers`,

@@ -19,7 +19,7 @@
  */
 import { cache } from "react";
 import { db } from "./db";
-import { APP_HOST } from "./site";
+import { APP_BASE_URL, APP_HOST } from "./site";
 import { getSessionFromHeaders } from "./auth";
 
 /** Social profiles an organization can list. Keys are fixed so the footer, emails and PDFs know which icon/label to use. */
@@ -300,4 +300,32 @@ export async function getOrCreateTenantJournal(tenant: { id: string; name: strin
   return db.journal.create({
     data: { name: tenant.name, tenantId: tenant.id },
   });
+}
+
+/**
+ * The public base URL a tenant's own pages should be linked and indexed
+ * under: its primary verified domain (custom domain or platform subdomain)
+ * when it has one, else the platform's own URL. Used for sitemap/robots,
+ * RSS links and canonical URLs, so a tenant's custom domain never points
+ * search engines back at eleventhpress.org.
+ */
+export async function tenantBaseUrl(tenantId: string | null | undefined): Promise<string> {
+  if (!tenantId) return APP_BASE_URL;
+  const domain = await db.tenantDomain
+    .findFirst({
+      where: { tenantId, verified: true, tenant: { isPlatform: false } },
+      orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
+      select: { hostname: true },
+    })
+    .catch(() => null);
+  return domain ? `https://${domain.hostname}` : APP_BASE_URL;
+}
+
+/**
+ * Base URL for links on the current request: the tenant's own verified
+ * domain when the visitor reached it there, else the platform's URL.
+ */
+export async function requestBaseUrl(tenant: TenantContext | null): Promise<string> {
+  if (!tenant || tenant.isPlatform || tenant.source !== "domain") return APP_BASE_URL;
+  return tenantBaseUrl(tenant.id);
 }

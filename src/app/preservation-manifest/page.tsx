@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { lockssPermissionStatementText } from "@/lib/preservation";
 import { APP_BASE_URL } from "@/lib/site";
+import { getCurrentTenant } from "@/lib/tenant";
+import { publisherIdentityForTenantId } from "@/lib/publisher-identity";
 
 /**
  * GET /preservation-manifest — a real, public, server-rendered page (not
@@ -13,10 +15,33 @@ import { APP_BASE_URL } from "@/lib/site";
  * src/lib/preservation.ts's docstring for why there's no live API this
  * page could poll instead.
  */
-export const metadata: Metadata = {
-  title: "Preservation & Archiving — Eleventh Press International Publishing",
-  description: "LOCKSS/CLOCKSS crawl permission statement and preservation-relevant feeds for Eleventh Press International Publishing.",
-};
+/**
+ * The visiting site's journal identity: a whitelabel tenant's own journal,
+ * name and ISSN (never Eleventh Press's), else the platform journal.
+ */
+async function journalInfoForRequest() {
+  const tenant = await getCurrentTenant().catch(() => null);
+  if (tenant && !tenant.isPlatform) {
+    const id = await publisherIdentityForTenantId(tenant.id);
+    return { name: id.journalName, issn: id.issn, publisher: id.publisher };
+  }
+  const journal =
+    (await db.journal.findFirst({ where: { tenantId: null } }).catch(() => null)) ??
+    (await db.journal.findFirst().catch(() => null));
+  return {
+    name: journal?.name ?? "Eleventh Press International Publishing",
+    issn: journal?.issn ?? null,
+    publisher: journal?.publisher ?? "Eleventh Press International Publishing",
+  };
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const j = await journalInfoForRequest();
+  return {
+    title: `Preservation & Archiving — ${j.publisher}`,
+    description: `LOCKSS/CLOCKSS crawl permission statement and preservation-relevant feeds for ${j.publisher}.`,
+  };
+}
 
 // Queries the Journal table on every request — no DB is reachable at
 // build time in this environment (same reasoning as src/app/sitemap.ts),
@@ -24,13 +49,7 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function PreservationManifestPage() {
-  const journal = await db.journal.findFirst();
-
-  const journalInfo = {
-    name: journal?.name ?? "Eleventh Press International Publishing",
-    issn: journal?.issn ?? null,
-    publisher: journal?.publisher ?? "Eleventh Press International Publishing",
-  };
+  const journalInfo = await journalInfoForRequest();
   const permissionStatement = lockssPermissionStatementText(journalInfo);
 
   return (

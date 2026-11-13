@@ -1,7 +1,8 @@
 import type { Metadata, ResolvingMetadata } from "next";
 import { notFound } from "next/navigation";
 import { SpaShell } from "@/components/spa-shell";
-import { stateForPath, VIEW_META } from "@/lib/spa-routes";
+import { stateForPath, viewDescription, VIEW_META } from "@/lib/spa-routes";
+import { getCurrentTenant } from "@/lib/tenant";
 import { APP_BASE_URL } from "@/lib/site";
 
 /**
@@ -36,15 +37,18 @@ export async function generateMetadata({ params }: Props, parent: ResolvingMetad
   const { slug } = await params;
   const route = stateForPath(pathOf(slug));
   if (!route) return {};
-  const base = (await parent).title?.absolute || "Eleventh Press International Publishing";
+  const tenant = await getCurrentTenant().catch(() => null);
+  const siteName = tenant && !tenant.isPlatform ? tenant.siteName || tenant.name : null;
+  const base = (await parent).title?.absolute || siteName || "Eleventh Press International Publishing";
   const meta = VIEW_META[route.view];
   if (!meta) return { title: base, alternates: { canonical: `${APP_BASE_URL}${pathOf(slug)}` } };
+  const description = viewDescription(meta.description, siteName);
   return {
     title: `${meta.title} — ${base}`,
-    description: meta.description,
+    description,
     alternates: { canonical: `${APP_BASE_URL}${pathOf(slug)}` },
     robots: meta.index === false ? { index: false, follow: true } : undefined,
-    openGraph: { title: `${meta.title} — ${base}`, description: meta.description, url: `${APP_BASE_URL}${pathOf(slug)}` },
+    openGraph: { title: `${meta.title} — ${base}`, description, url: `${APP_BASE_URL}${pathOf(slug)}` },
   };
 }
 

@@ -1,8 +1,8 @@
+import { publisherIdentityForTenantId } from "@/lib/publisher-identity";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { buildOnixMessage } from "@/lib/onix";
-import { APP_BASE_URL } from "@/lib/site";
-import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { resolveTenantFromHeaders, tenantBaseUrl } from "@/lib/tenant";
 import { withTenantRlsContext } from "@/lib/db-rls";
 
 /**
@@ -34,6 +34,8 @@ export async function GET(
     );
   }
 
+  const identity = await publisherIdentityForTenantId(book.tenantId);
+  const base = await tenantBaseUrl(identity.tenantId);
   const xml = buildOnixMessage([
     {
       id: book.id,
@@ -47,9 +49,10 @@ export async function GET(
       publishedAt: book.publishedAt,
       epubKey: book.epubKey,
       pdfKey: book.pdfKey,
-      canonicalUrl: `${APP_BASE_URL}/book/${book.id}`,
+      canonicalUrl: `${base}/book/${book.id}`,
+      publisherName: identity.whitelabel ? identity.publisher : null,
     },
-  ]);
+  ], identity.whitelabel ? { name: identity.publisher, email: identity.email } : undefined);
 
   return new NextResponse(xml, {
     headers: {

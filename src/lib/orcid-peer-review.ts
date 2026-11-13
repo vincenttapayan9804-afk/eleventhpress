@@ -38,6 +38,8 @@ export async function pushPeerReviewToOrcid(
     journalName?: string | null;
     journalIssn?: string | null;
     publisher?: string | null;
+    /** True for a whitelabel tenant's journal: never falls back to the platform's ISSN or name. */
+    whitelabel?: boolean;
     completedAt: Date;
   }
 ): Promise<PushPeerReviewResult> {
@@ -52,6 +54,12 @@ export async function pushPeerReviewToOrcid(
     return { mode: "skipped", reason: "ORCID access token expired — the reviewer needs to re-link ORCID" };
   }
 
+  // ORCID groups peer reviews by the journal's ISSN. A whitelabel tenant's
+  // journal is never filed under Eleventh Press's ISSN — without its own,
+  // the push is skipped rather than crediting the review to the wrong journal.
+  if (params.whitelabel && !params.journalIssn) {
+    return { mode: "skipped", reason: "The journal has no ISSN to group the ORCID peer review under" };
+  }
   const issn = params.journalIssn || "2945-1138";
 
   const payload = {
@@ -67,7 +75,7 @@ export async function pushPeerReviewToOrcid(
     },
     "review-type": "review",
     "review-group-id": `issn:${issn}`,
-    "subject-container-name": { value: params.journalName || "Eleventh Press" },
+    "subject-container-name": { value: params.journalName || params.publisher || "Eleventh Press" },
     "subject-type": "journal-article",
     "subject-name": { title: { value: params.articleTitle } },
     ...(params.articleDoi

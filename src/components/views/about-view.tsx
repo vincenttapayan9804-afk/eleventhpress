@@ -84,6 +84,8 @@ function initialsOf(name: string) {
 export function AboutView() {
   const branding = useTenantBranding();
   const whitelabel = isWhitelabel(branding);
+  // The publishing organisation named in the page copy.
+  const orgName = whitelabel ? branding.siteName || branding.tenantName || "This journal" : "Eleventh Press International Publishing";
   const { setView } = useApp();
   const t = useTranslations("home");
   const [board, setBoard] = useState<BoardMember[] | null>(null);
@@ -140,7 +142,7 @@ export function AboutView() {
         <h2 className="font-display text-2xl font-semibold">Aims &amp; scope</h2>
         <div className="mt-4 space-y-4 text-base leading-relaxed text-foreground/85 text-justify">
           <p>
-            Eleventh Press International Publishing is not just a journal — it's a complete
+            {orgName} is not just a journal — it&apos;s a complete
             publishing operation built around one submission. We handle rigorous peer
             review, real DOI registration, and genuine open-access production the way any
             serious press should; what sets us apart is what happens next. Every published
@@ -497,7 +499,7 @@ export function AboutView() {
           <CardContent className="p-5">
             <p className="text-sm leading-relaxed text-foreground/85 text-justify">
               <strong>Certification of compliance.</strong> As a Full-Stack Peer Reviewed
-              Press, Eleventh Press International Publishing requires every author and
+              Press, {orgName} requires every author and
               reviewer to certify adherence to this protocol. Any attempt to bypass these
               stages through unauthorized means results in immediate rejection.
             </p>

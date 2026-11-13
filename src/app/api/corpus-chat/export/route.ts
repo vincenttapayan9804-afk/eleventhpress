@@ -1,3 +1,4 @@
+import { resolveTenantFromHeaders } from "@/lib/tenant";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { extractRequestIp } from "@/lib/institutions";
@@ -83,7 +84,9 @@ export async function POST(req: NextRequest) {
           },
         }),
     db.articleChunk.findMany({ where: { id: { in: [...chunkIds] }, article: { status: "PUBLISHED" } }, select: { id: true, articleId: true, text: true } }),
-    loadJournalInfo(),
+    resolveTenantFromHeaders(req.headers)
+      .catch(() => null)
+      .then((t) => loadJournalInfo(t && !t.isPlatform ? t.id : null)),
   ]);
   const recordById = new Map(records.map((r) => [r.id, r]));
   const chunkById = new Map(chunks.map((c) => [c.id, c]));
