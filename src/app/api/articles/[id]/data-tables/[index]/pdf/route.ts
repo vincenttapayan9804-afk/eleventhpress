@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { publisherIdentityForJournal } from "@/lib/publisher-identity";
 import { APP_BASE_URL } from "@/lib/site";
 import { loadPublishedArticleTables } from "@/lib/article-data-tables-server";
 import { buildDataTablePdf, dataTablePdfFileName } from "@/lib/data-table-pdf";
@@ -38,13 +39,18 @@ export async function GET(
     select: {
       id: true, title: true, authors: true, doi: true, keywords: true, discipline: true, contentType: true,
       publishedAt: true, submittedAt: true, acceptedAt: true,
-      journal: { select: { name: true, issn: true, publisher: true } },
+      journal: { select: { name: true, issn: true, publisher: true, tenantId: true } },
       issue: { select: { volume: true, issueNumber: true, year: true } },
     },
   });
   if (!article) {
     return NextResponse.json({ error: "No published article with this ID" }, { status: 404 });
   }
+
+  const identity = await publisherIdentityForJournal(article.journal);
+  const tenantTagline = identity.tenantId
+    ? (await db.tenant.findUnique({ where: { id: identity.tenantId }, select: { tagline: true } }).catch(() => null))?.tagline ?? null
+    : null;
 
   const pdf = await buildDataTablePdf({
     article: {
@@ -59,8 +65,9 @@ export async function GET(
       submittedAt: article.submittedAt,
       acceptedAt: article.acceptedAt,
       journalName: article.journal.name,
-      journalIssn: article.journal.issn,
-      publisher: article.journal.publisher,
+      journalIssn: identity.whitelabel ? identity.issn : article.journal.issn,
+      publisher: identity.publisher,
+      whitelabel: identity.whitelabel ? { name: identity.publisher, tagline: tenantTagline, email: identity.email } : null,
       volume: article.issue?.volume ?? null,
       issueNumber: article.issue?.issueNumber ?? null,
       year: article.issue?.year ?? null,

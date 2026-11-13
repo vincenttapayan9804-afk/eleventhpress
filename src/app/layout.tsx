@@ -49,6 +49,8 @@ export async function generateMetadata(): Promise<Metadata> {
     ? `${tenant.siteName} — ${tenant.tagline || "Powered by Eleventh Press"}`
     : DEFAULT_TITLE;
   const description = tenant?.tagline || DEFAULT_DESCRIPTION;
+  // Home-screen icon: a whitelabel tenant's own logo/initials (src/app/pwa-icon).
+  const appleIcon = tenant && !tenant.isPlatform ? `/pwa-icon/180?t=${encodeURIComponent(tenant.slug)}` : "/pwa-icon/180";
 
   return {
     title,
@@ -80,8 +82,8 @@ export async function generateMetadata(): Promise<Metadata> {
       types: { "application/rss+xml": "/api/feed/articles.xml" },
     },
     ...(tenant?.faviconUrl || (tenant && !tenant.isPlatform && tenant.logoUrl)
-      ? { icons: { icon: (tenant.faviconUrl || tenant.logoUrl)!, apple: "/pwa-icon/180" } }
-      : { icons: { apple: "/pwa-icon/180" } }),
+      ? { icons: { icon: (tenant.faviconUrl || tenant.logoUrl)!, apple: appleIcon } }
+      : { icons: { apple: appleIcon } }),
     appleWebApp: { capable: true, title, statusBarStyle: "default" },
   };
 }

@@ -57,7 +57,16 @@ const nextConfig: NextConfig = {
   reactStrictMode: false,
   // PDFKit reads its .afm font-metric files from disk at runtime — keep it
   // out of the webpack bundle so those assets are traced and shipped as-is.
-  serverExternalPackages: ["pdfkit"],
+  //
+  // kokoro-js resolves its voice files as path.resolve(__dirname,
+  // "../voices/<voice>.bin"). Bundled, Turbopack rewrites __dirname to a
+  // "/ROOT/..." placeholder, so every narration failed with "ENOENT ...
+  // /ROOT/node_modules/kokoro-js/voices/af_heart.bin" even though the .bin
+  // files are traced into the function. Loaded from node_modules instead,
+  // __dirname is the real path. @huggingface/transformers is external too so
+  // kokoro-js and src/lib/kokoro-tts.ts share one instance: the env.cacheDir
+  // set there has to reach the copy kokoro-js loads the model with.
+  serverExternalPackages: ["pdfkit", "kokoro-js", "@huggingface/transformers"],
   // The local sentence-embedding model (@xenova/transformers, used by
   // src/lib/embeddings.ts and src/lib/chunk-embeddings.ts) runs on
   // onnxruntime-node, whose .node binding dlopen()s libonnxruntime.so at
@@ -87,6 +96,22 @@ const nextConfig: NextConfig = {
         ["/opengraph-image", "/article/[id]/opengraph-image", "/authors/[slug]/opengraph-image", "/pwa-icon/[size]"].map(
           (route): [string, string[]] => [route, ["./src/assets/fonts/*.ttf"]]
         )
+      )
+      // Kokoro voice embeddings (kokoro-js reads voices/*.bin from disk at runtime).
+      .concat(
+        [
+          "/api/narration",
+          "/api/admin/narration-jobs/*/retry",
+          "/api/cron/narration-sweep",
+          "/api/cron/sweep-all",
+        ].map((route): [string, string[]] => [
+          route,
+          [
+            "./node_modules/kokoro-js/voices/*.bin",
+            // onnxruntime-node 1.21 native libs used by @huggingface/transformers.
+            "./node_modules/@huggingface/transformers/node_modules/onnxruntime-node/bin/napi-v3/linux/x64/*",
+          ],
+        ])
       )
   ),
   async headers() {

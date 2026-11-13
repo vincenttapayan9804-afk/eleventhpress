@@ -1,3 +1,5 @@
+import { publisherIdentityForJournal } from "@/lib/publisher-identity";
+import { tenantBaseUrl } from "@/lib/tenant";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
@@ -85,6 +87,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Distribution is only available for published articles" }, { status: 400 });
   }
 
+  const identity = await publisherIdentityForJournal(article.journal);
   const articleForKit = {
     id: article.id,
     title: article.title,
@@ -95,6 +98,8 @@ export async function POST(req: NextRequest) {
     doi: article.doi,
     laySummary: article.laySummary,
     journalName: article.journal?.name,
+    publisherName: identity.publisher,
+    baseUrl: await tenantBaseUrl(identity.tenantId),
   };
 
   // Tier A (Blogger): no package, no consent gate — this genuinely

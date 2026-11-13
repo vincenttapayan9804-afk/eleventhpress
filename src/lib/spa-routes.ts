@@ -183,10 +183,10 @@ export function sameRoute(a: RouteState, b: RouteState): boolean {
 /** Title and description for server-rendered metadata of a static view. */
 export const VIEW_META: Partial<Record<ViewKey, { title: string; description: string; index?: boolean }>> = {
   browse: { title: "Articles", description: "Browse peer-reviewed, open-access articles by discipline, year and topic." },
-  books: { title: "Books", description: "Scholarly books and monographs published by Eleventh Press." },
+  books: { title: "Books", description: "Scholarly books and monographs published by {site}." },
   about: { title: "About", description: "Who we are, our editorial standards and our mission." },
   collections: { title: "Collections", description: "Curated collections of research across disciplines." },
-  authors: { title: "Authors", description: "Researchers who publish with Eleventh Press." },
+  authors: { title: "Authors", description: "Researchers who publish with {site}." },
   experts: { title: "Experts' Insights", description: "Thought leadership from vetted industry experts." },
   charter: { title: "Publication Charter", description: "The standards every publication on this platform meets." },
   faqs: { title: "FAQs", description: "Answers to common questions about submitting, reviewing and reading." },
@@ -194,9 +194,9 @@ export const VIEW_META: Partial<Record<ViewKey, { title: string; description: st
   privacy: { title: "Privacy Policy", description: "How we collect, use and protect personal data." },
   terms: { title: "Terms of Use", description: "The terms that govern use of this platform." },
   accessibility: { title: "Accessibility", description: "Our accessibility commitment and conformance." },
-  magazines: { title: "Magazines", description: "Magazine issues from Eleventh Press." },
+  magazines: { title: "Magazines", description: "Magazine issues from {site}." },
   podcasts: { title: "Podcasts", description: "Research conversations and episodes." },
-  media: { title: "Media", description: "News, video and media from Eleventh Press." },
+  media: { title: "Media", description: "News, video and media from {site}." },
   departments: { title: "Departments", description: "Academic departments on the platform." },
   pricing: { title: "Pricing", description: "Reader plans, author fees and how billing works — every article is free to read." },
   resources: { title: "Resources", description: "Trainings, webinars, blogs, guides and books for researchers." },
@@ -205,6 +205,11 @@ export const VIEW_META: Partial<Record<ViewKey, { title: string; description: st
   dashboard: { title: "Dashboard", description: "Your workspace.", index: false },
   adminPortal: { title: "Admin", description: "Administration.", index: false },
 };
+
+/** A view's description in the visiting site's own name ("{site}" → "Eleventh Press" or the tenant). */
+export function viewDescription(description: string, siteName: string | null | undefined): string {
+  return description.replace(/\{site\}/g, siteName || "Eleventh Press");
+}
 
 /** Static view paths worth listing in the sitemap. */
 export const SITEMAP_PATHS: string[] = Object.entries(STATIC_PATHS)

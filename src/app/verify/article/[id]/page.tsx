@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cache } from "react";
 import QRCode from "qrcode";
 import { ShieldQuestion } from "lucide-react";
+import { getCurrentTenant } from "@/lib/tenant";
 import { loadProvenanceRecord } from "@/lib/article-provenance-record";
 import { ProvenanceVerifyView } from "@/components/provenance/provenance-verify-view";
 
@@ -29,8 +30,11 @@ export async function generateMetadata(
   const { id } = await params;
   const lookup = await getRecord(id).catch(() => null);
   const title = lookup && lookup.kind !== "not-found" ? (lookup.kind === "sealed" ? lookup.record.title : lookup.title) : id;
+  const tenant = await getCurrentTenant().catch(() => null);
+  const site = tenant && !tenant.isPlatform ? tenant.siteName || tenant.name : "Eleventh Press International Publishing";
+  const publisher = lookup?.kind === "sealed" ? lookup.record.brand.publisher : site;
   return {
-    title: `Provenance verification — ${title} — Eleventh Press International Publishing`,
+    title: `Provenance verification — ${title} — ${publisher}`,
     description: "Live cryptographic verification of a published work's digital provenance, with a downloadable PDF certificate.",
   };
 }

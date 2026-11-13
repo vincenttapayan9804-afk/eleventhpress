@@ -14,6 +14,7 @@ import { db } from "@/lib/db";
 import { putObject } from "@/lib/storage";
 import { escapeXml, htmlToPlainText, renderMinimalErrorPdf } from "@/lib/galley";
 import { buildEpub as buildEpubZip, type EpubChapter } from "@/lib/epub-builder";
+import { bookBrandFor, type BookBrand } from "@/lib/book-production";
 import PDFDocument from "pdfkit";
 
 interface Piece {
@@ -29,24 +30,34 @@ function issueDisplayTitle(issue: { title: string | null; volume: number; issueN
 export function buildMagazineEpub(
   issue: { id: string; title: string | null; volume: number; issueNumber: number; year: number },
   magazineName: string,
-  pieces: Piece[]
+  pieces: Piece[],
+  brand?: BookBrand
 ): Buffer {
   return buildEpubZip(
-    { id: issue.id, title: `${magazineName} — ${issueDisplayTitle(issue)}`, subtitle: null, authors: [magazineName] },
+    {
+      id: issue.id,
+      title: `${magazineName} — ${issueDisplayTitle(issue)}`,
+      subtitle: null,
+      authors: [magazineName],
+      publisher: brand?.publisher,
+    },
     pieces as EpubChapter[]
   );
 }
 
-const BRAND_MAROON = "#7A1F2B";
-const BRAND_GOLD = "#c9a55c";
+const DEFAULT_MAROON = "#7A1F2B";
+const DEFAULT_GOLD = "#c9a55c";
 const BRAND_INK = "#2a1f1a";
 
 /** Print-ready PDF: cover page, table of contents, then each piece's plain-text body. */
 export function buildMagazinePdf(
   issue: { title: string | null; volume: number; issueNumber: number; year: number },
   magazineName: string,
-  pieces: Piece[]
+  pieces: Piece[],
+  brand?: BookBrand
 ): Promise<Buffer> {
+  const BRAND_MAROON = brand?.primaryHex || DEFAULT_MAROON;
+  const BRAND_GOLD = brand?.accentHex || DEFAULT_GOLD;
   return new Promise((resolve, reject) => {
     try {
       const displayTitle = issueDisplayTitle(issue);
@@ -54,7 +65,11 @@ export function buildMagazinePdf(
         size: "A4",
         margins: { top: 64, bottom: 56, left: 56, right: 56 },
         bufferPages: true,
-        info: { Title: `${magazineName} — ${displayTitle}`, Author: magazineName },
+        info: {
+          Title: `${magazineName} — ${displayTitle}`,
+          Author: magazineName,
+          ...(brand ? { Creator: brand.publisher, Producer: brand.publisher } : {}),
+        },
       });
       const chunks: Buffer[] = [];
       doc.on("data", (c: Buffer) => chunks.push(c));
@@ -62,6 +77,14 @@ export function buildMagazinePdf(
       doc.on("error", reject);
 
       // Cover page
+      if (brand?.logoPng) {
+        try {
+          doc.image(brand.logoPng, doc.page.margins.left, doc.page.margins.top - 20, { fit: [120, 48] });
+          doc.y = doc.page.margins.top + 36;
+        } catch {
+          /* unreadable logo — the magazine name below still identifies it */
+        }
+      }
       doc.fillColor(BRAND_GOLD).font("Helvetica-Bold").fontSize(9).text(magazineName.toUpperCase());
       doc.moveDown(3);
       doc.fillColor(BRAND_MAROON).font("Helvetica-Bold").fontSize(26).text(displayTitle, { align: "center" });
@@ -139,10 +162,11 @@ export async function runMagazineIssueProductionJob(
       ? issue.pieces.map((p) => ({ title: p.title, html: p.bodyHtml || `<p>${escapeXml(p.dek || "")}</p>` }))
       : [{ title: issueDisplayTitle(issue), html: "<p>This issue has no pieces yet.</p>" }];
 
-    const epubBuffer = buildMagazineEpub(issue, issue.magazine.name, pieces);
+    const brand = await bookBrandFor(issue.magazine.tenantId);
+    const epubBuffer = buildMagazineEpub(issue, issue.magazine.name, pieces, brand);
     let pdfBuffer: Buffer;
     try {
-      pdfBuffer = await buildMagazinePdf(issue, issue.magazine.name, pieces);
+      pdfBuffer = await buildMagazinePdf(issue, issue.magazine.name, pieces, brand);
     } catch {
       pdfBuffer = await renderMinimalErrorPdf({ title: issueDisplayTitle(issue) });
     }

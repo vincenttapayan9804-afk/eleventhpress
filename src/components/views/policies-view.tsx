@@ -1,5 +1,6 @@
 "use client";
 
+import { useContactEmail } from "@/lib/tenant-branding-context";
 import { useApp } from "@/lib/store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,7 @@ import {
  * application-based statuses this platform does not hold.
  */
 export function PoliciesView() {
+  const contactEmail = useContactEmail();
   const { setView } = useApp();
 
   return (
@@ -93,7 +95,7 @@ export function PoliciesView() {
             </div>
             <div className="mt-4">
               <Button variant="outline" size="sm" asChild>
-                <a href="mailto:editorial@eleventhpress.org?subject=Research%20integrity%20concern">
+                <a href={`mailto:${contactEmail}?subject=Research%20integrity%20concern`}>
                   <Mail className="mr-2 h-3.5 w-3.5" /> Report a concern
                 </a>
               </Button>
@@ -230,7 +232,7 @@ export function PoliciesView() {
             <FileText className="mr-2 h-4 w-4" /> Resources & guides
           </Button>
           <Button variant="outline" asChild>
-            <a href="mailto:editorial@eleventhpress.org">
+            <a href={`mailto:${contactEmail}`}>
               <Mail className="mr-2 h-4 w-4" /> Email the editorial office
             </a>
           </Button>

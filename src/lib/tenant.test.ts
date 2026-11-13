@@ -26,6 +26,9 @@ mock.module("@/lib/db", () => ({
   db: {
     tenant: {
       findFirst: mock(async () => platformTenant),
+      findUnique: mock(async ({ where }: { where: { id?: string; slug?: string } }) => {
+        return [platformTenant, harvardTenant].find((t) => t.id === where.id || t.slug === where.slug) ?? null;
+      }),
     },
     tenantDomain: {
       findFirst: mock(async ({ where }: { where: { hostname: string; verified: boolean } }) => {
@@ -72,6 +75,39 @@ describe("resolveTenantFromHost — the boundary every tenant isolation check ul
     tenantDomainRows = [];
     const tenant = await resolveTenantFromHost("some-preview-url.vercel.app");
     expect(tenant?.id).toBe("tenant-platform");
+  });
+
+  describe("on the official host (a verified domain of the platform tenant)", () => {
+    const official = () => [{ hostname: "eleventhpress.org", verified: true, tenant: platformTenant }];
+
+    test("a portal link (/t/<slug>) shows that tenant's branding, not the platform", async () => {
+      tenantDomainRows = official();
+      const tenant = await resolveTenantFromHost("eleventhpress.org", { portalSlug: "harvard" });
+      expect(tenant?.id).toBe("tenant-harvard");
+      expect(tenant?.source).toBe("portal");
+    });
+
+    test("a platform account (e.g. super admin) opening a portal link sees that tenant", async () => {
+      tenantDomainRows = official();
+      const tenant = await resolveTenantFromHost("eleventhpress.org", {
+        sessionTenantId: "tenant-platform",
+        portalSlug: "harvard",
+      });
+      expect(tenant?.id).toBe("tenant-harvard");
+    });
+
+    test("a signed-in member of a whitelabel tenant works inside their own tenant", async () => {
+      tenantDomainRows = official();
+      const tenant = await resolveTenantFromHost("eleventhpress.org", { sessionTenantId: "tenant-harvard" });
+      expect(tenant?.id).toBe("tenant-harvard");
+      expect(tenant?.source).toBe("session");
+    });
+
+    test("a plain visitor still sees the platform", async () => {
+      tenantDomainRows = official();
+      const tenant = await resolveTenantFromHost("eleventhpress.org");
+      expect(tenant?.id).toBe("tenant-platform");
+    });
   });
 });
 

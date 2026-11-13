@@ -11,7 +11,30 @@
  */
 import { db } from "@/lib/db";
 import { getObject } from "@/lib/storage";
-import { generateGalleys } from "@/lib/galley";
+import { generateGalleys, type GalleyBrand } from "@/lib/galley";
+import { logoPngOf, publisherIdentityForJournal } from "@/lib/publisher-identity";
+
+type JournalRow = { name: string; publisher: string | null; issn: string | null; tenantId: string | null } | null;
+
+/**
+ * Journal name, ISSN and brand for an article's galleys — the publishing
+ * tenant's own identity for a whitelabel journal (never Eleventh Press's
+ * name or ISSN), the platform's otherwise.
+ */
+export async function galleyIdentityFor(
+  journal: JournalRow | undefined
+): Promise<{ journalName: string; issn: string } & GalleyBrand> {
+  const id = await publisherIdentityForJournal(journal ?? null);
+  return {
+    journalName: journal?.name || (id.whitelabel ? id.journalName : ""),
+    issn: id.whitelabel ? id.issn ?? "" : journal?.issn || "",
+    publisher: id.publisher,
+    whitelabel: id.whitelabel,
+    primaryHex: id.primaryHex,
+    accentHex: id.accentHex,
+    logoPng: id.whitelabel ? await logoPngOf(id.logoUrl) : null,
+  };
+}
 
 export interface RegeneratedGalleys {
   htmlKey: string;
@@ -48,8 +71,7 @@ export async function generateGalleysForArticle(articleId: string): Promise<Rege
     keywords: article.keywords,
     discipline: article.discipline,
     doi: article.doi || "",
-    journalName: article.journal?.name || "",
-    issn: article.journal?.issn || "",
+    ...(await galleyIdentityFor(article.journal)),
     volume: article.issue?.volume || 1,
     issue: article.issue?.issueNumber || 1,
     year: article.issue?.year || new Date().getFullYear(),

@@ -16,6 +16,7 @@
  * GA4, or a custom event log) that records each request to a pre-signed
  * PDF/HTML galley URL.
  */
+import { publisherIdentityResolver } from "@/lib/publisher-identity";
 import { db } from "@/lib/db";
 
 const PLATFORM = "Eleventh Press International Publishing";
@@ -118,11 +119,12 @@ export async function buildTitleReport(filters: ReportFilters) {
     byJournal.get(key)!.push(a);
   }
 
+  const identityOf = await publisherIdentityResolver();
   const reportItems = Array.from(byJournal.entries()).map(([journalName, articles]) => {
     const journal0 = articles[0]?.journal;
     return {
       Title: journalName,
-      Publisher: journal0?.publisher || PLATFORM,
+      Publisher: identityOf(journal0).publisher,
       Publisher_ID: [{ Type: "ISNI", ID: "0000000000000000" }],
       Platform: PLATFORM,
       Data_Type: "Journal",
@@ -150,9 +152,10 @@ export async function buildItemReport(filters: ReportFilters) {
   });
   const year = parseInt(filters.begin_date?.slice(0, 4) || String(new Date().getFullYear()), 10);
 
+  const identityOf = await publisherIdentityResolver();
   const reportItems = articles.map((a) => ({
     Title: a.title,
-    Publisher: a.journal?.publisher || PLATFORM,
+    Publisher: identityOf(a.journal).publisher,
     Publisher_ID: [{ Type: "ISNI", ID: "0000000000000000" }],
     Platform: PLATFORM,
     Data_Type: "Article",

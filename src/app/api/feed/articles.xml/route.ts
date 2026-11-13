@@ -1,8 +1,7 @@
 import { articlePath } from "@/lib/spa-routes";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { APP_BASE_URL } from "@/lib/site";
-import { resolveTenantFromHeaders, tenantCacheControl } from "@/lib/tenant";
+import { requestBaseUrl, resolveTenantFromHeaders, tenantCacheControl } from "@/lib/tenant";
 import { withTenantRlsContext } from "@/lib/db-rls";
 import { buildArticlesRss } from "@/lib/articles-rss";
 
@@ -26,12 +25,13 @@ export async function GET(req: NextRequest) {
     })
   );
 
-  const feedUrl = `${APP_BASE_URL}/api/feed/articles.xml`;
+  const base = await requestBaseUrl(tenant);
+  const feedUrl = `${base}/api/feed/articles.xml`;
   const xml = buildArticlesRss(
     {
       title: tenant?.siteName || "Eleventh Press",
       description: "Recently published articles",
-      siteUrl: APP_BASE_URL,
+      siteUrl: base,
       feedUrl,
       language: "en",
     },
@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
       authors: a.authors,
       doi: a.doi,
       publishedAt: a.publishedAt,
-      canonicalUrl: `${APP_BASE_URL}${articlePath(a.id, a.title)}`,
+      canonicalUrl: `${base}${articlePath(a.id, a.title)}`,
     }))
   );
 

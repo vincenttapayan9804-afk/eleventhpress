@@ -4,6 +4,7 @@ import { checkRateLimit } from "@/lib/ratelimit";
 import { anyLLMAvailable, chatJSON } from "@/lib/llm";
 import { loadCorpusChunksByIds, retrieveChunksAcrossCorpus, type CorpusRetrievedChunk } from "@/lib/chunk-embeddings";
 import { db } from "@/lib/db";
+import { resolveTenantFromHeaders, tenantCacheControl } from "@/lib/tenant";
 import { APP_BASE_URL } from "@/lib/site";
 import { parseAuthors } from "@/lib/article";
 import {
@@ -163,7 +164,9 @@ const SYSTEM_PROMPT = (journalName: string) =>
  * publisher, number of published articles) and ready-made research
  * prompts about the journal's newest articles for the empty chat.
  */
-export async function GET() {
+export async function GET(req?: NextRequest) {
+  const tenant = req ? await resolveTenantFromHeaders(req.headers).catch(() => null) : null;
+  const tenantId = tenant && !tenant.isPlatform ? tenant.id : null;
   try {
     const [recent, articleCount, journal] = await Promise.all([
       db.article.findMany({
@@ -173,7 +176,7 @@ export async function GET() {
         select: { title: true },
       }),
       db.article.count({ where: { status: "PUBLISHED" } }).catch(() => null),
-      loadJournalInfo(),
+      loadJournalInfo(tenantId),
     ]);
     const prompts = starterPrompts(recent.map((a) => a.title));
     return NextResponse.json(
@@ -183,11 +186,11 @@ export async function GET() {
         journal,
         stats: { articles: articleCount },
       },
-      { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600" } }
+      { headers: { "Cache-Control": req ? tenantCacheControl(req, tenant, "public, s-maxage=300, stale-while-revalidate=3600") : "public, s-maxage=300, stale-while-revalidate=3600" } }
     );
   } catch (e) {
     console.error("[corpus-chat] starter questions failed:", e);
-    return NextResponse.json({ suggestedQuestions: [], prompts: [], journal: await loadJournalInfo(), stats: { articles: null } });
+    return NextResponse.json({ suggestedQuestions: [], prompts: [], journal: await loadJournalInfo(tenantId), stats: { articles: null } });
   }
 }
 
@@ -266,7 +269,7 @@ export async function POST(req: NextRequest) {
   // the passages so the model can tie them together.
   const articleIds = [...new Set(chunks.map((c) => c.articleId))];
   const labelOf = new Map(articleIds.map((id, i) => [id, `A${i + 1}`]));
-  const [records, journal] = await Promise.all([loadArticleRecords(articleIds), loadJournalInfo()]);
+  const [records, journal] = await Promise.all([loadArticleRecords(articleIds), loadJournalInfo(await journalTenantId(req))]);
   const focusedIds = [...new Set(chunks.filter((c) => c.focused).map((c) => c.articleId))];
   const focusedTitles = focusedIds.map((id) => chunks.find((c) => c.articleId === id)!.articleTitle);
 
@@ -398,4 +401,10 @@ export async function POST(req: NextRequest) {
     console.error("[corpus-chat] chat failed:", e);
     return NextResponse.json({ mode: "unavailable", message: UNAVAILABLE_MESSAGE });
   }
+}
+
+/** The whitelabel tenant this request belongs to (null for the platform). */
+async function journalTenantId(req: NextRequest): Promise<string | null> {
+  const tenant = await resolveTenantFromHeaders(req.headers).catch(() => null);
+  return tenant && !tenant.isPlatform ? tenant.id : null;
 }

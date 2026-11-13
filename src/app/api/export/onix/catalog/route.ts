@@ -1,8 +1,8 @@
+import { publisherIdentityForTenantId } from "@/lib/publisher-identity";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { buildOnixMessage } from "@/lib/onix";
-import { APP_BASE_URL } from "@/lib/site";
-import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { resolveTenantFromHeaders, tenantBaseUrl } from "@/lib/tenant";
 import { withTenantRlsContext } from "@/lib/db-rls";
 
 /**
@@ -24,6 +24,9 @@ export async function GET(req: NextRequest) {
     })
   );
 
+  // A whitelabel tenant's catalogue is sent and published under its own name.
+  const identity = await publisherIdentityForTenantId(tenant && !tenant.isPlatform ? tenant.id : null);
+  const base = await tenantBaseUrl(identity.tenantId);
   const xml = buildOnixMessage(
     books.map((b) => ({
       id: b.id,
@@ -37,15 +40,22 @@ export async function GET(req: NextRequest) {
       publishedAt: b.publishedAt,
       epubKey: b.epubKey,
       pdfKey: b.pdfKey,
-      canonicalUrl: `${APP_BASE_URL}/book/${b.id}`,
-    }))
+      canonicalUrl: `${base}/book/${b.id}`,
+      publisherName: identity.whitelabel ? identity.publisher : null,
+    })),
+    identity.whitelabel ? { name: identity.publisher, email: identity.email } : undefined
   );
 
   return new NextResponse(xml, {
     headers: {
       "Content-Type": "application/xml; charset=utf-8",
-      "Content-Disposition": 'attachment; filename="eleventh-press-onix-catalog.xml"',
+      "Content-Disposition": `attachment; filename="${onixFileSlug(identity)}-onix-catalog.xml"`,
       "Cache-Control": "no-store",
     },
   });
+}
+
+function onixFileSlug(identity: { whitelabel: boolean; shortName: string }): string {
+  if (!identity.whitelabel) return "eleventh-press";
+  return identity.shortName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "catalog";
 }

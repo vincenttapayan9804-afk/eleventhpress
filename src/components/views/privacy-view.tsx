@@ -1,5 +1,6 @@
 "use client";
 
+import { useContactEmail } from "@/lib/tenant-branding-context";
 import { useApp } from "@/lib/store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ import {
  * certification.
  */
 export function PrivacyView() {
+  const contactEmail = useContactEmail();
   const { setView, user, openDashboard } = useApp();
 
   return (
@@ -214,7 +216,7 @@ export function PrivacyView() {
               <ShieldCheck className="mr-2 h-4 w-4" /> Manage my data
             </Button>
             <Button variant="outline" asChild>
-              <a href="mailto:editorial@eleventhpress.org?subject=Data%20rights%20request">
+              <a href={`mailto:${contactEmail}?subject=Data%20rights%20request`}>
                 <Mail className="mr-2 h-4 w-4" /> Anything else — email us
               </a>
             </Button>

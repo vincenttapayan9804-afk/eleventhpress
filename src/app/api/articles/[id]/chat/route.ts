@@ -210,7 +210,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     });
   }
 
-  const journal = await loadJournalInfo();
+  const journal = await loadJournalInfo(tenant && !tenant.isPlatform ? tenant.id : null);
   const passageBlock = `PASSAGES (excerpts from the article's full text):\n\n${chunks
     .map((c, i) => `[P${i + 1}]\n${c.text}`)
     .join("\n\n")}`;

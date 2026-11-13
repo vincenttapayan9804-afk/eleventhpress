@@ -1,5 +1,6 @@
 "use client";
 
+import { isWhitelabel, useTenantBranding } from "@/lib/tenant-branding-context";
 import { articlePath } from "@/lib/spa-routes";
 import { ReaderToolsCard, HighlightCapture } from "@/components/article-reader-tools";
 import { ArticleDiscussion } from "@/components/article-discussion";
@@ -1575,6 +1576,8 @@ function MetaTile({ icon: Icon, label, value }: { icon: any; label: string; valu
  * to this view client-side, inside the SPA, without a fresh page load.
  */
 function HeadMetas({ article, authors }: { article: ArticleDetail; authors: any[] }) {
+  const branding = useTenantBranding();
+  const siteJournal = isWhitelabel(branding) ? branding.siteName || branding.tenantName || "" : "Eleventh Press International Journal";
   useEffect(() => {
     const tags: HTMLMetaElement[] = [];
     const push = (name: string, content: string) => {
@@ -1589,7 +1592,7 @@ function HeadMetas({ article, authors }: { article: ArticleDetail; authors: any[
     if (article.publishedAt) {
       push("citation_publication_date", new Date(article.publishedAt).toISOString().split("T")[0]);
     }
-    push("citation_journal_title", article.journalName || "Eleventh Press International Journal");
+    push("citation_journal_title", article.journalName || siteJournal);
     if (article.journalIssn) push("citation_issn", article.journalIssn);
     if (article.volume) push("citation_volume", String(article.volume));
     if (article.issueNumber) push("citation_issue", String(article.issueNumber));
@@ -1615,7 +1618,7 @@ function HeadMetas({ article, authors }: { article: ArticleDetail; authors: any[
       cancelled = true;
       tags.forEach((t) => t.remove());
     };
-  }, [article, authors]);
+  }, [article, authors, siteJournal]);
 
   return null;
 }
@@ -1845,6 +1848,8 @@ function CommunityReviewSection({ reviews }: { reviews: CommunityReview[] }) {
 // ---------------------------------------------------------------------------
 
 function OpenPeerReviewPanel({ reviews, published }: { reviews: any[] | null; published: boolean }) {
+  const branding = useTenantBranding();
+  const orgName = isWhitelabel(branding) ? branding.siteName || branding.tenantName || "This journal" : "Eleventh Press International Publishing";
   if (!published) {
     return (
       <Card className="paper-card">
@@ -1897,7 +1902,7 @@ function OpenPeerReviewPanel({ reviews, published }: { reviews: any[] | null; pu
                 Open peer review — full review history published
               </p>
               <p className="mt-1 text-xs text-emerald-800/80">
-                Eleventh Press International Publishing publishes the complete reviewer
+                {orgName} publishes the complete reviewer
                 identities, recommendations, scores, and comments-to-author for articles
                 that opt into open peer review. Confidential comments-to-editor remain
                 private to the editorial office. This practice increases accountability,

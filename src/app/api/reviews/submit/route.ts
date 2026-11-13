@@ -79,22 +79,24 @@ export async function POST(req: NextRequest) {
   // route.ts). Only on a genuine completion, never on ACCEPTED/DECLINED/
   // IN_PROGRESS transitions.
   if (body.status === "COMPLETED" && updated.completedAt) {
-    import("@/lib/orcid-peer-review")
-      .then(({ pushPeerReviewToOrcid }) =>
-        pushPeerReviewToOrcid(session.userId, {
+    Promise.all([import("@/lib/orcid-peer-review"), import("@/lib/publisher-identity")])
+      .then(async ([{ pushPeerReviewToOrcid }, { publisherIdentityForJournal }]) => {
+        const identity = await publisherIdentityForJournal(review.article.journal);
+        return pushPeerReviewToOrcid(session.userId, {
           articleId: review.articleId,
           articleTitle: review.article.title,
           articleDoi: review.article.doi,
           journalName: review.article.journal?.name,
-          journalIssn: review.article.journal?.issn,
-          publisher: review.article.journal?.publisher,
+          journalIssn: identity.whitelabel ? identity.issn : review.article.journal?.issn,
+          publisher: identity.publisher,
+          whitelabel: identity.whitelabel,
           completedAt: updated.completedAt!,
         }).then((result) => {
           if (result.mode === "failed") {
             console.error(`[orcid-peer-review] push failed for review ${body.reviewId}:`, result.reason);
           }
-        })
-      )
+        });
+      })
       .catch(() => {});
   }
 

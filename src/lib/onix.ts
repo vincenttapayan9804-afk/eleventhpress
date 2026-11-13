@@ -65,6 +65,14 @@ export interface OnixBookInput {
   epubKey?: string | null;
   pdfKey?: string | null;
   canonicalUrl: string;
+  /** Publishing organisation (a whitelabel tenant); defaults to the platform. */
+  publisherName?: string | null;
+}
+
+/** The ONIX message sender — a whitelabel tenant sends its own catalogue. */
+export interface OnixSender {
+  name: string;
+  email?: string | null;
 }
 
 export interface OnixProduct {
@@ -179,7 +187,7 @@ ${contributorsXml}
     <PublishingDetail>
       <Publisher>
         <PublishingRole>01</PublishingRole>
-        <PublisherName>${esc(SENDER_NAME)}</PublisherName>
+        <PublisherName>${esc(book.publisherName || SENDER_NAME)}</PublisherName>
       </Publisher>
       <PublishingStatus>04</PublishingStatus>
       <PublishingDate>
@@ -196,7 +204,7 @@ ${contributorsXml}
       <SupplyDetail>
         <Supplier>
           <SupplierRole>01</SupplierRole>
-          <SupplierName>${esc(SENDER_NAME)}</SupplierName>
+          <SupplierName>${esc(book.publisherName || SENDER_NAME)}</SupplierName>
         </Supplier>
         <ProductAvailability>20</ProductAvailability>${priceXml}
       </SupplyDetail>
@@ -258,16 +266,17 @@ function sentDateTime(d: Date): string {
  * list) are silently skipped rather than emitting an empty/placeholder
  * Product.
  */
-export function buildOnixMessage(books: OnixBookInput[]): string {
+export function buildOnixMessage(books: OnixBookInput[], sender?: OnixSender): string {
   const products = books.flatMap((b) => buildOnixProductsForBook(b).map((p) => p.xml));
   const now = new Date();
+  const senderEmail = sender?.name ? sender.email : SENDER_EMAIL;
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <ONIXMessage release="3.0" xmlns="http://ns.editeur.org/onix/3.0/reference">
   <Header>
     <Sender>
-      <SenderName>${esc(SENDER_NAME)}</SenderName>
-      <EmailAddress>${esc(SENDER_EMAIL)}</EmailAddress>
+      <SenderName>${esc(sender?.name || SENDER_NAME)}</SenderName>${senderEmail ? `
+      <EmailAddress>${esc(senderEmail)}</EmailAddress>` : ""}
     </Sender>
     <SentDateTime>${sentDateTime(now)}</SentDateTime>
   </Header>
