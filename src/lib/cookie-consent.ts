@@ -86,7 +86,7 @@ export interface CookieInventoryItem {
 
 /** Every cookie and browser-storage key this platform sets. All first-party. */
 export const COOKIE_INVENTORY: CookieInventoryItem[] = [
-  { name: "epip_session", category: "necessary", kind: "Cookie", purpose: "Keeps you signed in (HTTP-only, not readable by scripts).", duration: "7 days" },
+  { name: "epip_session", category: "necessary", kind: "Cookie", purpose: "Keeps you signed in (HTTP-only, not readable by scripts). Each whitelabel portal on this site keeps its own (epip_session__<portal>), so signing in or out of one never affects another.", duration: "7 days" },
   { name: "epip_csrf", category: "necessary", kind: "Cookie", purpose: "Security token that stops other sites submitting forms as you.", duration: "7 days" },
   { name: "cookie_consent", category: "necessary", kind: "Cookie", purpose: "Remembers the cookie choice you made here.", duration: "1 year" },
   { name: "orcid_oauth_state", category: "necessary", kind: "Cookie", purpose: "One-time value that secures signing in with ORCID.", duration: "10 minutes" },

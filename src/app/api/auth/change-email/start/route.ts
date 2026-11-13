@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ mode: "code", sentTo: sent.sentTo });
   }
 
-  return applyEmailChange(user.id, newEmail, false, { mode: "changed" });
+  return applyEmailChange(user.id, newEmail, false, { mode: "changed" }, req.headers);
 }
 
 /**
