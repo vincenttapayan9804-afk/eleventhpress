@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { notify } from "@/lib/notify";
 import { getSessionFromHeaders } from "@/lib/auth";
@@ -10,6 +10,8 @@ import { putObject } from "@/lib/storage";
 import { renderMinimalErrorPdf } from "@/lib/galley";
 import { sealArticleProvenance } from "@/lib/article-provenance-server";
 import { generateGlossary } from "@/lib/glossary";
+import { getResearchVisualContent } from "@/lib/research-visuals";
+import { researchSourceFor } from "@/lib/research-visuals-server";
 import { suggestKeywordsAndSummary } from "@/lib/manuscript-checks";
 import { generateGalleysForArticle } from "@/lib/galley-regenerate";
 import { APP_BASE_URL } from "@/lib/site";
@@ -236,6 +238,19 @@ export async function POST(req: NextRequest) {
         console.error(`[workflow] Glossary generation failed for article ${articleId}:`, e);
         publishEvents.push(`Glossary generation failed: ${e.message}`);
       }
+
+      // 1c. Research visuals (infographic, poster, graphical abstract,
+      //     framework): analyse the article once now, after the response,
+      //     so the first reader's download is instant. Downloads still work
+      //     without this; they generate on first request.
+      after(async () => {
+        try {
+          const src = await researchSourceFor(articleId);
+          if (src) await getResearchVisualContent(src);
+        } catch (e) {
+          console.error(`[workflow] research visuals warm-up failed for ${articleId}:`, e);
+        }
+      });
 
       // Only auto-generate the lay summary if no one already ran AI Assist
       // (or hand-wrote one) during drafting — never overwrite a
