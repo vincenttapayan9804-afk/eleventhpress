@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { APP_BASE_URL, APP_HOST, ARTICLE_LANGUAGE } from "@/lib/site";
 import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { publisherIdentityForTenantId } from "@/lib/publisher-identity";
 import { withTenantRlsContext } from "@/lib/db-rls";
 
 /**
@@ -24,6 +25,9 @@ export async function GET(req: NextRequest) {
   const verb = searchParams.get("verb") || "Identify";
   const tenant = await resolveTenantFromHeaders(req.headers);
   const tenantId = tenant?.id ?? null;
+  // A whitelabel tenant's harvest describes its own repository and publisher.
+  const identity = await publisherIdentityForTenantId(tenant && !tenant.isPlatform ? tenant.id : null);
+  const publisherName = identity.whitelabel ? identity.publisher : null;
 
   if (verb === "Identify") {
     return xmlResponse(`<?xml version="1.0" encoding="UTF-8"?>
@@ -33,10 +37,10 @@ export async function GET(req: NextRequest) {
   <responseDate>${new Date().toISOString()}</responseDate>
   <request verb="Identify">${BASE_URL}</request>
   <Identify>
-    <repositoryName>Eleventh Press International Publishing</repositoryName>
+    <repositoryName>${escapeXml(identity.whitelabel ? identity.publisher : "Eleventh Press International Publishing")}</repositoryName>
     <baseURL>${BASE_URL}</baseURL>
     <protocolVersion>2.0</protocolVersion>
-    <adminEmail>editorial@eleventhpress.org</adminEmail>
+    <adminEmail>${escapeXml(identity.email || "editorial@eleventhpress.org")}</adminEmail>
     <earliestDatestamp>2021-01-01T00:00:00Z</earliestDatestamp>
     <deletedRecord>persistent</deletedRecord>
     <granularity>YYYY-MM-DDThh:mm:ssZ</granularity>
@@ -92,7 +96,7 @@ export async function GET(req: NextRequest) {
   <responseDate>${new Date().toISOString()}</responseDate>
   <request verb="GetRecord" identifier="${escapeXml(identifier)}" metadataPrefix="oai_dc">${BASE_URL}</request>
   <GetRecord>
-${buildRecordXml(article)}
+${buildRecordXml(article, publisherName)}
   </GetRecord>
 </OAI-PMH>`);
   }
@@ -101,7 +105,7 @@ ${buildRecordXml(article)}
     const page = await resolveHarvestPage(searchParams, verb, tenantId);
     if (page instanceof NextResponse) return page;
 
-    const records = page.articles.map(buildRecordXml).join("\n");
+    const records = page.articles.map((a) => buildRecordXml(a, publisherName)).join("\n");
     return xmlResponse(listRecordsXml(records, page.nextToken, page.completeListSize));
   }
 
@@ -326,7 +330,7 @@ function buildHeaderXml(a: any): string {
     </header>`;
 }
 
-function buildRecordXml(a: any): string {
+function buildRecordXml(a: any, publisherName: string | null = null): string {
   const authors = safeParse(a.authors);
   const authorDc = authors
     .map((au: any) => `      <dc:creator>${escapeXml(au.name)}</dc:creator>`)
@@ -349,11 +353,11 @@ ${buildHeaderXml(a)}
 ${authorDc}
 ${keywords}
       <dc:description>${escapeXml(a.abstract)}</dc:description>
-      <dc:publisher>${escapeXml(a.journal?.publisher || "Eleventh Press International Publishing")}</dc:publisher>
+      <dc:publisher>${escapeXml(publisherName || a.journal?.publisher || "Eleventh Press International Publishing")}</dc:publisher>
       <dc:date>${new Date(a.publishedAt || a.createdAt).toISOString().split("T")[0]}</dc:date>
       <dc:type>info:eu-repo/semantics/article</dc:type>
       <dc:identifier>https://doi.org/${a.doi}</dc:identifier>
-      <dc:source>${escapeXml(a.journal?.name || "")}, ISSN ${a.journal?.issn || ""}, Vol. ${a.issue?.volume || ""}, Iss. ${a.issue?.issueNumber || ""} (${a.issue?.year || ""})</dc:source>
+      <dc:source>${escapeXml(a.journal?.name || "")}${a.journal?.issn ? `, ISSN ${escapeXml(a.journal.issn)}` : ""}, Vol. ${a.issue?.volume || ""}, Iss. ${a.issue?.issueNumber || ""} (${a.issue?.year || ""})</dc:source>
       <dc:language>${ARTICLE_LANGUAGE}</dc:language>
       <dc:rights>info:eu-repo/semantics/openAccess</dc:rights>
       </oai_dc:dc>

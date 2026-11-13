@@ -5,6 +5,7 @@
  */
 import { db } from "@/lib/db";
 import { JOURNAL_IDENTITY } from "@/lib/site";
+import { publisherIdentityForTenantId } from "@/lib/publisher-identity";
 
 export interface JournalInfo {
   name: string;
@@ -13,25 +14,36 @@ export interface JournalInfo {
 }
 
 const JOURNAL_CACHE_MS = 5 * 60 * 1000;
-let journalCache: { at: number; value: JournalInfo } | null = null;
+const journalCache = new Map<string, { at: number; value: JournalInfo }>();
 
 /** The journal's name, ISSN and publisher, from its record when there is
- * one, otherwise the platform's published identity. Cached briefly. */
-export async function loadJournalInfo(): Promise<JournalInfo> {
-  if (journalCache && Date.now() - journalCache.at < JOURNAL_CACHE_MS) return journalCache.value;
+ * one, otherwise the platform's published identity. Cached briefly.
+ *
+ * With a whitelabel tenant's id, returns that tenant's own journal
+ * identity (its name, its ISSN or none, and the tenant as publisher) —
+ * never Eleventh Press's. */
+export async function loadJournalInfo(tenantId?: string | null): Promise<JournalInfo> {
+  const key = tenantId || "";
+  const hit = journalCache.get(key);
+  if (hit && Date.now() - hit.at < JOURNAL_CACHE_MS) return hit.value;
   let value: JournalInfo = { name: JOURNAL_IDENTITY.name, issn: JOURNAL_IDENTITY.issn, publisher: JOURNAL_IDENTITY.name };
   try {
-    // The platform journal (no tenant); otherwise the journal the newest
-    // published article belongs to — never an arbitrary tenant's journal.
-    const select = { name: true, issn: true, publisher: true } as const;
-    const row =
-      (await db.journal.findFirst({ where: { tenantId: null }, select })) ??
-      (await db.article.findFirst({ where: { status: "PUBLISHED" }, orderBy: { publishedAt: "desc" }, select: { journal: { select } } }))?.journal;
-    if (row?.name) value = { name: row.name, issn: row.issn || JOURNAL_IDENTITY.issn, publisher: row.publisher || JOURNAL_IDENTITY.name };
+    const identity = tenantId ? await publisherIdentityForTenantId(tenantId) : null;
+    if (identity?.whitelabel) {
+      value = { name: identity.journalName, issn: identity.issn, publisher: identity.publisher };
+    } else {
+      // The platform journal (no tenant); otherwise the journal the newest
+      // published article belongs to — never an arbitrary tenant's journal.
+      const select = { name: true, issn: true, publisher: true } as const;
+      const row =
+        (await db.journal.findFirst({ where: { tenantId: null }, select })) ??
+        (await db.article.findFirst({ where: { status: "PUBLISHED" }, orderBy: { publishedAt: "desc" }, select: { journal: { select } } }))?.journal;
+      if (row?.name) value = { name: row.name, issn: row.issn || JOURNAL_IDENTITY.issn, publisher: row.publisher || JOURNAL_IDENTITY.name };
+    }
   } catch {
     // Database unavailable: fall back to the platform identity.
   }
-  journalCache = { at: Date.now(), value };
+  journalCache.set(key, { at: Date.now(), value });
   return value;
 }
 

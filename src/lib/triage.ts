@@ -14,13 +14,15 @@
  * Falls back to a deterministic heuristic analysis if ANTHROPIC_API_KEY is
  * unset or the API call fails.
  */
+import { publisherIdentityForJournal } from "@/lib/publisher-identity";
 import { db } from "@/lib/db";
 import { parseAuthors, DISCIPLINES } from "@/lib/article";
 import { chatJSON, anyLLMAvailable } from "@/lib/llm";
 
-const AIMS_SCOPE = `Eleventh Press International Publishing is committed to rigorous, transparent, and rapid dissemination of scholarship. The journal welcomes original research submissions spanning the natural sciences, engineering, social sciences, and humanities. Disciplines: ${DISCIPLINES.join(", ")}.`;
+/** Aims & scope in the submitting journal's own name (a whitelabel tenant's, or the platform's). */
+const aimsScope = (journalName: string) => `${journalName} is committed to rigorous, transparent, and rapid dissemination of scholarship. The journal welcomes original research submissions spanning the natural sciences, engineering, social sciences, and humanities. Disciplines: ${DISCIPLINES.join(", ")}.`;
 
-const SYSTEM_PROMPT = `You are the editorial triage assistant for Eleventh Press International Publishing, a multidisciplinary open-access journal. Your job is to read a manuscript submission and produce a structured editorial report that helps the editor make a fast, informed first decision.
+const systemPrompt = (journalName: string) => `You are the editorial triage assistant for ${journalName}, a multidisciplinary open-access journal. Your job is to read a manuscript submission and produce a structured editorial report that helps the editor make a fast, informed first decision.
 
 You must respond with a single JSON object (no markdown, no preamble) matching this exact schema:
 {
@@ -147,8 +149,9 @@ async function callLLM(article: any, authors: any[], reviewerPool: any[]): Promi
     .map((r) => `- ${r.fullName} (${r.affiliation || "no affiliation"}): expertise = ${r.expertise || "not specified"}`)
     .join("\n");
 
+  const journalName = (await publisherIdentityForJournal(article.journal ?? null)).journalName;
   const userPrompt = `JOURNAL AIMS & SCOPE:
-${AIMS_SCOPE}
+${aimsScope(journalName)}
 
 MANUSCRIPT:
 Title: ${article.title}
@@ -164,7 +167,7 @@ ${reviewerPoolText}
 
 Produce the editorial triage report as a single JSON object.`;
 
-  const { data: parsed, rawResponse, model } = await chatJSON<any>(SYSTEM_PROMPT, userPrompt, {
+  const { data: parsed, rawResponse, model } = await chatJSON<any>(systemPrompt(journalName), userPrompt, {
     maxTokens: 2000,
   });
 

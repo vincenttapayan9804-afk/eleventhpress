@@ -269,7 +269,7 @@ export async function buildOjsIssuesExportXml(input: {
   ).join("\n");
 
   return `<?xml version="1.0" encoding="UTF-8"?>
-<!-- PKP Native XML export — Eleventh Press International Publishing.
+<!-- PKP Native XML export.
      Reverse-engineered from PKP's XSD + community examples (no official
      prose spec exists). Validate against the target OJS version's XSD
      before importing. See docs/ojs-interop.md. -->

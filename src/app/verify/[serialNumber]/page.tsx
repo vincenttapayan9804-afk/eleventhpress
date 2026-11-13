@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cache } from "react";
 import QRCode from "qrcode";
 import { ShieldQuestion } from "lucide-react";
+import { getCurrentTenant } from "@/lib/tenant";
 import { loadCertificateRecord } from "@/lib/certificate-verification-record";
 import { CertificateVerifyView } from "@/components/certificates/certificate-verify-view";
 
@@ -21,9 +22,14 @@ export async function generateMetadata({ params }: { params: Promise<{ serialNum
   const { serialNumber } = await params;
   const lookup = await getRecord(serialNumber).catch(() => null);
   const what = lookup?.kind === "found" ? `${lookup.record.typeLabel} ${lookup.record.serialNumber}` : `certificate ${serialNumber}`;
+  // Named after the certificate's issuing publisher (a whitelabel tenant's
+  // institution), or the visiting site when the serial is unknown.
+  const tenant = await getCurrentTenant().catch(() => null);
+  const site = tenant && !tenant.isPlatform ? tenant.siteName || tenant.name : "Eleventh Press International Publishing";
+  const issuer = lookup?.kind === "found" && lookup.record.issuer ? lookup.record.issuer : site;
   return {
-    title: `Verify ${what} — Eleventh Press International Publishing`,
-    description: "Live cryptographic verification of an Eleventh Press International Publishing certificate, with a downloadable verification report.",
+    title: `Verify ${what} — ${issuer}`,
+    description: `Live cryptographic verification of a ${issuer} certificate, with a downloadable verification report.`,
   };
 }
 

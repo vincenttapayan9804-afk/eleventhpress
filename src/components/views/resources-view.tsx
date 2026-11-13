@@ -1,5 +1,6 @@
 "use client";
 
+import { useContactEmail } from "@/lib/tenant-branding-context";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -443,12 +444,13 @@ export function ResourcesView() {
 }
 
 function ComingSoonNotice({ text }: { text: string }) {
+  const contactEmail = useContactEmail();
   return (
     <Card className="paper-card border-dashed">
       <CardContent className="flex flex-wrap items-center justify-between gap-3 p-5">
         <p className="text-sm text-muted-foreground">{text}</p>
         <Button variant="outline" size="sm" asChild>
-          <a href="mailto:editorial@eleventhpress.org?subject=Topic%20suggestion">
+          <a href={`mailto:${contactEmail}?subject=Topic%20suggestion`}>
             <Mail className="mr-2 h-3.5 w-3.5" /> Suggest a topic
           </a>
         </Button>

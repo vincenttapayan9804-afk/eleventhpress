@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { buildArchiveTemplate, buildSeriesTemplate, buildPaperTemplate } from "@/lib/redif";
-import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { resolveTenantFromHeaders, tenantBaseUrl } from "@/lib/tenant";
+import { publisherIdentityForJournal } from "@/lib/publisher-identity";
 import { withTenantRlsContext } from "@/lib/db-rls";
 
 /**
@@ -25,12 +26,21 @@ export async function GET(req: NextRequest) {
     return textResponse("% No journal configured yet.");
   }
 
+  // A whitelabel tenant's feed names itself as publisher and maintainer.
+  const identity = await publisherIdentityForJournal(journal);
+  const branded = {
+    name: journal.name,
+    publisher: identity.publisher,
+    maintainerEmail: identity.whitelabel ? identity.email : null,
+    homepage: identity.whitelabel ? identity.websiteUrl || (await tenantBaseUrl(identity.tenantId)) : null,
+  };
+
   if (type === "archive") {
-    return textResponse(buildArchiveTemplate(journal));
+    return textResponse(buildArchiveTemplate(branded));
   }
 
   if (type === "series") {
-    return textResponse(buildSeriesTemplate(journal));
+    return textResponse(buildSeriesTemplate(branded));
   }
 
   if (type === "papers") {

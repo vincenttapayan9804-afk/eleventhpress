@@ -27,7 +27,9 @@ import { marked } from "marked";
 import { putObject } from "@/lib/storage";
 import { buildEpub } from "@/lib/epub-builder";
 import { parseAuthors } from "@/lib/article";
-import { ARTICLE_LANGUAGE } from "@/lib/site";
+import { ARTICLE_LANGUAGE, JOURNAL_IDENTITY } from "@/lib/site";
+
+const PLATFORM_PUBLISHER_NAME = JOURNAL_IDENTITY.name;
 
 // Manuscript content embedded in reader-facing pages (the HTML galley and
 // the public article page) must be sanitized — a malicious "manuscript"
@@ -51,12 +53,51 @@ const MANUSCRIPT_SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
 // error.
 const TEMP_DIR = path.join(os.tmpdir(), "epip-galley");
 
+/** Brand inputs for a galley — the publishing tenant's identity, or the platform's. */
+export interface GalleyBrand {
+  /** Publisher printed in the masthead/footer and JATS <publisher-name>. */
+  publisher?: string;
+  /** True for a whitelabel tenant's journal. */
+  whitelabel?: boolean;
+  primaryHex?: string;
+  accentHex?: string;
+  /** Tenant logo, already converted to PNG (PDF masthead only). */
+  logoPng?: Buffer | null;
+}
+
+function brandOf(meta: GalleyBrand & { issn?: string }) {
+  return {
+    publisher: meta.publisher || PLATFORM_PUBLISHER_NAME,
+    whitelabel: !!meta.whitelabel,
+    primary: meta.primaryHex || BRAND_PURPLE,
+    accent: meta.accentHex || BRAND_GOLD,
+    issn: (meta.issn || "").trim(),
+  };
+}
+
+/** "Publisher — ISSN xxxx" (ISSN omitted when the journal has none). */
+function footerLine(meta: GalleyBrand & { issn?: string }): string {
+  const b = brandOf(meta);
+  return b.issn ? `${b.publisher} — ISSN ${b.issn}` : b.publisher;
+}
+
+function cssString(s: string): string {
+  return s.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/[\r\n]+/g, " ");
+}
+
+function galleyCss(meta: GalleyBrand & { issn?: string }): string {
+  const b = brandOf(meta);
+  return EPIP_CSS.replace(/#4c1d95/g, b.primary)
+    .replace(/#c9a55c/g, b.accent)
+    .replace("__EPIP_FOOTER__", cssString(footerLine(meta)));
+}
+
 const EPIP_CSS = `
 @page {
   size: A4;
   margin: 25mm 22mm 25mm 22mm;
   @bottom-center {
-    content: "Eleventh Press International Publishing — ISSN 2945-1138";
+    content: "__EPIP_FOOTER__";
     font-family: Georgia, serif;
     font-size: 8pt;
     color: #4c1d95;
@@ -234,7 +275,7 @@ export async function generateGalleys(
     volume: number;
     issue: number;
     year: number;
-  }
+  } & GalleyBrand
 ): Promise<GalleyResult> {
   // Submitted titles/abstracts often carry copy-pasted whitespace (tabs,
   // repeated spaces, trailing newlines from Word/Docs) that renders as
@@ -270,7 +311,7 @@ export async function generateGalleys(
 
   // Write CSS
   const cssPath = path.join(TEMP_DIR, "epip.css");
-  await fs.writeFile(cssPath, EPIP_CSS);
+  await fs.writeFile(cssPath, galleyCss(meta));
 
   // Build YAML metadata
   const authors = JSON.parse(meta.authors || "[]");
@@ -422,7 +463,7 @@ year: ${meta.year}
     const epubAuthorNames = parseAuthors(meta.authors).map((a) => a.name).filter(Boolean);
     const chapterHtml = pdfBodySource || `<p>${escapeXml(meta.abstract)}</p>`;
     const epubBuffer = buildEpub(
-      { id: meta.id, title: meta.title, subtitle: null, authors: epubAuthorNames, rights: buildLicenseNotice(meta) },
+      { id: meta.id, title: meta.title, subtitle: null, authors: epubAuthorNames, rights: buildLicenseNotice(meta), publisher: brandOf(meta).publisher },
       [{ title: meta.title, html: chapterHtml }]
     );
     await putObject(epubKey, epubBuffer, "application/epub+zip");
@@ -445,11 +486,13 @@ year: ${meta.year}
 }
 
 function injectBrand(html: string, meta: any): string {
+  const b = brandOf(meta);
+  const issnPart = b.issn ? `ISSN ${escapeXml(b.issn)} · ` : "";
   const header = `
-<header style="border-bottom: 2px solid #4c1d95; padding: 1em 0; margin-bottom: 2em;">
-  <div style="font-family: sans-serif; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.18em; color: #c9a55c; font-weight: 600;">Eleventh Press International Publishing</div>
-  <div style="font-family: Georgia, serif; font-size: 1.1rem; color: #4c1d95; font-weight: 600; margin-top: 0.2em;">${escapeXml(meta.journalName)}</div>
-  <div style="font-size: 0.75rem; color: #666; margin-top: 0.2em;">ISSN ${escapeXml(meta.issn)} · Vol. ${meta.volume}, Iss. ${meta.issue} (${meta.year}) · DOI: <a href="https://doi.org/${escapeXml(meta.doi)}">${escapeXml(meta.doi)}</a></div>
+<header style="border-bottom: 2px solid ${b.primary}; padding: 1em 0; margin-bottom: 2em;">
+  <div style="font-family: sans-serif; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.18em; color: ${b.accent}; font-weight: 600;">${escapeXml(b.publisher)}</div>
+  <div style="font-family: Georgia, serif; font-size: 1.1rem; color: ${b.primary}; font-weight: 600; margin-top: 0.2em;">${escapeXml(meta.journalName)}</div>
+  <div style="font-size: 0.75rem; color: #666; margin-top: 0.2em;">${issnPart}Vol. ${meta.volume}, Iss. ${meta.issue} (${meta.year}) · DOI: <a href="https://doi.org/${escapeXml(meta.doi)}">${escapeXml(meta.doi)}</a></div>
 </header>`;
   return html.replace(/<body>/, `<body>${header}`);
 }
@@ -471,7 +514,7 @@ function buildFallbackHtml(meta: any, bodyHtml?: string | null): string {
 <head>
 <meta charset="utf-8">
 <title>${escapeXml(meta.title)}</title>
-<style>${EPIP_CSS}</style>
+<style>${galleyCss(meta)}</style>
 </head>
 <body>
 <h1>${escapeXml(meta.title)}</h1>
@@ -486,6 +529,7 @@ ${bodyHtml ? `<div class="article-body">${bodyHtml}</div>` : ""}
 }
 
 function buildFallbackJats(meta: any, bodyHtml?: string | null): string {
+  const b = brandOf(meta);
   const authors = JSON.parse(meta.authors || "[]");
   const authorXml = authors.map((a: any, i: number) => `
     <contrib contrib-type="author" corresp="${i === 0 ? "yes" : "no"}">
@@ -503,13 +547,13 @@ function buildFallbackJats(meta: any, bodyHtml?: string | null): string {
          xmlns:xlink="http://www.w3.org/1999/xlink">
   <front>
     <journal-meta>
-      <journal-id journal-id-type="issn">${escapeXml(meta.issn)}</journal-id>
+      ${b.issn ? `<journal-id journal-id-type="issn">${escapeXml(b.issn)}</journal-id>` : `<journal-id journal-id-type="publisher-id">${escapeXml(meta.journalName)}</journal-id>`}
       <journal-title-group>
         <journal-title>${escapeXml(meta.journalName)}</journal-title>
-        <abbrev-journal-title>EPIP Int. J. Multidiscip. Res.</abbrev-journal-title>
+        ${b.whitelabel ? "" : "<abbrev-journal-title>EPIP Int. J. Multidiscip. Res.</abbrev-journal-title>"}
       </journal-title-group>
-      <issn pub-type="epub">${escapeXml(meta.issn)}</issn>
-      <publisher><publisher-name>Eleventh Press International Publishing</publisher-name></publisher>
+      ${b.issn ? `<issn pub-type="epub">${escapeXml(b.issn)}</issn>` : ""}
+      <publisher><publisher-name>${escapeXml(b.publisher)}</publisher-name></publisher>
     </journal-meta>
     <article-meta>
       <article-id pub-id-type="doi">${escapeXml(meta.doi)}</article-id>
@@ -543,7 +587,7 @@ ${(meta.keywords || "").split(",").map((k: string) => `        <kwd>${escapeXml(
   }</body>
   <back>
     <ref-list>
-      <ref id="ref1"><citation><journal-title>Eleventh Press International Publishing</journal-title></citation></ref>
+      <ref id="ref1"><citation><journal-title>${escapeXml(meta.journalName || b.publisher)}</journal-title></citation></ref>
     </ref-list>
   </back>
 </article>`;
@@ -564,7 +608,15 @@ const BRAND_INK = "#241b3a";
  * galleys predate the bump, so a template change doesn't require a
  * manual --force run to actually reach already-published articles.
  */
-export const GALLEY_TEMPLATE_VERSION = 1;
+export const GALLEY_TEMPLATE_VERSION = 2;
+
+/**
+ * Version 2 only changed whitelabel tenants' galleys (their own publisher,
+ * ISSN, colours and logo instead of Eleventh Press's); the platform's own
+ * galleys render byte-identically to version 1, so the backfill only needs
+ * to re-render tenant articles for it.
+ */
+export const PLATFORM_GALLEY_TEMPLATE_VERSION = 1;
 
 /** Strips tags/entities down to readable body text for the PDF body flow. */
 export function htmlToPlainText(html: string, stripLeadingParagraphs: (string | undefined)[] = []): string {
@@ -631,13 +683,27 @@ function renderPdfKitGalley(meta: any, htmlContent: string): Promise<Buffer> {
       doc.on("end", () => resolve(Buffer.concat(chunks)));
       doc.on("error", reject);
 
-      // Masthead
+      const b = brandOf(meta);
+      const BRAND_PURPLE = b.primary;
+      const BRAND_GOLD = b.accent;
+
+      // Masthead — the publishing tenant's logo sits top-right when set.
+      if (meta.logoPng) {
+        try {
+          doc.image(meta.logoPng, doc.page.width - doc.page.margins.right - 90, doc.page.margins.top - 30, {
+            fit: [90, 40],
+            align: "right",
+          });
+        } catch {
+          /* unreadable logo — masthead text still identifies the publisher */
+        }
+      }
       doc.fillColor(BRAND_GOLD).font("Helvetica-Bold").fontSize(8)
-        .text("ELEVENTH PRESS INTERNATIONAL PUBLISHING");
+        .text(b.publisher.toUpperCase(), { width: doc.page.width - doc.page.margins.left - doc.page.margins.right - (meta.logoPng ? 100 : 0) });
       doc.moveDown(0.2);
       doc.fillColor(BRAND_PURPLE).font("Helvetica-Bold").fontSize(12).text(meta.journalName || "");
       doc.fillColor("#666666").font("Helvetica").fontSize(8).text(
-        `ISSN ${meta.issn || "—"} · Vol. ${meta.volume}, Iss. ${meta.issue} (${meta.year}) · DOI: ${meta.doi || "—"}`
+        `${b.issn ? `ISSN ${b.issn}` : b.whitelabel ? "" : "ISSN —"}${b.issn || !b.whitelabel ? " · " : ""}Vol. ${meta.volume}, Iss. ${meta.issue} (${meta.year}) · DOI: ${meta.doi || "—"}`
       );
       doc.moveDown(0.3);
       doc.strokeColor(BRAND_PURPLE).lineWidth(1.2)
@@ -693,7 +759,9 @@ function renderPdfKitGalley(meta: any, htmlContent: string): Promise<Buffer> {
       for (let i = range.start; i < range.start + range.count; i++) {
         doc.switchToPage(i);
         doc.font("Helvetica").fontSize(7.5).fillColor(BRAND_PURPLE).text(
-          `Eleventh Press International Publishing — ISSN ${meta.issn || "—"} · Page ${i - range.start + 1}`,
+          b.whitelabel
+            ? `${footerLine(meta)} · Page ${i - range.start + 1}`
+            : `${b.publisher} — ISSN ${b.issn || "—"} · Page ${i - range.start + 1}`,
           doc.page.margins.left,
           doc.page.height - doc.page.margins.bottom + 18,
           { align: "center", width: doc.page.width - doc.page.margins.left - doc.page.margins.right }

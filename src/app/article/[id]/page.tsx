@@ -5,7 +5,9 @@ import { db } from "@/lib/db";
 import { presignGet } from "@/lib/storage";
 import { parseAuthors, formatCitation } from "@/lib/article";
 import { coinsSpanProps } from "@/lib/citation-export";
-import { APP_BASE_URL, ARTICLE_LANGUAGE } from "@/lib/site";
+import { publisherIdentityForJournal } from "@/lib/publisher-identity";
+import { tenantBaseUrl } from "@/lib/tenant";
+import { ARTICLE_LANGUAGE } from "@/lib/site";
 import { I18nProvider } from "@/components/i18n-provider";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
@@ -65,18 +67,22 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const authors = parseAuthors(article.authors);
   const authorNames = authors.map((a) => a.name).filter(Boolean);
   const summary = (article.laySummary || article.abstract).slice(0, 300);
-  const canonicalUrl = `${APP_BASE_URL}${articlePath(article.id, article.title)}`;
+  const identity = await publisherIdentityForJournal(article.journal);
+  // A tenant with its own verified domain owns its articles' canonical URL;
+  // everything else stays on the platform's URL (where DOIs resolve).
+  const canonicalUrl = `${await tenantBaseUrl(identity.tenantId)}${articlePath(article.id, article.title)}`;
 
   const other: Record<string, string | string[]> = {
     citation_title: article.title,
     citation_author: authorNames.length ? authorNames : ["the authors"],
-    citation_journal_title: article.journal?.name || "Eleventh Press International Publishing",
-    citation_publisher: article.journal?.publisher || "Eleventh Press International Publishing",
+    citation_journal_title: article.journal?.name || identity.journalName,
+    citation_publisher: identity.publisher,
     citation_abstract_html_url: canonicalUrl,
     citation_language: ARTICLE_LANGUAGE,
   };
   if (article.publishedAt) other.citation_publication_date = article.publishedAt.toISOString().split("T")[0];
-  if (article.journal?.issn) other.citation_issn = article.journal.issn;
+  const issn = identity.whitelabel ? identity.issn : article.journal?.issn;
+  if (issn) other.citation_issn = issn;
   if (article.issue?.volume) other.citation_volume = String(article.issue.volume);
   if (article.issue?.issueNumber) other.citation_issue = String(article.issue.issueNumber);
   if (article.doi) other.citation_doi = article.doi;
@@ -89,7 +95,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   }
 
   return {
-    title: `${article.title} — Eleventh Press International Publishing`,
+    title: `${article.title} — ${identity.whitelabel ? identity.shortName : identity.publisher}`,
     description: summary,
     alternates: { canonical: canonicalUrl },
     openGraph: {
@@ -147,6 +153,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ id: st
     volume: article.issue?.volume,
     issueNumber: article.issue?.issueNumber,
   });
+  const identity = await publisherIdentityForJournal(article.journal);
   const pdfUrl = article.galleyPdfKey ? await presignGet(article.galleyPdfKey, `${article.doi?.replace(/[^a-z0-9]/gi, "-") || article.id}.pdf`) : null;
 
   // schema.org/ScholarlyArticle JSON-LD — rendered server-side (unlike the
@@ -175,17 +182,17 @@ export default async function ArticlePage({ params }: { params: Promise<{ id: st
         volumeNumber: article.issue?.volume,
         isPartOf: {
           "@type": "Periodical",
-          name: article.journal?.name,
-          issn: article.journal?.issn,
+          name: article.journal?.name || identity.journalName,
+          issn: identity.whitelabel ? identity.issn ?? undefined : article.journal?.issn,
         },
       },
     },
     publisher: {
       "@type": "Organization",
-      name: article.journal?.publisher || "Eleventh Press International Publishing",
+      name: identity.publisher,
     },
     identifier: article.doi ? `https://doi.org/${article.doi}` : undefined,
-    url: `${APP_BASE_URL}${articlePath(article.id, article.title)}`,
+    url: `${await tenantBaseUrl(identity.tenantId)}${articlePath(article.id, article.title)}`,
     inLanguage: ARTICLE_LANGUAGE,
   };
 
@@ -195,7 +202,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ id: st
     publishedAt: article.publishedAt,
     doi: article.doi,
     journalName: article.journal?.name,
-    journalIssn: article.journal?.issn,
+    journalIssn: identity.whitelabel ? identity.issn : article.journal?.issn,
     volume: article.issue?.volume,
     issueNumber: article.issue?.issueNumber,
     year: article.issue?.year,

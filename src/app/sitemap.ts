@@ -1,8 +1,7 @@
 import type { MetadataRoute } from "next";
 import { headers } from "next/headers";
 import { db } from "@/lib/db";
-import { APP_BASE_URL } from "@/lib/site";
-import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { requestBaseUrl, resolveTenantFromHeaders } from "@/lib/tenant";
 import { withTenantRlsContext } from "@/lib/db-rls";
 import { BLOGS, GUIDES } from "@/lib/resources-content";
 import { articlePath, SITEMAP_PATHS } from "@/lib/spa-routes";
@@ -42,30 +41,33 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // One public profile per author (src/app/authors/[slug]).
   const authorPaths = [...new Set(articles.flatMap((a) => parseAuthors(a.authors).filter((x) => x.name).map((x) => authorPath(x))))];
 
+  // On a tenant's own domain every URL is under that domain, not eleventhpress.org.
+  const base = await requestBaseUrl(tenant);
+
   return [
-    { url: APP_BASE_URL, changeFrequency: "daily", priority: 1 },
-    ...authorPaths.map((path) => ({ url: `${APP_BASE_URL}${path}`, changeFrequency: "weekly" as const, priority: 0.6 })),
-    { url: `${APP_BASE_URL}/cookie-policy`, changeFrequency: "yearly", priority: 0.2 },
+    { url: base, changeFrequency: "daily", priority: 1 },
+    ...authorPaths.map((path) => ({ url: `${base}${path}`, changeFrequency: "weekly" as const, priority: 0.6 })),
+    { url: `${base}/cookie-policy`, changeFrequency: "yearly", priority: 0.2 },
     ...SITEMAP_PATHS.map((path) => ({
-      url: `${APP_BASE_URL}${path}`,
+      url: `${base}${path}`,
       changeFrequency: (path === "/articles" ? "daily" : "monthly") as "daily" | "monthly",
       priority: path === "/articles" ? 0.9 : 0.5,
     })),
     // Resources blog posts and official guides (server-rendered pages).
     ...BLOGS.map((b) => ({
-      url: `${APP_BASE_URL}/resources/blog/${b.slug}`,
+      url: `${base}/resources/blog/${b.slug}`,
       lastModified: new Date(`${b.dateModified}T00:00:00Z`),
       changeFrequency: "monthly" as const,
       priority: 0.6,
     })),
     ...GUIDES.map((g) => ({
-      url: `${APP_BASE_URL}/resources/guides/${g.slug}`,
+      url: `${base}/resources/guides/${g.slug}`,
       lastModified: new Date(`${g.effective}T00:00:00Z`),
       changeFrequency: "yearly" as const,
       priority: 0.7,
     })),
     ...articles.map((a) => ({
-      url: `${APP_BASE_URL}${articlePath(a.id, a.title)}`,
+      url: `${base}${articlePath(a.id, a.title)}`,
       lastModified: a.publishedAt ?? undefined,
       changeFrequency: "monthly" as const,
       priority: 0.8,

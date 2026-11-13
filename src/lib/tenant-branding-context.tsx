@@ -61,3 +61,20 @@ export function useTenantBranding(): ClientBranding {
 export function isWhitelabel(b: ClientBranding): boolean {
   return !b.isPlatform && !!b.tenantId;
 }
+
+/** The platform's own editorial inbox. */
+export const PLATFORM_CONTACT_EMAIL = "editorial@eleventhpress.org";
+
+/**
+ * Where "email us" links on this site should go: a whitelabel tenant's own
+ * official/support email when it has one, otherwise the platform's editorial
+ * office (the operator of the platform the tenant runs on).
+ */
+export function contactEmailOf(b: ClientBranding): string {
+  if (isWhitelabel(b)) return b.officialEmail || b.supportEmail || PLATFORM_CONTACT_EMAIL;
+  return PLATFORM_CONTACT_EMAIL;
+}
+
+export function useContactEmail(): string {
+  return contactEmailOf(useTenantBranding());
+}

@@ -5,6 +5,7 @@ import { enterWorkspaceIfNeeded, announceSessionChange } from "@/lib/workspace-c
 import { useTranslations } from "next-intl";
 import { takeReturnTab, useApp } from "@/lib/store";
 import { apiFetch } from "@/lib/api-client";
+import { useTenantBranding } from "@/lib/tenant-branding-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -35,6 +36,7 @@ export function AuthView() {
   const { view, setView, setAuth, openDashboard } = useApp();
   const [loading, setLoading] = useState(false);
   const t = useTranslations("auth");
+  const branding = useTenantBranding();
 
   // Referral program — a referral link is "<site>/?ref=<code>&view=register"
   // (or just carries ?ref= into whatever URL leads here); read once on
@@ -465,7 +467,7 @@ export function AuthView() {
             </p>
             {referralCode && (
               <p className="mt-2 text-xs font-medium text-primary">
-                You were invited by a member of the Eleventh Press community.
+                You were invited by a member of the {branding.siteName || "Eleventh Press"} community.
               </p>
             )}
           </CardHeader>

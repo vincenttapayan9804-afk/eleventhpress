@@ -29,7 +29,7 @@ import {
   pdfSafe,
 } from "@/lib/provenance-certificate-pdf";
 
-const WATERMARK = "Verified at Eleventh Press International Publishing";
+const PLATFORM_ISSUER = "Eleventh Press International Publishing";
 const PAGE_W = 595.28;
 const PAGE_H = 841.89;
 const M = 54;
@@ -42,6 +42,10 @@ const STYLE = {
 } as const;
 
 export async function buildCertificateVerificationPdf(record: CertificateRecord): Promise<Buffer> {
+  // The certificate's issuing publisher (a whitelabel tenant's institution,
+  // or the platform) — named throughout the report instead of Eleventh Press.
+  const issuer = pdfSafe(record.issuer || PLATFORM_ISSUER);
+  const WATERMARK = `Verified at ${issuer}`;
   const qr = await QRCode.toBuffer(record.urls.verify, { errorCorrectionLevel: "M", margin: 1, width: 260, color: { dark: INK, light: "#ffffff" } });
 
   return new Promise<Buffer>((resolve, reject) => {
@@ -51,10 +55,10 @@ export async function buildCertificateVerificationPdf(record: CertificateRecord)
       bufferPages: true,
       info: {
         Title: pdfSafe(`Certificate Verification Report — ${record.serialNumber}`),
-        Author: "Eleventh Press International Publishing",
+        Author: issuer,
         Subject: pdfSafe(`${record.typeLabel} ${record.serialNumber} · ${record.verdict} · checked ${record.checkedAt}`),
         Keywords: pdfSafe(`certificate verification, SHA-256, ${record.serialNumber}`),
-        Creator: "Eleventh Press International Publishing — verification service",
+        Creator: `${issuer} — verification service`,
       },
     });
     const chunks: Buffer[] = [];
@@ -108,7 +112,7 @@ export async function buildCertificateVerificationPdf(record: CertificateRecord)
     // Cover band
     doc.rect(0, 0, PAGE_W, 112).fill(doc.linearGradient(0, 0, PAGE_W, 112).stop(0, PURPLE_DEEP).stop(1, PURPLE));
     doc.rect(0, 112, PAGE_W, 2.2).fill(GOLD);
-    doc.font("Helvetica-Bold").fontSize(7.2).fillColor(GOLD).text("ELEVENTH PRESS INTERNATIONAL PUBLISHING", M, 30, { characterSpacing: 2.2, lineBreak: false });
+    doc.font("Helvetica-Bold").fontSize(7.2).fillColor(GOLD).text(issuer.toUpperCase(), M, 30, { characterSpacing: 2.2, lineBreak: false, width: CW - 150, ellipsis: true });
     doc.font("Times-Bold").fontSize(23).fillColor("#ffffff").text("Certificate Verification Report", M, 46, { lineBreak: false });
     doc.font("Helvetica").fontSize(8.2).fillColor("#d9cff0").text("Cryptographic authenticity check of an issued certificate", M, 76, { lineBreak: false });
     doc.font("Helvetica-Bold").fontSize(6.3).fillColor(GOLD).text("SERIAL NUMBER", M, 30, { width: CW, align: "right", characterSpacing: 1.2, lineBreak: false });
@@ -234,7 +238,7 @@ export async function buildCertificateVerificationPdf(record: CertificateRecord)
     doc.font("Helvetica").fontSize(7.6);
     const sealed = `Certified fields: ${CERTIFICATE_SEALED_FIELDS.join("; ")}.`;
     const disclaimer =
-      "This report confirms the authenticity of the certificate identified above; it is not the certificate itself. Any alteration to a downloaded or printed certificate — a changed name, date, capacity or work title — will not match the content hash. Verification depends on Eleventh Press International Publishing's own records; it is tamper-evident, not blockchain-anchored.";
+      `This report confirms the authenticity of the certificate identified above; it is not the certificate itself. Any alteration to a downloaded or printed certificate — a changed name, date, capacity or work title — will not match the content hash. Verification depends on ${issuer}'s own records; it is tamper-evident, not blockchain-anchored.`;
     ensure(doc.heightOfString(sealed, { width: CW }) + doc.heightOfString(disclaimer, { width: CW }) + 16);
     doc.fillColor(MUTED).text(sealed, M, doc.y, { width: CW, lineGap: 0.8 });
     doc.moveDown(0.5);
@@ -259,7 +263,7 @@ export async function buildCertificateVerificationPdf(record: CertificateRecord)
       doc.restore();
       const fy = PAGE_H - 50;
       doc.moveTo(M, fy).lineTo(M + CW, fy).lineWidth(0.5).strokeColor(GOLD).stroke();
-      doc.font("Helvetica-Bold").fontSize(6.6).fillColor(PURPLE).text(`ELEVENTH PRESS INTERNATIONAL PUBLISHING  ·  ${record.serialNumber}`, M, fy + 7, { characterSpacing: 0.8, lineBreak: false });
+      doc.font("Helvetica-Bold").fontSize(6.6).fillColor(PURPLE).text(`${issuer.toUpperCase()}  ·  ${record.serialNumber}`, M, fy + 7, { characterSpacing: 0.8, lineBreak: false });
       doc.font("Helvetica").fontSize(6.8).fillColor(MUTED).text(`Page ${i - range.start + 1} of ${range.count}`, M, fy + 7, { width: CW, align: "right", lineBreak: false });
       doc.font("Helvetica").fontSize(6.4).fillColor(MUTED).text(`Checked ${fmtDate(record.checkedAt, true)}  ·  ${record.urls.verify}`, M, fy + 17, { width: CW, lineBreak: false });
       doc.page.margins.bottom = savedBottom;

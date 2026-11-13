@@ -57,7 +57,7 @@
  */
 import { db } from "../src/lib/db";
 import { generateGalleysForArticle } from "../src/lib/galley-regenerate";
-import { GALLEY_TEMPLATE_VERSION } from "../src/lib/galley";
+import { GALLEY_TEMPLATE_VERSION, PLATFORM_GALLEY_TEMPLATE_VERSION } from "../src/lib/galley";
 import { generateGlossary } from "../src/lib/glossary";
 import { suggestKeywordsAndSummary } from "../src/lib/manuscript-checks";
 import { indexArticleChunks, generateChunkEmbedding } from "../src/lib/chunk-embeddings";
@@ -98,6 +98,25 @@ async function main() {
     orderBy: { publishedAt: "desc" },
     ...(limit ? { take: limit } : {}),
   });
+
+  const platformTenantIds = new Set(
+    (await db.tenant.findMany({ where: { isPlatform: true }, select: { id: true } })).map((t) => t.id)
+  );
+  // Articles in a whitelabel tenant's journal — their galleys carry the
+  // tenant's own branding, so a whitelabel-only template change re-renders
+  // just these (see PLATFORM_GALLEY_TEMPLATE_VERSION).
+  const whitelabelJournalIds = new Set(
+    (
+      await db.journal.findMany({
+        where: { tenantId: { not: null } },
+        select: { id: true, tenantId: true },
+      })
+    )
+      .filter((j) => j.tenantId)
+      .map((j) => ({ id: j.id, tenantId: j.tenantId as string }))
+      .filter((j) => !platformTenantIds.has(j.tenantId))
+      .map((j) => j.id)
+  );
 
   // Bulk pre-check for chunk coverage — ArticleChunk existence isn't a
   // field on Article itself, so this needs its own query, done once up
@@ -169,7 +188,10 @@ async function main() {
   // PDF/HTML galleys reach already-published articles automatically on
   // the next production build, without a manual --force run.
   const needsGalleys = (a: (typeof candidates)[number]) =>
-    force || !a.galleyEpubKey || a.galleyTemplateVersion < GALLEY_TEMPLATE_VERSION;
+    force ||
+    !a.galleyEpubKey ||
+    a.galleyTemplateVersion <
+      (a.journalId && whitelabelJournalIds.has(a.journalId) ? GALLEY_TEMPLATE_VERSION : PLATFORM_GALLEY_TEMPLATE_VERSION);
   const needsGlossary = (a: (typeof candidates)[number]) => force || !a.glossary;
   const needsSummary = (a: (typeof candidates)[number]) => force || !a.laySummary;
   const needsChunks = (a: (typeof candidates)[number]) =>

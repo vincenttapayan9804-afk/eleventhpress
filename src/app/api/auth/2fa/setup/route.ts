@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { generateTwoFactorSecret, generateTwoFactorQrCode } from "@/lib/twofactor";
 import { checkRateLimit } from "@/lib/ratelimit";
+import { publisherIdentityForTenantId } from "@/lib/publisher-identity";
 
 /**
  * Starts (or restarts) enrollment: generates a fresh TOTP secret, stores it
@@ -21,7 +22,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: rl.message }, { status: 429 });
   }
 
-  const user = await db.user.findUnique({ where: { id: session.userId }, select: { email: true, twoFactorEnabled: true } });
+  const user = await db.user.findUnique({ where: { id: session.userId }, select: { email: true, twoFactorEnabled: true, tenantId: true } });
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
@@ -34,7 +35,8 @@ export async function POST(req: NextRequest) {
 
   const secret = generateTwoFactorSecret();
   await db.user.update({ where: { id: session.userId }, data: { twoFactorSecret: secret } });
-  const qrCode = await generateTwoFactorQrCode(user.email, secret);
+  const issuer = (await publisherIdentityForTenantId(user.tenantId)).shortName;
+  const qrCode = await generateTwoFactorQrCode(user.email, secret, issuer);
 
   return NextResponse.json({ secret, qrCode });
 }

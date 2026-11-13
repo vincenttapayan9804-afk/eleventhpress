@@ -89,6 +89,17 @@ export const VERDICT_UI: Record<ProvenanceVerdict, {
  * Small building blocks
  * ──────────────────────────────────────────────────────────────────────── */
 
+/**
+ * Short publisher label for the seal ring: "ELEVENTH PRESS" for the
+ * platform, otherwise the issuing tenant's name (trimmed to fit the ring).
+ */
+export function sealRingName(publisher: string | null | undefined): string {
+  const p = (publisher ?? "").trim();
+  if (!p || /^eleventh press( international publishing)?$/i.test(p)) return "ELEVENTH PRESS";
+  const up = p.toUpperCase();
+  return up.length > 24 ? `${up.slice(0, 23).trimEnd()}…` : up;
+}
+
 export function SealEmblem({
   verdict,
   spinning,

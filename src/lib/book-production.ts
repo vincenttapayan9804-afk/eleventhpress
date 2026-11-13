@@ -22,6 +22,8 @@ import { getObject, putObject } from "@/lib/storage";
 import { extractManuscriptBody, escapeXml, htmlToPlainText, renderMinimalErrorPdf } from "@/lib/galley";
 import { buildEpub as buildEpubZip, type EpubChapter } from "@/lib/epub-builder";
 import { parseAuthors } from "@/lib/article";
+import { JOURNAL_IDENTITY } from "@/lib/site";
+import { logoPngOf, publisherIdentityForTenantId, PLATFORM_ACCENT_HEX, PLATFORM_PRIMARY_HEX } from "@/lib/publisher-identity";
 import PDFDocument from "pdfkit";
 
 interface Chapter {
@@ -38,20 +40,40 @@ function safeAuthorNames(authorsJson: string): string[] {
  * Thin wrapper over the shared src/lib/epub-builder.ts (also used by
  * src/lib/galley.ts for single-article EPUBs) that keeps this function's
  * existing `authors: string` (JSON) signature so no caller needs to change. */
-export function buildEpub(book: { id: string; title: string; subtitle?: string | null; authors: string }, chapters: Chapter[]): Buffer {
+export function buildEpub(
+  book: { id: string; title: string; subtitle?: string | null; authors: string },
+  chapters: Chapter[],
+  brand?: BookBrand
+): Buffer {
   return buildEpubZip(
-    { id: book.id, title: book.title, subtitle: book.subtitle, authors: safeAuthorNames(book.authors) },
+    { id: book.id, title: book.title, subtitle: book.subtitle, authors: safeAuthorNames(book.authors), publisher: brand?.publisher },
     chapters as EpubChapter[]
   );
 }
 
-const BRAND_MAROON = "#7A1F2B";
-const BRAND_GOLD = "#c9a55c";
+const DEFAULT_MAROON = "#7A1F2B";
+const DEFAULT_GOLD = "#c9a55c";
 const BRAND_INK = "#2a1f1a";
+
+/** The publishing tenant's identity for a book (absent = the platform's own). */
+export interface BookBrand {
+  publisher: string;
+  whitelabel: boolean;
+  primaryHex?: string;
+  accentHex?: string;
+  logoPng?: Buffer | null;
+}
 
 /** Print-ready PDF: cover page, table of contents, then each chapter's
  * plain-text body — same PDFKit renderer family as galley.ts's article PDFs. */
-export function buildBookPdf(book: { title: string; subtitle?: string | null; authors: string }, chapters: Chapter[]): Promise<Buffer> {
+export function buildBookPdf(
+  book: { title: string; subtitle?: string | null; authors: string },
+  chapters: Chapter[],
+  brand?: BookBrand
+): Promise<Buffer> {
+  const publisher = brand?.publisher || JOURNAL_IDENTITY.name;
+  const BRAND_MAROON = brand?.whitelabel && brand.primaryHex ? brand.primaryHex : DEFAULT_MAROON;
+  const BRAND_GOLD = brand?.whitelabel && brand.accentHex ? brand.accentHex : DEFAULT_GOLD;
   return new Promise((resolve, reject) => {
     try {
       const authorNames = safeAuthorNames(book.authors);
@@ -59,15 +81,23 @@ export function buildBookPdf(book: { title: string; subtitle?: string | null; au
         size: "A4",
         margins: { top: 64, bottom: 56, left: 56, right: 56 },
         bufferPages: true,
-        info: { Title: book.title, Author: authorNames.join(", ") },
+        info: { Title: book.title, Author: authorNames.join(", "), ...(brand?.whitelabel ? { Creator: publisher, Producer: publisher } : {}) },
       });
       const chunks: Buffer[] = [];
       doc.on("data", (c: Buffer) => chunks.push(c));
       doc.on("end", () => resolve(Buffer.concat(chunks)));
       doc.on("error", reject);
 
-      // Cover page
-      doc.fillColor(BRAND_GOLD).font("Helvetica-Bold").fontSize(9).text("ELEVENTH PRESS INTERNATIONAL PUBLISHING");
+      // Cover page — the publishing tenant's logo sits above its name.
+      if (brand?.logoPng) {
+        try {
+          doc.image(brand.logoPng, doc.page.margins.left, doc.page.margins.top - 20, { fit: [120, 48] });
+          doc.y = doc.page.margins.top + 36;
+        } catch {
+          /* unreadable logo — the publisher name below still identifies it */
+        }
+      }
+      doc.fillColor(BRAND_GOLD).font("Helvetica-Bold").fontSize(9).text(publisher.toUpperCase());
       doc.moveDown(3);
       doc.fillColor(BRAND_MAROON).font("Helvetica-Bold").fontSize(26).text(book.title, { align: "center" });
       if (book.subtitle) {
@@ -103,7 +133,7 @@ export function buildBookPdf(book: { title: string; subtitle?: string | null; au
       for (let i = range.start; i < range.start + range.count; i++) {
         doc.switchToPage(i);
         doc.font("Helvetica").fontSize(7.5).fillColor(BRAND_MAROON).text(
-          `Eleventh Press International Publishing · Page ${i - range.start + 1}`,
+          `${publisher} · Page ${i - range.start + 1}`,
           doc.page.margins.left,
           doc.page.height - doc.page.margins.bottom + 18,
           { align: "center", width: doc.page.width - doc.page.margins.left - doc.page.margins.right }
@@ -184,10 +214,11 @@ export async function runBookProductionJob(
 
   try {
     const chapters = await resolveChapters(book);
-    const epubBuffer = buildEpub(book, chapters);
+    const brand = await bookBrandFor(book.tenantId);
+    const epubBuffer = buildEpub(book, chapters, brand);
     let pdfBuffer: Buffer;
     try {
-      pdfBuffer = await buildBookPdf(book, chapters);
+      pdfBuffer = await buildBookPdf(book, chapters, brand);
     } catch {
       pdfBuffer = await renderMinimalErrorPdf({ title: book.title });
     }
@@ -251,4 +282,18 @@ export async function sweepStuckBookProductionJobs(limit = 5, staleMinutes = 10)
   }
 
   return { swept: stuck.length, jobIds: stuck.map((j) => j.id) };
+}
+
+/** The publishing tenant's identity for a book, or undefined for the platform's own books. */
+export async function bookBrandFor(tenantId: string | null | undefined): Promise<BookBrand | undefined> {
+  const id = await publisherIdentityForTenantId(tenantId);
+  if (!id.whitelabel) return undefined;
+  return {
+    publisher: id.publisher,
+    whitelabel: true,
+    // Only a colour the tenant actually set replaces the book palette.
+    primaryHex: id.primaryHex !== PLATFORM_PRIMARY_HEX ? id.primaryHex : undefined,
+    accentHex: id.accentHex !== PLATFORM_ACCENT_HEX ? id.accentHex : undefined,
+    logoPng: await logoPngOf(id.logoUrl),
+  };
 }

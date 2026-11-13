@@ -6,6 +6,7 @@ import { parseAuthors, parseFunders, INSIGHT_CATEGORY_LABELS, type InsightCatego
 import { formatCitationStyle, type CitationStyleId } from "@/lib/citation-styles";
 import { buildBibTeX, buildRis, type ExportableArticle } from "@/lib/citation-export";
 import { APP_BASE_URL } from "@/lib/site";
+import { publisherIdentityForJournal } from "@/lib/publisher-identity";
 
 /**
  * Everything the public provenance surfaces show about one published work —
@@ -62,6 +63,8 @@ export interface ProvenanceRecord {
   discipline: string;
   keywords: string[];
   journal: { name: string; issn: string | null; publisher: string };
+  /** Who issues this record — the publishing tenant for a whitelabel journal, else the platform. */
+  brand: { whitelabel: boolean; publisher: string; primaryHex: string; accentHex: string };
   issue: { volume: number; issueNumber: number; year: number } | null;
   versionNumber: number;
   reviewModelLabel: string;
@@ -129,7 +132,7 @@ export async function loadProvenanceRecord(id: string): Promise<ProvenanceLookup
   const article = await db.article.findUnique({
     where: { id },
     include: {
-      journal: { select: { name: true, issn: true, publisher: true } },
+      journal: { select: { name: true, issn: true, publisher: true, tenantId: true } },
       issue: { select: { volume: true, issueNumber: true, year: true } },
       corrections: { select: { type: true, title: true, issuedAt: true, doi: true }, orderBy: { issuedAt: "asc" } },
     },
@@ -204,6 +207,8 @@ export async function loadProvenanceRecord(id: string): Promise<ProvenanceLookup
           : "Re-verification failed (hash mismatch)",
   });
 
+  const identity = await publisherIdentityForJournal(article.journal);
+
   const exportable: ExportableArticle = {
     id: article.id,
     title: article.title,
@@ -211,11 +216,11 @@ export async function loadProvenanceRecord(id: string): Promise<ProvenanceLookup
     publishedAt: article.publishedAt,
     doi: article.doi,
     journalName: article.journal?.name ?? null,
-    journalIssn: article.journal?.issn ?? null,
+    journalIssn: identity.whitelabel ? identity.issn : article.journal?.issn ?? null,
     volume: article.issue?.volume ?? null,
     issueNumber: article.issue?.issueNumber ?? null,
     year: article.issue?.year ?? null,
-    publisher: article.journal?.publisher ?? null,
+    publisher: identity.whitelabel ? identity.publisher : article.journal?.publisher ?? null,
     articleUrl: `${APP_BASE_URL}/article/${article.id}`,
   };
   const styles: { id: CitationStyleId; label: string }[] = [
@@ -252,9 +257,15 @@ export async function loadProvenanceRecord(id: string): Promise<ProvenanceLookup
     discipline: article.discipline,
     keywords: article.keywords.split(",").map((k) => k.trim()).filter(Boolean),
     journal: {
-      name: article.journal?.name ?? "Eleventh Press International Publishing",
-      issn: article.journal?.issn ?? null,
-      publisher: article.journal?.publisher ?? "Eleventh Press International Publishing",
+      name: article.journal?.name ?? identity.journalName,
+      issn: identity.whitelabel ? identity.issn : article.journal?.issn ?? null,
+      publisher: identity.publisher,
+    },
+    brand: {
+      whitelabel: identity.whitelabel,
+      publisher: identity.publisher,
+      primaryHex: identity.primaryHex,
+      accentHex: identity.accentHex,
     },
     issue: article.issue,
     versionNumber: article.versionNumber,

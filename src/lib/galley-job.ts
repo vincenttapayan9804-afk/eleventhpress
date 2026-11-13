@@ -10,6 +10,7 @@
 import { db } from "@/lib/db";
 import { getObject } from "@/lib/storage";
 import { generateGalleys } from "@/lib/galley";
+import { galleyIdentityFor } from "@/lib/galley-regenerate";
 
 const SYNTHESISED_PREFIX = "synthesised/";
 
@@ -112,8 +113,7 @@ export async function runGalleyJob(
       keywords: article.keywords,
       discipline: article.discipline,
       doi: article.doi || "",
-      journalName: article.journal?.name || "",
-      issn: article.journal?.issn || "",
+      ...(await galleyIdentityFor(article.journal)),
       volume: article.issue?.volume || 1,
       issue: article.issue?.issueNumber || 1,
       year: article.issue?.year || new Date().getFullYear(),

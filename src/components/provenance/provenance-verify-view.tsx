@@ -31,6 +31,7 @@ import {
   Field,
   HashRow,
   SealEmblem,
+  sealRingName,
   SectionCard,
   VERDICT_UI,
   checkTag,
@@ -209,7 +210,11 @@ export function ProvenanceVerifyView({ record, qrDataUrl }: { record: Provenance
         {/* ── Verdict ─────────────────────────────────────────────────── */}
         <section className={cn("rounded-3xl border p-5 shadow-sm sm:p-7", ui.panel)} aria-live="polite">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-            <SealEmblem verdict={live.verdict} spinning={running} />
+            <SealEmblem
+              verdict={live.verdict}
+              spinning={running}
+              ringText={`${sealRingName(record.brand?.publisher)} · DIGITAL PROVENANCE · SHA-256 ·`}
+            />
             <div className="min-w-0 flex-1">
               <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider", ui.chip)}>
                 <ShieldCheck className="h-3.5 w-3.5" />
@@ -588,7 +593,7 @@ export function ProvenanceVerifyView({ record, qrDataUrl }: { record: Provenance
               </div>
               <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
                 Individually downloaded copies carry a per-reader provenance stamp, so their file hashes intentionally differ from
-                the archived galleys verified here. Verification depends on Eleventh Press International Publishing&rsquo;s own
+                the archived galleys verified here. Verification depends on {record.brand?.publisher || "Eleventh Press International Publishing"}&rsquo;s own
                 records and archive storage — it is tamper-evident, not blockchain-anchored. It proves authenticity and does not
                 restrict reading, sharing or reuse: this work is licensed CC BY 4.0.
               </p>

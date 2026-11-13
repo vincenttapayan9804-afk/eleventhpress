@@ -1,3 +1,4 @@
+import { publisherIdentityForTenantId } from "@/lib/publisher-identity";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -70,9 +71,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invoice already paid" }, { status: 409 });
     }
 
+    const issuer = await publisherIdentityForTenantId(user.tenantId ?? invoice.tenantId);
     const result = await provider.createCheckout({
       referenceId: `apc:${invoice.id}`,
-      description: "Article Processing Charge — Eleventh Press International Publishing",
+      description: `Article Processing Charge — ${issuer.publisher}`,
       amountUsd: invoice.amount,
       customerEmail: user.email,
       successUrl,

@@ -29,7 +29,13 @@ export default async function BillingDocumentPage({ params }: { params: Promise<
   });
   if (!inv || (inv.userId !== session.userId && session.role !== "SUPER_ADMIN")) notFound();
   const tenant = await resolveTenantFromHeaders(h).catch(() => null);
-  const issuer = tenant && !tenant.isPlatform ? tenant.siteName || tenant.name : JOURNAL_IDENTITY.name;
+  // Whitelabel: the tenant institution issues its own invoices — its name,
+  // logo, address and contact email, never Eleventh Press's.
+  const wl = tenant && !tenant.isPlatform ? tenant : null;
+  const issuer = wl ? wl.siteName || wl.name : JOURNAL_IDENTITY.name;
+  const issuerLines = wl
+    ? [wl.address, wl.officialEmail || wl.supportEmail, wl.phone].filter((l): l is string => !!l)
+    : [JOURNAL_IDENTITY.location, JOURNAL_IDENTITY.editorialEmail];
   const paid = inv.status === "PAID";
   const title = paid ? "Receipt" : inv.status === "OPEN" ? "Invoice" : `Invoice (${inv.status.toLowerCase()})`;
 
@@ -42,9 +48,15 @@ export default async function BillingDocumentPage({ params }: { params: Promise<
       <article className="mx-auto max-w-3xl rounded-2xl border border-border bg-white p-10 text-[#1a1622] shadow-sm print:rounded-none print:border-0 print:shadow-none">
         <header className="flex flex-wrap items-start justify-between gap-6 border-b border-[#e7e2ef] pb-8">
           <div>
+            {wl?.logoUrl && (
+              <img src={wl.logoUrl} alt="" className="mb-3 h-10 w-auto max-w-[200px] object-contain" />
+            )}
             <p className="font-display text-xl font-semibold">{issuer}</p>
-            <p className="mt-1 text-sm text-[#6b6478]">{JOURNAL_IDENTITY.location}</p>
-            <p className="text-sm text-[#6b6478]">{JOURNAL_IDENTITY.editorialEmail}</p>
+            {issuerLines.map((line, i) => (
+              <p key={i} className={`${i === 0 ? "mt-1 " : ""}whitespace-pre-line text-sm text-[#6b6478]`}>
+                {line}
+              </p>
+            ))}
           </div>
           <div className="text-right">
             <p className="font-display text-3xl font-semibold tracking-tight">{title}</p>
