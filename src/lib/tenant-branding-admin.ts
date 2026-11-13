@@ -125,6 +125,49 @@ export const BrandingSchema = z.object({
 
 export type BrandingInput = z.infer<typeof BrandingSchema>;
 
+/** ISSN / e-ISSN: "1234-567X" (the hyphen is optional on input). */
+const Issn = z
+  .string()
+  .trim()
+  .toUpperCase()
+  .transform((v) => (/^\d{4}\d{3}[\dX]$/.test(v) ? `${v.slice(0, 4)}-${v.slice(4)}` : v))
+  .refine((v) => /^\d{4}-\d{3}[\dX]$/.test(v), "Use the format 1234-567X");
+
+/**
+ * Journal & publication details a whitelabel tenant controls. These are
+ * what every generated document prints — galley mastheads, JATS/EPUB
+ * metadata, citations, provenance and certificate reports — so a tenant
+ * never has to ask the platform to change its own journal's identity.
+ */
+export const JournalDetailsSchema = z.object({
+  name: z.preprocess(blankToNull, z.string().trim().min(2).max(300).nullable()).optional(),
+  abbreviation: opt(z.string().trim().max(120)),
+  publisher: opt(z.string().trim().max(300)),
+  issn: opt(Issn),
+  eissn: opt(Issn),
+  description: opt(z.string().trim().max(4000)),
+  aimsScope: opt(z.string().trim().max(8000)),
+});
+
+export const BrandingUpdateSchema = BrandingSchema.extend({ journal: JournalDetailsSchema.optional() });
+
+type JournalRow = { name: string; abbreviation: string | null; publisher: string; issn: string | null; eissn: string | null; description: string | null; aimsScope: string | null };
+
+/** The journal form as stored; the schema's platform default publisher reads as blank. */
+export function journalFormOf(j: JournalRow | null) {
+  if (!j) return null;
+  const platformDefault = j.publisher.trim().toLowerCase() === "eleventh press international publishing";
+  return {
+    name: j.name,
+    abbreviation: j.abbreviation,
+    publisher: platformDefault ? null : j.publisher,
+    issn: j.issn,
+    eissn: j.eissn,
+    description: j.description,
+    aimsScope: j.aimsScope,
+  };
+}
+
 /** What the console reads back: raw stored values (no defaults filled in). */
 export function brandingFormOf(t: TenantRow) {
   return {

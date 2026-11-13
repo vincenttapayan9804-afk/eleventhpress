@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { isWhitelabel, useTenantBranding } from "@/lib/tenant-branding-context";
 import { apiFetch } from "@/lib/api-client";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -709,7 +710,7 @@ function GapFinderPanel({ onChainToPrisma }: { onChainToPrisma: (seed: PrismaSee
   function chainToPrisma() {
     if (!result) return;
     const searchStrategy = [
-      "Continuing from a Gap Finder analysis run in Eleventh Research Lab:",
+      "Continuing from a Gap Finder analysis run in the Research Lab:",
       result.overview,
       "",
       "Gaps identified:",
@@ -1571,6 +1572,7 @@ function ResearcherUsageBanner() {
 }
 
 export function ResearchLabTab() {
+  const labName = isWhitelabel(useTenantBranding()) ? "Research Lab" : "Eleventh Research Lab";
   const [activeTab, setActiveTab] = useState("gap-finder");
   const [prismaSeed, setPrismaSeed] = useState<PrismaSeed | null>(null);
   const [prismaSeedKey, setPrismaSeedKey] = useState(0);
@@ -1578,7 +1580,7 @@ export function ResearchLabTab() {
   return (
     <div className="space-y-4">
       <div>
-        <p className="eyebrow flex items-center gap-1.5"><FlaskConical className="h-3 w-3" /> Eleventh Research Lab</p>
+        <p className="eyebrow flex items-center gap-1.5"><FlaskConical className="h-3 w-3" /> {labName}</p>
         <p className="mt-1 text-sm text-muted-foreground">
           Enterprise-grade research tools, powered by free open-source LLMs run locally or via the free tier — same honesty contract as every other AI feature on this platform: a real result or a clear "unavailable," never a guess.
         </p>

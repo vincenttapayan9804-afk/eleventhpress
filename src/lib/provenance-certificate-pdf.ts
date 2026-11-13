@@ -17,6 +17,8 @@ import QRCode from "qrcode";
 import type { ProvenanceRecord, ProvenanceTimelineEvent } from "@/lib/article-provenance-record";
 import { SEALED_FIELDS } from "@/lib/article-provenance";
 import type { ProvenanceCheckResult } from "@/lib/article-provenance-server";
+import { mixHex, normalizeHex } from "@/lib/brand-colors";
+import { POWERED_BY_CREDIT } from "@/lib/powered-by";
 
 export const PROVENANCE_WATERMARK = "Published at Eleventh Press International Publishing";
 
@@ -30,6 +32,40 @@ export const PURPLE_DEEP = "#2a1458";
 export const GOLD = "#c9a55c";
 export const GOLD_DEEP = "#8a6a28";
 export const INK = "#241b3a";
+
+/** The four brand tones a report is drawn in. */
+export interface DocPalette {
+  purple: string;
+  purpleDeep: string;
+  gold: string;
+  goldDeep: string;
+}
+
+export const PLATFORM_PALETTE: DocPalette = Object.freeze({ purple: PURPLE, purpleDeep: PURPLE_DEEP, gold: GOLD, goldDeep: GOLD_DEEP });
+
+/**
+ * A whitelabel tenant's report palette: its primary colour replaces the
+ * purple, its accent replaces the gold (each with a deeper shade derived
+ * from it). The platform — and a tenant that hasn't set colours — keeps
+ * the purple/gold design exactly.
+ */
+export function paletteFor(brand: { whitelabel?: boolean; primaryHex?: string | null; accentHex?: string | null } | null | undefined): DocPalette {
+  if (!brand?.whitelabel) return PLATFORM_PALETTE;
+  const primary = normalizeHex(brand.primaryHex) ?? PURPLE;
+  const accent = normalizeHex(brand.accentHex) ?? GOLD;
+  return {
+    purple: primary,
+    purpleDeep: primary === PURPLE ? PURPLE_DEEP : mixHex(primary, "#000000", 0.45),
+    gold: accent,
+    goldDeep: accent === GOLD ? GOLD_DEEP : mixHex(accent, "#000000", 0.45),
+  };
+}
+
+/** Extra inputs for a whitelabel report. */
+export interface ReportBranding {
+  /** The tenant logo as PNG, drawn in the cover band. */
+  logoPng?: Buffer | null;
+}
 export const MUTED = "#6b6478";
 export const RULE = "#e4dfee";
 export const TINT = "#f7f4fc";
@@ -96,7 +132,8 @@ function drawBangGlyph(doc: PDFKit.PDFDocument, cx: number, cy: number, r: numbe
 }
 
 /** Gold-ringed seal emblem with the verdict glyph at its centre. */
-export function drawSeal(doc: PDFKit.PDFDocument, cx: number, cy: number, r: number, verdict: ProvenanceRecord["verdict"]) {
+export function drawSeal(doc: PDFKit.PDFDocument, cx: number, cy: number, r: number, verdict: ProvenanceRecord["verdict"], pal: DocPalette = PLATFORM_PALETTE) {
+  const { gold: GOLD, goldDeep: GOLD_DEEP } = pal;
   const s = VERDICT_STYLE[verdict];
   doc.save();
   doc.circle(cx, cy, r).fill(doc.radialGradient(cx - r * 0.3, cy - r * 0.3, 0, cx, cy, r).stop(0, "#fbf0cd").stop(0.6, GOLD).stop(1, GOLD_DEEP));
@@ -116,7 +153,8 @@ export function drawSeal(doc: PDFKit.PDFDocument, cx: number, cy: number, r: num
 
 /** The content hash as a row of 64 tinted cells, one per hex nibble — a
  * quick visual cross-check against the same strip on the live page. */
-export function drawFingerprint(doc: PDFKit.PDFDocument, hash: string, x: number, y: number, w: number, h: number) {
+export function drawFingerprint(doc: PDFKit.PDFDocument, hash: string, x: number, y: number, w: number, h: number, pal: DocPalette = PLATFORM_PALETTE) {
+  const { purple: PURPLE, goldDeep: GOLD_DEEP } = pal;
   const nibbles = hash.slice(0, 64).split("");
   const cell = w / nibbles.length;
   nibbles.forEach((n, i) => {
@@ -125,7 +163,11 @@ export function drawFingerprint(doc: PDFKit.PDFDocument, hash: string, x: number
   });
 }
 
-export async function buildProvenanceCertificatePdf(record: ProvenanceRecord): Promise<Buffer> {
+export async function buildProvenanceCertificatePdf(record: ProvenanceRecord, branding: ReportBranding = {}): Promise<Buffer> {
+  // Whitelabel: the publishing tenant's colours replace the purple/gold.
+  const pal = paletteFor(record.brand);
+  const { purple: PURPLE, purpleDeep: PURPLE_DEEP, gold: GOLD, goldDeep: GOLD_DEEP } = pal;
+  const credit = record.brand?.whitelabel ? POWERED_BY_CREDIT : null;
   const qr = await QRCode.toBuffer(record.urls.verify, {
     errorCorrectionLevel: "M",
     margin: 1,
@@ -205,11 +247,22 @@ export async function buildProvenanceCertificatePdf(record: ProvenanceRecord): P
     // ── Cover band ─────────────────────────────────────────────────────
     doc.rect(0, 0, PAGE_W, 112).fill(doc.linearGradient(0, 0, PAGE_W, 112).stop(0, PURPLE_DEEP).stop(1, PURPLE));
     doc.rect(0, 112, PAGE_W, 2.2).fill(GOLD);
+    // Tenant logo on a white tile at the left of the band; the band text shifts right to make room.
+    let bx = M;
+    if (branding.logoPng) {
+      try {
+        doc.save().roundedRect(M, 28, 56, 56, 6).fill("#ffffff").restore();
+        doc.image(branding.logoPng, M + 4, 32, { fit: [48, 48], align: "center", valign: "center" });
+        bx = M + 68;
+      } catch {
+        /* unreadable logo — the publisher name still identifies the issuer */
+      }
+    }
     doc.font("Helvetica-Bold").fontSize(7.2).fillColor(GOLD)
-      .text(publisher.toUpperCase(), M, 30, { characterSpacing: 2.2, lineBreak: false, width: CW - 150, ellipsis: true });
-    doc.font("Times-Bold").fontSize(23).fillColor("#ffffff").text("Certificate of Digital Provenance", M, 46, { lineBreak: false });
+      .text(publisher.toUpperCase(), bx, 30, { characterSpacing: 2.2, lineBreak: false, width: CW - 150 - (bx - M), ellipsis: true });
+    doc.font("Times-Bold").fontSize(bx > M ? 19 : 23).fillColor("#ffffff").text("Certificate of Digital Provenance", bx, 46, { lineBreak: false });
     doc.font("Helvetica").fontSize(8.2).fillColor("#d9cff0")
-      .text("Cryptographic integrity verification of a published scholarly record", M, 76, { lineBreak: false });
+      .text("Cryptographic integrity verification of a published scholarly record", bx, 76, { lineBreak: false });
     doc.font("Helvetica-Bold").fontSize(6.3).fillColor(GOLD).text("SEAL REFERENCE", M, 30, { width: CW, align: "right", characterSpacing: 1.2, lineBreak: false });
     doc.font("Courier-Bold").fontSize(10).fillColor("#ffffff").text(record.sealReference, M, 41, { width: CW, align: "right", lineBreak: false });
     doc.font("Helvetica-Bold").fontSize(6.3).fillColor(GOLD).text("ISSUED", M, 60, { width: CW, align: "right", characterSpacing: 1.2, lineBreak: false });
@@ -219,7 +272,7 @@ export async function buildProvenanceCertificatePdf(record: ProvenanceRecord): P
     const vy = 134;
     const vh = 84;
     doc.roundedRect(M, vy, CW, vh, 8).fillAndStroke(style.fill, style.stroke);
-    drawSeal(doc, M + 44, vy + vh / 2, 28, record.verdict);
+    drawSeal(doc, M + 44, vy + vh / 2, 28, record.verdict, pal);
     doc.font("Helvetica-Bold").fontSize(12).fillColor(style.ink).text(style.head, M + 88, vy + 16, { width: CW - 100, characterSpacing: 0.4 });
     const verdictBody =
       record.verdict === "verified"
@@ -291,7 +344,7 @@ export async function buildProvenanceCertificatePdf(record: ProvenanceRecord): P
       doc.font("Courier-Bold").fontSize(8.6).fillColor(PURPLE).text(hash, M + 8, y + 16, { width: CW - 16, lineBreak: false, characterSpacing: 0.15 });
       let end = y + 34;
       if (fingerprint) {
-        drawFingerprint(doc, hash, M, y + 34, CW, 7);
+        drawFingerprint(doc, hash, M, y + 34, CW, 7, pal);
         end = y + 48;
       }
       doc.y = end;
@@ -433,7 +486,10 @@ export async function buildProvenanceCertificatePdf(record: ProvenanceRecord): P
       doc.font("Helvetica").fontSize(6.8).fillColor(MUTED)
         .text(`Page ${i - range.start + 1} of ${range.count}`, M, fy + 7, { width: CW, align: "right", lineBreak: false });
       doc.font("Helvetica").fontSize(6.4).fillColor(MUTED)
-        .text(`Issued ${fmtDate(record.checkedAt, true)}  ·  ${record.urls.verify}`, M, fy + 17, { width: CW, lineBreak: false });
+        .text(`Issued ${fmtDate(record.checkedAt, true)}  ·  ${record.urls.verify}`, M, fy + 17, { width: credit ? CW - 180 : CW, lineBreak: false, ellipsis: true });
+      if (credit) {
+        doc.font("Helvetica").fontSize(6.4).fillColor(MUTED).text(credit, M, fy + 17, { width: CW, align: "right", lineBreak: false });
+      }
 
       doc.page.margins.bottom = savedBottom;
     }

@@ -21,6 +21,7 @@ import { canonicalCertificatePayload, type CertificatePayload } from "@/lib/cert
 import { pdfSafe } from "@/lib/provenance-certificate-pdf";
 import { CARD_GLOBE_JPEG_BASE64 } from "@/lib/certificate-globe-asset";
 import { mixHex, normalizeHex } from "@/lib/brand-colors";
+import { POWERED_BY_CREDIT } from "@/lib/powered-by";
 
 const CARD_GLOBE_JPEG = Buffer.from(CARD_GLOBE_JPEG_BASE64, "base64");
 
@@ -61,6 +62,8 @@ const PLATFORM_ISSUER = "Eleventh Press International Publishing";
 let WATERMARK = PLATFORM_ISSUER;
 let ISSUER = PLATFORM_ISSUER;
 let BRAND_LOGO: Buffer | null = null;
+/** Fixed "Powered by" credit — set for whitelabel certificates only. */
+let CREDIT: string | null = null;
 
 /**
  * Whitelabel branding for a tenant member's certificates: the institution's
@@ -86,7 +89,8 @@ function withBrand<T>(brand: CertificateBrand | null | undefined, render: () => 
     const primary = normalizeHex(brand?.primaryColor);
     BRAND_PURPLE = primary ?? "#4c1d95";
     PURPLE_DEEP = primary ? mixHex(primary, "#000000", 0.45) : "#2a1458";
-    JOURNAL_TAGLINE = brand ? brand.tagline || "Powered by Eleventh Press" : DEFAULT_TAGLINE;
+    JOURNAL_TAGLINE = brand ? brand.tagline || POWERED_BY_CREDIT : DEFAULT_TAGLINE;
+    CREDIT = brand ? POWERED_BY_CREDIT : null;
     WATERMARK = brand?.name || PLATFORM_ISSUER;
     ISSUER = brand?.name || PLATFORM_ISSUER;
     BRAND_LOGO = brand?.logoPng ?? null;
@@ -99,6 +103,7 @@ function withBrand<T>(brand: CertificateBrand | null | undefined, render: () => 
       WATERMARK = PLATFORM_ISSUER;
       ISSUER = PLATFORM_ISSUER;
       BRAND_LOGO = null;
+      CREDIT = null;
     }
   };
   const result = renderChain.then(run, run);
@@ -199,6 +204,13 @@ function drawPageFrame(doc: PDFKit.PDFDocument) {
     doc.polygon([x, y - 5], [x + 5, y], [x, y + 5], [x - 5, y]).fill(BRAND_GOLD);
   }
   doc.restore();
+  if (CREDIT) {
+    // Whitelabel: the fixed platform credit, centred in the white strip under the frame.
+    const bottom = doc.page.margins.bottom;
+    doc.page.margins.bottom = 0;
+    doc.font("Helvetica").fontSize(5.5).fillColor(BRAND_MUTED).text(CREDIT, 0, height - 11, { width, align: "center", lineBreak: false });
+    doc.page.margins.bottom = bottom;
+  }
 }
 
 /** Purple gradient band over a gold rule, with the issuer on the left and

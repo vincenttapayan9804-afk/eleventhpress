@@ -40,7 +40,8 @@ import {
   WidthType,
   type ParagraphChild,
 } from "docx";
-import { pdfSafe } from "@/lib/provenance-certificate-pdf";
+import { paletteFor, pdfSafe } from "@/lib/provenance-certificate-pdf";
+import { POWERED_BY_CREDIT } from "@/lib/powered-by";
 import type { JournalInfo } from "@/lib/research-assistant";
 
 // ---------------------------------------------------------------------------
@@ -298,6 +299,9 @@ const TOP = 72;
 const BOTTOM_LIMIT = PAGE_H - 70;
 
 export async function buildResearchPdf(report: ResearchReport): Promise<Buffer> {
+  // Whitelabel: the tenant's colours replace the purple/gold palette.
+  const { purple: PURPLE, purpleDeep: PURPLE_DEEP, gold: GOLD, goldDeep: GOLD_DEEP } = paletteFor(report.journal);
+  const credit = report.journal.whitelabel ? POWERED_BY_CREDIT : null;
   return new Promise<Buffer>((resolve, reject) => {
     const doc = new PDFDocument({
       size: "A4",
@@ -457,7 +461,7 @@ export async function buildResearchPdf(report: ResearchReport): Promise<Buffer> 
     doc.rect(0, 0, PAGE_W, bandH).fill(PURPLE_DEEP);
     doc.rect(0, bandH, PAGE_W, 3).fill(GOLD);
     doc.font("Helvetica-Bold").fontSize(7.6).fillColor(GOLD).text(t(report.journal.name.toUpperCase()), M, 40, { characterSpacing: 2, width: CW, lineBreak: false });
-    const meta = [report.journal.issn ? `ISSN ${report.journal.issn}` : null, report.journal.publisher !== report.journal.name ? report.journal.publisher : null].filter(Boolean).join("  ·  ");
+    const meta = [report.journal.issn ? `ISSN ${report.journal.issn}` : null, report.journal.eissn ? `e-ISSN ${report.journal.eissn}` : null, report.journal.publisher !== report.journal.name ? report.journal.publisher : null].filter(Boolean).join("  ·  ");
     if (meta) doc.font("Helvetica").fontSize(8).fillColor("#d9cff0").text(t(meta), M, 54, { width: CW, lineBreak: false });
     doc.font("Helvetica-Bold").fontSize(7.2).fillColor(GOLD).text(report.scope === "conversation" ? "AI RESEARCH ASSISTANT  ·  CONVERSATION REPORT" : "AI RESEARCH ASSISTANT  ·  RESEARCH BRIEF", M, 84, { characterSpacing: 1.6, width: CW, lineBreak: false });
     doc.font("Times-Bold").fontSize(21).fillColor("#ffffff").text(t(report.title), M, 100, { width: CW, lineGap: 1, height: 58, ellipsis: true });
@@ -567,6 +571,7 @@ export async function buildResearchPdf(report: ResearchReport): Promise<Buffer> 
       doc.moveTo(M, PAGE_H - 50).lineTo(M + CW, PAGE_H - 50).lineWidth(0.4).strokeColor(RULE).stroke();
       doc.font("Helvetica").fontSize(6.8).fillColor(MUTED).text("AI-generated from the journal's published articles. Verify against the original publications.", M, PAGE_H - 42, { width: CW - 70, lineBreak: false });
       doc.font("Helvetica-Bold").fontSize(6.8).fillColor(PURPLE).text(`${pageNo} / ${range.count}`, M + CW - 60, PAGE_H - 42, { width: 60, align: "right", lineBreak: false });
+      if (credit) doc.font("Helvetica").fontSize(6.2).fillColor(MUTED).text(credit, M, PAGE_H - 31, { width: CW, align: "center", lineBreak: false });
     }
     doc.end();
   });
@@ -576,8 +581,10 @@ export async function buildResearchPdf(report: ResearchReport): Promise<Buffer> 
 // DOCX
 // ---------------------------------------------------------------------------
 
-const DOCX_PURPLE = "4C1D95";
-const DOCX_GOLD = "8A6A28";
+// Module state so the run helpers pick up a whitelabel tenant's colours;
+// set and reset synchronously inside buildResearchDocx (no await between).
+let DOCX_PURPLE = "4C1D95";
+let DOCX_GOLD = "8A6A28";
 const DOCX_MUTED = "6B6478";
 const DOCX_TINT = "F7F4FC";
 
@@ -664,6 +671,18 @@ function docxBlocks(blocks: Block[]): (Paragraph | Table)[] {
 }
 
 export async function buildResearchDocx(report: ResearchReport): Promise<Buffer> {
+  const pal = paletteFor(report.journal);
+  DOCX_PURPLE = pal.purple.replace("#", "").toUpperCase();
+  DOCX_GOLD = pal.goldDeep.replace("#", "").toUpperCase();
+  try {
+    return await Packer.toBuffer(researchDocxDocument(report));
+  } finally {
+    DOCX_PURPLE = "4C1D95";
+    DOCX_GOLD = "8A6A28";
+  }
+}
+
+function researchDocxDocument(report: ResearchReport): Document {
   const j = report.journal;
   const children: (Paragraph | Table)[] = [
     new Paragraph({
@@ -672,7 +691,7 @@ export async function buildResearchDocx(report: ResearchReport): Promise<Buffer>
     new Paragraph({
       children: [
         new TextRun({
-          text: [j.issn ? `ISSN ${j.issn}` : null, j.publisher !== j.name ? j.publisher : null, report.siteUrl.replace(/^https?:\/\//, "")].filter(Boolean).join("  ·  "),
+          text: [j.issn ? `ISSN ${j.issn}` : null, j.eissn ? `e-ISSN ${j.eissn}` : null, j.publisher !== j.name ? j.publisher : null, report.siteUrl.replace(/^https?:\/\//, "")].filter(Boolean).join("  ·  "),
           color: DOCX_MUTED,
           size: 17,
         }),
@@ -819,6 +838,9 @@ export async function buildResearchDocx(report: ResearchReport): Promise<Buffer>
                   new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 15, color: DOCX_MUTED }),
                 ],
               }),
+              ...(j.whitelabel
+                ? [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: POWERED_BY_CREDIT, size: 14, color: DOCX_MUTED })] })]
+                : []),
             ],
           }),
         },
@@ -826,5 +848,5 @@ export async function buildResearchDocx(report: ResearchReport): Promise<Buffer>
       },
     ],
   });
-  return Packer.toBuffer(document);
+  return document;
 }

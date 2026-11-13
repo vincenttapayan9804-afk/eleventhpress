@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { loadProvenanceRecord } from "@/lib/article-provenance-record";
 import { buildProvenanceCertificatePdf, provenanceCertificateFileName } from "@/lib/provenance-certificate-pdf";
+import { logoPngOf, publisherIdentityForArticle } from "@/lib/publisher-identity";
 
 /**
  * GET /api/articles/[id]/verify/certificate — public, no auth. The
@@ -25,7 +26,12 @@ export async function GET(
     return NextResponse.json({ error: "This article has no provenance seal to certify" }, { status: 409 });
   }
 
-  const pdf = await buildProvenanceCertificatePdf(lookup.record);
+  // Whitelabel: the publishing tenant's logo goes in the cover band (its
+  // colours and name already come from the record's brand).
+  const identity = lookup.record.brand?.whitelabel ? await publisherIdentityForArticle(id) : null;
+  const pdf = await buildProvenanceCertificatePdf(lookup.record, {
+    logoPng: identity?.whitelabel ? await logoPngOf(identity.logoUrl) : null,
+  });
   const inline = req.nextUrl.searchParams.get("inline") === "1";
   const filename = provenanceCertificateFileName(lookup.record);
   return new NextResponse(new Uint8Array(pdf), {

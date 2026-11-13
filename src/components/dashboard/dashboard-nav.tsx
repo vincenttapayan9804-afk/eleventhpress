@@ -6,6 +6,7 @@ import { ChevronDown, Pin, PinOff, Search, LayoutGrid } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { useApp } from "@/lib/store";
+import { isWhitelabel, useTenantBranding } from "@/lib/tenant-branding-context";
 import type { DashboardTabDef } from "@/components/dashboard/dashboard-tabs";
 
 const pinKey = (userId: string) => `epip-dashboard-pins:${userId}`;
@@ -32,7 +33,9 @@ function readPins(userId: string | undefined): string[] {
 export function DashboardNav({ tabs, active, onOpen }: { tabs: DashboardTabDef[]; active: string; onOpen: (key: string) => void }) {
   const userId = useApp((s) => s.user?.id);
   const locale = useApp((s) => s.locale);
-  const tr = (text: string) => trDashboard(text, locale);
+  // A whitelabel tenant's dashboard names features without the platform's brand.
+  const whitelabel = isWhitelabel(useTenantBranding());
+  const tr = (text: string) => trDashboard(whitelabel && text === "Eleventh Research Lab" ? "Research Lab" : text, locale);
   const [pins, setPins] = useState<string[]>(() => readPins(userId));
   const [sheetOpen, setSheetOpen] = useState(false);
   const [filter, setFilter] = useState("");

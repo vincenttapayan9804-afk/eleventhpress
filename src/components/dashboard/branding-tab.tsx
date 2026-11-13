@@ -30,7 +30,10 @@ import {
   Check,
   AlertTriangle,
   Eye,
+  BookOpen,
+  Lock,
 } from "lucide-react";
+import { POWERED_BY_CREDIT } from "@/lib/powered-by";
 import {
   BRAND_COLOR_PRESETS,
   contrastRatio,
@@ -88,6 +91,18 @@ const EMPTY: BrandingForm = {
   socialLinks: EMPTY_SOCIAL,
 };
 
+interface JournalForm {
+  name: string;
+  abbreviation: string;
+  publisher: string;
+  issn: string;
+  eissn: string;
+  description: string;
+  aimsScope: string;
+}
+
+const EMPTY_JOURNAL: JournalForm = { name: "", abbreviation: "", publisher: "", issn: "", eissn: "", description: "", aimsScope: "" };
+
 const DEFAULT_PRIMARY = "#4b2e83";
 const DEFAULT_ACCENT = "#e4dbf5";
 
@@ -136,14 +151,23 @@ export function BrandingTab({ tenantId, onSaved }: { tenantId?: string; onSaved?
   const [saving, setSaving] = useState(false);
   const [logoColors, setLogoColors] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  // Journal & publication details — whitelabel tenants only (null on the official site).
+  const [journal, setJournal] = useState<JournalForm | null>(null);
+  const [savedJournal, setSavedJournal] = useState<JournalForm | null>(null);
 
   async function load() {
     try {
       const res = await apiFetch<{
         tenant: { id: string; name: string; isPlatform: boolean };
         branding: Record<string, any>;
+        journal: Record<string, string | null> | null;
       }>(`/api/admin/tenant-branding${query}`);
       setTenant(res.tenant);
+      const j = res.journal
+        ? (Object.fromEntries(Object.keys(EMPTY_JOURNAL).map((k) => [k, res.journal?.[k] ?? ""])) as unknown as JournalForm)
+        : null;
+      setJournal(j);
+      setSavedJournal(j);
       const b = res.branding;
       const next: BrandingForm = {
         siteName: b.siteName ?? "",
@@ -176,7 +200,19 @@ export function BrandingTab({ tenantId, onSaved }: { tenantId?: string; onSaved?
     void Promise.resolve().then(load);
   }, [tenantId]);
 
-  const dirty = useMemo(() => JSON.stringify(form) !== JSON.stringify(saved), [form, saved]);
+  const dirty = useMemo(
+    () => JSON.stringify(form) !== JSON.stringify(saved) || JSON.stringify(journal) !== JSON.stringify(savedJournal),
+    [form, saved, journal, savedJournal]
+  );
+
+  function journalField<K extends keyof JournalForm>(key: K, value: string) {
+    setJournal((prev) => (prev ? { ...prev, [key]: value } : prev));
+    setErrors((prev) => {
+      if (!prev[key as string]) return prev;
+      const { [key as string]: _drop, ...rest } = prev;
+      return rest;
+    });
+  }
 
   function field<K extends keyof BrandingForm>(key: K, value: BrandingForm[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -199,6 +235,13 @@ export function BrandingTab({ tenantId, onSaved }: { tenantId?: string; onSaved?
             .map(([k, v]) => [k, typeof v === "string" && v.trim() === "" ? null : v])
         ),
         socialLinks: Object.keys(social).length ? social : null,
+        ...(journal
+          ? {
+              journal: Object.fromEntries(
+                Object.entries(journal).map(([k, v]) => [k, v.trim() === "" ? null : v])
+              ),
+            }
+          : {}),
       };
       await apiFetch(`/api/admin/tenant-branding${query}`, { method: "PUT", body: JSON.stringify(payload) });
       await load();
@@ -216,7 +259,8 @@ export function BrandingTab({ tenantId, onSaved }: { tenantId?: string; onSaved?
       // "socialLinks.x: message" for a social profile).
       const details: Record<string, string> = {};
       const m = typeof e?.message === "string" ? e.message.match(/^([A-Za-z]+)(?:\.([A-Za-z]+))?: (.+)$/) : null;
-      if (m) details[m[1]] = m[2] ? `${m[2]}: ${m[3]}` : m[3];
+      // "journal.issn: …" is a journal field — highlight it by its own name.
+      if (m) details[m[1] === "journal" && m[2] ? m[2] : m[1]] = m[1] !== "journal" && m[2] ? `${m[2]}: ${m[3]}` : m[3];
       setErrors(details);
       toast.error(Object.keys(details).length ? "Please fix the highlighted fields" : e.message || "Failed to save branding");
     } finally {
@@ -295,6 +339,82 @@ export function BrandingTab({ tenantId, onSaved }: { tenantId?: string; onSaved?
                 />
               </div>
             </Section>
+
+            {/* Journal & publication details (whitelabel tenants) */}
+            {journal && (
+              <Section icon={BookOpen} title="Journal & publication details">
+                <p className="-mt-2 text-xs text-muted-foreground">
+                  Printed on every article PDF, web and e-book edition, XML export, citation, certificate and
+                  provenance report. Saving re-generates your published articles&apos; files in the background.
+                </p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <FieldBox id="name" label="Journal title" error={errors.name} className="sm:col-span-2">
+                    <Input
+                      id="name"
+                      placeholder={form.siteName || tenant?.name || "Journal of …"}
+                      value={journal.name}
+                      onChange={(e) => journalField("name", e.target.value)}
+                    />
+                  </FieldBox>
+                  <FieldBox id="abbreviation" label="Abbreviated title (ISO 4)" error={errors.abbreviation}>
+                    <Input
+                      id="abbreviation"
+                      placeholder="e.g. J. Multidiscip. Res."
+                      value={journal.abbreviation}
+                      onChange={(e) => journalField("abbreviation", e.target.value)}
+                    />
+                  </FieldBox>
+                  <FieldBox id="publisher" label="Publisher" error={errors.publisher}>
+                    <Input
+                      id="publisher"
+                      placeholder={form.siteName || tenant?.name || "Your institution"}
+                      value={journal.publisher}
+                      onChange={(e) => journalField("publisher", e.target.value)}
+                    />
+                  </FieldBox>
+                  <FieldBox id="issn" label="Print ISSN" error={errors.issn}>
+                    <Input
+                      id="issn"
+                      placeholder="1234-567X"
+                      value={journal.issn}
+                      onChange={(e) => journalField("issn", e.target.value)}
+                      className="font-mono text-sm"
+                    />
+                  </FieldBox>
+                  <FieldBox id="eissn" label="Online ISSN (e-ISSN)" error={errors.eissn}>
+                    <Input
+                      id="eissn"
+                      placeholder="1234-567X"
+                      value={journal.eissn}
+                      onChange={(e) => journalField("eissn", e.target.value)}
+                      className="font-mono text-sm"
+                    />
+                  </FieldBox>
+                  <FieldBox id="description" label="About the journal" error={errors.description} className="sm:col-span-2">
+                    <Textarea
+                      id="description"
+                      rows={3}
+                      placeholder="A short description shown on your About page and in catalogue exports."
+                      value={journal.description}
+                      onChange={(e) => journalField("description", e.target.value)}
+                    />
+                  </FieldBox>
+                  <FieldBox id="aimsScope" label="Aims & scope" error={errors.aimsScope} className="sm:col-span-2">
+                    <Textarea
+                      id="aimsScope"
+                      rows={4}
+                      placeholder="The subjects and article types your journal publishes. Also used to screen new submissions."
+                      value={journal.aimsScope}
+                      onChange={(e) => journalField("aimsScope", e.target.value)}
+                    />
+                  </FieldBox>
+                </div>
+                <p className="text-[0.7rem] text-muted-foreground">
+                  Leave the publisher blank to use your organization name. Without an ISSN, documents simply omit it;
+                  they never show another journal&apos;s ISSN.
+                </p>
+              </Section>
+            )}
 
             {/* Colours */}
             <Section icon={Palette} title="Colours">
@@ -464,7 +584,14 @@ export function BrandingTab({ tenantId, onSaved }: { tenantId?: string; onSaved?
                 {saving ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-1.5 h-3.5 w-3.5" />}
                 Save branding
               </Button>
-              <Button variant="outline" onClick={() => setForm(saved)} disabled={saving || !dirty}>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setForm(saved);
+                  setJournal(savedJournal);
+                }}
+                disabled={saving || !dirty}
+              >
                 Discard changes
               </Button>
               <Button
@@ -479,6 +606,15 @@ export function BrandingTab({ tenantId, onSaved }: { tenantId?: string; onSaved?
               </Button>
               {dirty && <span className="text-xs text-muted-foreground">Unsaved changes</span>}
             </div>
+            {tenant && !tenant.isPlatform && (
+              <p className="flex items-start gap-1.5 text-[0.7rem] text-muted-foreground">
+                <Lock className="mt-0.5 h-3 w-3 shrink-0" />
+                <span>
+                  Your site footer, emails and generated documents also carry a small, fixed &ldquo;{POWERED_BY_CREDIT}&rdquo;
+                  credit. It is part of the platform and isn&apos;t a branding setting.
+                </span>
+              </p>
+            )}
           </div>
 
           {/* Live preview */}

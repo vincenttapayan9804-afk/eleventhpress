@@ -11,6 +11,11 @@ export interface JournalInfo {
   name: string;
   issn: string | null;
   publisher: string;
+  /** Set for a whitelabel tenant: its colours and online ISSN go on exported reports. */
+  whitelabel?: boolean;
+  eissn?: string | null;
+  primaryHex?: string;
+  accentHex?: string;
 }
 
 const JOURNAL_CACHE_MS = 5 * 60 * 1000;
@@ -30,7 +35,15 @@ export async function loadJournalInfo(tenantId?: string | null): Promise<Journal
   try {
     const identity = tenantId ? await publisherIdentityForTenantId(tenantId) : null;
     if (identity?.whitelabel) {
-      value = { name: identity.journalName, issn: identity.issn, publisher: identity.publisher };
+      value = {
+        name: identity.journalName,
+        issn: identity.issn,
+        publisher: identity.publisher,
+        whitelabel: true,
+        eissn: identity.eissn,
+        primaryHex: identity.primaryHex,
+        accentHex: identity.accentHex,
+      };
     } else {
       // The platform journal (no tenant); otherwise the journal the newest
       // published article belongs to — never an arbitrary tenant's journal.

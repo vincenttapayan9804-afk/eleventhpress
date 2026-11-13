@@ -10,6 +10,7 @@ import { brandCssVars } from "@/lib/brand-colors";
 import { ThemeProvider } from "@/components/theme-provider";
 import { CookieConsentBanner } from "@/components/cookie-consent-banner";
 import { UiSoundEffects } from "@/components/ui-sound";
+import { POWERED_BY_CREDIT } from "@/lib/powered-by";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -46,7 +47,7 @@ export const viewport = { themeColor: "#3b1466" };
 export async function generateMetadata(): Promise<Metadata> {
   const tenant = await getCurrentTenant();
   const title = tenant?.siteName
-    ? `${tenant.siteName} — ${tenant.tagline || "Powered by Eleventh Press"}`
+    ? `${tenant.siteName} — ${tenant.tagline || POWERED_BY_CREDIT}`
     : DEFAULT_TITLE;
   const description = tenant?.tagline || DEFAULT_DESCRIPTION;
   // Home-screen icon: a whitelabel tenant's own logo/initials (src/app/pwa-icon).

@@ -30,31 +30,31 @@ datasource db {
 // Identity & Access Management (IAM)
 // ---------------------------------------------------------------------------
 model User {
-  id                    String    @id @default(cuid())
-  email                 String    @unique
-  passwordHash          String
-  fullName              String
-  affiliation           String?
-  orcid                 String?
+  id                          String    @id @default(cuid())
+  email                       String    @unique
+  passwordHash                String
+  fullName                    String
+  affiliation                 String?
+  orcid                       String?
   // Role: SUPER_ADMIN | EDITOR | ASSOCIATE_EDITOR | REVIEWER | AUTHOR | READER | EXPERT
-  role                  String    @default("READER")
+  role                        String    @default("READER")
   // Only meaningful when role === "EXPERT": CONTRIBUTOR (one-off Expert
   // Insight pieces) | COUNCIL_MEMBER (vetted, committed to recurring
   // monthly insights). Set once by the Prestige Application approval flow
   // (see RoleApplication below) — never self-selected.
-  expertTier            String?
-  bio                   String?
-  expertise             String? // comma-separated keywords for reviewer matching
-  country               String?
+  expertTier                  String?
+  bio                         String?
+  expertise                   String? // comma-separated keywords for reviewer matching
+  country                     String?
   // Public profile
-  avatarUrl             String? // profile picture — resolved public URL (Blob or /api/storage/download)
-  profession            String? // e.g. "Associate Professor of Computational Biology" — distinct from `affiliation` (institution name)
-  website               String?
-  twitterUrl            String?
-  linkedinUrl           String?
-  githubUrl             String?
-  contactEmail          String? // public-facing contact address — deliberately separate from the login `email`
-  contactPhone          String?
+  avatarUrl                   String? // profile picture — resolved public URL (Blob or /api/storage/download)
+  profession                  String? // e.g. "Associate Professor of Computational Biology" — distinct from `affiliation` (institution name)
+  website                     String?
+  twitterUrl                  String?
+  linkedinUrl                 String?
+  githubUrl                   String?
+  contactEmail                String? // public-facing contact address — deliberately separate from the login `email`
+  contactPhone                String?
   // Email verification — null means "not verified yet" for an account
   // created after this field existed; every pre-existing account was
   // grandfathered to emailVerifiedAt = its own createdAt by
@@ -62,14 +62,14 @@ model User {
   // out of something it was never asked to do. emailVerificationToken is
   // nullable with no default (same reasoning as User.referralCode's own
   // schema comment — safe on a populated table), cleared once redeemed.
-  emailVerifiedAt         DateTime?
-  emailVerificationToken  String?   @unique
+  emailVerifiedAt             DateTime?
+  emailVerificationToken      String?   @unique
   // Two-factor authentication (TOTP) — twoFactorSecret is only set while
   // enabled; twoFactorBackupCodes is a comma-separated list of bcrypt
   // hashes (never plaintext), one-time use, consumed on redemption.
-  twoFactorSecret       String?
-  twoFactorEnabled      Boolean   @default(false)
-  twoFactorBackupCodes  String?
+  twoFactorSecret             String?
+  twoFactorEnabled            Boolean   @default(false)
+  twoFactorBackupCodes        String?
   // "TOTP" (authenticator app) or "EMAIL" (a 6-digit code emailed at each
   // sign-in, for people without an authenticator app). The emailed code is
   // stored only as an HMAC, expires after 10 minutes and allows 5 attempts.
@@ -80,74 +80,74 @@ model User {
   // Sign-in email change in progress (Profile -> Security): the new address
   // and an HMAC of the code emailed to it, so the switch only happens once
   // the new inbox is proven.
-  pendingEmail              String?
-  pendingEmailCodeHash      String?
-  pendingEmailExpiresAt     DateTime?
-  pendingEmailAttempts      Int       @default(0)
+  pendingEmail                String?
+  pendingEmailCodeHash        String?
+  pendingEmailExpiresAt       DateTime?
+  pendingEmailAttempts        Int       @default(0)
   // Account-lockout brute-force hardening, layered on top of the existing
   // per-IP/per-account rate limit (src/lib/ratelimit.ts) rather than
   // replacing it — the rate limit is the fast, cheap first line (and fails
   // open without Upstash configured); this is a slower-to-trip, DB-backed
   // second line that still holds even when Upstash isn't set up. Reset to
   // 0/null on every successful login (src/app/api/auth/login/route.ts).
-  failedLoginCount      Int       @default(0)
-  lockedUntil           DateTime?
+  failedLoginCount            Int       @default(0)
+  lockedUntil                 DateTime?
   // Set when an administrator issues this account a temporary password
   // (e.g. a new tenant admin); the dashboard asks for a new password
   // before anything else and clears this once it's changed.
-  mustChangePassword    Boolean   @default(false)
+  mustChangePassword          Boolean   @default(false)
   // ORCID OAuth tokens (premium integration)
-  orcidAccessToken      String?
-  orcidRefreshToken     String?
-  orcidTokenExpiry      DateTime?
-  orcidLastSync         DateTime?
+  orcidAccessToken            String?
+  orcidRefreshToken           String?
+  orcidTokenExpiry            DateTime?
+  orcidLastSync               DateTime?
   // Blogger OAuth tokens (Tier A article syndication — real API auto-publish)
-  bloggerAccessToken    String?
-  bloggerRefreshToken   String?
-  bloggerTokenExpiry    DateTime?
-  bloggerBlogId         String?
-  bloggerBlogUrl        String?
-  bloggerConnectedAt    DateTime?
+  bloggerAccessToken          String?
+  bloggerRefreshToken         String?
+  bloggerTokenExpiry          DateTime?
+  bloggerBlogId               String?
+  bloggerBlogUrl              String?
+  bloggerConnectedAt          DateTime?
   // Institutional affiliation (premium IP-auth feature)
-  institutionId         String?
+  institutionId               String?
   // Whitelabel tenant this account belongs to (Phase 1: plumbed but not yet
   // enforced — see Tenant model doc comment). Nullable so existing rows and
   // any code path that hasn't been updated keep working; the backfill
   // script sets this to the platform tenant for every pre-existing user.
-  tenantId              String?
+  tenantId                    String?
   // EP University OS Phase 1 — nullable, orthogonal to `role` (role gates
   // permissions; academicStatus answers "is this EDITOR also faculty?" —
   // a STUDENT can be an AUTHOR, a FACULTY member can be an EDITOR). Both
   // null for every pre-existing row and every non-university tenant.
-  departmentId          String?
-  academicStatus        String? // FACULTY | STUDENT | STAFF | null — see ACADEMIC_STATUS_OPTIONS
+  departmentId                String?
+  academicStatus              String? // FACULTY | STUDENT | STAFF | null — see ACADEMIC_STATUS_OPTIONS
   // Real scholarly-output metrics from OpenAlex (src/lib/citation-metrics.ts),
   // by ORCID — only meaningful for editorial-board accounts (SUPER_ADMIN/
   // EDITOR/ASSOCIATE_EDITOR) and only populated when `orcid` is set.
   // Refreshed unconditionally on every deploy alongside Article.citations
   // (scripts/refresh-citation-metrics.ts); GET /api/editorial-board also
   // tries a live fetch first and only falls back to these cached values.
-  boardWorksCount       Int?
-  boardCitedByCount     Int?
-  boardHIndex           Int?
-  boardMetricsCheckedAt DateTime?
+  boardWorksCount             Int?
+  boardCitedByCount           Int?
+  boardHIndex                 Int?
+  boardMetricsCheckedAt       DateTime?
   // GDPR/CCPA right-to-erasure marker. Set by /api/account/delete, which
   // anonymizes this row in place rather than deleting it — the account has
   // ~30 enforced FK relations (submissions, reviews, invoices, audit log…)
   // and, per GDPR Art. 17(3)(d), the already-published scholarly record
   // (DOI-bearing articles, citable peer-review reports) is exempt from
   // erasure as archiving in the public interest. Login is rejected once set.
-  deletedAt             DateTime?
+  deletedAt                   DateTime?
   // "Sign out of all other devices" also ends sign-ins issued before this
   // moment that predate per-session ids (src/lib/user-sessions.ts).
-  sessionsValidAfter    DateTime?
+  sessionsValidAfter          DateTime?
   // Researcher SaaS Phase 1 — nullable, same permissive-default convention
   // as Tenant.plan (Commercial Layer Phase 0): null means "no plan set,"
   // which every pre-existing account has today, and stays fully unlimited
   // on the three quota-checked Research Lab tools (gap analysis, PRISMA
   // draft, transcription). Only an account explicitly moved onto a plan
   // (see src/lib/researcher-plans.ts) is ever subject to a monthly cap.
-  researchPlan          String?
+  researchPlan                String?
   // Referral program — a stable short code, generated by application code
   // (src/lib/referrals.ts's generateReferralCode) at registration for a
   // new account, and lazily backfilled on first access for an account
@@ -163,10 +163,10 @@ model User {
   // param — see /api/auth/register), and never changed afterward; null
   // means the account was not referred (direct signup, or the referral
   // code in the link didn't resolve to a user).
-  referralCode     String? @unique
-  referredByUserId String?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  referralCode                String?   @unique
+  referredByUserId            String?
+  createdAt                   DateTime  @default(now())
+  updatedAt                   DateTime  @updatedAt
 
   submissions                    Article[]              @relation("AuthorArticles")
   assignedReviews                Review[]               @relation("ReviewerReviews")
@@ -324,14 +324,18 @@ model ExpertQuestion {
 // Journal metadata
 // ---------------------------------------------------------------------------
 model Journal {
-  id          String   @id @default(cuid())
-  name        String
-  issn        String?
-  publisher   String   @default("Eleventh Press International Publishing")
-  description String?
-  aimsScope   String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(cuid())
+  name         String
+  issn         String?
+  // Online ISSN (e-ISSN) and the ISO 4 abbreviated title — set by a
+  // whitelabel tenant on its Branding tab (Journal & publication details).
+  eissn        String?
+  abbreviation String?
+  publisher    String   @default("Eleventh Press International Publishing")
+  description  String?
+  aimsScope    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   // Whitelabel Phase 5 — same nullable-scalar convention as Book.tenantId
   // (see that field's comment). Every tenant gets exactly one Journal,
@@ -606,9 +610,9 @@ model Article {
   // articles published before this field existed, or not yet published.
   // This proves authenticity/integrity; it does not restrict redistribution
   // — every article is still CC BY 4.0, see ArticleDownload below.
-  contentHash    String?
-  galleyPdfHash  String? // SHA-256 of the exact PDF bytes hashed into contentHash
-  galleyEpubHash String? // SHA-256 of the exact EPUB bytes hashed into contentHash, when an EPUB exists
+  contentHash        String?
+  galleyPdfHash      String? // SHA-256 of the exact PDF bytes hashed into contentHash
+  galleyEpubHash     String? // SHA-256 of the exact EPUB bytes hashed into contentHash, when an EPUB exists
   // Resealed (with an AuditLog PROVENANCE_SEALED entry) whenever the platform
   // itself legitimately changes a sealed input after publish — DOI assignment,
   // galley regeneration. provenanceVersion < PROVENANCE_SEAL_VERSION
@@ -643,8 +647,8 @@ model Article {
   independentReviews         IndependentReview[]
   ethicsSubmissions          EthicsSubmission[]
   grants                     Grant[]
-  versionOf                  Article?                        @relation("ArticleVersionChain", fields: [versionOfId], references: [id])
-  versions                   Article[]                       @relation("ArticleVersionChain")
+  versionOf                  Article?                       @relation("ArticleVersionChain", fields: [versionOfId], references: [id])
+  versions                   Article[]                      @relation("ArticleVersionChain")
 
   // Composite indexes mirror the actual query shapes used across the app:
   // public/browse listing and the dashboard queue both filter by status
@@ -697,21 +701,21 @@ model Correction {
 // findable before publication.
 // ---------------------------------------------------------------------------
 model Reference {
-  id            String    @id @default(cuid())
-  articleId     String
-  rawText       String // the citation as pasted by the author
-  status        String    @default("PENDING") // PENDING | VALID | NOT_FOUND | AMBIGUOUS
-  doi           String? // resolved DOI, if found
-  resolvedTitle String? // title OpenAlex matched it to
-  openAlexId    String?
-  checkedAt     DateTime?
+  id             String    @id @default(cuid())
+  articleId      String
+  rawText        String // the citation as pasted by the author
+  status         String    @default("PENDING") // PENDING | VALID | NOT_FOUND | AMBIGUOUS
+  doi            String? // resolved DOI, if found
+  resolvedTitle  String? // title OpenAlex matched it to
+  openAlexId     String?
+  checkedAt      DateTime?
   // Smart/qualitative citation — how this citing article uses the resolved
   // reference (Scite.ai-style), set by an LLM classification pass run
   // alongside OpenAlex validation above. Null means "not classified yet"
   // (reference still PENDING, LLM unavailable, or classification failed) —
   // never asserted as a fact when the model didn't actually answer.
   classification String? // SUPPORTING | CONTRASTING | MENTIONING
-  createdAt     DateTime  @default(now())
+  createdAt      DateTime  @default(now())
 
   article Article @relation(fields: [articleId], references: [id])
 
@@ -742,8 +746,8 @@ model Review {
   updatedAt   DateTime  @updatedAt
 
   // Invitation response (POST /api/reviews/[id]/respond).
-  respondedAt   DateTime?
-  declineReason String?
+  respondedAt        DateTime?
+  declineReason      String?
   // Reminder emails already sent (src/lib/review-reminders.ts), so each goes out once.
   invitationNudgedAt DateTime?
   dueSoonRemindedAt  DateTime?
@@ -926,22 +930,22 @@ model Invoice {
 // Notification Service
 // ---------------------------------------------------------------------------
 model Notification {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
   type      String // INFO | SUCCESS | WARNING | ERROR
   // What it's about, for per-category email preferences (src/lib/notification-prefs.ts):
   // SUBMISSIONS | REVIEWS | EDITORIAL | ACCOUNT | BILLING | GENERAL
-  category  String   @default("GENERAL")
+  category  String    @default("GENERAL")
   // In-app path to open when the notification is clicked (e.g. /dashboard/reviewer-queue).
   link      String?
   title     String
   message   String
-  read      Boolean  @default(false)
+  read      Boolean   @default(false)
   articleId String?
   // When this notification went out by email (instantly or in a daily digest);
   // null while it's waiting for a digest or wasn't emailed.
   emailedAt DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   user    User     @relation(fields: [userId], references: [id])
   article Article? @relation(fields: [articleId], references: [id])
@@ -1873,9 +1877,9 @@ model Tenant {
   // as Department.headUserId and Grant.principalInvestigatorUserId — it
   // grants no permission of its own.
   plan           String?
-  pricePerYear   Decimal? @db.Decimal(12, 2)
+  pricePerYear   Decimal?  @db.Decimal(12, 2)
   billingOwnerId String?
-  billingOwner   User?    @relation("TenantBillingOwner", fields: [billingOwnerId], references: [id])
+  billingOwner   User?     @relation("TenantBillingOwner", fields: [billingOwnerId], references: [id])
   invoices       Invoice[]
 
   institution       Institution?        @relation(fields: [institutionId], references: [id])
@@ -2865,15 +2869,15 @@ model ArticleRevision {
 // Signed-in readers post; anyone can read visible comments; editors hide
 // comments and see reports.
 model ArticleComment {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   articleId String
   userId    String
   parentId  String?
   body      String
   // VISIBLE | HIDDEN
-  status    String   @default("VISIBLE")
-  reports   Int      @default(0)
-  createdAt DateTime @default(now())
+  status    String    @default("VISIBLE")
+  reports   Int       @default(0)
+  createdAt DateTime  @default(now())
   editedAt  DateTime?
 
   @@index([articleId, createdAt])

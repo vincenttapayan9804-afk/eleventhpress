@@ -13,12 +13,8 @@ import QRCode from "qrcode";
 import type { CertificateRecord } from "@/lib/certificate-verification-record";
 import { CERTIFICATE_SEALED_FIELDS } from "@/lib/certificate-verification-fields";
 import {
-  GOLD,
-  GOLD_DEEP,
   INK,
   MUTED,
-  PURPLE,
-  PURPLE_DEEP,
   RULE,
   TINT,
   drawCheckGlyph,
@@ -26,8 +22,16 @@ import {
   drawFingerprint,
   drawSeal,
   fmtDate,
+  paletteFor,
   pdfSafe,
 } from "@/lib/provenance-certificate-pdf";
+import { POWERED_BY_CREDIT } from "@/lib/powered-by";
+
+/** The issuing tenant's colours and logo (omit for the platform's own certificates). */
+export interface VerificationReportBranding {
+  brand?: { whitelabel: boolean; primaryHex?: string | null; accentHex?: string | null } | null;
+  logoPng?: Buffer | null;
+}
 
 const PLATFORM_ISSUER = "Eleventh Press International Publishing";
 const PAGE_W = 595.28;
@@ -41,7 +45,10 @@ const STYLE = {
   mismatch: { fill: "#fef2f2", stroke: "#f87171", ink: "#991b1b", accent: "#dc2626", head: "VERIFICATION FAILED — HASH MISMATCH" },
 } as const;
 
-export async function buildCertificateVerificationPdf(record: CertificateRecord): Promise<Buffer> {
+export async function buildCertificateVerificationPdf(record: CertificateRecord, branding: VerificationReportBranding = {}): Promise<Buffer> {
+  const pal = paletteFor(branding.brand);
+  const { purple: PURPLE, purpleDeep: PURPLE_DEEP, gold: GOLD, goldDeep: GOLD_DEEP } = pal;
+  const credit = branding.brand?.whitelabel ? POWERED_BY_CREDIT : null;
   // The certificate's issuing publisher (a whitelabel tenant's institution,
   // or the platform) — named throughout the report instead of Eleventh Press.
   const issuer = pdfSafe(record.issuer || PLATFORM_ISSUER);
@@ -112,9 +119,19 @@ export async function buildCertificateVerificationPdf(record: CertificateRecord)
     // Cover band
     doc.rect(0, 0, PAGE_W, 112).fill(doc.linearGradient(0, 0, PAGE_W, 112).stop(0, PURPLE_DEEP).stop(1, PURPLE));
     doc.rect(0, 112, PAGE_W, 2.2).fill(GOLD);
-    doc.font("Helvetica-Bold").fontSize(7.2).fillColor(GOLD).text(issuer.toUpperCase(), M, 30, { characterSpacing: 2.2, lineBreak: false, width: CW - 150, ellipsis: true });
-    doc.font("Times-Bold").fontSize(23).fillColor("#ffffff").text("Certificate Verification Report", M, 46, { lineBreak: false });
-    doc.font("Helvetica").fontSize(8.2).fillColor("#d9cff0").text("Cryptographic authenticity check of an issued certificate", M, 76, { lineBreak: false });
+    let bx = M;
+    if (branding.logoPng) {
+      try {
+        doc.save().roundedRect(M, 28, 56, 56, 6).fill("#ffffff").restore();
+        doc.image(branding.logoPng, M + 4, 32, { fit: [48, 48], align: "center", valign: "center" });
+        bx = M + 68;
+      } catch {
+        /* unreadable logo — the issuer name still identifies it */
+      }
+    }
+    doc.font("Helvetica-Bold").fontSize(7.2).fillColor(GOLD).text(issuer.toUpperCase(), bx, 30, { characterSpacing: 2.2, lineBreak: false, width: CW - 150 - (bx - M), ellipsis: true });
+    doc.font("Times-Bold").fontSize(bx > M ? 19 : 23).fillColor("#ffffff").text("Certificate Verification Report", bx, 46, { lineBreak: false });
+    doc.font("Helvetica").fontSize(8.2).fillColor("#d9cff0").text("Cryptographic authenticity check of an issued certificate", bx, 76, { lineBreak: false });
     doc.font("Helvetica-Bold").fontSize(6.3).fillColor(GOLD).text("SERIAL NUMBER", M, 30, { width: CW, align: "right", characterSpacing: 1.2, lineBreak: false });
     doc.font("Courier-Bold").fontSize(10).fillColor("#ffffff").text(record.serialNumber, M, 41, { width: CW, align: "right", lineBreak: false });
     doc.font("Helvetica-Bold").fontSize(6.3).fillColor(GOLD).text("CHECKED", M, 60, { width: CW, align: "right", characterSpacing: 1.2, lineBreak: false });
@@ -124,7 +141,7 @@ export async function buildCertificateVerificationPdf(record: CertificateRecord)
     const vy = 134;
     const vh = 84;
     doc.roundedRect(M, vy, CW, vh, 8).fillAndStroke(style.fill, style.stroke);
-    drawSeal(doc, M + 44, vy + vh / 2, 28, record.verdict);
+    drawSeal(doc, M + 44, vy + vh / 2, 28, record.verdict, pal);
     doc.font("Helvetica-Bold").fontSize(12).fillColor(style.ink).text(style.head, M + 88, vy + 16, { width: CW - 100, characterSpacing: 0.4 });
     doc.font("Helvetica").fontSize(8.6).fillColor(style.ink).text(
       record.verdict === "verified"
@@ -179,7 +196,7 @@ export async function buildCertificateVerificationPdf(record: CertificateRecord)
       doc.font("Courier-Bold").fontSize(8.6).fillColor(PURPLE).text(hash, M + 8, y + 16, { width: CW - 16, lineBreak: false, characterSpacing: 0.15 });
       let end = y + 34;
       if (fingerprint) {
-        drawFingerprint(doc, hash, M, y + 34, CW, 7);
+        drawFingerprint(doc, hash, M, y + 34, CW, 7, pal);
         end = y + 48;
       }
       doc.y = end;
@@ -265,7 +282,8 @@ export async function buildCertificateVerificationPdf(record: CertificateRecord)
       doc.moveTo(M, fy).lineTo(M + CW, fy).lineWidth(0.5).strokeColor(GOLD).stroke();
       doc.font("Helvetica-Bold").fontSize(6.6).fillColor(PURPLE).text(`${issuer.toUpperCase()}  ·  ${record.serialNumber}`, M, fy + 7, { characterSpacing: 0.8, lineBreak: false });
       doc.font("Helvetica").fontSize(6.8).fillColor(MUTED).text(`Page ${i - range.start + 1} of ${range.count}`, M, fy + 7, { width: CW, align: "right", lineBreak: false });
-      doc.font("Helvetica").fontSize(6.4).fillColor(MUTED).text(`Checked ${fmtDate(record.checkedAt, true)}  ·  ${record.urls.verify}`, M, fy + 17, { width: CW, lineBreak: false });
+      doc.font("Helvetica").fontSize(6.4).fillColor(MUTED).text(`Checked ${fmtDate(record.checkedAt, true)}  ·  ${record.urls.verify}`, M, fy + 17, { width: credit ? CW - 180 : CW, lineBreak: false, ellipsis: true });
+      if (credit) doc.font("Helvetica").fontSize(6.4).fillColor(MUTED).text(credit, M, fy + 17, { width: CW, align: "right", lineBreak: false });
       doc.page.margins.bottom = savedBottom;
     }
     doc.end();

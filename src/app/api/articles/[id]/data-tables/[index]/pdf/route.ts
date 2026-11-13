@@ -67,7 +67,16 @@ export async function GET(
       journalName: article.journal.name,
       journalIssn: identity.whitelabel ? identity.issn : article.journal.issn,
       publisher: identity.publisher,
-      whitelabel: identity.whitelabel ? { name: identity.publisher, tagline: tenantTagline, email: identity.email } : null,
+      whitelabel: identity.whitelabel
+        ? {
+            name: identity.publisher,
+            tagline: tenantTagline,
+            email: identity.email,
+            primaryHex: identity.primaryHex,
+            accentHex: identity.accentHex,
+            eissn: identity.eissn,
+          }
+        : null,
       volume: article.issue?.volume ?? null,
       issueNumber: article.issue?.issueNumber ?? null,
       year: article.issue?.year ?? null,

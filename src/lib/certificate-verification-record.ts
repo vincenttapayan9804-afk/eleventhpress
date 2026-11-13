@@ -57,7 +57,8 @@ export interface CertificateRecord {
 
 export type CertificateLookup = { kind: "not-found" } | { kind: "found"; record: CertificateRecord };
 
-const SERIAL_PATTERN = /^EP-[A-Z]+-[0-9A-F]+$/i;
+// "EP-…" for the platform; a whitelabel tenant uses its own initials ("RP-REC-…").
+const SERIAL_PATTERN = /^[A-Z]{2,5}-[A-Z]+-[0-9A-F]+$/i;
 
 /** Pure part of the check: the payload hashed at issuance, rebuilt from the row. */
 export function certificatePayloadFromRow(row: {

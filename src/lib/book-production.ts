@@ -24,6 +24,7 @@ import { buildEpub as buildEpubZip, type EpubChapter } from "@/lib/epub-builder"
 import { parseAuthors } from "@/lib/article";
 import { JOURNAL_IDENTITY } from "@/lib/site";
 import { logoPngOf, publisherIdentityForTenantId, PLATFORM_ACCENT_HEX, PLATFORM_PRIMARY_HEX } from "@/lib/publisher-identity";
+import { POWERED_BY_CREDIT } from "@/lib/powered-by";
 import PDFDocument from "pdfkit";
 
 interface Chapter {
@@ -46,7 +47,14 @@ export function buildEpub(
   brand?: BookBrand
 ): Buffer {
   return buildEpubZip(
-    { id: book.id, title: book.title, subtitle: book.subtitle, authors: safeAuthorNames(book.authors), publisher: brand?.publisher },
+    {
+      id: book.id,
+      title: book.title,
+      subtitle: book.subtitle,
+      authors: safeAuthorNames(book.authors),
+      publisher: brand?.publisher,
+      credit: brand?.whitelabel ? POWERED_BY_CREDIT : null,
+    },
     chapters as EpubChapter[]
   );
 }
@@ -132,12 +140,25 @@ export function buildBookPdf(
       const range = doc.bufferedPageRange();
       for (let i = range.start; i < range.start + range.count; i++) {
         doc.switchToPage(i);
+        // Below-margin footer must not trigger an automatic page break.
+        const pageBottom = doc.page.margins.bottom;
+        doc.page.margins.bottom = 0;
         doc.font("Helvetica").fontSize(7.5).fillColor(BRAND_MAROON).text(
           `${publisher} · Page ${i - range.start + 1}`,
           doc.page.margins.left,
-          doc.page.height - doc.page.margins.bottom + 18,
-          { align: "center", width: doc.page.width - doc.page.margins.left - doc.page.margins.right }
+          doc.page.height - pageBottom + 18,
+          { align: "center", width: doc.page.width - doc.page.margins.left - doc.page.margins.right, lineBreak: false }
         );
+        if (brand?.whitelabel) {
+          // Fixed platform credit under the running footer.
+          doc.font("Helvetica").fontSize(6.5).fillColor("#888888").text(
+            POWERED_BY_CREDIT,
+            doc.page.margins.left,
+            doc.page.height - pageBottom + 30,
+            { align: "center", width: doc.page.width - doc.page.margins.left - doc.page.margins.right, lineBreak: false }
+          );
+        }
+        doc.page.margins.bottom = pageBottom;
       }
 
       doc.end();

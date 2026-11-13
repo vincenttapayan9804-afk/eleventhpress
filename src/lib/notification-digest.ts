@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { POWERED_BY_CREDIT } from "@/lib/powered-by";
 import { sendEmail } from "@/lib/email";
 import { emailBrandOf } from "@/lib/email-brand";
 import { APP_BASE_URL } from "@/lib/site";
@@ -57,6 +58,7 @@ export async function sendNotificationDigests(): Promise<{ users: number; notifi
         ${items}
         <tr><td style="padding-top:24px;"><a href="${APP_BASE_URL}/dashboard" style="display:inline-block;background:${color};color:#fff;text-decoration:none;padding:10px 20px;border-radius:6px;font-size:14px;">Open your dashboard</a></td></tr>
         <tr><td style="padding-top:24px;font-size:12px;color:#9a94a6;">You get one summary a day because of your email preferences. <a href="${APP_BASE_URL}/dashboard/profile#notifications" style="color:#6b6478;">Change preferences</a> · <a href="${esc(unsubscribe)}" style="color:#6b6478;">Unsubscribe</a></td></tr>
+        ${brand ? `<tr><td style="padding-top:12px;font-size:10px;color:#b3aebd;">${POWERED_BY_CREDIT}</td></tr>` : ""}
       </table></td></tr></table></body></html>`;
     const result = await sendEmail({
       to: user.email,
