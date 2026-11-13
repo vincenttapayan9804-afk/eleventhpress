@@ -151,7 +151,7 @@ async function callLLM(article: any, authors: any[], reviewerPool: any[]): Promi
 
   const journalName = (await publisherIdentityForJournal(article.journal ?? null)).journalName;
   const userPrompt = `JOURNAL AIMS & SCOPE:
-${aimsScope(journalName)}
+${article.journal?.aimsScope?.trim() || aimsScope(journalName)}
 
 MANUSCRIPT:
 Title: ${article.title}

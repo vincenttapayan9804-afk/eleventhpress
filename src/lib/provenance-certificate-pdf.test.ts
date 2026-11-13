@@ -8,7 +8,8 @@
 import { describe, test, expect } from "bun:test";
 import { PDFDocument } from "pdf-lib";
 import { inflateSync } from "zlib";
-import { buildProvenanceCertificatePdf, pdfSafe, PROVENANCE_WATERMARK, provenanceCertificateFileName } from "./provenance-certificate-pdf";
+import { buildProvenanceCertificatePdf, paletteFor, pdfSafe, PLATFORM_PALETTE, PROVENANCE_WATERMARK, provenanceCertificateFileName } from "./provenance-certificate-pdf";
+import { POWERED_BY_CREDIT } from "./powered-by";
 import type { ProvenanceRecord } from "./article-provenance-record";
 
 function record(overrides: Partial<ProvenanceRecord> = {}): ProvenanceRecord {
@@ -97,6 +98,31 @@ describe("provenance certificate PDF", () => {
     expect(texts.length).toBeGreaterThan(1);
     for (const t of texts) expect(t).toContain(PROVENANCE_WATERMARK);
     expect(PROVENANCE_WATERMARK).toBe("Published at Eleventh Press International Publishing");
+  });
+
+  test("a whitelabel tenant's certificate names the tenant and carries the fixed platform credit", async () => {
+    const brand = { whitelabel: true, publisher: "Ron Publishing", primaryHex: "#0f766e", accentHex: "#f59e0b" };
+    const texts = await pageTexts(await buildProvenanceCertificatePdf(record({ brand } as Partial<ProvenanceRecord>)));
+    for (const t of texts) {
+      expect(t).toContain("Published at Ron Publishing");
+      expect(t).toContain(POWERED_BY_CREDIT);
+    }
+  });
+
+  test("the platform's own certificate has no credit line", async () => {
+    const texts = await pageTexts(await buildProvenanceCertificatePdf(record()));
+    for (const t of texts) expect(t).not.toContain(POWERED_BY_CREDIT);
+  });
+
+  test("paletteFor keeps purple/gold for the platform and uses tenant colours otherwise", () => {
+    expect(paletteFor(null)).toEqual(PLATFORM_PALETTE);
+    expect(paletteFor({ whitelabel: false, primaryHex: "#0f766e" })).toEqual(PLATFORM_PALETTE);
+    const p = paletteFor({ whitelabel: true, primaryHex: "#0f766e", accentHex: "#f59e0b" });
+    expect(p.purple).toBe("#0f766e");
+    expect(p.gold).toBe("#f59e0b");
+    expect(p.purpleDeep).not.toBe("#0f766e");
+    // A tenant with no colours of its own keeps the default design.
+    expect(paletteFor({ whitelabel: true })).toEqual(PLATFORM_PALETTE);
   });
 
   test("pdfSafe folds non-WinAnsi letters instead of printing mojibake", () => {

@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sweepStuckGalleyJobs } from "@/lib/galley-job";
+import { sweepStaleTenantGalleys } from "@/lib/tenant-document-refresh";
+
+export const maxDuration = 60;
 
 /**
  * GET /api/cron/galley-sweep
@@ -29,5 +32,8 @@ export async function GET(req: NextRequest) {
   }
 
   const result = await sweepStuckGalleyJobs();
-  return NextResponse.json(result);
+  // Whitelabel galleys left stale by a branding change that didn't finish
+  // re-rendering in the moment (see src/lib/tenant-document-refresh.ts).
+  const tenantGalleys = await sweepStaleTenantGalleys(4, 25_000).catch(() => ({ rendered: 0 }));
+  return NextResponse.json({ ...result, tenantGalleys });
 }

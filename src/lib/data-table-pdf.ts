@@ -12,6 +12,8 @@
 import PDFDocument from "pdfkit";
 import QRCode from "qrcode";
 import { JOURNAL_IDENTITY } from "@/lib/site";
+import { paletteFor } from "@/lib/provenance-certificate-pdf";
+import { POWERED_BY_CREDIT } from "@/lib/powered-by";
 import { pdfSafe } from "@/lib/provenance-certificate-pdf";
 import { formatCitation, parseAuthors } from "@/lib/article";
 import { chartRows, parseNumericCell, type ExtractedTable } from "@/lib/data-tables";
@@ -54,7 +56,16 @@ export interface DataTablePdfArticle {
    * and contact email replace Eleventh Press's, and no platform ISSN is
    * ever printed.
    */
-  whitelabel?: { name: string; tagline?: string | null; email?: string | null } | null;
+  whitelabel?: {
+    name: string;
+    tagline?: string | null;
+    email?: string | null;
+    /** Tenant brand colours (#hex); the purple/gold design is kept when unset. */
+    primaryHex?: string | null;
+    accentHex?: string | null;
+    /** Online ISSN, printed beside the ISSN when set. */
+    eissn?: string | null;
+  } | null;
 }
 
 export interface DataTablePdfInput {
@@ -143,6 +154,11 @@ export function dataTablePdfFileName(article: { title: string }, tableNumber: nu
 export async function buildDataTablePdf(input: DataTablePdfInput): Promise<Buffer> {
   const { article, table, tableNumber, tableCount } = input;
   const wl = article.whitelabel ?? null;
+  // Whitelabel: the tenant's colours replace the purple/gold palette.
+  const { purple: PURPLE, purpleDeep: PURPLE_DEEP, gold: GOLD, goldDeep: GOLD_DEEP } = paletteFor(
+    wl ? { whitelabel: true, primaryHex: wl.primaryHex, accentHex: wl.accentHex } : null
+  );
+  const credit = wl ? POWERED_BY_CREDIT : null;
   const orgName = wl?.name || J.name;
   const issnLine = article.journalIssn || (wl ? null : J.issn);
   const generatedAt = input.generatedAt ?? new Date();
@@ -428,7 +444,10 @@ export async function buildDataTablePdf(input: DataTablePdfInput): Promise<Buffe
         .text(t([...new Set([article.publisher || orgName, article.journalName])].join("  ·  ").toUpperCase()), M, fy + 7, { width: CW - 80, characterSpacing: 0.6, lineBreak: false, ellipsis: true, height: 9 });
       doc.font("Helvetica").fontSize(6.8).fillColor(MUTED).text(`Page ${pageNo} of ${range.count}`, M, fy + 7, { width: CW, align: "right", lineBreak: false });
       doc.font("Helvetica").fontSize(6.3).fillColor(MUTED)
-        .text(t([issnLine ? `ISSN ${issnLine} (Online)` : null, J.license, wl ? wl.email : J.editorialEmail, `Generated ${generated}`].filter(Boolean).join("  ·  ")), M, fy + 17, { width: CW, lineBreak: false, ellipsis: true, height: 9 });
+        .text(t([issnLine ? `ISSN ${issnLine}${wl?.eissn ? "" : " (Online)"}` : null, wl?.eissn ? `e-ISSN ${wl.eissn}` : null, J.license, wl ? wl.email : J.editorialEmail, `Generated ${generated}`].filter(Boolean).join("  ·  ")), M, fy + 17, { width: CW, lineBreak: false, ellipsis: true, height: 9 });
+      if (credit) {
+        doc.font("Helvetica").fontSize(6).fillColor(MUTED).text(credit, M, fy + 27, { width: CW, align: "center", lineBreak: false });
+      }
 
       doc.page.margins.bottom = savedBottom;
     }

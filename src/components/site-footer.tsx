@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { POWERED_BY_CREDIT, POWERED_BY_URL } from "@/lib/powered-by";
 import { useApp } from "@/lib/store";
 import {
   Cookie,
@@ -202,11 +203,16 @@ export function SiteFooter() {
           <div className="mt-12 flex flex-col items-start justify-between gap-3 border-t border-[var(--royal-300)]/10 pt-6 text-xs text-muted-foreground sm:flex-row sm:items-center">
             {whitelabel ? (
               <p>
-                © {new Date().getFullYear()} {branding.siteName || branding.tenantName}. Powered by{" "}
-                <a href={branding.source === "portal" ? "/t/exit" : "/"} className="underline-offset-2 hover:text-primary hover:underline">
-                  Eleventh Press
+                © {new Date().getFullYear()} {branding.siteName || branding.tenantName}.{" "}
+                {/* Fixed platform credit — not a branding setting, so tenants can't change or remove it. */}
+                <a
+                  href={branding.source === "portal" ? "/t/exit" : POWERED_BY_URL}
+                  {...(branding.source === "portal" ? {} : { target: "_blank", rel: "noopener" })}
+                  data-testid="powered-by"
+                  className="underline-offset-2 hover:text-primary hover:underline"
+                >
+                  {POWERED_BY_CREDIT}
                 </a>
-                .
               </p>
             ) : (
               <p>{t("copyright", { year: new Date().getFullYear() })}</p>

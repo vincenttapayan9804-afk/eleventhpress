@@ -89,6 +89,22 @@ export function AboutView() {
   const { setView } = useApp();
   const t = useTranslations("home");
   const [board, setBoard] = useState<BoardMember[] | null>(null);
+  // A whitelabel tenant's own journal details (Branding → Journal & publication details).
+  const [journal, setJournal] = useState<{
+    name: string;
+    publisher: string;
+    issn: string | null;
+    eissn: string | null;
+    description: string | null;
+    aimsScope: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!whitelabel) return;
+    apiFetch<{ journal: typeof journal }>("/api/tenant/journal")
+      .then(({ journal }) => setJournal(journal))
+      .catch(() => setJournal(null));
+  }, [whitelabel]);
 
   useEffect(() => {
     apiFetch<{ board: BoardMember[] }>("/api/editorial-board")
@@ -104,6 +120,18 @@ export function AboutView() {
             <p className="eyebrow">About</p>
             <h1 className="mt-2 font-display text-4xl font-semibold sm:text-5xl">{branding.siteName || branding.tenantName}</h1>
             {branding.tagline && <p className="mt-3 font-display text-lg text-royal-gradient">{branding.tagline}</p>}
+            {journal && (journal.name !== (branding.siteName || branding.tenantName) || journal.issn || journal.eissn) && (
+              <p className="mt-3 text-sm text-muted-foreground" data-testid="about-journal">
+                {[
+                  journal.name !== (branding.siteName || branding.tenantName) ? journal.name : null,
+                  journal.issn ? `ISSN ${journal.issn}` : null,
+                  journal.eissn ? `e-ISSN ${journal.eissn}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+            )}
+            {journal?.description && <p className="mt-3 max-w-3xl text-base leading-relaxed text-foreground/85">{journal.description}</p>}
             <p className="mt-3 text-sm text-muted-foreground">Research publishing platform powered by Eleventh Press International Publishing</p>
             {(branding.officialEmail || branding.supportEmail || branding.phone || branding.websiteUrl || branding.address) && (
               <div className="mt-5 grid gap-2 rounded-lg border border-border bg-card/60 p-4 text-sm sm:grid-cols-2" data-testid="about-contact">
@@ -141,6 +169,9 @@ export function AboutView() {
       <section className="mt-10">
         <h2 className="font-display text-2xl font-semibold">Aims &amp; scope</h2>
         <div className="mt-4 space-y-4 text-base leading-relaxed text-foreground/85 text-justify">
+          {journal?.aimsScope ? (
+            journal.aimsScope.split(/\n{2,}/).map((para, i) => <p key={i}>{para}</p>)
+          ) : (
           <p>
             {orgName} is not just a journal — it&apos;s a complete
             publishing operation built around one submission. We handle rigorous peer
@@ -155,6 +186,7 @@ export function AboutView() {
             disciplinary boundaries, and that a press built for the next decade of
             scholarship should be built for reach as much as rigor.
           </p>
+          )}
           <p>
             We operate a double-blind peer-review process by default and offer open and
             single-blind tracks where disciplinary norms warrant. All published articles

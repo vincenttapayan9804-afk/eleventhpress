@@ -23,6 +23,8 @@ import { JOURNAL_IDENTITY } from "./site";
 export const PLATFORM_PUBLISHER_NAME = JOURNAL_IDENTITY.name;
 export const PLATFORM_SHORT_NAME = JOURNAL_IDENTITY.shortName;
 
+export { POWERED_BY_CREDIT, POWERED_BY_URL, poweredByFor } from "./powered-by";
+
 /** Default brand colours used across the platform's own documents. */
 export const PLATFORM_PRIMARY_HEX = "#4c1d95";
 export const PLATFORM_ACCENT_HEX = "#c9a55c";
@@ -38,6 +40,10 @@ export interface PublisherIdentity {
   journalName: string;
   /** The journal's ISSN, or null — a tenant never inherits the platform ISSN. */
   issn: string | null;
+  /** Online ISSN (e-ISSN), when the tenant has set one. */
+  eissn: string | null;
+  /** ISO 4 abbreviated journal title, when set. */
+  abbreviation: string | null;
   /** Contact email for the publisher, if one is configured. */
   email: string | null;
   /** Postal address / location line, if configured. */
@@ -69,8 +75,13 @@ export interface JournalLike {
   name?: string | null;
   publisher?: string | null;
   issn?: string | null;
+  eissn?: string | null;
+  abbreviation?: string | null;
   tenantId?: string | null;
 }
+
+/** The journal columns every identity lookup needs. */
+export const JOURNAL_SELECT = { name: true, publisher: true, issn: true, eissn: true, abbreviation: true, tenantId: true } as const;
 
 const HEX = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
 
@@ -99,6 +110,8 @@ export const PLATFORM_IDENTITY: PublisherIdentity = Object.freeze({
   shortName: PLATFORM_SHORT_NAME,
   journalName: PLATFORM_PUBLISHER_NAME,
   issn: JOURNAL_IDENTITY.issn,
+  eissn: null,
+  abbreviation: "EPIP Int. J. Multidiscip. Res.",
   email: JOURNAL_IDENTITY.editorialEmail,
   location: JOURNAL_IDENTITY.location,
   websiteUrl: null,
@@ -130,6 +143,8 @@ export function publisherIdentityOf(
     shortName: org,
     journalName: clean(journal?.name) ?? org,
     issn: clean(journal?.issn),
+    eissn: clean(journal?.eissn),
+    abbreviation: clean(journal?.abbreviation),
     email: clean(tenant.officialEmail) ?? clean(tenant.supportEmail),
     location: clean(tenant.address),
     websiteUrl: clean(tenant.websiteUrl),
@@ -150,7 +165,7 @@ export async function publisherIdentityForTenantId(tenantId: string | null | und
   const tenant = await findTenant(tenantId);
   if (!tenant || tenant.isPlatform) return publisherIdentityOf(tenant, null);
   const journal = await db.journal
-    .findFirst({ where: { tenantId: tenant.id }, select: { name: true, publisher: true, issn: true, tenantId: true } })
+    .findFirst({ where: { tenantId: tenant.id }, select: JOURNAL_SELECT })
     .catch(() => null);
   return publisherIdentityOf(tenant, journal);
 }
@@ -164,7 +179,7 @@ export async function publisherIdentityForJournal(journal: JournalLike | null | 
 /** Identity for an article, via its journal's tenant. */
 export async function publisherIdentityForArticle(articleId: string): Promise<PublisherIdentity> {
   const article = await db.article
-    .findUnique({ where: { id: articleId }, select: { journal: { select: { name: true, publisher: true, issn: true, tenantId: true } } } })
+    .findUnique({ where: { id: articleId }, select: { journal: { select: JOURNAL_SELECT } } })
     .catch(() => null);
   return publisherIdentityForJournal(article?.journal ?? null);
 }

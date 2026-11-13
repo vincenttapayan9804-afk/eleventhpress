@@ -119,9 +119,10 @@ const CORRECTION_LABELS: Record<string, string> = {
 /** Short, human-quotable reference for a seal: year of publication plus the
  * leading bytes of the content hash. Derived, not stored — it changes when a
  * record is legitimately resealed, exactly like the hash it abbreviates. */
-export function sealReferenceFor(contentHash: string, publishedAt: Date | null): string {
+export function sealReferenceFor(contentHash: string, publishedAt: Date | null, whitelabel = false): string {
   const year = publishedAt ? publishedAt.getUTCFullYear() : "0000";
-  return `EPIP-PV-${year}-${contentHash.slice(0, 8).toUpperCase()}`;
+  // A whitelabel tenant's seals don't carry the platform's "EPIP" prefix.
+  return `${whitelabel ? "" : "EPIP-"}PV-${year}-${contentHash.slice(0, 8).toUpperCase()}`;
 }
 
 function iso(d: Date | null | undefined): string | null {
@@ -243,7 +244,7 @@ export async function loadProvenanceRecord(id: string): Promise<ProvenanceLookup
 
   const record: ProvenanceRecord = {
     id: article.id,
-    sealReference: sealReferenceFor(article.contentHash, article.publishedAt),
+    sealReference: sealReferenceFor(article.contentHash, article.publishedAt, identity.whitelabel),
     verdict,
     unavailable,
     checks,

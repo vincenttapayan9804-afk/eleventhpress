@@ -68,7 +68,7 @@ export function ResearchLabAuditTab() {
       <div>
         <p className="eyebrow flex items-center gap-1.5"><ShieldCheck className="h-3 w-3" /> Research Lab Activity</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Real, aggregated usage of the Eleventh Research Lab across every researcher — every figure below is a live count, not an estimate.
+          Real, aggregated usage of the Research Lab across every researcher — every figure below is a live count, not an estimate.
         </p>
       </div>
 

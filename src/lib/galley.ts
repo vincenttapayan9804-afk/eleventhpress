@@ -28,6 +28,7 @@ import { putObject } from "@/lib/storage";
 import { buildEpub } from "@/lib/epub-builder";
 import { parseAuthors } from "@/lib/article";
 import { ARTICLE_LANGUAGE, JOURNAL_IDENTITY } from "@/lib/site";
+import { POWERED_BY_CREDIT } from "@/lib/powered-by";
 
 const PLATFORM_PUBLISHER_NAME = JOURNAL_IDENTITY.name;
 
@@ -63,6 +64,10 @@ export interface GalleyBrand {
   accentHex?: string;
   /** Tenant logo, already converted to PNG (PDF masthead only). */
   logoPng?: Buffer | null;
+  /** Online ISSN, printed beside the ISSN when the tenant set one. */
+  eissn?: string | null;
+  /** ISO 4 abbreviated title for JATS <abbrev-journal-title>. */
+  abbreviation?: string | null;
 }
 
 function brandOf(meta: GalleyBrand & { issn?: string }) {
@@ -72,13 +77,23 @@ function brandOf(meta: GalleyBrand & { issn?: string }) {
     primary: meta.primaryHex || BRAND_PURPLE,
     accent: meta.accentHex || BRAND_GOLD,
     issn: (meta.issn || "").trim(),
+    eissn: (meta.eissn || "").trim(),
+    abbreviation: (meta.abbreviation || "").trim(),
+    /** Fixed platform credit on every whitelabel galley; null on the platform's own. */
+    credit: meta.whitelabel ? POWERED_BY_CREDIT : null,
   };
+}
+
+/** "ISSN xxxx · e-ISSN yyyy" (either omitted when unset). */
+function issnText(b: ReturnType<typeof brandOf>): string {
+  return [b.issn && `ISSN ${b.issn}`, b.eissn && `e-ISSN ${b.eissn}`].filter(Boolean).join(" · ");
 }
 
 /** "Publisher — ISSN xxxx" (ISSN omitted when the journal has none). */
 function footerLine(meta: GalleyBrand & { issn?: string }): string {
   const b = brandOf(meta);
-  return b.issn ? `${b.publisher} — ISSN ${b.issn}` : b.publisher;
+  const issns = issnText(b);
+  return issns ? `${b.publisher} — ${issns}` : b.publisher;
 }
 
 function cssString(s: string): string {
@@ -89,7 +104,7 @@ function galleyCss(meta: GalleyBrand & { issn?: string }): string {
   const b = brandOf(meta);
   return EPIP_CSS.replace(/#4c1d95/g, b.primary)
     .replace(/#c9a55c/g, b.accent)
-    .replace("__EPIP_FOOTER__", cssString(footerLine(meta)));
+    .replace("__EPIP_FOOTER__", cssString(b.credit ? `${footerLine(meta)} · ${b.credit}` : footerLine(meta)));
 }
 
 const EPIP_CSS = `
@@ -487,14 +502,18 @@ year: ${meta.year}
 
 function injectBrand(html: string, meta: any): string {
   const b = brandOf(meta);
-  const issnPart = b.issn ? `ISSN ${escapeXml(b.issn)} · ` : "";
+  const issnPart = issnText(b) ? `${escapeXml(issnText(b))} · ` : "";
   const header = `
 <header style="border-bottom: 2px solid ${b.primary}; padding: 1em 0; margin-bottom: 2em;">
   <div style="font-family: sans-serif; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.18em; color: ${b.accent}; font-weight: 600;">${escapeXml(b.publisher)}</div>
   <div style="font-family: Georgia, serif; font-size: 1.1rem; color: ${b.primary}; font-weight: 600; margin-top: 0.2em;">${escapeXml(meta.journalName)}</div>
   <div style="font-size: 0.75rem; color: #666; margin-top: 0.2em;">${issnPart}Vol. ${meta.volume}, Iss. ${meta.issue} (${meta.year}) · DOI: <a href="https://doi.org/${escapeXml(meta.doi)}">${escapeXml(meta.doi)}</a></div>
 </header>`;
-  return html.replace(/<body>/, `<body>${header}`);
+  const withHeader = html.replace(/<body>/, `<body>${header}`);
+  if (!b.credit) return withHeader;
+  const footer = `
+<footer style="border-top: 1px solid ${b.primary}; margin-top: 3em; padding-top: 0.8em; font-family: sans-serif; font-size: 0.7rem; color: #666; text-align: center;">${escapeXml(b.publisher)} · ${escapeXml(b.credit)}</footer>`;
+  return withHeader.includes("</body>") ? withHeader.replace(/<\/body>/, `${footer}</body>`) : withHeader + footer;
 }
 
 /** Branded HTML galley used whenever Pandoc isn't available — the actual
@@ -550,9 +569,9 @@ function buildFallbackJats(meta: any, bodyHtml?: string | null): string {
       ${b.issn ? `<journal-id journal-id-type="issn">${escapeXml(b.issn)}</journal-id>` : `<journal-id journal-id-type="publisher-id">${escapeXml(meta.journalName)}</journal-id>`}
       <journal-title-group>
         <journal-title>${escapeXml(meta.journalName)}</journal-title>
-        ${b.whitelabel ? "" : "<abbrev-journal-title>EPIP Int. J. Multidiscip. Res.</abbrev-journal-title>"}
+        ${b.whitelabel ? (b.abbreviation ? `<abbrev-journal-title>${escapeXml(b.abbreviation)}</abbrev-journal-title>` : "") : "<abbrev-journal-title>EPIP Int. J. Multidiscip. Res.</abbrev-journal-title>"}
       </journal-title-group>
-      ${b.issn ? `<issn pub-type="epub">${escapeXml(b.issn)}</issn>` : ""}
+      ${b.eissn ? `${b.issn ? `<issn pub-type="ppub">${escapeXml(b.issn)}</issn>` : ""}<issn pub-type="epub">${escapeXml(b.eissn)}</issn>` : b.issn ? `<issn pub-type="epub">${escapeXml(b.issn)}</issn>` : ""}
       <publisher><publisher-name>${escapeXml(b.publisher)}</publisher-name></publisher>
     </journal-meta>
     <article-meta>
@@ -608,15 +627,18 @@ const BRAND_INK = "#241b3a";
  * galleys predate the bump, so a template change doesn't require a
  * manual --force run to actually reach already-published articles.
  */
-export const GALLEY_TEMPLATE_VERSION = 2;
+export const GALLEY_TEMPLATE_VERSION = 4;
 
 /**
- * Version 2 only changed whitelabel tenants' galleys (their own publisher,
- * ISSN, colours and logo instead of Eleventh Press's); the platform's own
- * galleys render byte-identically to version 1, so the backfill only needs
- * to re-render tenant articles for it.
+ * The version the platform's own (non-tenant) galleys must reach. Versions
+ * 2 and 4 of GALLEY_TEMPLATE_VERSION only changed whitelabel tenants'
+ * galleys (their own publisher, ISSN, e-ISSN, colours, logo and the
+ * "Powered by" credit), so platform articles aren't re-rendered for those.
+ * 3 is the footer fix that applies to every PDF galley: the running footer
+ * no longer spills onto a blank extra page. It is set above any version a
+ * platform article could have stored before the fix (at most 2).
  */
-export const PLATFORM_GALLEY_TEMPLATE_VERSION = 1;
+export const PLATFORM_GALLEY_TEMPLATE_VERSION = 3;
 
 /** Strips tags/entities down to readable body text for the PDF body flow. */
 export function htmlToPlainText(html: string, stripLeadingParagraphs: (string | undefined)[] = []): string {
@@ -703,7 +725,7 @@ function renderPdfKitGalley(meta: any, htmlContent: string): Promise<Buffer> {
       doc.moveDown(0.2);
       doc.fillColor(BRAND_PURPLE).font("Helvetica-Bold").fontSize(12).text(meta.journalName || "");
       doc.fillColor("#666666").font("Helvetica").fontSize(8).text(
-        `${b.issn ? `ISSN ${b.issn}` : b.whitelabel ? "" : "ISSN —"}${b.issn || !b.whitelabel ? " · " : ""}Vol. ${meta.volume}, Iss. ${meta.issue} (${meta.year}) · DOI: ${meta.doi || "—"}`
+        `${issnText(b) || (b.whitelabel ? "" : "ISSN —")}${issnText(b) || !b.whitelabel ? " · " : ""}Vol. ${meta.volume}, Iss. ${meta.issue} (${meta.year}) · DOI: ${meta.doi || "—"}`
       );
       doc.moveDown(0.3);
       doc.strokeColor(BRAND_PURPLE).lineWidth(1.2)
@@ -754,18 +776,32 @@ function renderPdfKitGalley(meta: any, htmlContent: string): Promise<Buffer> {
         }
       }
 
-      // Footer on every page
+      // Footer on every page. Writing below the bottom margin must not make
+      // PDFKit start a new page (it used to push every footer onto a blank
+      // extra page), so the margin is lifted while the footer is drawn.
       const range = doc.bufferedPageRange();
       for (let i = range.start; i < range.start + range.count; i++) {
         doc.switchToPage(i);
+        const pageBottom = doc.page.margins.bottom;
+        doc.page.margins.bottom = 0;
         doc.font("Helvetica").fontSize(7.5).fillColor(BRAND_PURPLE).text(
           b.whitelabel
             ? `${footerLine(meta)} · Page ${i - range.start + 1}`
             : `${b.publisher} — ISSN ${b.issn || "—"} · Page ${i - range.start + 1}`,
           doc.page.margins.left,
-          doc.page.height - doc.page.margins.bottom + 18,
-          { align: "center", width: doc.page.width - doc.page.margins.left - doc.page.margins.right }
+          doc.page.height - pageBottom + 18,
+          { align: "center", width: doc.page.width - doc.page.margins.left - doc.page.margins.right, lineBreak: false }
         );
+        if (b.credit) {
+          // Fixed platform credit under the running footer of every page.
+          doc.font("Helvetica").fontSize(6.5).fillColor("#888888").text(
+            b.credit,
+            doc.page.margins.left,
+            doc.page.height - pageBottom + 30,
+            { align: "center", width: doc.page.width - doc.page.margins.left - doc.page.margins.right, lineBreak: false }
+          );
+        }
+        doc.page.margins.bottom = pageBottom;
       }
 
       doc.end();

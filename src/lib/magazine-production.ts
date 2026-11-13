@@ -15,6 +15,7 @@ import { putObject } from "@/lib/storage";
 import { escapeXml, htmlToPlainText, renderMinimalErrorPdf } from "@/lib/galley";
 import { buildEpub as buildEpubZip, type EpubChapter } from "@/lib/epub-builder";
 import { bookBrandFor, type BookBrand } from "@/lib/book-production";
+import { POWERED_BY_CREDIT } from "@/lib/powered-by";
 import PDFDocument from "pdfkit";
 
 interface Piece {
@@ -40,6 +41,7 @@ export function buildMagazineEpub(
       subtitle: null,
       authors: [magazineName],
       publisher: brand?.publisher,
+      credit: brand?.whitelabel ? POWERED_BY_CREDIT : null,
     },
     pieces as EpubChapter[]
   );
@@ -112,12 +114,24 @@ export function buildMagazinePdf(
       const range = doc.bufferedPageRange();
       for (let i = range.start; i < range.start + range.count; i++) {
         doc.switchToPage(i);
+        // Below-margin footer must not trigger an automatic page break.
+        const pageBottom = doc.page.margins.bottom;
+        doc.page.margins.bottom = 0;
         doc.font("Helvetica").fontSize(7.5).fillColor(BRAND_MAROON).text(
           `${magazineName} · Page ${i - range.start + 1}`,
           doc.page.margins.left,
-          doc.page.height - doc.page.margins.bottom + 18,
-          { align: "center", width: doc.page.width - doc.page.margins.left - doc.page.margins.right }
+          doc.page.height - pageBottom + 18,
+          { align: "center", width: doc.page.width - doc.page.margins.left - doc.page.margins.right, lineBreak: false }
         );
+        if (brand?.whitelabel) {
+          doc.font("Helvetica").fontSize(6.5).fillColor("#888888").text(
+            POWERED_BY_CREDIT,
+            doc.page.margins.left,
+            doc.page.height - pageBottom + 30,
+            { align: "center", width: doc.page.width - doc.page.margins.left - doc.page.margins.right, lineBreak: false }
+          );
+        }
+        doc.page.margins.bottom = pageBottom;
       }
 
       doc.end();

@@ -14,7 +14,7 @@ import { getObject } from "@/lib/storage";
 import { generateGalleys, type GalleyBrand } from "@/lib/galley";
 import { logoPngOf, publisherIdentityForJournal } from "@/lib/publisher-identity";
 
-type JournalRow = { name: string; publisher: string | null; issn: string | null; tenantId: string | null } | null;
+type JournalRow = { name: string; publisher: string | null; issn: string | null; eissn?: string | null; abbreviation?: string | null; tenantId: string | null } | null;
 
 /**
  * Journal name, ISSN and brand for an article's galleys — the publishing
@@ -33,6 +33,8 @@ export async function galleyIdentityFor(
     primaryHex: id.primaryHex,
     accentHex: id.accentHex,
     logoPng: id.whitelabel ? await logoPngOf(id.logoUrl) : null,
+    eissn: id.whitelabel ? id.eissn : null,
+    abbreviation: id.whitelabel ? id.abbreviation : null,
   };
 }
 

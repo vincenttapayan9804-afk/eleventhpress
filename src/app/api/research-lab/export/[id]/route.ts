@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { buildExportMarkdown, buildExportPdf, buildExportBibliography } from "@/lib/research-lab-export";
 import { canViewResearchLabDocument } from "@/lib/research-lab-access";
+import { publisherIdentityForTenantId } from "@/lib/publisher-identity";
 
 const RESEARCH_LAB_ROLES = ["AUTHOR", "EXPERT", "REVIEWER", "EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN"];
 
@@ -48,7 +49,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     });
   }
   if (format === "pdf") {
-    const pdf = await buildExportPdf(doc);
+    const identity = await publisherIdentityForTenantId(session.tenantId);
+    const pdf = await buildExportPdf(doc, identity.whitelabel ? { publisher: identity.shortName, primaryHex: identity.primaryHex } : null);
     return new NextResponse(new Uint8Array(pdf), {
       headers: {
         "Content-Type": "application/pdf",

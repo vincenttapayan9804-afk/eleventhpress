@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { POWERED_BY_CREDIT } from "@/lib/powered-by";
 
 /**
  * Transactional email via Resend — the LiveMode-gated-external-service
@@ -128,6 +129,7 @@ export function notificationEmailHtml(params: {
                 : "Manage notification preferences from your dashboard."
             }${params.unsubscribeUrl ? ` · <a href="${escapeAttr(params.unsubscribeUrl)}" style="color:#6b6478;">Unsubscribe from these emails</a>` : ""}</td></tr>
             ${contact}
+            ${brand ? `<tr><td style="padding-top:12px;font-size:10px;color:#b3aebd;">${POWERED_BY_CREDIT}</td></tr>` : ""}
           </table>
         </td>
       </tr>

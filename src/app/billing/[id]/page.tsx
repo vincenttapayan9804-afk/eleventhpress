@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { JOURNAL_IDENTITY } from "@/lib/site";
 import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { POWERED_BY_CREDIT } from "@/lib/powered-by";
 import { invoiceItemLabel, invoiceNumber } from "@/lib/invoice-format";
 import { PrintButton } from "./print-button";
 
@@ -123,6 +124,7 @@ export default async function BillingDocumentPage({ params }: { params: Promise<
           {paid
             ? "Thank you. This receipt confirms payment in full; keep it for your records or funder reporting."
             : "Pay securely from your dashboard under Billing & invoices. Questions about this invoice or a waiver? Reply to the editorial office."}
+          {wl && <p className="mt-3 text-[0.65rem] text-[#a59cb5]">{POWERED_BY_CREDIT}</p>}
         </footer>
       </article>
     </main>

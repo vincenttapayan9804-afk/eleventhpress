@@ -34,11 +34,27 @@ export async function computeEligibility(userId: string, role: string): Promise<
   };
 }
 
+/**
+ * Issuer prefix for a whitelabel tenant's certificate serials: the initials
+ * of its name ("Ron Publishing" → "RP"), so its certificates never carry
+ * the platform's "EP". Latin letters only (serials are printed and typed).
+ */
+export function serialPrefixFor(name: string | null | undefined): string {
+  const words = (name ?? "")
+    .normalize("NFD")
+    .replace(/[^A-Za-z\s]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+  const initials = (words.length > 1 ? words.map((w) => w[0]).join("") : (words[0] ?? "").slice(0, 3)).toUpperCase().slice(0, 5);
+  // Never "EP" for a tenant — that's the platform's own prefix.
+  return initials.length >= 2 && initials !== "EP" ? initials : "CERT";
+}
+
 /** EP-REC-A1B2C3D4E5 style — short, unique, and legible when printed. */
-export function generateSerialNumber(type: CertificateType): string {
+export function generateSerialNumber(type: CertificateType, issuerPrefix = "EP"): string {
   const prefix = type === "RECOGNITION" ? "REC" : type === "MEMBERSHIP" ? "MEM" : "PAC";
   const random = crypto.randomBytes(5).toString("hex").toUpperCase();
-  return `EP-${prefix}-${random}`;
+  return `${issuerPrefix}-${prefix}-${random}`;
 }
 
 /**
@@ -158,7 +174,8 @@ export async function renderAndPersistCertificate(
       }
     : null;
 
-  const serialNumber = existing?.serialNumber ?? generateSerialNumber(type);
+  const serialNumber =
+    existing?.serialNumber ?? generateSerialNumber(type, tenant ? serialPrefixFor(tenant.siteName || tenant.name) : "EP");
   const payload = {
     serialNumber,
     type,

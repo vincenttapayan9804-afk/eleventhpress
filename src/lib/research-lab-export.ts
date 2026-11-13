@@ -12,6 +12,9 @@
 import PDFDocument from "pdfkit";
 import { db } from "@/lib/db";
 import { buildBibTeX, buildRis, buildBibTeXExternal, buildRisExternal } from "@/lib/citation-export";
+import { normalizeHex } from "@/lib/brand-colors";
+import { pdfSafe } from "@/lib/provenance-certificate-pdf";
+import { POWERED_BY_CREDIT } from "@/lib/powered-by";
 
 export interface ResearchLabExportDoc {
   kind: string; // "GAP_ANALYSIS" | "PRISMA_DRAFT"
@@ -48,7 +51,13 @@ export function buildExportMarkdown(doc: ResearchLabExportDoc): string {
  * branded certificate styling), since this is a working research draft to
  * revise and print, not a credential. Reuses the same PDFKit + Promise-
  * collection pattern as src/lib/certificate-pdf.ts. */
-export async function buildExportPdf(doc: ResearchLabExportDoc): Promise<Buffer> {
+/** Whitelabel identity for an exported PDF (omit for the platform). */
+export interface ResearchLabExportBrand {
+  publisher: string;
+  primaryHex?: string | null;
+}
+
+export async function buildExportPdf(doc: ResearchLabExportDoc, brand?: ResearchLabExportBrand | null): Promise<Buffer> {
   const body = buildExportMarkdown(doc);
   const pdf = new PDFDocument({
     size: "A4",
@@ -63,12 +72,30 @@ export async function buildExportPdf(doc: ResearchLabExportDoc): Promise<Buffer>
     pdf.on("error", reject);
   });
 
+  if (brand) {
+    pdf.font("Helvetica-Bold").fontSize(7.5).fillColor(normalizeHex(brand.primaryHex) ?? "#4c1d95")
+      .text(pdfSafe(brand.publisher).toUpperCase(), { characterSpacing: 1.6 });
+    pdf.moveDown(0.4);
+  }
   pdf.font("Helvetica-Bold").fontSize(16).fillColor("#241b3a").text(doc.title);
   pdf.moveDown(0.3);
+  // A tenant's export names its own Research Lab, not the platform's product name.
+  const labName = brand ? `${pdfSafe(brand.publisher)} Research Lab` : "Eleventh Research Lab";
   pdf.font("Helvetica").fontSize(9).fillColor("#6b6478")
-    .text(`Generated ${doc.createdAt.toLocaleString("en-US", { dateStyle: "long", timeStyle: "short" })}${doc.model ? ` · ${doc.model}` : ""} · Eleventh Research Lab`);
+    .text(`Generated ${doc.createdAt.toLocaleString("en-US", { dateStyle: "long", timeStyle: "short" })}${doc.model ? ` · ${doc.model}` : ""} · ${labName}`);
   pdf.moveDown(1);
   pdf.font("Helvetica").fontSize(10.5).fillColor("#1a1425").text(body, { lineGap: 3 });
+  if (brand) {
+    const range = pdf.bufferedPageRange();
+    for (let i = range.start; i < range.start + range.count; i++) {
+      pdf.switchToPage(i);
+      const bottom = pdf.page.margins.bottom;
+      pdf.page.margins.bottom = 0;
+      pdf.font("Helvetica").fontSize(6.5).fillColor("#6b6478")
+        .text(`${pdfSafe(brand.publisher)}  ·  ${POWERED_BY_CREDIT}`, 56, pdf.page.height - 34, { width: pdf.page.width - 112, align: "center", lineBreak: false });
+      pdf.page.margins.bottom = bottom;
+    }
+  }
   pdf.end();
   return result;
 }

@@ -37,6 +37,8 @@ export function buildEpub(
     rights?: string | null;
     /** Publishing organisation — the whitelabel tenant's name, or the platform's. */
     publisher?: string | null;
+    /** Fixed platform credit for a whitelabel tenant's e-books (printed under the contents). */
+    credit?: string | null;
   },
   chapters: EpubChapter[]
 ): Buffer {
@@ -81,7 +83,8 @@ ${spineItems}
     <ol>
 ${navItems}
     </ol>
-  </nav>
+  </nav>${book.credit ? `
+  <p style="margin-top:2em;font-size:0.75em;color:#666;text-align:center;">${escapeXml(book.publisher || "")}${book.publisher ? " · " : ""}${escapeXml(book.credit)}</p>` : ""}
 </body>
 </html>
 `;
