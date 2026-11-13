@@ -6,6 +6,7 @@ import { ReaderToolsCard, HighlightCapture } from "@/components/article-reader-t
 import { ArticleDiscussion } from "@/components/article-discussion";
 import { authorPath } from "@/lib/author-path";
 import { useEffect, useState } from "react";
+import type { LucideIcon } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { apiFetch } from "@/lib/api-client";
 import { ArticleDetail } from "@/lib/types";
@@ -21,6 +22,7 @@ import { ArticleNarrationCard } from "@/components/article/article-narration-car
 import { GalleyTranslationPanel } from "@/components/article/galley-translation-panel";
 import { ArticleChatPanel } from "@/components/article/article-chat-panel";
 import { PdfPreview } from "@/components/pdf-preview";
+import { ResearchVisualButton, researchVisualUrl, type ResearchVisualKind } from "@/components/article/research-visual-button";
 import { IconChip } from "@/components/icon-chip";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { DataTableChart, type DataTableChartTable } from "@/components/data-tables/data-table-chart";
@@ -84,6 +86,10 @@ import {
   Printer,
   Users,
   Scale,
+  LayoutDashboard,
+  Presentation,
+  Image as ImageIcon,
+  Network,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -1056,6 +1062,8 @@ export function ArticleView() {
                     <IconChip icon={FileCode} /> Download JATS XML
                   </Button>
                 )}
+                <ResearchVisualButton articleId={article.id} kind="infographic" label="Research infographic (PDF)" icon={LayoutDashboard} />
+                <ResearchVisualButton articleId={article.id} kind="poster" label="Research poster, A0 (PDF)" icon={Presentation} />
                 {article.doi && (
                   <Button
                     className="w-full justify-start"
@@ -1250,6 +1258,37 @@ interface ReferenceIntegrityData {
  * the article's own body actually contains (src/lib/data-tables.ts —
  * never a fabricated chart).
  */
+function ResearchVisualSection({
+  articleId,
+  kind,
+  eyebrow,
+  description,
+  icon,
+}: {
+  articleId: string;
+  kind: ResearchVisualKind;
+  eyebrow: string;
+  description: string;
+  icon: LucideIcon;
+}) {
+  const [preview, setPreview] = useState(false);
+  return (
+    <div>
+      <p className="eyebrow mb-2">{eyebrow}</p>
+      <div className="rounded-md border border-border p-4">
+        <p className="text-sm text-muted-foreground">{description}</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <ResearchVisualButton articleId={articleId} kind={kind} label="Download PDF" icon={icon} size="sm" className="justify-start" />
+          <Button size="sm" variant="ghost" onClick={() => setPreview((p) => !p)}>
+            <Eye className="mr-1.5 h-3.5 w-3.5" /> {preview ? "Hide preview" : "Preview"}
+          </Button>
+        </div>
+        {preview && <PdfPreview src={researchVisualUrl(articleId, kind, true)} className="mt-4 h-[70dvh] max-h-[640px]" />}
+      </div>
+    </div>
+  );
+}
+
 function SupplementalMaterialsTab({ article }: { article: ArticleDetail }) {
   const [tables, setTables] = useState<ExtractedTableData[] | null>(null);
   const [statcheckResults, setStatcheckResults] = useState<StatcheckResultData[] | null>(null);
@@ -1298,6 +1337,20 @@ function SupplementalMaterialsTab({ article }: { article: ArticleDetail }) {
 
   return (
     <div className="space-y-8">
+      <ResearchVisualSection
+        articleId={article.id}
+        kind="graphical-abstract"
+        eyebrow="Graphical abstract"
+        description="A one-page visual summary of the study (context, approach, key findings and conclusion), ready for slides, social posts and journal submissions."
+        icon={ImageIcon}
+      />
+      <ResearchVisualSection
+        articleId={article.id}
+        kind="framework"
+        eyebrow="Theoretical framework / conceptual paradigm"
+        description="The framework this study uses (its theories, variables or input-process-output paradigm), redrawn from the article, followed by the article's own framework figure exactly as published."
+        icon={Network}
+      />
       <div>
         <p className="eyebrow mb-2">Automated summary</p>
         {article.laySummary ? (
