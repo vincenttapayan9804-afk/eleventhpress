@@ -102,6 +102,9 @@ export const BrandingSchema = z.object({
   phoneAlt: opt(Phone),
   websiteUrl: opt(WebUrl),
   address: opt(z.string().trim().max(500)),
+  legalName: opt(z.string().trim().max(300)),
+  legalJurisdiction: opt(z.string().trim().max(200).regex(/^[^<>{}]*$/, "Use plain text")),
+  privacyEmail: opt(z.string().trim().toLowerCase().max(254).email("Enter a valid email address")),
   socialLinks: z
     .record(z.string(), z.unknown())
     .nullable()
@@ -184,6 +187,9 @@ export function brandingFormOf(t: TenantRow) {
     phoneAlt: t.phoneAlt,
     websiteUrl: t.websiteUrl,
     address: t.address,
+    legalName: t.legalName,
+    legalJurisdiction: t.legalJurisdiction,
+    privacyEmail: t.privacyEmail,
     socialLinks: (t.socialLinks as Record<string, string> | null) ?? null,
   };
 }

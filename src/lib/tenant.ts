@@ -53,6 +53,10 @@ export interface TenantBranding {
   websiteUrl: string | null;
   address: string | null;
   socialLinks: SocialLinks | null;
+  // Legal identity (Terms, Privacy, Cookie Policy)
+  legalName: string | null;
+  legalJurisdiction: string | null;
+  privacyEmail: string | null;
 }
 
 /**
@@ -171,6 +175,9 @@ interface TenantRow {
   websiteUrl?: string | null;
   address?: string | null;
   socialLinks?: unknown;
+  legalName?: string | null;
+  legalJurisdiction?: string | null;
+  privacyEmail?: string | null;
 }
 
 /** Keeps only known social keys with http(s) URLs — the column is free-form JSON. */
@@ -201,6 +208,9 @@ export function brandingOf(tenant: TenantRow | null | undefined): TenantBranding
     websiteUrl: tenant?.websiteUrl ?? null,
     address: tenant?.address ?? null,
     socialLinks: normalizeSocialLinks(tenant?.socialLinks),
+    legalName: tenant?.legalName ?? null,
+    legalJurisdiction: tenant?.legalJurisdiction ?? null,
+    privacyEmail: tenant?.privacyEmail ?? null,
   };
 }
 
