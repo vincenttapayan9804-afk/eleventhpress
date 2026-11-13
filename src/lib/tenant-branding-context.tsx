@@ -33,6 +33,9 @@ export const DEFAULT_CLIENT_BRANDING: ClientBranding = {
   websiteUrl: null,
   address: null,
   socialLinks: null,
+  legalName: null,
+  legalJurisdiction: null,
+  privacyEmail: null,
   tenantId: null,
   tenantSlug: null,
   tenantName: null,
@@ -77,4 +80,58 @@ export function contactEmailOf(b: ClientBranding): string {
 
 export function useContactEmail(): string {
   return contactEmailOf(useTenantBranding());
+}
+
+/**
+ * Who operates this site, for the legal pages (Terms, Privacy, Cookie
+ * Policy, FAQs, cookie banner). On a whitelabel tenant's site that is the
+ * tenant itself — its own name, legal entity, governing law and contacts —
+ * with Eleventh Press named only as the technology provider. On the
+ * official site it is Eleventh Press.
+ */
+export interface LegalIdentity {
+  whitelabel: boolean;
+  /** Display name used in running text ("Ron Publishing"). */
+  orgName: string;
+  /** Registered legal entity named as the contracting party / data controller. */
+  legalName: string;
+  /** Governing-law clause body, e.g. "the laws of England and Wales". */
+  governingLaw: string;
+  /** Where the operator is based, when known. */
+  location: string | null;
+  contactEmail: string;
+  privacyEmail: string;
+}
+
+export const PLATFORM_LEGAL_NAME = "Eleventh Press International Publishing";
+
+export function legalIdentityOf(b: ClientBranding): LegalIdentity {
+  if (!isWhitelabel(b)) {
+    return {
+      whitelabel: false,
+      orgName: "Eleventh Press",
+      legalName: PLATFORM_LEGAL_NAME,
+      governingLaw: "the laws of England and Wales",
+      location: "London, United Kingdom",
+      contactEmail: PLATFORM_CONTACT_EMAIL,
+      privacyEmail: PLATFORM_CONTACT_EMAIL,
+    };
+  }
+  const orgName = b.siteName || b.tenantName || "This journal";
+  const contactEmail = contactEmailOf(b);
+  return {
+    whitelabel: true,
+    orgName,
+    legalName: b.legalName || orgName,
+    governingLaw: b.legalJurisdiction
+      ? `the laws of ${b.legalJurisdiction.replace(/^the laws of /i, "")}`
+      : `the laws of the place where ${b.legalName || orgName} is established`,
+    location: b.address,
+    contactEmail,
+    privacyEmail: b.privacyEmail || contactEmail,
+  };
+}
+
+export function useLegalIdentity(): LegalIdentity {
+  return legalIdentityOf(useTenantBranding());
 }

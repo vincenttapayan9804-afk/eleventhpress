@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileText, Scale, CreditCard, ShieldAlert, Ban, Mail } from "lucide-react";
 import { APC_USD, SUBSCRIPTION_PLAN_PRICES } from "@/lib/pricing";
+import { useLegalIdentity } from "@/lib/tenant-branding-context";
 
 /**
  * The account/platform-usage contract — distinct from PoliciesView's
@@ -18,6 +19,10 @@ import { APC_USD, SUBSCRIPTION_PLAN_PRICES } from "@/lib/pricing";
  */
 export function TermsView() {
   const { setView, user, openDashboard } = useApp();
+  // On a whitelabel tenant's site the tenant is the operator and contracting
+  // party; Eleventh Press is named only as the technology provider.
+  const legal = useLegalIdentity();
+  const org = legal.orgName;
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
@@ -25,12 +30,35 @@ export function TermsView() {
         <p className="eyebrow">Governance</p>
         <h1 className="mt-2 font-display text-4xl font-semibold sm:text-5xl">Terms of Service</h1>
         <p className="mt-3 max-w-2xl text-sm text-muted-foreground text-justify">
-          The rules for using an Eleventh Press account and this platform. For how manuscripts are
+          The rules for using {/^[aeiou]/i.test(org) ? "an" : "a"} {org} account and this platform. For how manuscripts are
           reviewed and published, see the Policies page. For what we collect and how to export or
           delete your data, see the Privacy page.
         </p>
         <p className="mt-2 text-xs text-muted-foreground">Last updated: {new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</p>
       </div>
+
+      {legal.whitelabel && (
+        <section className="mt-10" data-testid="terms-operator">
+          <div className="flex flex-wrap items-center gap-2">
+            <FileText className="h-5 w-5 text-primary" />
+            <h2 className="font-display text-2xl font-semibold">Who operates this site</h2>
+          </div>
+          <Card className="paper-card mt-4">
+            <CardContent className="p-6 space-y-3 text-sm text-muted-foreground text-justify">
+              <p>
+                This site and its journal are operated by <strong className="text-foreground">{legal.legalName}</strong>
+                {legal.location ? <>, {legal.location}</> : null}. In these terms, &ldquo;we&rdquo;, &ldquo;us&rdquo; and
+                &ldquo;our&rdquo; mean {legal.legalName}, which makes all editorial, publishing and account decisions on this site.
+              </p>
+              <p>
+                The publishing platform software is provided to {org} by Eleventh Press International Publishing as
+                technology provider. Eleventh Press does not make editorial decisions
+                for {org}.
+              </p>
+            </CardContent>
+          </Card>
+        </section>
+      )}
 
       <section className="mt-10">
         <div className="flex flex-wrap items-center gap-2">
@@ -89,15 +117,15 @@ export function TermsView() {
             <p>
               You retain copyright in your own submitted work. Published articles are distributed
               under CC BY 4.0 (or as otherwise noted on the article itself) — this is a license you
-              grant to the public, not a transfer of ownership to Eleventh Press. Once a DOI is
+              grant to the public, not a transfer of ownership to {org}. Once a DOI is
               minted and an article is published, its citable record (title, authors, abstract,
               content) is retained permanently as the scholarly record, consistent with standard
               publishing practice and GDPR's archiving exemption (see the Privacy page).
             </p>
             <p>
-              The Eleventh Press name, logo, and site design are not covered by the CC BY license
-              articles are published under, and may not be used to imply endorsement without
-              permission.
+              {legal.whitelabel
+                ? `The ${org} name and logo, and the platform's design and software (provided by Eleventh Press International Publishing), are not covered by the CC BY license articles are published under, and may not be used to imply endorsement without permission.`
+                : "The Eleventh Press name, logo, and site design are not covered by the CC BY license articles are published under, and may not be used to imply endorsement without permission."}
             </p>
           </CardContent>
         </Card>
@@ -139,11 +167,7 @@ export function TermsView() {
         <Card className="paper-card mt-4">
           <CardContent className="p-6 space-y-3 text-sm text-muted-foreground text-justify">
             <p>
-              The platform is provided "as is." Peer review reduces but does not eliminate errors in
-              published work — published articles reflect their authors' views, not an endorsement by
-              Eleventh Press of every claim made in them. To the maximum extent permitted by law,
-              Eleventh Press is not liable for indirect, incidental, or consequential damages arising
-              from use of the platform or reliance on published content.
+              {`The platform is provided "as is." Peer review reduces but does not eliminate errors in published work — published articles reflect their authors' views, not an endorsement by ${org} of every claim made in them. To the maximum extent permitted by law, ${org} is not liable for indirect, incidental, or consequential damages arising from use of the platform or reliance on published content.`}
             </p>
           </CardContent>
         </Card>
@@ -175,9 +199,9 @@ export function TermsView() {
         <Card className="paper-card mt-4">
           <CardContent className="p-6 space-y-3 text-sm text-muted-foreground text-justify">
             <p>
-              These terms are governed by the laws of England and Wales, matching our editorial
-              office's jurisdiction (London, United Kingdom), without regard to conflict-of-law
-              principles. We may update these terms from time to time; material changes will be
+              {legal.whitelabel
+                ? `These terms are governed by ${legal.governingLaw}, without regard to conflict-of-law principles.`
+                : "These terms are governed by the laws of England and Wales, matching our editorial office's jurisdiction (London, United Kingdom), without regard to conflict-of-law principles."} We may update these terms from time to time; material changes will be
               reflected in the "Last updated" date above.
             </p>
           </CardContent>
@@ -190,7 +214,7 @@ export function TermsView() {
         <div className="mt-5 flex flex-wrap justify-center gap-3">
           <Button onClick={() => (user ? openDashboard("profile") : setView("login"))}>Manage my account</Button>
           <Button variant="outline" asChild>
-            <a href="mailto:editorial@eleventhpress.org?subject=Terms%20of%20Service%20question">
+            <a href={`mailto:${legal.contactEmail}?subject=Terms%20of%20Service%20question`}>
               <Mail className="mr-2 h-4 w-4" /> Email us
             </a>
           </Button>

@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { apiFetch } from "@/lib/api-client";
+import { useLegalIdentity } from "@/lib/tenant-branding-context";
 import {
   COOKIE_CATEGORIES,
   COOKIE_CONSENT_CHANGED_EVENT,
@@ -77,6 +78,8 @@ async function saveChoice(choice: CookieConsentChoice) {
  * COOKIE_INVENTORY in src/lib/cookie-consent.ts.
  */
 export function CookieConsentBanner() {
+  // Names the site's operator — a whitelabel tenant on its own site.
+  const legal = useLegalIdentity();
   const mounted = useHasMounted();
   const reduceMotion = useReducedMotion();
   const [decided, setDecided] = useState<CookieConsentChoice | null | undefined>(undefined);
@@ -135,7 +138,7 @@ export function CookieConsentBanner() {
                       Your privacy, your choice
                     </p>
                     <p id="cookie-consent-description" className="mt-1.5 text-xs leading-relaxed text-muted-foreground sm:text-[13px]">
-                      We use strictly necessary cookies to keep you signed in and secure. With your permission we&apos;ll also set
+                      {legal.orgName} uses strictly necessary cookies to keep you signed in and secure. With your permission we&apos;ll also set
                       one optional cookie to count free magazine articles for readers who aren&apos;t signed in. No advertising,
                       no cross-site tracking.{" "}
                       <a href="/cookie-policy" className="font-medium text-primary underline-offset-2 hover:underline">
@@ -176,7 +179,7 @@ export function CookieConsentBanner() {
               <ShieldCheck className="h-5 w-5 text-primary" /> Cookie preferences
             </DialogTitle>
             <DialogDescription>
-              Choose which cookies Eleventh Press may use on this device. You can change this any time from the
+              Choose which cookies {legal.orgName} may use on this device. You can change this any time from the
               &ldquo;Cookie settings&rdquo; link in the footer.
             </DialogDescription>
           </DialogHeader>

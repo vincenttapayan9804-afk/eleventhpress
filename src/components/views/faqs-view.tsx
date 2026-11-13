@@ -11,8 +11,9 @@ import {
 } from "@/components/ui/accordion";
 import { Mail } from "lucide-react";
 import { DOI_REGISTRAR } from "@/lib/site";
+import { useLegalIdentity, type LegalIdentity } from "@/lib/tenant-branding-context";
 
-const FAQS: { q: string; a: string }[] = [
+const PLATFORM_FAQS: { q: string; a: string }[] = [
   {
     q: "What is Eleventh Press International Publishing, and is it peer-reviewed?",
     a: "Eleventh Press International Publishing is a Full-Stack Peer Reviewed Press & Multidisciplinary Syndication Network covering the natural sciences, engineering, social sciences, and humanities — not just a journal. Every article that reaches publication has passed through our editorial screening and peer-review workflow (we don't publish unreviewed manuscripts), and every published article becomes eligible for automatic syndication across our network and our book-publishing division.",
@@ -63,8 +64,35 @@ const FAQS: { q: string; a: string }[] = [
   },
 ];
 
+/**
+ * The FAQs as they read on this site: the official site's copy as written,
+ * or — on a whitelabel tenant's site — the same answers in the tenant's own
+ * name, with its own editorial contact, never Eleventh Press's.
+ */
+export function faqsFor(legal: LegalIdentity): { q: string; a: string }[] {
+  if (!legal.whitelabel) return PLATFORM_FAQS;
+  const org = legal.orgName;
+  return PLATFORM_FAQS.map((item, i) => {
+    if (i === 0) {
+      return {
+        q: `What is ${org}, and is it peer-reviewed?`,
+        a: `${org} publishes peer-reviewed scholarship. Every article that reaches publication has passed through ${org}'s editorial screening and peer-review workflow (unreviewed manuscripts are not published), and every published article becomes eligible for automatic syndication and for the book-publishing services available on this platform.`,
+      };
+    }
+    if (i === 1) return { ...item, q: `Is ${org} open access? What license applies to published articles?` };
+    return {
+      q: item.q.replace(/Eleventh Press International Publishing|Eleventh Press/g, org),
+      a: item.a
+        .replace(/editorial@eleventhpress\.org/g, legal.contactEmail)
+        .replace(/Eleventh Press International Publishing|Eleventh Press/g, org),
+    };
+  });
+}
+
 export function FaqsView() {
   const { setView } = useApp();
+  const legal = useLegalIdentity();
+  const faqs = faqsFor(legal);
   const t = useTranslations("faqs");
   const th = useTranslations("home");
 
@@ -77,7 +105,7 @@ export function FaqsView() {
       </div>
 
       <Accordion type="single" collapsible className="mt-6">
-        {FAQS.map((item, i) => (
+        {faqs.map((item, i) => (
           <AccordionItem key={i} value={`faq-${i}`}>
             <AccordionTrigger className="font-display text-base font-semibold">
               {item.q}
@@ -94,7 +122,7 @@ export function FaqsView() {
         <h2 className="mt-2 font-display text-2xl font-semibold">{t("contactHeadline")}</h2>
         <div className="mt-5 flex flex-wrap justify-center gap-3">
           <Button asChild>
-            <a href="mailto:editorial@eleventhpress.org">
+            <a href={`mailto:${legal.contactEmail}`}>
               <Mail className="mr-2 h-4 w-4" /> {t("emailUs")}
             </a>
           </Button>

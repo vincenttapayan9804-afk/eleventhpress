@@ -32,6 +32,7 @@ import {
   Eye,
   BookOpen,
   Lock,
+  Scale,
 } from "lucide-react";
 import { POWERED_BY_CREDIT } from "@/lib/powered-by";
 import {
@@ -69,6 +70,9 @@ interface BrandingForm {
   phoneAlt: string;
   websiteUrl: string;
   address: string;
+  legalName: string;
+  legalJurisdiction: string;
+  privacyEmail: string;
   socialLinks: Record<SocialKey, string>;
 }
 
@@ -88,6 +92,9 @@ const EMPTY: BrandingForm = {
   phoneAlt: "",
   websiteUrl: "",
   address: "",
+  legalName: "",
+  legalJurisdiction: "",
+  privacyEmail: "",
   socialLinks: EMPTY_SOCIAL,
 };
 
@@ -183,6 +190,9 @@ export function BrandingTab({ tenantId, onSaved }: { tenantId?: string; onSaved?
         phoneAlt: b.phoneAlt ?? "",
         websiteUrl: b.websiteUrl ?? "",
         address: b.address ?? "",
+        legalName: b.legalName ?? "",
+        legalJurisdiction: b.legalJurisdiction ?? "",
+        privacyEmail: b.privacyEmail ?? "",
         socialLinks: { ...EMPTY_SOCIAL, ...(b.socialLinks ?? {}) },
       };
       setForm(next);
@@ -560,6 +570,44 @@ export function BrandingTab({ tenantId, onSaved }: { tenantId?: string; onSaved?
                 </FieldBox>
               </div>
             </Section>
+
+            {/* Legal (whitelabel tenants) */}
+            {tenant && !tenant.isPlatform && (
+              <Section icon={Scale} title="Legal details">
+                <p className="-mt-2 text-xs text-muted-foreground">
+                  Used on your Terms of Service, Privacy, Cookie Policy, FAQs and cookie banner, which name your
+                  organization as the operator of this site. Blank fields fall back to your organization name and
+                  official email.
+                </p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <FieldBox id="legalName" label="Registered legal name" error={errors.legalName}>
+                    <Input
+                      id="legalName"
+                      placeholder={form.siteName || tenant.name}
+                      value={form.legalName}
+                      onChange={(e) => field("legalName", e.target.value)}
+                    />
+                  </FieldBox>
+                  <FieldBox id="legalJurisdiction" label="Governing law (jurisdiction)" error={errors.legalJurisdiction}>
+                    <Input
+                      id="legalJurisdiction"
+                      placeholder="e.g. the Republic of the Philippines"
+                      value={form.legalJurisdiction}
+                      onChange={(e) => field("legalJurisdiction", e.target.value)}
+                    />
+                  </FieldBox>
+                  <FieldBox id="privacyEmail" label="Privacy / data-protection email" icon={Mail} error={errors.privacyEmail}>
+                    <Input
+                      id="privacyEmail"
+                      type="email"
+                      placeholder={form.officialEmail || "privacy@university.edu"}
+                      value={form.privacyEmail}
+                      onChange={(e) => field("privacyEmail", e.target.value)}
+                    />
+                  </FieldBox>
+                </div>
+              </Section>
+            )}
 
             {/* Social */}
             <Section icon={Share2} title="Social media">

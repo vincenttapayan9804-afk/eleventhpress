@@ -1842,6 +1842,14 @@ model Tenant {
   // { facebook?, x?, linkedin?, instagram?, youtube?, tiktok?, researchgate? } — absolute URLs
   socialLinks   Json?
 
+  // --- Legal identity used on the tenant's Terms, Privacy, Cookie Policy,
+  // FAQs and cookie banner. Optional: unset falls back to the display name,
+  // "the laws of the place where <name> is established", and the official
+  // email respectively. ---
+  legalName         String? // registered legal entity name
+  legalJurisdiction String? // governing law, e.g. "the Republic of the Philippines"
+  privacyEmail      String? // data-protection / privacy contact
+
   // --- Whitelabel Phase 6: plan/quota enforcement. Null means "unlimited" —
   // the platform tenant and any tenant created before this field existed
   // must never be retroactively capped by a default, so there is no

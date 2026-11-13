@@ -1,6 +1,6 @@
 "use client";
 
-import { useContactEmail } from "@/lib/tenant-branding-context";
+import { useLegalIdentity } from "@/lib/tenant-branding-context";
 import { useApp } from "@/lib/store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,10 @@ import {
  * certification.
  */
 export function PrivacyView() {
-  const contactEmail = useContactEmail();
+  // On a tenant's site the tenant is the data controller; Eleventh Press
+  // (the platform provider) processes data on its behalf.
+  const legal = useLegalIdentity();
+  const contactEmail = legal.privacyEmail;
   const { setView, user, openDashboard } = useApp();
 
   return (
@@ -41,6 +44,30 @@ export function PrivacyView() {
           data — self-service, no request form required.
         </p>
       </div>
+
+      <section className="mt-10" data-testid="privacy-controller">
+        <div className="flex flex-wrap items-center gap-2">
+          <Building2 className="h-5 w-5 text-primary" />
+          <h2 className="font-display text-2xl font-semibold">Who is responsible for your data</h2>
+        </div>
+        <Card className="paper-card mt-4">
+          <CardContent className="p-6 space-y-3 text-sm text-muted-foreground text-justify">
+            <p>
+              The data controller for this site is <strong className="text-foreground">{legal.legalName}</strong>
+              {legal.location ? <>, {legal.location}</> : null}. In this policy, &ldquo;we&rdquo; and &ldquo;our&rdquo; mean{" "}
+              {legal.legalName}. For any privacy question or data-rights request, email{" "}
+              <a className="text-primary hover:underline" href={`mailto:${contactEmail}`}>{contactEmail}</a>.
+            </p>
+            {legal.whitelabel && (
+              <p>
+                The publishing platform this site runs on is provided by Eleventh Press International Publishing,
+                which hosts and processes data on {legal.orgName}&apos;s behalf as a processor, under {legal.orgName}&apos;s
+                instructions, and does not use it for its own purposes.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </section>
 
       <section className="mt-10">
         <div className="flex flex-wrap items-center gap-2">
@@ -143,8 +170,8 @@ export function PrivacyView() {
         <Card className="paper-card mt-4">
           <CardContent className="p-6">
             <p className="text-sm text-muted-foreground text-justify">
-              We don't sell data. A limited set of processors handle it on our behalf, only for the
-              purpose named: our hosting and database provider (running the application and storing
+              We don&apos;t sell data. A limited set of processors handle it on our behalf, only for the
+              purpose named: {legal.whitelabel ? "Eleventh Press International Publishing (the platform provider, which operates the service below for us), " : ""}our hosting and database provider (running the application and storing
               your account/submission data), our object storage provider (manuscript files, galleys,
               avatars), your chosen payment gateway (Stripe, PayPal, PayMongo, Lemon Squeezy, or
               Xendit — whichever you select at checkout; card details go directly to them, never to
