@@ -308,7 +308,11 @@ export async function sweepStuckBookProductionJobs(limit = 5, staleMinutes = 10)
 /** The publishing tenant's identity for a book, or undefined for the platform's own books. */
 export async function bookBrandFor(tenantId: string | null | undefined): Promise<BookBrand | undefined> {
   const id = await publisherIdentityForTenantId(tenantId);
-  if (!id.whitelabel) return undefined;
+  if (!id.whitelabel) {
+    // Platform books keep the platform palette; only its uploaded logo (if any) is added.
+    const logoPng = await logoPngOf(id.logoUrl);
+    return logoPng ? { publisher: id.publisher, whitelabel: false, logoPng } : undefined;
+  }
   return {
     publisher: id.publisher,
     whitelabel: true,

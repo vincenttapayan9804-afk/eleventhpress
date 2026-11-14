@@ -221,5 +221,5 @@ export function formatCitation(
   const vol = article.volume ? `${article.volume}` : "";
   const iss = article.issueNumber ? `(${article.issueNumber})` : "";
   const doi = article.doi ? ` https://doi.org/${article.doi}` : "";
-  return `${authorStr} (${year}). ${article.title}. ${journal}, ${vol}${iss}.${doi}`;
+  return `${authorStr} (${year}). ${article.title}. ${journal}${vol || iss ? `, ${vol}${iss}` : ""}.${doi}`;
 }

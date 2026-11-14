@@ -32,7 +32,7 @@ export async function galleyIdentityFor(
     whitelabel: id.whitelabel,
     primaryHex: id.primaryHex,
     accentHex: id.accentHex,
-    logoPng: id.whitelabel ? await logoPngOf(id.logoUrl) : null,
+    logoPng: await logoPngOf(id.logoUrl),
     eissn: id.whitelabel ? id.eissn : null,
     abbreviation: id.whitelabel ? id.abbreviation : null,
   };

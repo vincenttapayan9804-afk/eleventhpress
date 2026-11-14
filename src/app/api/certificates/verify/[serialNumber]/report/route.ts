@@ -29,7 +29,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ seri
   const id = await publisherIdentityForTenantId(owner?.user?.tenantId);
   const pdf = await buildCertificateVerificationPdf(
     lookup.record,
-    id.whitelabel ? { brand: id, logoPng: await logoPngOf(id.logoUrl) } : {}
+    id.whitelabel ? { brand: id, logoPng: await logoPngOf(id.logoUrl) } : { logoPng: await logoPngOf(id.logoUrl) }
   );
   const inline = req.nextUrl.searchParams.get("inline") === "1";
   return new NextResponse(new Uint8Array(pdf), {

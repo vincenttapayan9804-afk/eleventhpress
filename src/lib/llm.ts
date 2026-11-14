@@ -290,29 +290,40 @@ async function chatJSONOss<T>(
   temperature?: number
 ): Promise<ChatJSONResult<T>> {
   const model = compatModel();
-  const res = await fetch(`${compatBaseUrl()}/chat/completions`, {
-    method: "POST",
-    headers: compatHeaders(),
-    body: JSON.stringify({
-      model,
-      max_tokens: maxTokens,
-      ...(temperature !== undefined ? { temperature } : {}),
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-    }),
-  });
+  const call = async (tokens: number, lowReasoning: boolean) => {
+    const res = await fetch(`${compatBaseUrl()}/chat/completions`, {
+      method: "POST",
+      headers: compatHeaders(),
+      body: JSON.stringify({
+        model,
+        max_tokens: tokens,
+        ...(temperature !== undefined ? { temperature } : {}),
+        ...(lowReasoning && compatIsOpenRouter() ? { reasoning: { effort: "low" } } : {}),
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+      }),
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => res.statusText);
+      throw new Error(`LLM request to ${compatLabel()} failed (${res.status}): ${body}`);
+    }
+    return res.json();
+  };
 
-  if (!res.ok) {
-    const body = await res.text().catch(() => res.statusText);
-    throw new Error(`LLM request to ${compatLabel()} failed (${res.status}): ${body}`);
-  }
-
-  const json = await res.json();
-  const text: string = json?.choices?.[0]?.message?.content ?? "";
+  let json = await call(maxTokens, false);
+  let text: string = json?.choices?.[0]?.message?.content ?? "";
+  // Reasoning models can spend the whole budget thinking and return no
+  // answer (finish_reason "length", empty content). Retry once with a larger
+  // budget and low reasoning effort before giving up.
   if (!text) {
-    throw new Error("OSS LLM response contained no text content");
+    const finish = json?.choices?.[0]?.finish_reason ?? "unknown";
+    json = await call(Math.min(Math.max(maxTokens * 3, 4000), 16000), true);
+    text = json?.choices?.[0]?.message?.content ?? "";
+    if (!text) {
+      throw new Error(`OSS LLM response contained no text content (finish_reason: ${finish} → ${json?.choices?.[0]?.finish_reason ?? "unknown"})`);
+    }
   }
 
   // A router such as "openrouter/free" reports the model that actually

@@ -28,9 +28,10 @@ export async function GET(
 
   // Whitelabel: the publishing tenant's logo goes in the cover band (its
   // colours and name already come from the record's brand).
-  const identity = lookup.record.brand?.whitelabel ? await publisherIdentityForArticle(id) : null;
+  // The platform's own uploaded logo, if any, is used on platform certificates too.
+  const identity = await publisherIdentityForArticle(id);
   const pdf = await buildProvenanceCertificatePdf(lookup.record, {
-    logoPng: identity?.whitelabel ? await logoPngOf(identity.logoUrl) : null,
+    logoPng: await logoPngOf(identity.logoUrl),
   });
   const inline = req.nextUrl.searchParams.get("inline") === "1";
   const filename = provenanceCertificateFileName(lookup.record);

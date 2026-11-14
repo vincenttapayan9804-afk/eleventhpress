@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { logoPngOf, publisherIdentityForTenantId } from "@/lib/publisher-identity";
 import sharp from "sharp";
 import type { Certificate } from "@prisma/client";
 import { db } from "@/lib/db";
@@ -118,17 +119,9 @@ async function resolveAvatarPng(avatarUrl: string | null): Promise<Buffer | null
 }
 
 /** A tenant's logo as a PNG for PDFKit (keeps transparency); null on any failure. */
+/** The organisation's uploaded logo as PNG (any storage form), or null. */
 async function resolveLogoPng(logoUrl: string | null): Promise<Buffer | null> {
-  if (!logoUrl || !logoUrl.startsWith("http")) return null;
-  try {
-    const res = await fetch(logoUrl);
-    if (!res.ok) return null;
-    const bytes = Buffer.from(await res.arrayBuffer());
-    return await sharp(bytes).resize(512, 512, { fit: "inside", withoutEnlargement: true }).png().toBuffer();
-  } catch (e) {
-    console.error("[certificates] logo fetch/convert failed", e);
-    return null;
-  }
+  return logoPngOf(logoUrl);
 }
 
 /**
@@ -165,6 +158,9 @@ export async function renderAndPersistCertificate(
     : await db.journal.findFirst({ select: { publisher: true, issn: true } });
   const workTitle = category === "AUTHOR" ? await latestPublishedWorkTitle(userId) : null;
   const avatarPng = await resolveAvatarPng(user.avatarUrl);
+  // The platform's own uploaded logo (if it has one) replaces the default
+  // "EP" monogram in its seal, so platform certificates carry its exact logo too.
+  const platformLogo = tenant ? null : await resolveLogoPng((await publisherIdentityForTenantId(null)).logoUrl);
   const brand: CertificateBrand | null = tenant
     ? {
         name: tenant.siteName || tenant.name,
@@ -172,7 +168,9 @@ export async function renderAndPersistCertificate(
         primaryColor: tenant.primaryColor,
         logoPng: await resolveLogoPng(tenant.logoUrl),
       }
-    : null;
+    : platformLogo
+      ? { name: CANONICAL_PUBLISHER_NAME, tagline: null, primaryColor: null, logoPng: platformLogo }
+      : null;
 
   const serialNumber =
     existing?.serialNumber ?? generateSerialNumber(type, tenant ? serialPrefixFor(tenant.siteName || tenant.name) : "EP");
