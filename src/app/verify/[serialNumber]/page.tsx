@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: { params: Promise<{ serialNum
   // Named after the certificate's issuing publisher (a whitelabel tenant's
   // institution), or the visiting site when the serial is unknown.
   const tenant = await getCurrentTenant().catch(() => null);
-  const site = tenant && !tenant.isPlatform ? tenant.siteName || tenant.name : "Eleventh Press International Publishing";
+  const site = tenant && !tenant.isPlatform ? tenant.siteName || tenant.name : "Eleventh Press International Publishing™";
   const issuer = lookup?.kind === "found" && lookup.record.issuer ? lookup.record.issuer : site;
   return {
     title: `Verify ${what} — ${issuer}`,

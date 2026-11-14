@@ -159,7 +159,7 @@ type JournalRow = { name: string; abbreviation: string | null; publisher: string
 /** The journal form as stored; the schema's platform default publisher reads as blank. */
 export function journalFormOf(j: JournalRow | null) {
   if (!j) return null;
-  const platformDefault = j.publisher.trim().toLowerCase() === "eleventh press international publishing";
+  const platformDefault = j.publisher.trim().replace(/\s*(?:™|\(TM\))$/i, "").toLowerCase() === "eleventh press international publishing";
   return {
     name: j.name,
     abbreviation: j.abbreviation,

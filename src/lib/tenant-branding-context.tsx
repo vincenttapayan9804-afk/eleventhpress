@@ -103,7 +103,7 @@ export interface LegalIdentity {
   privacyEmail: string;
 }
 
-export const PLATFORM_LEGAL_NAME = "Eleventh Press International Publishing";
+export const PLATFORM_LEGAL_NAME = "Eleventh Press International Publishing™";
 
 export function legalIdentityOf(b: ClientBranding): LegalIdentity {
   if (!isWhitelabel(b)) {

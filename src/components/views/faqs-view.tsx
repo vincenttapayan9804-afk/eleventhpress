@@ -15,8 +15,8 @@ import { useLegalIdentity, type LegalIdentity } from "@/lib/tenant-branding-cont
 
 const PLATFORM_FAQS: { q: string; a: string }[] = [
   {
-    q: "What is Eleventh Press International Publishing, and is it peer-reviewed?",
-    a: "Eleventh Press International Publishing is a Full-Stack Peer Reviewed Press & Multidisciplinary Syndication Network covering the natural sciences, engineering, social sciences, and humanities — not just a journal. Every article that reaches publication has passed through our editorial screening and peer-review workflow (we don't publish unreviewed manuscripts), and every published article becomes eligible for automatic syndication across our network and our book-publishing division.",
+    q: "What is Eleventh Press International Publishing™, and is it peer-reviewed?",
+    a: "Eleventh Press International Publishing™ is a Full-Stack Peer Reviewed Press & Multidisciplinary Syndication Network covering the natural sciences, engineering, social sciences, and humanities — not just a journal. Every article that reaches publication has passed through our editorial screening and peer-review workflow (we don't publish unreviewed manuscripts), and every published article becomes eligible for automatic syndication across our network and our book-publishing division.",
   },
   {
     q: "Is Eleventh Press open access? What license applies to published articles?",
@@ -81,10 +81,10 @@ export function faqsFor(legal: LegalIdentity): { q: string; a: string }[] {
     }
     if (i === 1) return { ...item, q: `Is ${org} open access? What license applies to published articles?` };
     return {
-      q: item.q.replace(/Eleventh Press International Publishing|Eleventh Press/g, org),
+      q: item.q.replace(/Eleventh Press International Publishing™?|Eleventh Press/g, org),
       a: item.a
         .replace(/editorial@eleventhpress\.org/g, legal.contactEmail)
-        .replace(/Eleventh Press International Publishing|Eleventh Press/g, org),
+        .replace(/Eleventh Press International Publishing™?|Eleventh Press/g, org),
     };
   });
 }

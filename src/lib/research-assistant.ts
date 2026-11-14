@@ -6,6 +6,7 @@
 import { db } from "@/lib/db";
 import { JOURNAL_IDENTITY } from "@/lib/site";
 import { publisherIdentityForTenantId } from "@/lib/publisher-identity";
+import { withTrademark } from "@/lib/brand-mark";
 
 export interface JournalInfo {
   name: string;
@@ -51,7 +52,7 @@ export async function loadJournalInfo(tenantId?: string | null): Promise<Journal
       const row =
         (await db.journal.findFirst({ where: { tenantId: null }, select })) ??
         (await db.article.findFirst({ where: { status: "PUBLISHED" }, orderBy: { publishedAt: "desc" }, select: { journal: { select } } }))?.journal;
-      if (row?.name) value = { name: row.name, issn: row.issn || JOURNAL_IDENTITY.issn, publisher: row.publisher || JOURNAL_IDENTITY.name };
+      if (row?.name) value = { name: row.name, issn: row.issn || JOURNAL_IDENTITY.issn, publisher: withTrademark(row.publisher) || JOURNAL_IDENTITY.name };
     }
   } catch {
     // Database unavailable: fall back to the platform identity.

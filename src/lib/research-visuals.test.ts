@@ -107,14 +107,14 @@ describe("PDF renderers", () => {
   const article = { id: "a", title: "A title", authors: "[]", articleUrl: "https://example.org/article/a" };
   for (const kind of RESEARCH_VISUAL_KINDS) {
     test(`${kind} renders for platform and tenant, with the credit only on tenant documents`, async () => {
-      const platform = await buildResearchVisualPdf(kind, { article, content, brand: { whitelabel: false, orgName: "Eleventh Press International Publishing", journalName: "EPIP" } });
+      const platform = await buildResearchVisualPdf(kind, { article, content, brand: { whitelabel: false, orgName: "Eleventh Press International Publishing™", journalName: "EPIP" } });
       const tenant = await buildResearchVisualPdf(kind, { article, content, brand: { whitelabel: true, orgName: "Ron Publishing", journalName: "Ron Journal", primaryHex: "#0f766e", accentHex: "#f59e0b" } });
       expect(platform.subarray(0, 5).toString()).toBe("%PDF-");
       expect(tenant.subarray(0, 5).toString()).toBe("%PDF-");
     });
     test(`${kind} renders a proposal (no findings) with hypotheses`, async () => {
       const proposal = { ...content, stage: "proposal" as const, findings: [], conclusion: "", hypotheses: ["There is no significant relationship between X and Y."], significance: "It informs school leaders." };
-      const pdf = await buildResearchVisualPdf(kind, { article, content: proposal, brand: { whitelabel: false, orgName: "Eleventh Press International Publishing", journalName: "EPIP" } });
+      const pdf = await buildResearchVisualPdf(kind, { article, content: proposal, brand: { whitelabel: false, orgName: "Eleventh Press International Publishing™", journalName: "EPIP" } });
       expect(pdf.subarray(0, 5).toString()).toBe("%PDF-");
     });
   }

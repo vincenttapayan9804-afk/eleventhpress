@@ -33,7 +33,7 @@ const jetbrains = JetBrains_Mono({
   display: "swap",
 });
 
-const DEFAULT_TITLE = "Eleventh Press International Publishing — Full-Stack Peer Reviewed Press & Syndication Network";
+const DEFAULT_TITLE = "Eleventh Press International Publishing™ — Full-Stack Peer Reviewed Press & Syndication Network";
 const DEFAULT_DESCRIPTION = `A Full-Stack Peer Reviewed Press & Multidisciplinary Syndication Network: rigorous peer review, real ${DOI_REGISTRAR} DOIs, genuine open access, and automatic syndication across eight platforms plus a full book-publishing division — one submission, global reach. Indexed via ${DOI_REGISTRAR}, OAI-PMH 2.0, and Google Scholar.`;
 
 /**
@@ -68,7 +68,7 @@ export async function generateMetadata(): Promise<Metadata> {
       "book publishing",
       "preprint distribution",
     ],
-    authors: [{ name: tenant?.siteName || "Eleventh Press International Publishing" }],
+    authors: [{ name: tenant?.siteName || "Eleventh Press International Publishing™" }],
     openGraph: {
       title,
       description,

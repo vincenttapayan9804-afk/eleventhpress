@@ -22,9 +22,9 @@ describe("lockssPermissionStatementText", () => {
     const text = lockssPermissionStatementText({
       name: "Eleventh Press Journal of Mathematics",
       issn: "2945-1138",
-      publisher: "Eleventh Press International Publishing",
+      publisher: "Eleventh Press International Publishing™",
     });
-    expect(text).toContain("Eleventh Press International Publishing");
+    expect(text).toContain("Eleventh Press International Publishing™");
     expect(text).toContain("Eleventh Press Journal of Mathematics");
     expect(text).toContain("ISSN 2945-1138");
     expect(text).toContain("LOCKSS system has permission");

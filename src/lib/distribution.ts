@@ -152,7 +152,7 @@ export function buildShareKit(article: ArticleForKit): ShareKit {
 
   const blurb = `${article.title}\n\nBy ${authorNames}${article.journalName ? ` — published in ${article.journalName}` : ""}.\n\n${summary}\n\nRead the full article: ${canonicalUrl}`;
 
-  const excerpt = `## ${article.title}\n\n*By ${authorNames}*\n\n${summary}\n\n*Originally published in ${article.journalName || article.publisherName || "Eleventh Press International Publishing"} (${article.discipline}). Read the full peer-reviewed article: [${canonicalUrl}](${canonicalUrl})*`;
+  const excerpt = `## ${article.title}\n\n*By ${authorNames}*\n\n${summary}\n\n*Originally published in ${article.journalName || article.publisherName || "Eleventh Press International Publishing™"} (${article.discipline}). Read the full peer-reviewed article: [${canonicalUrl}](${canonicalUrl})*`;
 
   return { blurb, excerpt, canonicalUrl };
 }
@@ -178,7 +178,7 @@ export function buildSubmissionPackage(article: ArticleForKit, platformId: strin
   const authors = parseAuthors(article.authors);
   const authorList = authors.map((a) => (a.affiliation ? `${a.name} (${a.affiliation})` : a.name)).join("; ") || "the authors";
   const canonicalUrl = `${article.baseUrl || APP_BASE_URL}/article/${article.id}`;
-  const journalName = article.journalName || article.publisherName || "Eleventh Press International Publishing";
+  const journalName = article.journalName || article.publisherName || "Eleventh Press International Publishing™";
 
   return {
     title: article.title,
@@ -205,7 +205,7 @@ export function buildBloggerPost(article: ArticleForKit): BloggerPost {
   const authorNames = authors.map((a) => a.name).filter(Boolean).join(", ") || "the authors";
   const canonicalUrl = `${article.baseUrl || APP_BASE_URL}/article/${article.id}`;
   const summary = (article.laySummary || article.abstract).trim();
-  const journalName = article.journalName || article.publisherName || "Eleventh Press International Publishing";
+  const journalName = article.journalName || article.publisherName || "Eleventh Press International Publishing™";
 
   const html = [
     `<p><em>By ${escapeHtml(authorNames)} — published in ${escapeHtml(journalName)}</em></p>`,

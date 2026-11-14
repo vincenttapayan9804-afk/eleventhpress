@@ -60,7 +60,7 @@ export function PrivacyView() {
             </p>
             {legal.whitelabel && (
               <p>
-                The publishing platform this site runs on is provided by Eleventh Press International Publishing,
+                The publishing platform this site runs on is provided by Eleventh Press International Publishing™,
                 which hosts and processes data on {legal.orgName}&apos;s behalf as a processor, under {legal.orgName}&apos;s
                 instructions, and does not use it for its own purposes.
               </p>
@@ -171,7 +171,7 @@ export function PrivacyView() {
           <CardContent className="p-6">
             <p className="text-sm text-muted-foreground text-justify">
               We don&apos;t sell data. A limited set of processors handle it on our behalf, only for the
-              purpose named: {legal.whitelabel ? "Eleventh Press International Publishing (the platform provider, which operates the service below for us), " : ""}our hosting and database provider (running the application and storing
+              purpose named: {legal.whitelabel ? "Eleventh Press International Publishing™ (the platform provider, which operates the service below for us), " : ""}our hosting and database provider (running the application and storing
               your account/submission data), our object storage provider (manuscript files, galleys,
               avatars), your chosen payment gateway (Stripe, PayPal, PayMongo, Lemon Squeezy, or
               Xendit — whichever you select at checkout; card details go directly to them, never to

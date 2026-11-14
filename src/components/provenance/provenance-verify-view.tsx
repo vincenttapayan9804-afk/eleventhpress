@@ -38,6 +38,7 @@ import {
   fmtDate,
   useCopy,
 } from "@/components/verification/verify-ui";
+import { withTrademark } from "@/lib/brand-mark";
 
 function verdictBody(verdict: ProvenanceVerdict, unavailable: string[]): string {
   if (verdict === "verified") {
@@ -358,7 +359,7 @@ export function ProvenanceVerifyView({ record, qrDataUrl }: { record: Provenance
               <dl className="grid gap-x-6 sm:grid-cols-2">
                 <Field label="Journal">{record.journal.name}</Field>
                 <Field label="ISSN">{record.journal.issn ?? "—"}</Field>
-                <Field label="Publisher">{record.journal.publisher}</Field>
+                <Field label="Publisher">{withTrademark(record.journal.publisher)}</Field>
                 <Field label="Volume / issue">
                   {record.issue ? `Vol. ${record.issue.volume}, No. ${record.issue.issueNumber} (${record.issue.year})` : "Continuous publication"}
                 </Field>
@@ -593,7 +594,7 @@ export function ProvenanceVerifyView({ record, qrDataUrl }: { record: Provenance
               </div>
               <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
                 Individually downloaded copies carry a per-reader provenance stamp, so their file hashes intentionally differ from
-                the archived galleys verified here. Verification depends on {record.brand?.publisher || "Eleventh Press International Publishing"}&rsquo;s own
+                the archived galleys verified here. Verification depends on {withTrademark(record.brand?.publisher) || "Eleventh Press International Publishing™"}&rsquo;s own
                 records and archive storage — it is tamper-evident, not blockchain-anchored. It proves authenticity and does not
                 restrict reading, sharing or reuse: this work is licensed CC BY 4.0.
               </p>

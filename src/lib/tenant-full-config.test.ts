@@ -27,7 +27,7 @@ const getObject = async (key: string) => store.get(key) ?? null;
 
 describe("Powered by credit", () => {
   test("is the fixed platform credit, shown for tenants only", () => {
-    expect(POWERED_BY_CREDIT).toBe("Powered by Eleventh Press International Publishing");
+    expect(POWERED_BY_CREDIT).toBe("Powered by Eleventh Press International Publishing™");
     expect(poweredByFor({ whitelabel: true })).toBe(POWERED_BY_CREDIT);
     expect(poweredByFor({ whitelabel: false })).toBeNull();
     expect(poweredByFor(null)).toBeNull();
@@ -54,7 +54,7 @@ describe("journal & publication details", () => {
     const form = journalFormOf({
       name: "Ron Journal",
       abbreviation: null,
-      publisher: "Eleventh Press International Publishing",
+      publisher: "Eleventh Press International Publishing™",
       issn: null,
       eissn: null,
       description: null,

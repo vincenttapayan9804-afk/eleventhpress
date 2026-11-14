@@ -24,7 +24,7 @@
   },
   "header": {
     "brandName": "ELEVENTH PRESS",
-    "brandTagline": "International Publishing"
+    "brandTagline": "International Publishing™"
   },
   "footer": {
     "tagline": "A Full-Stack Peer Reviewed Press & Multidisciplinary Syndication Network",
@@ -48,7 +48,7 @@
     "policyPci": "PCI-DSS across all payment gateways",
     "termsOfService": "Terms of Service",
     "accessibilityStatement": "Accessibility statement",
-    "copyright": "© {year} Eleventh Press International Publishing. All articles published under CC BY 4.0 unless otherwise noted.",
+    "copyright": "© {year} Eleventh Press International Publishing™. All articles published under CC BY 4.0 unless otherwise noted.",
     "indexedLine": "Indexed: Google Scholar · {registrar} · OAI-PMH · DOAJ"
   },
   "home": {

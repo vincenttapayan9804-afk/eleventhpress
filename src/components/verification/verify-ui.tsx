@@ -95,7 +95,7 @@ export const VERDICT_UI: Record<ProvenanceVerdict, {
  */
 export function sealRingName(publisher: string | null | undefined): string {
   const p = (publisher ?? "").trim();
-  if (!p || /^eleventh press( international publishing)?$/i.test(p)) return "ELEVENTH PRESS";
+  if (!p || /^eleventh press( international publishing)?\s*(?:\u2122|\(tm\))?$/i.test(p)) return "ELEVENTH PRESS";
   const up = p.toUpperCase();
   return up.length > 24 ? `${up.slice(0, 23).trimEnd()}…` : up;
 }

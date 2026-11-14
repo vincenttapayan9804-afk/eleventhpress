@@ -13,7 +13,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   const p = await getAuthorProfile(slug, tenant?.id ?? null).catch(() => null);
   const wlName = tenant && !tenant.isPlatform ? tenant.siteName || tenant.name : null;
   const brand = wlName ? { brand: wlName.slice(0, 40) } : {};
-  if (!p) return ogCard({ eyebrow: "Author", title: wlName || "Eleventh Press International Publishing", ...brand });
+  if (!p) return ogCard({ eyebrow: "Author", title: wlName || "Eleventh Press International Publishing™", ...brand });
   return ogCard({
     ...brand,
     eyebrow: "Author profile",

@@ -76,6 +76,7 @@ import { apiFetch } from "@/lib/api-client";
 import { useApp } from "@/lib/store";
 import { useTenantBranding } from "@/lib/tenant-branding-context";
 import { JOURNAL_IDENTITY } from "@/lib/site";
+import { withTrademark } from "@/lib/brand-mark";
 import { ResearchMascot } from "@/components/research-assistant/mascot";
 import { cn } from "@/lib/utils";
 import { AnswerView, type AnswerActions } from "@/components/research-assistant/answer-view";
@@ -229,9 +230,9 @@ export function CorpusChatPanel({ open, onOpenChange }: { open: boolean; onOpenC
     el.style.height = `${Math.min(el.scrollHeight, 220)}px`;
   }, [input]);
 
-  const journalName = journal?.name ?? branding.siteName ?? JOURNAL_IDENTITY.name;
+  const journalName = withTrademark(journal?.name) ?? branding.siteName ?? JOURNAL_IDENTITY.name;
   // The publishing house shown in full at the top of the sidebar.
-  const publisherName = journal?.publisher || branding.siteName || JOURNAL_IDENTITY.name;
+  const publisherName = withTrademark(journal?.publisher) || branding.siteName || JOURNAL_IDENTITY.name;
   const selectedMessage = messages.find((m) => m.id === selection?.messageId && m.role === "assistant") ?? [...messages].reverse().find((m) => m.role === "assistant");
   const evidenceData = selectedMessage?.data ?? null;
   const lastMessage = messages[messages.length - 1];

@@ -7,7 +7,7 @@ import { hexOr } from "@/lib/publisher-identity";
 export default async function manifest(): Promise<MetadataRoute.Manifest> {
   const tenant = await resolveTenantFromHeaders(await headers()).catch(() => null);
   const whitelabel = tenant && !tenant.isPlatform;
-  const name = whitelabel ? tenant.siteName || tenant.name : "Eleventh Press International Publishing";
+  const name = whitelabel ? tenant.siteName || tenant.name : "Eleventh Press International Publishing™";
   // Tenant-specific icon URL (its own logo/initials), cached per tenant.
   const iconQuery = whitelabel ? `?t=${encodeURIComponent(tenant.slug)}` : "";
   const theme = whitelabel ? hexOr(tenant.primaryColor, "#3b1466") : "#3b1466";

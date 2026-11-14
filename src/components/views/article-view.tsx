@@ -1902,7 +1902,7 @@ function CommunityReviewSection({ reviews }: { reviews: CommunityReview[] }) {
 
 function OpenPeerReviewPanel({ reviews, published }: { reviews: any[] | null; published: boolean }) {
   const branding = useTenantBranding();
-  const orgName = isWhitelabel(branding) ? branding.siteName || branding.tenantName || "This journal" : "Eleventh Press International Publishing";
+  const orgName = isWhitelabel(branding) ? branding.siteName || branding.tenantName || "This journal" : "Eleventh Press International Publishing™";
   if (!published) {
     return (
       <Card className="paper-card">

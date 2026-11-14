@@ -494,7 +494,7 @@ export async function depositPublishedArticleToZenodo(
   }
   if (!fileBuffer) {
     fileBuffer = Buffer.from(
-      `${article.title}\n\n${article.abstract}\n\nPublished by ${article.journal?.name || "Eleventh Press International Publishing"}.`,
+      `${article.title}\n\n${article.abstract}\n\nPublished by ${article.journal?.name || "Eleventh Press International Publishing™"}.`,
       "utf-8"
     );
     fileName = `${article.id}.txt`;
@@ -512,7 +512,7 @@ export async function depositPublishedArticleToZenodo(
     // license for every Zenodo deposit rather than a per-article field.
     // Must match Zenodo's controlled vocabulary id exactly (uppercase).
     license: "CC-BY-4.0",
-    journalTitle: article.journal?.name || "Eleventh Press International Publishing",
+    journalTitle: article.journal?.name || "Eleventh Press International Publishing™",
     journalVolume: article.issue?.volume ? String(article.issue.volume) : undefined,
     journalIssue: article.issue?.issueNumber ? String(article.issue.issueNumber) : undefined,
     publicationDate: (article.publishedAt || new Date()).toISOString().slice(0, 10),
@@ -576,7 +576,7 @@ export async function depositPreprintVersionToZenodo(articleId: string): Promise
   let fileContentType = "text/markdown";
   if (!fileBuffer) {
     fileBuffer = Buffer.from(
-      `${article.title}\n\n${article.abstract}\n\nPreprint version ${article.versionNumber}, posted by ${article.journal?.name || "Eleventh Press International Publishing"}.`,
+      `${article.title}\n\n${article.abstract}\n\nPreprint version ${article.versionNumber}, posted by ${article.journal?.name || "Eleventh Press International Publishing™"}.`,
       "utf-8"
     );
     fileName = `${article.id}.txt`;
@@ -591,7 +591,7 @@ export async function depositPreprintVersionToZenodo(articleId: string): Promise
     creators: authors.map((a) => ({ name: a.name, affiliation: a.affiliation, orcid: a.orcid })),
     keywords: article.keywords.split(",").map((k) => k.trim()).filter(Boolean),
     license: "CC-BY-4.0",
-    journalTitle: article.journal?.name || "Eleventh Press International Publishing",
+    journalTitle: article.journal?.name || "Eleventh Press International Publishing™",
     publicationDate: (article.preprintPostedAt || new Date()).toISOString().slice(0, 10),
     fileBuffer,
     fileName,
@@ -727,7 +727,7 @@ export async function depositReviewReportToZenodo(articleId: string): Promise<Ze
     decisionLetters: decisions.map((d) => ({ editorName: d.editor.fullName, decision: d.decision, letterBody: d.letterBody, publishedAt: d.letterPublishedAt })),
   });
 
-  const journalName = article.journal?.name || "Eleventh Press International Publishing";
+  const journalName = article.journal?.name || "Eleventh Press International Publishing™";
   const deposit = await depositArticleToZenodo({
     articleId: article.id,
     title: `Peer Review Report: "${article.title}"`,

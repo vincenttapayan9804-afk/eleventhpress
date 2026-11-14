@@ -19,12 +19,13 @@ import { SEALED_FIELDS } from "@/lib/article-provenance";
 import type { ProvenanceCheckResult } from "@/lib/article-provenance-server";
 import { mixHex, normalizeHex } from "@/lib/brand-colors";
 import { POWERED_BY_CREDIT } from "@/lib/powered-by";
+import { withTrademark } from "@/lib/brand-mark";
 
-export const PROVENANCE_WATERMARK = "Published at Eleventh Press International Publishing";
+export const PROVENANCE_WATERMARK = "Published at Eleventh Press International Publishing™";
 
 /** Diagonal watermark naming the publisher that issued the work (a whitelabel tenant, or the platform). */
 export function provenanceWatermark(publisher: string | null | undefined): string {
-  return publisher ? `Published at ${publisher}` : PROVENANCE_WATERMARK;
+  return publisher ? `Published at ${withTrademark(publisher)}` : PROVENANCE_WATERMARK;
 }
 
 export const PURPLE = "#4c1d95";
@@ -175,7 +176,7 @@ export async function buildProvenanceCertificatePdf(record: ProvenanceRecord, br
     color: { dark: INK, light: "#ffffff" },
   });
 
-  const publisher = pdfSafe(record.brand?.publisher || record.journal.publisher || "Eleventh Press International Publishing");
+  const publisher = pdfSafe(record.brand?.publisher || record.journal.publisher || "Eleventh Press International Publishing™");
   const watermark = pdfSafe(provenanceWatermark(publisher));
 
   return new Promise<Buffer>((resolve, reject) => {

@@ -28,7 +28,7 @@ function record(overrides: Partial<ProvenanceRecord> = {}): ProvenanceRecord {
     insightCategoryLabel: null,
     discipline: "Education",
     keywords: ["MSLQ", "TLE"],
-    journal: { name: "EPIP Journal", issn: null, publisher: "Eleventh Press International Publishing" },
+    journal: { name: "EPIP Journal", issn: null, publisher: "Eleventh Press International Publishing™" },
     issue: null,
     versionNumber: 1,
     reviewModelLabel: "Double-blind peer review",
@@ -75,7 +75,7 @@ async function pageTexts(pdf: Buffer): Promise<string[]> {
       try { body = inflateSync(raw).toString("latin1"); } catch { body = raw.toString("latin1"); }
       // Each TJ array is <hex> strings interleaved with kerning offsets.
       for (const [, arr] of body.matchAll(/\[([^\]]*)\]\s*TJ/g)) {
-        out += [...arr.matchAll(/<([0-9a-fA-F]*)>/g)].map(([, hex]) => Buffer.from(hex, "hex").toString("latin1")).join("") + "\n";
+        out += [...arr.matchAll(/<([0-9a-fA-F]*)>/g)].map(([, hex]) => Buffer.from(hex, "hex").toString("latin1")).join("").replace(/\x99/g, "\u2122") + "\n"; // WinAnsi 0x99 is ™
       }
     }
     return out;
@@ -97,7 +97,7 @@ describe("provenance certificate PDF", () => {
     const texts = await pageTexts(await buildProvenanceCertificatePdf(record()));
     expect(texts.length).toBeGreaterThan(1);
     for (const t of texts) expect(t).toContain(PROVENANCE_WATERMARK);
-    expect(PROVENANCE_WATERMARK).toBe("Published at Eleventh Press International Publishing");
+    expect(PROVENANCE_WATERMARK).toBe("Published at Eleventh Press International Publishing™");
   });
 
   test("a whitelabel tenant's certificate names the tenant and carries the fixed platform credit", async () => {

@@ -24,7 +24,7 @@
   },
   "header": {
     "brandName": "ELEVENTH PRESS",
-    "brandTagline": "International Publishing"
+    "brandTagline": "International Publishing™"
   },
   "footer": {
     "tagline": "Isang Full-Stack Peer Reviewed Press at Multidisciplinary Syndication Network",
@@ -48,7 +48,7 @@
     "policyPci": "PCI-DSS sa lahat ng payment gateway",
     "termsOfService": "Mga Tuntunin ng Serbisyo",
     "accessibilityStatement": "Pahayag sa accessibility",
-    "copyright": "© {year} Eleventh Press International Publishing. Ang lahat ng artikulo ay nailathala sa ilalim ng CC BY 4.0 maliban na lang kung nakasaad.",
+    "copyright": "© {year} Eleventh Press International Publishing™. Ang lahat ng artikulo ay nailathala sa ilalim ng CC BY 4.0 maliban na lang kung nakasaad.",
     "indexedLine": "Naka-index sa: Google Scholar · {registrar} · OAI-PMH · DOAJ"
   },
   "home": {

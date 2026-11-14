@@ -19,7 +19,7 @@ describe("publisherIdentityOf", () => {
   test("platform keeps Eleventh Press's identity and ISSN", () => {
     const id = publisherIdentityOf(null, null);
     expect(id.whitelabel).toBe(false);
-    expect(id.publisher).toBe("Eleventh Press International Publishing");
+    expect(id.publisher).toBe("Eleventh Press International Publishing™");
     expect(id.issn).toBe("2945-1138");
     expect(id.email).toBe(PLATFORM_IDENTITY.email);
   });
@@ -27,7 +27,7 @@ describe("publisherIdentityOf", () => {
   test("tenant journal with the schema's default publisher names the tenant instead", () => {
     const id = publisherIdentityOf(RON, {
       name: "Ron Journal of Research",
-      publisher: "Eleventh Press International Publishing",
+      publisher: "Eleventh Press International Publishing™",
       issn: null,
       tenantId: "t_ron",
     });

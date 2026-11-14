@@ -33,7 +33,7 @@ export interface VerificationReportBranding {
   logoPng?: Buffer | null;
 }
 
-const PLATFORM_ISSUER = "Eleventh Press International Publishing";
+const PLATFORM_ISSUER = "Eleventh Press International Publishing™";
 const PAGE_W = 595.28;
 const PAGE_H = 841.89;
 const M = 54;

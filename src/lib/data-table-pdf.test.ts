@@ -13,7 +13,7 @@ const article = {
   discipline: "Education",
   journalName: "EPIP International Journal of Multidisciplinary Research",
   journalIssn: "2945-1138",
-  publisher: "Eleventh Press International Publishing",
+  publisher: "Eleventh Press International Publishing™",
   volume: 5,
   issueNumber: 1,
   year: 2026,

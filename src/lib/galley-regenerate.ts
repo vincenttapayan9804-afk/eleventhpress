@@ -94,7 +94,7 @@ ${authorList}
 ${article.abstract}
 
 ## 1. Introduction
-This article was published by ${article.journal?.name || "Eleventh Press International Publishing"} under a ${article.reviewModel.replace(/_/g, " ").toLowerCase()} peer-review model. The full text of the manuscript has been deposited alongside this record and is available via the galley links.
+This article was published by ${article.journal?.name || "Eleventh Press International Publishing™"} under a ${article.reviewModel.replace(/_/g, " ").toLowerCase()} peer-review model. The full text of the manuscript has been deposited alongside this record and is available via the galley links.
 
 ## 2. Methods
 Methodological detail is preserved verbatim from the accepted manuscript. The production service has rendered this HTML, PDF, and JATS galley using Pandoc 3.1.11.1 and WeasyPrint with the journal's house CSS template.
