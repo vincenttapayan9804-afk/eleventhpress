@@ -17,12 +17,46 @@ interface PostItem {
   category: string;
   heroImageUrl: string | null;
   publishedAt: string | null;
+  /** Set for the newsroom's own stories, which have server-rendered pages at /media/<slug>. */
+  href?: string;
 }
 
 function postDate(publishedAt: string | null) {
   return publishedAt
     ? new Date(publishedAt).toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" })
     : "";
+}
+
+/**
+ * A card that opens a post: a real link for the newsroom's server-rendered
+ * stories (crawlable, opens in a new tab with the usual gestures), a button
+ * that switches the single-page view for dashboard posts.
+ */
+function PostLink({
+  post,
+  onOpen,
+  className,
+  style,
+  children,
+}: {
+  post: PostItem;
+  onOpen: (id: string) => void;
+  className: string;
+  style?: React.CSSProperties;
+  children: React.ReactNode;
+}) {
+  if (post.href) {
+    return (
+      <a href={post.href} className={className} style={style}>
+        {children}
+      </a>
+    );
+  }
+  return (
+    <button type="button" onClick={() => onOpen(post.id)} className={className} style={style}>
+      {children}
+    </button>
+  );
 }
 
 const FILTER_VALUES = ["ALL", "NEWS", "BLOG"] as const;
@@ -90,8 +124,9 @@ export function MediaView() {
       ) : (
         <>
           {hero && (
-            <button
-              onClick={() => openMediaPost(hero.id)}
+            <PostLink
+              post={hero}
+              onOpen={openMediaPost}
               className="cover-click-glow group mt-8 grid w-full gap-0 overflow-hidden rounded-2xl border border-foreground/10 bg-black text-left shadow-[0_24px_64px_oklch(0.38_0.18_295/0.18)] transition-all duration-500 hover:shadow-[0_32px_80px_oklch(0.38_0.18_295/0.28)] lg:grid-cols-2"
             >
               <div className="relative aspect-[4/3] overflow-hidden lg:aspect-auto">
@@ -112,15 +147,16 @@ export function MediaView() {
                   {t("readMore")} <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                 </div>
               </div>
-            </button>
+            </PostLink>
           )}
 
           {rest.length > 0 && (
             <div className="mt-14 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
               {rest.map((post, i) => (
-                <button
+                <PostLink
                   key={post.id}
-                  onClick={() => openMediaPost(post.id)}
+                  post={post}
+                  onOpen={openMediaPost}
                   className="group flex flex-col text-left"
                   style={{ animationDelay: `${i * 60}ms` }}
                 >
@@ -135,7 +171,7 @@ export function MediaView() {
                   <h3 className="mt-2 font-display text-xl font-semibold leading-snug transition-colors group-hover:text-primary">{post.title}</h3>
                   {post.dek && <p className="mt-1.5 line-clamp-2 text-sm text-muted-foreground">{post.dek}</p>}
                   <p className="mt-3 text-xs font-medium text-muted-foreground">{t("byAuthorDate", { author: post.authorName, date: postDate(post.publishedAt) })}</p>
-                </button>
+                </PostLink>
               ))}
             </div>
           )}

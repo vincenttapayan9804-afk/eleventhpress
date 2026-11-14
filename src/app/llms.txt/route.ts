@@ -1,4 +1,5 @@
 import { APP_BASE_URL, JOURNAL_IDENTITY } from "@/lib/site";
+import { MEDIA_STORIES, stripCitations } from "@/lib/media/stories";
 import { BLOGS, GUIDES } from "@/lib/resources-content";
 
 /**
@@ -26,6 +27,14 @@ export function GET() {
     "## Resources blog",
     "",
     ...BLOGS.map((b) => `- [${b.title}](${APP_BASE_URL}/resources/blog/${b.slug}): ${b.excerpt}`),
+    "",
+    "## Newsroom",
+    "",
+    ...MEDIA_STORIES.filter((m) => m.type === "NEWS").map((m) => `- [${m.title}](${APP_BASE_URL}/media/${m.slug}): ${stripCitations(m.lede)}`),
+    "",
+    "## Media blog (long-form evidence reviews)",
+    "",
+    ...MEDIA_STORIES.filter((m) => m.type === "BLOG").map((m) => `- [${m.title}](${APP_BASE_URL}/media/${m.slug}): ${stripCitations(m.lede)}`),
     "",
     "## Other",
     "",

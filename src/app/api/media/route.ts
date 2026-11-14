@@ -6,6 +6,7 @@ import { resolveTenantFromHeaders } from "@/lib/tenant";
 import { withTenantRlsContext } from "@/lib/db-rls";
 import { PRIVILEGED_ROLES_LIST as PRIVILEGED_ROLES } from "@/lib/roles";
 import { sanitizeEditorialHtml } from "@/lib/html-sanitize";
+import { MEDIA_STORIES, mediaStoryListItem } from "@/lib/media/stories";
 
 const TYPES = new Set(["NEWS", "BLOG"]);
 
@@ -37,6 +38,17 @@ export async function GET(req: NextRequest) {
   const withUrls = await Promise.all(
     posts.map(async (p) => ({ ...p, heroImageUrl: p.heroImageKey ? await presignGet(p.heroImageKey) : null }))
   );
+
+  // The platform newsroom's own stories (src/lib/media/stories.ts) sit
+  // alongside dashboard posts on the public list, newest first. Tenants'
+  // sites and the editorial queue (?all=1) show only their MediaPost rows.
+  if ((!tenant || tenant.isPlatform) && !canSeeAll) {
+    const editorial = MEDIA_STORIES.filter((s) => !type || s.type === type).map(mediaStoryListItem);
+    const merged = [...withUrls, ...editorial].sort(
+      (a, b) => new Date(b.publishedAt ?? 0).getTime() - new Date(a.publishedAt ?? 0).getTime()
+    );
+    return NextResponse.json({ posts: merged });
+  }
 
   return NextResponse.json({ posts: withUrls });
 }

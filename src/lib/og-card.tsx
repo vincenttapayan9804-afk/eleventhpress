@@ -11,7 +11,7 @@ export const OG_SIZE = { width: 1200, height: 630 };
 
 // The site's own typefaces: Fraunces for titles, Inter for supporting text.
 let fontsPromise: Promise<{ name: string; data: Buffer; weight: 500 | 600; style: "normal" }[]> | null = null;
-function loadFonts() {
+export function loadOgFonts() {
   fontsPromise ??= Promise.all([
     readFile(join(process.cwd(), "src/assets/fonts/Fraunces-SemiBold.ttf")).then((data) => ({ name: "Fraunces", data, weight: 600 as const, style: "normal" as const })),
     readFile(join(process.cwd(), "src/assets/fonts/Inter-Medium.ttf")).then((data) => ({ name: "Inter", data, weight: 500 as const, style: "normal" as const })),
@@ -63,6 +63,6 @@ export async function ogCard({
         </div>
       </div>
     ),
-    { ...OG_SIZE, fonts: await loadFonts() }
+    { ...OG_SIZE, fonts: await loadOgFonts() }
   );
 }

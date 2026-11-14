@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { requestBaseUrl, resolveTenantFromHeaders } from "@/lib/tenant";
 import { withTenantRlsContext } from "@/lib/db-rls";
 import { BLOGS, GUIDES } from "@/lib/resources-content";
+import { MEDIA_STORIES, mediaStoryPath } from "@/lib/media/stories";
 import { articlePath, SITEMAP_PATHS } from "@/lib/spa-routes";
 import { authorPath } from "@/lib/author-path";
 import { parseAuthors } from "@/lib/article";
@@ -66,6 +67,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "yearly" as const,
       priority: 0.7,
     })),
+    // The platform newsroom's stories (server-rendered /media/<slug> pages).
+    ...(tenant && !tenant.isPlatform
+      ? []
+      : MEDIA_STORIES.map((s) => ({
+          url: `${base}${mediaStoryPath(s)}`,
+          lastModified: new Date(`${s.dateModified}T00:00:00Z`),
+          changeFrequency: (s.type === "NEWS" ? "weekly" : "monthly") as "weekly" | "monthly",
+          priority: 0.7,
+        }))),
     ...articles.map((a) => ({
       url: `${base}${articlePath(a.id, a.title)}`,
       lastModified: a.publishedAt ?? undefined,
