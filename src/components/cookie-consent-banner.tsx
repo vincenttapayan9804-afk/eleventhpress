@@ -138,7 +138,7 @@ export function CookieConsentBanner() {
                       Your privacy, your choice
                     </p>
                     <p id="cookie-consent-description" className="mt-1.5 text-xs leading-relaxed text-muted-foreground sm:text-[13px]">
-                      {legal.orgName} uses strictly necessary cookies to keep you signed in and secure. With your permission we&apos;ll also set
+                      {legal.orgName}{" "}uses strictly necessary cookies to keep you signed in and secure. With your permission we&apos;ll also set
                       one optional cookie to count free magazine articles for readers who aren&apos;t signed in. No advertising,
                       no cross-site tracking.{" "}
                       <a href="/cookie-policy" className="font-medium text-primary underline-offset-2 hover:underline">

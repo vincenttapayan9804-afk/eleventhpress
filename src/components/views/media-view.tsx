@@ -28,6 +28,15 @@ function postDate(publishedAt: string | null) {
 }
 
 /**
+ * The newsroom's own stories use generated 1200×630 data cards with the
+ * headline number and source printed on them. They must be shown whole, at
+ * their own proportions, never cropped or zoomed like a photo.
+ */
+function isDataCard(post: PostItem) {
+  return Boolean(post.href && post.heroImageUrl?.endsWith("/cover"));
+}
+
+/**
  * A card that opens a post: a real link for the newsroom's server-rendered
  * stories (crawlable, opens in a new tab with the usual gestures), a button
  * that switches the single-page view for dashboard posts.
@@ -86,6 +95,7 @@ export function MediaView() {
     [posts, filter]
   );
   const [hero, ...rest] = filtered;
+  const heroIsCard = hero ? isDataCard(hero) : false;
 
   if (loading) {
     return (
@@ -127,26 +137,48 @@ export function MediaView() {
             <PostLink
               post={hero}
               onOpen={openMediaPost}
-              className="cover-click-glow group mt-8 grid w-full gap-0 overflow-hidden rounded-2xl border border-foreground/10 bg-black text-left shadow-[0_24px_64px_oklch(0.38_0.18_295/0.18)] transition-all duration-500 hover:shadow-[0_32px_80px_oklch(0.38_0.18_295/0.28)] lg:grid-cols-2"
+              className={`cover-click-glow group mt-8 grid w-full gap-0 overflow-hidden rounded-2xl border border-foreground/10 bg-black text-left shadow-[0_24px_64px_oklch(0.38_0.18_295/0.18)] transition-all duration-500 hover:shadow-[0_32px_80px_oklch(0.38_0.18_295/0.28)] ${heroIsCard ? "" : "lg:grid-cols-2"}`}
             >
-              <div className="relative aspect-[4/3] overflow-hidden lg:aspect-auto">
+              <div className={`relative overflow-hidden ${heroIsCard ? "aspect-[1200/630]" : "aspect-[4/3] lg:aspect-auto"}`}>
                 {hero.heroImageUrl ? (
-                  <img src={hero.heroImageUrl} alt={hero.title} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                  <img
+                    src={hero.heroImageUrl}
+                    alt={hero.title}
+                    width={heroIsCard ? 1200 : undefined}
+                    height={heroIsCard ? 630 : undefined}
+                    className={`h-full w-full object-cover transition duration-700 ${heroIsCard ? "group-hover:brightness-110" : "group-hover:scale-105"}`}
+                  />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[oklch(0.25_0.08_295)] to-black">
                     <FileText className="h-16 w-16 text-white/30" />
                   </div>
                 )}
               </div>
-              <div className="flex flex-col justify-center px-8 py-10 sm:px-12 sm:py-14">
-                <p className="font-mono text-[0.7rem] uppercase tracking-[0.22em] text-[oklch(0.76_0.11_294)]">{hero.type} · {hero.category}</p>
-                <h2 className="mt-4 font-display text-3xl font-bold leading-[1.05] text-white sm:text-4xl lg:text-5xl">{hero.title}</h2>
-                {hero.dek && <p className="mt-4 max-w-md font-serif text-lg italic leading-relaxed text-white/70">{hero.dek}</p>}
-                <p className="mt-6 text-sm font-medium text-white/60">{t("byAuthorDate", { author: hero.authorName, date: postDate(hero.publishedAt) })}</p>
-                <div className="mt-6 flex items-center gap-2 text-sm font-semibold text-white">
-                  {t("readMore")} <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+              {heroIsCard ? (
+                <div className="grid gap-6 px-6 py-8 sm:px-10 sm:py-10 lg:grid-cols-[1.35fr_1fr] lg:gap-12">
+                  <div>
+                    <p className="font-mono text-[0.7rem] uppercase tracking-[0.22em] text-[oklch(0.76_0.11_294)]">{hero.type} · {hero.category}</p>
+                    <h2 className="mt-4 font-display text-3xl font-bold leading-[1.08] text-white sm:text-4xl">{hero.title}</h2>
+                  </div>
+                  <div className="flex flex-col justify-end">
+                    {hero.dek && <p className="font-serif text-lg italic leading-relaxed text-white/70">{hero.dek}</p>}
+                    <p className="mt-5 text-sm font-medium text-white/60">{t("byAuthorDate", { author: hero.authorName, date: postDate(hero.publishedAt) })}</p>
+                    <div className="mt-5 flex items-center gap-2 text-sm font-semibold text-white">
+                      {t("readMore")} <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="flex flex-col justify-center px-8 py-10 sm:px-12 sm:py-14">
+                  <p className="font-mono text-[0.7rem] uppercase tracking-[0.22em] text-[oklch(0.76_0.11_294)]">{hero.type} · {hero.category}</p>
+                  <h2 className="mt-4 font-display text-3xl font-bold leading-[1.05] text-white sm:text-4xl lg:text-5xl">{hero.title}</h2>
+                  {hero.dek && <p className="mt-4 max-w-md font-serif text-lg italic leading-relaxed text-white/70">{hero.dek}</p>}
+                  <p className="mt-6 text-sm font-medium text-white/60">{t("byAuthorDate", { author: hero.authorName, date: postDate(hero.publishedAt) })}</p>
+                  <div className="mt-6 flex items-center gap-2 text-sm font-semibold text-white">
+                    {t("readMore")} <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  </div>
+                </div>
+              )}
             </PostLink>
           )}
 
@@ -160,9 +192,16 @@ export function MediaView() {
                   className="group flex flex-col text-left"
                   style={{ animationDelay: `${i * 60}ms` }}
                 >
-                  <div className="mb-4 aspect-[16/10] overflow-hidden rounded-lg bg-[var(--royal-100)]">
+                  <div className={`mb-4 overflow-hidden rounded-lg bg-[var(--royal-100)] ${isDataCard(post) ? "aspect-[1200/630]" : "aspect-[16/10]"}`}>
                     {post.heroImageUrl ? (
-                      <img src={post.heroImageUrl} alt={post.title} loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                      <img
+                        src={post.heroImageUrl}
+                        alt={post.title}
+                        loading="lazy"
+                        width={isDataCard(post) ? 1200 : undefined}
+                        height={isDataCard(post) ? 630 : undefined}
+                        className={`h-full w-full object-cover transition duration-500 ${isDataCard(post) ? "group-hover:brightness-110" : "group-hover:scale-105"}`}
+                      />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center"><FileText className="h-8 w-8 text-primary" /></div>
                     )}
