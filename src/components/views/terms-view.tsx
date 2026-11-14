@@ -51,7 +51,7 @@ export function TermsView() {
                 &ldquo;our&rdquo; mean {legal.legalName}, which makes all editorial, publishing and account decisions on this site.
               </p>
               <p>
-                The publishing platform software is provided to {org} by Eleventh Press International Publishing as
+                The publishing platform software is provided to {org} by Eleventh Press International Publishing™ as
                 technology provider. Eleventh Press does not make editorial decisions
                 for {org}.
               </p>
@@ -124,7 +124,7 @@ export function TermsView() {
             </p>
             <p>
               {legal.whitelabel
-                ? `The ${org} name and logo, and the platform's design and software (provided by Eleventh Press International Publishing), are not covered by the CC BY license articles are published under, and may not be used to imply endorsement without permission.`
+                ? `The ${org} name and logo, and the platform's design and software (provided by Eleventh Press International Publishing™), are not covered by the CC BY license articles are published under, and may not be used to imply endorsement without permission.`
                 : "The Eleventh Press name, logo, and site design are not covered by the CC BY license articles are published under, and may not be used to imply endorsement without permission."}
             </p>
           </CardContent>

@@ -20,6 +20,7 @@
 import { db } from "./db";
 import { APP_BASE_URL, JOURNAL_IDENTITY } from "./site";
 import { getObject } from "./storage";
+import { stripTrademark, withTrademark } from "@/lib/brand-mark";
 
 export const PLATFORM_PUBLISHER_NAME = JOURNAL_IDENTITY.name;
 export const PLATFORM_SHORT_NAME = JOURNAL_IDENTITY.shortName;
@@ -101,8 +102,8 @@ function clean(s: string | null | undefined): string | null {
 
 function isPlatformDefaultPublisher(publisher: string | null): boolean {
   if (!publisher) return true;
-  const p = publisher.trim().toLowerCase();
-  return p === PLATFORM_PUBLISHER_NAME.toLowerCase() || p === PLATFORM_SHORT_NAME.toLowerCase();
+  const p = stripTrademark(publisher.trim()).toLowerCase();
+  return p === stripTrademark(PLATFORM_PUBLISHER_NAME).toLowerCase() || p === PLATFORM_SHORT_NAME.toLowerCase();
 }
 
 export const PLATFORM_IDENTITY: PublisherIdentity = Object.freeze({
@@ -128,10 +129,10 @@ export function publisherIdentityOf(
   journal?: JournalLike | null
 ): PublisherIdentity {
   if (!tenant || tenant.isPlatform) {
-    const journalName = clean(journal?.name) ?? PLATFORM_PUBLISHER_NAME;
+    const journalName = withTrademark(clean(journal?.name)) ?? PLATFORM_PUBLISHER_NAME;
     return {
       ...PLATFORM_IDENTITY,
-      publisher: clean(journal?.publisher) ?? PLATFORM_PUBLISHER_NAME,
+      publisher: withTrademark(clean(journal?.publisher)) ?? PLATFORM_PUBLISHER_NAME,
       journalName,
       issn: clean(journal?.issn) ?? JOURNAL_IDENTITY.issn,
       // The platform's own uploaded logo (the one its site header shows), if any.
@@ -144,7 +145,7 @@ export function publisherIdentityOf(
     whitelabel: true,
     publisher: journalPublisher && !isPlatformDefaultPublisher(journalPublisher) ? journalPublisher : org,
     shortName: org,
-    journalName: clean(journal?.name) ?? org,
+    journalName: withTrademark(clean(journal?.name)) ?? org,
     issn: clean(journal?.issn),
     eissn: clean(journal?.eissn),
     abbreviation: clean(journal?.abbreviation),

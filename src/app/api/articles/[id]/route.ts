@@ -8,6 +8,7 @@ import { resolveAuthorAvatars } from "@/lib/author-accounts";
 import { parseAuthors } from "@/lib/article";
 import { resolveTenantFromHeaders, tenantCacheControl } from "@/lib/tenant";
 import { withRlsContext, withTenantRlsContext } from "@/lib/db-rls";
+import { withTrademark } from "@/lib/brand-mark";
 
 /**
  * GET /api/articles/[id]
@@ -144,7 +145,7 @@ export async function GET(
     issueTitle: article.issue?.title ?? null,
     journalName: article.journal?.name,
     journalIssn: article.journal?.issn,
-    publisher: article.journal?.publisher,
+    publisher: withTrademark(article.journal?.publisher),
     hasCompletedReview: completedReviewCount > 0,
   }, { headers });
 }

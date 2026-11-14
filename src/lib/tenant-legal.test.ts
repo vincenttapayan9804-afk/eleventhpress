@@ -24,7 +24,7 @@ describe("legalIdentityOf", () => {
   test("the official site keeps Eleventh Press's identity", () => {
     const l = legalIdentityOf(DEFAULT_CLIENT_BRANDING);
     expect(l.whitelabel).toBe(false);
-    expect(l.legalName).toBe("Eleventh Press International Publishing");
+    expect(l.legalName).toBe("Eleventh Press International Publishing™");
     expect(l.governingLaw).toBe("the laws of England and Wales");
   });
 
@@ -58,7 +58,7 @@ describe("faqsFor", () => {
   });
 
   test("the official site's FAQs are unchanged", () => {
-    expect(faqsFor(legalIdentityOf(DEFAULT_CLIENT_BRANDING))[0].q).toContain("Eleventh Press International Publishing");
+    expect(faqsFor(legalIdentityOf(DEFAULT_CLIENT_BRANDING))[0].q).toContain("Eleventh Press International Publishing™");
   });
 });
 

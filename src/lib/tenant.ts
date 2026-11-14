@@ -22,6 +22,7 @@ import { PORTAL_COOKIE_NAME } from "@/lib/session-cookie";
 import { db } from "./db";
 import { APP_BASE_URL, APP_HOST } from "./site";
 import { getSessionFromHeaders } from "./auth";
+import { withTrademark } from "@/lib/brand-mark";
 
 /** Social profiles an organization can list. Keys are fixed so the footer, emails and PDFs know which icon/label to use. */
 export const SOCIAL_LINK_KEYS = ["facebook", "x", "linkedin", "instagram", "youtube", "tiktok", "researchgate"] as const;
@@ -221,14 +222,14 @@ function toTenantContext(tenant: TenantRow, source: TenantSource): TenantContext
   return {
     id: tenant.id,
     slug: tenant.slug,
-    name: tenant.name,
+    name: withTrademark(tenant.name),
     status: tenant.status,
     isPlatform: tenant.isPlatform,
     source: tenant.isPlatform ? "platform" : source,
     ...brandingOf(tenant),
     // A whitelabel tenant that hasn't set a display name yet still shows
     // its own name rather than "Eleventh Press".
-    siteName: tenant.siteName ?? (tenant.isPlatform ? null : tenant.name),
+    siteName: withTrademark(tenant.siteName) ?? (tenant.isPlatform ? null : tenant.name),
   };
 }
 

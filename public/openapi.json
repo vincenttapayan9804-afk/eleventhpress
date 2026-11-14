@@ -1,7 +1,7 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "Eleventh Press International Publishing — Public API",
+    "title": "Eleventh Press International Publishing™ — Public API",
     "version": "1.0.0",
     "description": "The public, external-facing surface of the platform: article discovery/browsing, OAI-PMH 2.0 harvesting, COUNTER 5 / SUSHI usage reporting, and OJS-compatible export. This covers only endpoints meant for third-party/programmatic consumption — the dashboard's internal editorial-workflow API is intentionally out of scope. There is currently one implicit, unversioned API surface (no /v1/ prefix); a breaking change to any endpoint documented here would be introduced as a new path rather than silently changing this one, until a real versioning scheme is adopted.",
     "contact": { "email": "editorial@eleventhpress.org" }

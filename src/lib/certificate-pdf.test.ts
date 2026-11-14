@@ -16,7 +16,7 @@ const payload = (o: Partial<CertificatePayload> = {}): CertificatePayload => ({
   category: "EDITOR",
   recipientName: "Vincent M. Tapayan, LPT, NLPMP, RBT, CIA",
   issuedAtIso: "2026-07-18T08:00:00.000Z",
-  journalName: "Eleventh Press International Publishing",
+  journalName: "Eleventh Press International Publishing™",
   issn: "2945-1138",
   workTitle: null,
   ...o,

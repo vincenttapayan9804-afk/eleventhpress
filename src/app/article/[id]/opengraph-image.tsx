@@ -23,7 +23,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
     const wl = tenant && !tenant.isPlatform;
     return ogCard({
       eyebrow: "Open-access research",
-      title: wl ? tenant.siteName || tenant.name : "Eleventh Press International Publishing",
+      title: wl ? tenant.siteName || tenant.name : "Eleventh Press International Publishing™",
       ...(wl ? { brand: (tenant.siteName || tenant.name).slice(0, 40) } : {}),
     });
   }

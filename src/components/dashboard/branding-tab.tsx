@@ -313,7 +313,7 @@ export function BrandingTab({ tenantId, onSaved }: { tenantId?: string; onSaved?
                 <FieldBox id="siteName" label="Organization / platform name" error={errors.siteName}>
                   <Input
                     id="siteName"
-                    placeholder={tenant?.name || "Eleventh Press International Publishing"}
+                    placeholder={tenant?.name || "Eleventh Press International Publishing™"}
                     value={form.siteName}
                     onChange={(e) => field("siteName", e.target.value)}
                   />

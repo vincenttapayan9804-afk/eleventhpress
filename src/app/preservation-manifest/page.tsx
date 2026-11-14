@@ -4,6 +4,7 @@ import { lockssPermissionStatementText } from "@/lib/preservation";
 import { APP_BASE_URL } from "@/lib/site";
 import { getCurrentTenant } from "@/lib/tenant";
 import { publisherIdentityForTenantId } from "@/lib/publisher-identity";
+import { withTrademark } from "@/lib/brand-mark";
 
 /**
  * GET /preservation-manifest — a real, public, server-rendered page (not
@@ -29,9 +30,9 @@ async function journalInfoForRequest() {
     (await db.journal.findFirst({ where: { tenantId: null } }).catch(() => null)) ??
     (await db.journal.findFirst().catch(() => null));
   return {
-    name: journal?.name ?? "Eleventh Press International Publishing",
+    name: withTrademark(journal?.name) ?? "Eleventh Press International Publishing™",
     issn: journal?.issn ?? null,
-    publisher: journal?.publisher ?? "Eleventh Press International Publishing",
+    publisher: withTrademark(journal?.publisher) ?? "Eleventh Press International Publishing™",
   };
 }
 

@@ -31,7 +31,7 @@ export async function generateMetadata(
   const lookup = await getRecord(id).catch(() => null);
   const title = lookup && lookup.kind !== "not-found" ? (lookup.kind === "sealed" ? lookup.record.title : lookup.title) : id;
   const tenant = await getCurrentTenant().catch(() => null);
-  const site = tenant && !tenant.isPlatform ? tenant.siteName || tenant.name : "Eleventh Press International Publishing";
+  const site = tenant && !tenant.isPlatform ? tenant.siteName || tenant.name : "Eleventh Press International Publishing™";
   const publisher = lookup?.kind === "sealed" ? lookup.record.brand.publisher : site;
   return {
     title: `Provenance verification — ${title} — ${publisher}`,

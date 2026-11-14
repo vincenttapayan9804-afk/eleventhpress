@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
   <responseDate>${new Date().toISOString()}</responseDate>
   <request verb="Identify">${BASE_URL}</request>
   <Identify>
-    <repositoryName>${escapeXml(identity.whitelabel ? identity.publisher : "Eleventh Press International Publishing")}</repositoryName>
+    <repositoryName>${escapeXml(identity.whitelabel ? identity.publisher : "Eleventh Press International Publishing™")}</repositoryName>
     <baseURL>${BASE_URL}</baseURL>
     <protocolVersion>2.0</protocolVersion>
     <adminEmail>${escapeXml(identity.email || "editorial@eleventhpress.org")}</adminEmail>
@@ -353,7 +353,7 @@ ${buildHeaderXml(a)}
 ${authorDc}
 ${keywords}
       <dc:description>${escapeXml(a.abstract)}</dc:description>
-      <dc:publisher>${escapeXml(publisherName || a.journal?.publisher || "Eleventh Press International Publishing")}</dc:publisher>
+      <dc:publisher>${escapeXml(publisherName || a.journal?.publisher || "Eleventh Press International Publishing™")}</dc:publisher>
       <dc:date>${new Date(a.publishedAt || a.createdAt).toISOString().split("T")[0]}</dc:date>
       <dc:type>info:eu-repo/semantics/article</dc:type>
       <dc:identifier>https://doi.org/${a.doi}</dc:identifier>

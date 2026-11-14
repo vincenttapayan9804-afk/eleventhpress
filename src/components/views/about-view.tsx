@@ -85,7 +85,7 @@ export function AboutView() {
   const branding = useTenantBranding();
   const whitelabel = isWhitelabel(branding);
   // The publishing organisation named in the page copy.
-  const orgName = whitelabel ? branding.siteName || branding.tenantName || "This journal" : "Eleventh Press International Publishing";
+  const orgName = whitelabel ? branding.siteName || branding.tenantName || "This journal" : "Eleventh Press International Publishing™";
   const { setView } = useApp();
   const t = useTranslations("home");
   const [board, setBoard] = useState<BoardMember[] | null>(null);
@@ -132,7 +132,7 @@ export function AboutView() {
               </p>
             )}
             {journal?.description && <p className="mt-3 max-w-3xl text-base leading-relaxed text-foreground/85">{journal.description}</p>}
-            <p className="mt-3 text-sm text-muted-foreground">Research publishing platform powered by Eleventh Press International Publishing</p>
+            <p className="mt-3 text-sm text-muted-foreground">Research publishing platform powered by Eleventh Press International Publishing™</p>
             {(branding.officialEmail || branding.supportEmail || branding.phone || branding.websiteUrl || branding.address) && (
               <div className="mt-5 grid gap-2 rounded-lg border border-border bg-card/60 p-4 text-sm sm:grid-cols-2" data-testid="about-contact">
                 {branding.officialEmail && (
@@ -153,7 +153,7 @@ export function AboutView() {
           <>
             <p className="eyebrow">About Eleventh Press</p>
             <h1 className="mt-2 font-display text-4xl font-semibold sm:text-5xl">
-              Eleventh Press International Publishing
+              Eleventh Press International Publishing™
             </h1>
             <p className="mt-3 font-display text-lg text-royal-gradient">
               A Full-Stack Peer Reviewed Press &amp; Multidisciplinary Syndication Network

@@ -39,6 +39,7 @@ import {
   fmtDate,
   useCopy,
 } from "@/components/verification/verify-ui";
+import { withTrademark } from "@/lib/brand-mark";
 
 type Verdict = CertificateRecord["verdict"];
 
@@ -340,7 +341,7 @@ export function CertificateVerifyView({ record, qrDataUrl }: { record: Certifica
                 </button>
               </div>
               <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
-                Verification depends on {record.issuer || "Eleventh Press International Publishing"}&rsquo;s own records — it is tamper-evident, not
+                Verification depends on {withTrademark(record.issuer) || "Eleventh Press International Publishing™"}&rsquo;s own records — it is tamper-evident, not
                 blockchain-anchored. The verification report confirms this check; the certificate itself stays private to its holder.
               </p>
             </SectionCard>

@@ -7,7 +7,7 @@ import { getCurrentTenant } from "@/lib/tenant";
 /** The visiting site's name — a whitelabel tenant's own, never Eleventh Press's. */
 async function siteName(): Promise<string> {
   const tenant = await getCurrentTenant().catch(() => null);
-  return tenant && !tenant.isPlatform ? tenant.siteName || tenant.name : "Eleventh Press International Publishing";
+  return tenant && !tenant.isPlatform ? tenant.siteName || tenant.name : "Eleventh Press International Publishing™";
 }
 
 export async function generateMetadata(): Promise<Metadata> {

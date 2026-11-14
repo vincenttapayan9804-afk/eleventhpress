@@ -36,7 +36,7 @@ function makeRow(overrides: Record<string, unknown> = {}) {
     category: "EDITOR",
     recipientName: "Vincent M. Tapayan, LPT",
     issuedAt: new Date("2026-07-18T08:00:00Z"),
-    journalName: "Eleventh Press International Publishing",
+    journalName: "Eleventh Press International Publishing™",
     issn: "2945-1138",
     workTitle: null,
     templateVersion: 3,

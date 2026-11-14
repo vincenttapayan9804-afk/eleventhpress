@@ -679,7 +679,7 @@ export const BLOG_POSTS: Record<string, BlogPost> = {
       {
         heading: "How should others credit my work?",
         paragraphs: [
-          "Creative Commons recommends the TASL pattern for attribution: Title, Author, Source and Licence. A good attribution for a figure adapted from one of our articles might read: “Figure adapted from ‘Title of article’ by A. Author and B. Author, Eleventh Press International Publishing, https://doi.org/…, licensed under CC BY 4.0. Changes: colours and labels modified.”",
+          "Creative Commons recommends the TASL pattern for attribution: Title, Author, Source and Licence. A good attribution for a figure adapted from one of our articles might read: “Figure adapted from ‘Title of article’ by A. Author and B. Author, Eleventh Press International Publishing™, https://doi.org/…, licensed under CC BY 4.0. Changes: colours and labels modified.”",
           "For scholarly use, a normal citation in the reference list, with the DOI, usually satisfies attribution. What the licence prohibits is presenting your work without credit or implying that you endorse the reuser's conclusions.",
         ],
       },

@@ -6,6 +6,7 @@ import { buildBibTeX, buildRis, buildWikidataQuickStatements, buildMarcXml } fro
 import { resolveTenantFromHeaders } from "@/lib/tenant";
 import { withTenantRlsContext } from "@/lib/db-rls";
 import { APP_BASE_URL } from "@/lib/site";
+import { withTrademark } from "@/lib/brand-mark";
 
 /**
  * GET /api/articles/[id]/export?format=ris|bibtex|wikidata|marc
@@ -62,7 +63,7 @@ export async function GET(
     abstract: article.abstract,
     keywords: article.keywords,
     discipline: article.discipline,
-    publisher: article.journal?.publisher,
+    publisher: withTrademark(article.journal?.publisher),
     articleUrl: `${APP_BASE_URL}/article/${article.id}`,
   };
 

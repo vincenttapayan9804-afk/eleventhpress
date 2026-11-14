@@ -24,7 +24,7 @@
   },
   "header": {
     "brandName": "ELEVENTH PRESS",
-    "brandTagline": "国际出版社"
+    "brandTagline": "国际出版社™"
   },
   "footer": {
     "tagline": "一家全栈同行评审出版社与多学科联合发布网络",
@@ -48,7 +48,7 @@
     "policyPci": "所有支付渠道均符合 PCI-DSS 标准",
     "termsOfService": "服务条款",
     "accessibilityStatement": "无障碍声明",
-    "copyright": "© {year} Eleventh Press International Publishing。除另有说明外，所有文章均以 CC BY 4.0 协议发布。",
+    "copyright": "© {year} Eleventh Press International Publishing™。除另有说明外，所有文章均以 CC BY 4.0 协议发布。",
     "indexedLine": "收录于：Google Scholar · {registrar} · OAI-PMH · DOAJ"
   },
   "home": {

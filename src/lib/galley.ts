@@ -29,6 +29,7 @@ import { buildEpub } from "@/lib/epub-builder";
 import { parseAuthors } from "@/lib/article";
 import { ARTICLE_LANGUAGE, JOURNAL_IDENTITY } from "@/lib/site";
 import { POWERED_BY_CREDIT } from "@/lib/powered-by";
+import { withTrademark } from "@/lib/brand-mark";
 
 const PLATFORM_PUBLISHER_NAME = JOURNAL_IDENTITY.name;
 
@@ -72,7 +73,7 @@ export interface GalleyBrand {
 
 function brandOf(meta: GalleyBrand & { issn?: string }) {
   return {
-    publisher: meta.publisher || PLATFORM_PUBLISHER_NAME,
+    publisher: withTrademark(meta.publisher) || PLATFORM_PUBLISHER_NAME,
     whitelabel: !!meta.whitelabel,
     primary: meta.primaryHex || BRAND_PURPLE,
     accent: meta.accentHex || BRAND_GOLD,

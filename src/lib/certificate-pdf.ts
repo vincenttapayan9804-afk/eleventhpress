@@ -58,7 +58,7 @@ const RULE = "#e4dfee";
 const TINT = "#f7f4fc";
 const IVORY = "#fdfbf6";
 
-const PLATFORM_ISSUER = "Eleventh Press International Publishing";
+const PLATFORM_ISSUER = "Eleventh Press International Publishing™";
 let WATERMARK = PLATFORM_ISSUER;
 let ISSUER = PLATFORM_ISSUER;
 let BRAND_LOGO: Buffer | null = null;

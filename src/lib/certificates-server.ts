@@ -15,6 +15,7 @@ import {
   type CertificatePayload,
   type CertificateType,
 } from "@/lib/certificates";
+import { withTrademark } from "@/lib/brand-mark";
 
 /**
  * Everything about certificate issuance that needs the database or Node's
@@ -151,7 +152,7 @@ export async function renderAndPersistCertificate(
 
   // Journal.name is the journal's own title (e.g. "...Journal of
   // Multidisciplinary Research"); Journal.publisher is the umbrella brand
-  // ("Eleventh Press International Publishing") — certificates are issued
+  // ("Eleventh Press International Publishing™") — certificates are issued
   // by the publisher, not the journal, so publisher is the correct field.
   const journal = tenant
     ? await db.journal.findFirst({ where: { tenantId: tenant.id }, select: { publisher: true, issn: true } })
@@ -180,7 +181,7 @@ export async function renderAndPersistCertificate(
     category,
     recipientName: user.fullName,
     issuedAtIso: (existing?.issuedAt ?? new Date()).toISOString(),
-    journalName: tenant ? tenant.siteName || tenant.name : journal?.publisher || CANONICAL_PUBLISHER_NAME,
+    journalName: tenant ? tenant.siteName || tenant.name : withTrademark(journal?.publisher) || CANONICAL_PUBLISHER_NAME,
     issn: journal?.issn ?? null,
     workTitle,
   };

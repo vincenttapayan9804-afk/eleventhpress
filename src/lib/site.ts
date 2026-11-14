@@ -65,7 +65,7 @@ export const JOURNAL_ORG_COUNTRY = process.env.JOURNAL_ORG_COUNTRY || "US";
  * two can't silently disagree; update both together.
  */
 export const JOURNAL_IDENTITY = {
-  name: "Eleventh Press International Publishing",
+  name: "Eleventh Press International Publishing™",
   shortName: "Eleventh Press",
   tagline: "A Full-Stack Peer Reviewed Press & Multidisciplinary Syndication Network",
   issn: "2945-1138",

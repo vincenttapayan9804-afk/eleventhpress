@@ -5,7 +5,7 @@
  * it. The platform's own site and documents don't show it (they are
  * already Eleventh Press's). Safe to import from client components.
  */
-export const POWERED_BY_CREDIT = "Powered by Eleventh Press International Publishing";
+export const POWERED_BY_CREDIT = "Powered by Eleventh Press International Publishing™";
 export const POWERED_BY_URL = "https://eleventhpress.org";
 
 /** The credit for a document/page, or null when it belongs to the platform itself. */

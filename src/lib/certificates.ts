@@ -21,7 +21,7 @@ import { PRIVILEGED_ROLES_LIST } from "@/lib/roles";
  * change like a new badge layout doesn't always come with a journalName
  * change to key off of.)
  */
-export const CANONICAL_PUBLISHER_NAME = "Eleventh Press International Publishing";
+export const CANONICAL_PUBLISHER_NAME = "Eleventh Press International Publishing™";
 
 /**
  * Bump this whenever src/lib/certificate-pdf.ts's visual template changes

@@ -26,7 +26,7 @@ ${authorList}
 ${article.abstract}
 
 ## 1. Introduction
-This article was published by ${article.journal?.name || "Eleventh Press International Publishing"} under a ${article.reviewModel.replace(/_/g, " ").toLowerCase()} peer-review model.
+This article was published by ${article.journal?.name || "Eleventh Press International Publishing™"} under a ${article.reviewModel.replace(/_/g, " ").toLowerCase()} peer-review model.
 
 ## 2. Methods
 Methodological detail is preserved verbatim from the accepted manuscript. The production service has rendered this HTML, PDF, and JATS galley using Pandoc and WeasyPrint with the journal's house CSS template.

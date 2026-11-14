@@ -107,7 +107,7 @@ export function SiteFooter() {
                 )}
                 <div>
                   <p className="font-display text-lg font-semibold text-foreground">
-                    {branding.siteName || "Eleventh Press International Publishing"}
+                    {branding.siteName || "Eleventh Press International Publishing™"}
                   </p>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {branding.tagline || t("tagline", { registrar: DOI_REGISTRAR })}

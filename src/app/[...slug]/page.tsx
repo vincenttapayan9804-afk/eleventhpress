@@ -39,7 +39,7 @@ export async function generateMetadata({ params }: Props, parent: ResolvingMetad
   if (!route) return {};
   const tenant = await getCurrentTenant().catch(() => null);
   const siteName = tenant && !tenant.isPlatform ? tenant.siteName || tenant.name : null;
-  const base = (await parent).title?.absolute || siteName || "Eleventh Press International Publishing";
+  const base = (await parent).title?.absolute || siteName || "Eleventh Press International Publishing™";
   const meta = VIEW_META[route.view];
   if (!meta) return { title: base, alternates: { canonical: `${APP_BASE_URL}${pathOf(slug)}` } };
   const description = viewDescription(meta.description, siteName);
