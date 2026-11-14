@@ -11,7 +11,8 @@ import { resolveTenantFromHeaders } from "@/lib/tenant";
 import { withTenantRlsContext } from "@/lib/db-rls";
 import { logoPngOf, publisherIdentityForJournal, JOURNAL_SELECT } from "@/lib/publisher-identity";
 import { APP_BASE_URL } from "@/lib/site";
-import { extractFigures, getResearchVisualContent, type ArticleFigure, type ResearchSource } from "@/lib/research-visuals";
+import { displayCase, extractFigures, getResearchVisualContent, type ArticleFigure, type ResearchSource } from "@/lib/research-visuals";
+import { parseAuthors } from "@/lib/article";
 import type { ResearchVisualKind, VisualFigure, VisualInput } from "@/lib/research-visuals-pdf";
 
 const MAX_FIGURE_BYTES = 12 * 1024 * 1024;
@@ -73,6 +74,9 @@ export async function loadResearchVisual(id: string, kind: ResearchVisualKind, h
   if (!article || article.status !== "PUBLISHED") return null;
 
   const title = article.title.replace(/\s+/g, " ").trim();
+  // Titles and names typed in capitals are printed in title case.
+  const displayTitle = displayCase(title);
+  const displayAuthors = JSON.stringify(parseAuthors(article.authors).map((a) => ({ ...a, name: displayCase(a.name) })));
   const galley = article.galleyHtmlKey ? await getObject(article.galleyHtmlKey).catch(() => null) : null;
   const bodyHtml = galley ? bodyFromGalley(galley.toString("utf-8")) : null;
 
@@ -111,8 +115,8 @@ export async function loadResearchVisual(id: string, kind: ResearchVisualKind, h
     input: {
       article: {
         id: article.id,
-        title,
-        authors: article.authors,
+        title: displayTitle,
+        authors: displayAuthors,
         doi: article.doi,
         publishedAt: article.publishedAt,
         keywords: article.keywords,

@@ -18,7 +18,8 @@
  * default is treated as "unset" for tenant journals.
  */
 import { db } from "./db";
-import { JOURNAL_IDENTITY } from "./site";
+import { APP_BASE_URL, JOURNAL_IDENTITY } from "./site";
+import { getObject } from "./storage";
 
 export const PLATFORM_PUBLISHER_NAME = JOURNAL_IDENTITY.name;
 export const PLATFORM_SHORT_NAME = JOURNAL_IDENTITY.shortName;
@@ -133,6 +134,8 @@ export function publisherIdentityOf(
       publisher: clean(journal?.publisher) ?? PLATFORM_PUBLISHER_NAME,
       journalName,
       issn: clean(journal?.issn) ?? JOURNAL_IDENTITY.issn,
+      // The platform's own uploaded logo (the one its site header shows), if any.
+      logoUrl: clean(tenant?.logoUrl),
     };
   }
   const org = clean(tenant.siteName) ?? clean(tenant.name) ?? "Journal";
@@ -155,9 +158,26 @@ export function publisherIdentityOf(
   };
 }
 
+let platformTenantCache: { at: number; tenant: TenantLike | null } | null = null;
+
+/** The platform's own tenant row (its branding/logo), cached briefly. */
+async function platformTenant(): Promise<TenantLike | null> {
+  if (platformTenantCache && Date.now() - platformTenantCache.at < 5 * 60 * 1000) return platformTenantCache.tenant;
+  let tenant: TenantLike | null = null;
+  try {
+    tenant = await db.tenant.findFirst({ where: { isPlatform: true } });
+  } catch {
+    tenant = null;
+  }
+  platformTenantCache = { at: Date.now(), tenant };
+  return tenant;
+}
+
 async function findTenant(tenantId: string | null | undefined): Promise<TenantLike | null> {
-  if (!tenantId) return null;
-  return db.tenant.findUnique({ where: { id: tenantId } }).catch(() => null);
+  // No tenant → the platform, whose branding row carries its logo.
+  if (!tenantId) return platformTenant();
+  const tenant = await db.tenant.findUnique({ where: { id: tenantId } }).catch(() => null);
+  return tenant ?? platformTenant();
 }
 
 /** Identity for a tenant id (null/unknown → platform). Uses the tenant's journal when present. */
@@ -190,11 +210,23 @@ export async function publisherIdentityForArticle(articleId: string): Promise<Pu
  * document generation.
  */
 export async function logoPngOf(logoUrl: string | null | undefined, size = 512): Promise<Buffer | null> {
-  if (!logoUrl || !/^https?:\/\//i.test(logoUrl)) return null;
+  if (!logoUrl) return null;
   try {
-    const res = await fetch(logoUrl, { signal: AbortSignal.timeout(8000) });
-    if (!res.ok) return null;
-    const bytes = Buffer.from(await res.arrayBuffer());
+    let bytes: Buffer | null = null;
+    // Uploaded logos may be stored as a same-site storage link
+    // ("/api/storage/download?key=brand-assets/…"): read the object directly.
+    const local = logoUrl.match(/^\/api\/storage\/download\?(.*)$/);
+    if (local) {
+      const key = new URLSearchParams(local[1]).get("key");
+      bytes = key ? await getObject(key) : null;
+    } else {
+      const url = /^https?:\/\//i.test(logoUrl) ? logoUrl : logoUrl.startsWith("/") ? `${APP_BASE_URL}${logoUrl}` : null;
+      if (!url) return null;
+      const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      if (!res.ok) return null;
+      bytes = Buffer.from(await res.arrayBuffer());
+    }
+    if (!bytes?.length) return null;
     const sharp = (await import("sharp")).default;
     return await sharp(bytes).resize(size, size, { fit: "inside", withoutEnlargement: true }).png().toBuffer();
   } catch (e) {

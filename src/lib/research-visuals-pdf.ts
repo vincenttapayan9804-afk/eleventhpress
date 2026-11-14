@@ -157,7 +157,13 @@ function palette(brand: VisualBrand): Pal {
 
 // ─── Text + drawing helpers ────────────────────────────────────────────────
 
-const T = (s: string | null | undefined) => pdfSafe(s ?? "");
+// Statistical notation the standard (WinAnsi) fonts cannot draw is spelled out instead of printing "?".
+const SYMBOLS: Record<string, string> = {
+  "α": "alpha", "β": "beta", "γ": "gamma", "δ": "delta", "Δ": "Delta", "η": "eta", "θ": "theta", "κ": "kappa", "λ": "lambda",
+  "ρ": "rho", "σ": "sigma", "τ": "tau", "φ": "phi", "χ": "chi", "ψ": "psi", "ω": "omega", "Ω": "Omega",
+  "≤": "<=", "≥": ">=", "≈": "~", "≠": "!=", "−": "-", "→": "->", "√": "sqrt",
+};
+const T = (s: string | null | undefined) => pdfSafe((s ?? "").replace(/[αβγδΔηθκλρσςτφχψωΩ≤≥≈≠−→√]/g, (ch) => SYMBOLS[ch] ?? (ch === "ς" ? "sigma" : ch)));
 
 const F = {
   sans: "Helvetica",
@@ -425,17 +431,25 @@ async function qrPng(url: string): Promise<Buffer> {
   return QRCode.toBuffer(url, { errorCorrectionLevel: "M", margin: 1, width: 600, color: { dark: INK, light: "#ffffff" } });
 }
 
-/** Logo drawn inside a white rounded tile so any logo reads on any band. */
-function logoTile(doc: Doc, png: Buffer | null | undefined, x: number, y: number, size: number): number {
+/**
+ * The uploaded logo, unaltered, on a white rounded tile so it reads on any
+ * colour band. The tile follows the logo's own proportions (a wide wordmark
+ * gets a wide tile, up to `maxAspect` × height) so the artwork is never
+ * squeezed or shrunk into a square. Returns the tile width (0 = no logo).
+ */
+function logoTile(doc: Doc, png: Buffer | null | undefined, x: number, y: number, size: number, maxAspect = 1): number {
   if (!png) return 0;
-  doc.save().roundedRect(x, y, size, size, size * 0.16).fill(WHITE).restore();
   try {
+    const img = (doc as any).openImage(png) as { width: number; height: number };
     const pad = size * 0.1;
-    doc.image(png, x + pad, y + pad, { fit: [size - 2 * pad, size - 2 * pad], align: "center", valign: "center" });
+    const aspect = img.width / Math.max(1, img.height);
+    const tileW = Math.max(size, Math.min(size * maxAspect, (size - 2 * pad) * aspect + 2 * pad));
+    doc.save().roundedRect(x, y, tileW, size, size * 0.16).fill(WHITE).restore();
+    doc.image(img as any, x + pad, y + pad, { fit: [tileW - 2 * pad, size - 2 * pad], align: "center", valign: "center" });
+    return tileW;
   } catch {
     return 0;
   }
-  return size;
 }
 
 /** The org monogram used when there is no logo (platform or tenant). */
@@ -447,8 +461,48 @@ function monogram(doc: Doc, name: string, x: number, y: number, size: number, pa
   doc.fillColor(pal.onA).text(letters, x + (size - w) / 2, y + size * 0.26, { lineBreak: false });
 }
 
-function brandMark(doc: Doc, input: VisualInput, pal: Pal, x: number, y: number, size: number) {
-  if (!logoTile(doc, input.brand.logoPng, x, y, size)) monogram(doc, input.brand.orgName, x, y, size, pal);
+/**
+ * The platform's own mark, drawn exactly as the site header shows it (the
+ * ".wax-mark" medallion in globals.css): a royal-purple radial disc with a
+ * thin gold double ring and the gold serif "EP" monogram.
+ */
+function platformSeal(doc: Doc, x: number, y: number, size: number) {
+  const r = size / 2;
+  const cx = x + r;
+  const cy = y + r;
+  doc.save();
+  doc.circle(cx, cy, r).fill("#a2650a"); // --gold-600 outer ring
+  doc.circle(cx, cy, r * 0.965).fill("#efc880"); // --gold-300 inner ring
+  doc.circle(cx, cy, r * 0.93).fill(
+    doc
+      .radialGradient(x + size * 0.32, y + size * 0.26, 0, x + size * 0.32, y + size * 0.26, r * 1.55)
+      .stop(0, "#b5a3f0") // --royal-300
+      .stop(0.46, "#6f44bc") // --royal-500
+      .stop(0.8, "#461e86") // --royal-700
+      .stop(1, "#221049") // --royal-900
+  );
+  doc.restore();
+  doc.font(F.serifBold).fontSize(size * 0.38);
+  const w = doc.widthOfString("EP");
+  const ty = cy - size * 0.38 * 0.36;
+  doc.fillColor("#221049").fillOpacity(0.45).text("EP", cx - w / 2, ty + size * 0.02, { lineBreak: false });
+  doc.fillOpacity(1);
+  doc.fill(doc.linearGradient(cx - w / 2, ty, cx + w / 2, ty + size * 0.38).stop(0.15, "#fae6bb").stop(0.55, "#c78b28").stop(1, "#a2650a"));
+  doc.text("EP", cx - w / 2, ty, { lineBreak: false });
+}
+
+/**
+ * The publisher's exact logo: the uploaded logo of the tenant (or of the
+ * platform, if one is set); otherwise the platform's own "EP" medallion.
+ * A tenant with no uploaded logo has no logo to reproduce, so its initials
+ * are shown in its own colours (never the platform's mark).
+ */
+function brandMark(doc: Doc, input: VisualInput, pal: Pal, x: number, y: number, size: number, maxAspect = 1): number {
+  const w = logoTile(doc, input.brand.logoPng, x, y, size, maxAspect);
+  if (w) return w;
+  if (!input.brand.whitelabel) platformSeal(doc, x, y, size);
+  else monogram(doc, input.brand.orgName, x, y, size, pal);
+  return size;
 }
 
 const FOOTNOTE =
@@ -579,23 +633,34 @@ export function drawFramework(doc: Doc, fw: ResearchFramework, pal: Pal, x: numb
     const concepts = fw.constructs;
     const gap = 16 * s;
     const n = Math.max(1, theories.length);
-    const tw = (w - gap * (n - 1)) / n;
+    // Cards never get narrower than ~165pt (scaled): long theory names wrap
+    // into rows instead of being broken mid-word.
+    const perRow = Math.max(1, Math.min(n, Math.floor((w + gap) / (165 * s + gap))));
+    const rows = Math.ceil(n / perRow);
+    const tw = (w - gap * (perRow - 1)) / perRow;
     const theoryBoxes = theories.map((t) => ({ c: { id: t.name, label: t.name, role: "theory" as ConstructRole, items: t.note ? [t.note] : [] }, x: 0, y: 0, w: tw, h: 0 }));
     theoryBoxes.forEach((b) => (b.h = boxHeight(b.c, tw)));
-    const rowH = Math.max(0, ...theoryBoxes.map((b) => b.h));
-    theoryBoxes.forEach((b, i) => {
-      b.x = x + i * (tw + gap);
-      b.y = top;
-      b.h = rowH;
-      drawBox(b);
-    });
-    const midY = top + rowH + 34 * s;
+    let rowTop = top;
+    for (let r = 0; r < rows; r++) {
+      const row = theoryBoxes.slice(r * perRow, (r + 1) * perRow);
+      const rowH = Math.max(0, ...row.map((b) => b.h));
+      const rowW = row.length * tw + (row.length - 1) * gap;
+      row.forEach((b, i) => {
+        b.x = x + (w - rowW) / 2 + i * (tw + gap);
+        b.y = rowTop;
+        b.h = rowH;
+        drawBox(b);
+      });
+      rowTop += rowH + (r < rows - 1 ? gap : 0);
+    }
+    const midY = rowTop + 34 * s;
     const sw = Math.min(w, 380 * s);
     const sx = x + (w - sw) / 2;
     const studyText = studyLabel;
     const sh = textH(doc, studyText, F.serifBold, 13 * s, sw - 30 * s) + 34 * s;
     if (draw) {
-      theoryBoxes.forEach((b) => arrow(doc, b.x + b.w / 2, b.y + b.h, sx + sw / 2 + (b.x + b.w / 2 - (x + w / 2)) * 0.25, midY, pal.ad, 1.4 * s, 8 * s));
+      if (rows === 1) theoryBoxes.forEach((b) => arrow(doc, b.x + b.w / 2, b.y + b.h, sx + sw / 2 + (b.x + b.w / 2 - (x + w / 2)) * 0.25, midY, pal.ad, 1.4 * s, 8 * s));
+      else if (theoryBoxes.length) arrow(doc, x + w / 2, rowTop, x + w / 2, midY, pal.ad, 1.4 * s, 8 * s);
       doc.save().roundedRect(sx, midY, sw, sh, 10 * s).fill(pal.pd).restore();
       eyebrow(doc, "Focus of the study", sx + 15 * s, midY + 9 * s, 6.6 * s, pal.a, sw - 30 * s);
       write(doc, studyText, sx + 15 * s, midY + 21 * s, { font: F.serifBold, size: 13 * s, color: pal.onPd, width: sw - 30 * s, align: "center" });
@@ -868,9 +933,9 @@ async function renderInfographic(doc: Doc, input: VisualInput, pal: Pal, qr: Buf
   doc.rect(0, 0, IG_W, headH).fill(doc.linearGradient(0, 0, IG_W, headH).stop(0, pal.pd).stop(1, pal.p));
   doc.rect(0, headH, IG_W, 6).fill(pal.a);
   const onHead = onColor(pal.pd);
-  brandMark(doc, input, pal, M, 34, 46);
-  write(doc, input.brand.orgName, M + 58, 38, { font: F.bold, size: 12.5, color: onHead, width: CW - 230, height: 16 });
-  write(doc, input.brand.tagline || input.brand.journalName, M + 58, 56, { font: F.serifItalic, size: 10, color: mix(onHead, pal.pd, 0.25), width: CW - 230, height: 14 });
+  const igMark = brandMark(doc, input, pal, M, 34, 46, 3.2);
+  write(doc, input.brand.orgName, M + igMark + 12, 38, { font: F.bold, size: 12.5, color: onHead, width: CW - 218 - igMark, height: 16 });
+  write(doc, input.brand.tagline || input.brand.journalName, M + igMark + 12, 56, { font: F.serifItalic, size: 10, color: mix(onHead, pal.pd, 0.25), width: CW - 218 - igMark, height: 14 });
   const tag = "RESEARCH INFOGRAPHIC";
   doc.font(F.bold).fontSize(8);
   const tagW = doc.widthOfString(tag, { characterSpacing: 1.6 }) + 22;
@@ -908,6 +973,18 @@ async function renderInfographic(doc: Doc, input: VisualInput, pal: Pal, qr: Buf
     doc.moveTo(M + 34, y + 30).lineTo(M + CW, y + 30).lineWidth(0.8).strokeColor(RULE).stroke();
     y += 42;
   };
+
+  // A proposal / outline manuscript: say so up front, so nobody reads results into it.
+  const proposal = c.stage === "proposal";
+  if (proposal) {
+    const note = "This article describes the study's design. Results have not yet been reported, so this summary shows the research questions, hypotheses and methods.";
+    const nh = textH(doc, note, F.sans, 9.5, CW - 150, 1.5) + 22;
+    doc.roundedRect(M, y, CW, nh, 9).fill(pal.tint2);
+    doc.rect(M, y + 8, 3, nh - 16).fill(pal.ad);
+    eyebrow(doc, "Research proposal", M + 14, y + nh / 2 - 4, 8, pal.aInk, 120);
+    write(doc, note, M + 136, y + 11, { size: 9.5, color: INK, width: CW - 150, lineGap: 1.5 });
+    y += nh + 22;
+  }
 
   // Problem + aim cards
   const halves = [
@@ -968,7 +1045,7 @@ async function renderInfographic(doc: Doc, input: VisualInput, pal: Pal, qr: Buf
 
   // Key numbers
   if (c.keyNumbers.length) {
-    sectionTitle("Key numbers", "chart");
+    sectionTitle(proposal ? "Study at a glance" : "Key numbers", "chart");
     const n = c.keyNumbers.length;
     const gap = 12;
     const tw = (CW - gap * (n - 1)) / n;
@@ -994,6 +1071,16 @@ async function renderInfographic(doc: Doc, input: VisualInput, pal: Pal, qr: Buf
     y += 14;
   }
 
+  // Hypotheses (stated in the article; shown for every study that has them)
+  if (c.hypotheses.length && (proposal || !c.findings.length)) {
+    sectionTitle("Hypotheses", "question");
+    c.hypotheses.forEach((h, i) => {
+      icon(doc, "number", M + 12, y + 8, 11, pal.tint2, pal.aInk, `H${i + 1}`);
+      y += Math.max(22, write(doc, h, M + 34, y + 1, { size: 10.5, color: BODY, width: CW - 34, lineGap: 2 })) + 8;
+    });
+    y += 14;
+  }
+
   // Framework at a glance
   if (c.framework.layout !== "none") {
     sectionTitle(c.framework.title || "Theoretical framework", "network");
@@ -1002,14 +1089,15 @@ async function renderInfographic(doc: Doc, input: VisualInput, pal: Pal, qr: Buf
     y += drawLegend(doc, c.framework, pal, M, y, CW, s) + 22;
   }
 
-  // Conclusion band
-  if (c.conclusion) {
-    const ch = textH(doc, c.conclusion, F.serifItalic, 15, CW - 90, 3) + 52;
+  // Conclusion band (a proposal shows its stated significance instead)
+  const closing = c.conclusion || (proposal ? c.significance : "");
+  if (closing) {
+    const ch = textH(doc, closing, F.serifItalic, 15, CW - 90, 3) + 52;
     doc.roundedRect(M, y, CW, ch, 12).fill(pal.tint2);
     doc.rect(M, y + 14, 4, ch - 28).fill(pal.ad);
     doc.font(F.serifBold).fontSize(64).fillColor(mix(pal.ad, pal.tint2, 0.45)).text("“", M + 18, y + 2, { lineBreak: false });
-    eyebrow(doc, "Conclusion", M + 60, y + 18, 8, pal.aInk);
-    write(doc, c.conclusion, M + 60, y + 34, { font: F.serifItalic, size: 15, color: INK, width: CW - 90, lineGap: 3 });
+    eyebrow(doc, c.conclusion ? "Conclusion" : "Expected contribution", M + 60, y + 18, 8, pal.aInk);
+    write(doc, closing, M + 60, y + 34, { font: F.serifItalic, size: 15, color: INK, width: CW - 90, lineGap: 3 });
     y += ch + 28;
   }
 
@@ -1162,9 +1250,11 @@ function posterSections(input: VisualInput, pal: Pal, figures: VisualFigure[]): 
     });
   }
   const resultFig = figures.find((f) => !f.isFramework);
+  const proposal = c.stage === "proposal";
+  if (proposal && c.hypotheses.length) out.push({ title: "Hypotheses", kind: "question", render: bullets(c.hypotheses, "num") });
   if (c.keyNumbers.length || c.findings.length || resultFig) {
     out.push({
-      title: "Results",
+      title: proposal ? "Study at a glance" : "Results",
       kind: "chart",
       render: (doc, x, y, w, b, draw) => {
         let cy = y;
@@ -1194,17 +1284,18 @@ function posterSections(input: VisualInput, pal: Pal, figures: VisualFigure[]): 
       },
     });
   }
-  if (c.conclusion) {
+  const closing = c.conclusion || (proposal ? c.significance : "");
+  if (closing) {
     out.push({
-      title: "Conclusion",
+      title: c.conclusion ? "Conclusion" : "Expected contribution",
       kind: "bulb",
       render: (doc, x, y, w, b, draw) => {
         const size = b * 1.12;
-        const h = textH(doc, c.conclusion, F.serifItalic, size, w - b * 2, size * 0.3) + b * 1.6;
+        const h = textH(doc, closing, F.serifItalic, size, w - b * 2, size * 0.3) + b * 1.6;
         if (draw) {
           doc.save().roundedRect(x, y, w, h, 14).fill(pal.tint2).restore();
           doc.save().rect(x, y + b * 0.5, 6, h - b).fill(pal.ad).restore();
-          write(doc, c.conclusion, x + b, y + b * 0.8, { font: F.serifItalic, size, color: INK, width: w - b * 2, lineGap: size * 0.3 });
+          write(doc, closing, x + b, y + b * 0.8, { font: F.serifItalic, size, color: INK, width: w - b * 2, lineGap: size * 0.3 });
         }
         return h;
       },
@@ -1255,9 +1346,24 @@ async function renderPoster(doc: Doc, input: VisualInput, pal: Pal, qr: Buffer):
   doc.rect(0, 0, W, headH).fill(doc.linearGradient(0, 0, W, headH).stop(0, pal.pd).stop(1, pal.p));
   doc.rect(0, headH, W, 16).fill(pal.a);
   const onHead = onColor(pal.pd);
-  brandMark(doc, input, pal, M, hy, logo);
-  write(doc, input.brand.orgName, M, hy + logo + 24, { font: F.bold, size: 24, color: onHead, width: logo + 40, align: "left" });
-  eyebrow(doc, a.discipline ? `${a.discipline}  ·  Research poster` : "Research poster", textX, hy, 26, pal.a, textW);
+  // A wide uploaded logo fills the logo column's width at its own proportions.
+  let markH = logo;
+  if (input.brand.logoPng) {
+    try {
+      const img = (doc as any).openImage(input.brand.logoPng) as { width: number; height: number };
+      const aspect = img.width / Math.max(1, img.height);
+      if (aspect > 1.15) {
+        markH = Math.max(logo * 0.42, (logo - logo * 0.2) / aspect + logo * 0.2);
+        doc.save().roundedRect(M, hy, logo, markH, logo * 0.1).fill(WHITE).restore();
+        doc.image(img as any, M + logo * 0.1, hy + logo * 0.1, { fit: [logo * 0.8, markH - logo * 0.2], align: "center", valign: "center" });
+      } else brandMark(doc, input, pal, M, hy, logo);
+    } catch {
+      brandMark(doc, input, pal, M, hy, logo);
+    }
+  } else brandMark(doc, input, pal, M, hy, logo);
+  write(doc, input.brand.orgName, M, hy + markH + 24, { font: F.bold, size: 24, color: onHead, width: logo + 40, align: "left" });
+  const kindLabel = input.content.stage === "proposal" ? "Research proposal poster" : "Research poster";
+  eyebrow(doc, a.discipline ? `${a.discipline}  ·  ${kindLabel}` : kindLabel, textX, hy, 26, pal.a, textW);
   hy += 46;
   hy += write(doc, a.title, textX, hy, { font: F.serifBold, size: titleSize, color: onHead, width: textW, lineGap: titleSize * 0.1 }) + 30;
   hy += write(doc, authorStr, textX, hy, { font: F.bold, size: 36, color: mix(pal.a, WHITE, 0.3), width: textW }) + 14;
@@ -1291,24 +1397,43 @@ async function renderPoster(doc: Doc, input: VisualInput, pal: Pal, qr: Buffer):
   const colW = (CW - gutter * (ncol - 1)) / ncol;
   const p = probe(colW + 20);
   const sections = posterSections(input, pal, input.figures ?? []);
-  const headerH = (b: number) => b * 2.9;
-
-  const plan = (b: number) => {
-    const cols: { s: PosterSection; h: number }[][] = [[]];
-    let used = 0;
-    for (const s of sections) {
-      const h = headerH(b) + s.render(p, 0, 0, colW, b, false) + b * 1.6;
-      if (used + h > bottom - top && cols[cols.length - 1].length) {
-        cols.push([]);
-        used = 0;
-      }
-      cols[cols.length - 1].push({ s, h });
-      used += h;
-    }
-    const ok = cols.length <= ncol && cols.every((col) => col.reduce((t, x) => t + x.h, 0) <= bottom - top);
-    return { cols, ok };
+  // Section heading: one line when it fits at a readable size, else two lines.
+  const headLayout = (b: number, title: string) => {
+    const tw = colW - b * 2.6;
+    const one = fit(p, title, F.serifBold, b * 1.55, b * 1.25, tw, b * 1.9);
+    const fitsOne = textH(p, title, F.serifBold, one, tw) <= one * 1.35;
+    const size = fitsOne ? one : b * 1.25;
+    const th = fitsOne ? b * 2 : textH(p, title, F.serifBold, size, tw, size * 0.08) + b * 0.45;
+    return { size, th, h: th + b * 0.9 };
   };
-  let base = 44;
+
+  // Sections keep their reading order and are split into three columns so
+  // the tallest column is as short as possible (no empty third column).
+  const plan = (b: number) => {
+    const items = sections.map((s) => ({ s, h: headLayout(b, s.title).h + s.render(p, 0, 0, colW, b, false) + b * 1.6 }));
+    const n = items.length;
+    const k = Math.min(ncol, n);
+    const sum = (i: number, j: number) => items.slice(i, j).reduce((t, x) => t + x.h, 0);
+    let best: { cuts: number[]; max: number } = { cuts: [n], max: Infinity };
+    const search = (start: number, left: number, cuts: number[], max: number) => {
+      if (max >= best.max) return;
+      if (left === 1) {
+        const m = Math.max(max, sum(start, n));
+        if (m < best.max) best = { cuts: [...cuts, n], max: m };
+        return;
+      }
+      for (let end = start + 1; end <= n - (left - 1); end++) search(end, left - 1, [...cuts, end], Math.max(max, sum(start, end)));
+    };
+    search(0, k, [], 0);
+    const cols: { s: PosterSection; h: number }[][] = [];
+    let from = 0;
+    for (const cut of best.cuts) {
+      cols.push(items.slice(from, cut));
+      from = cut;
+    }
+    return { cols, ok: best.max <= bottom - top };
+  };
+  let base = 50;
   let layout = plan(base);
   while (!layout.ok && base > 17) {
     base -= 1;
@@ -1322,10 +1447,11 @@ async function renderPoster(doc: Doc, input: VisualInput, pal: Pal, qr: Buffer):
     let y = top;
     for (const { s, h } of col) {
       const b = base;
+      const hl = headLayout(b, s.title);
       icon(doc, s.kind, x + b * 1.05, y + b * 1.05, b * 1.05, pal.p);
-      write(doc, s.title, x + b * 2.6, y + b * 0.25, { font: F.serifBold, size: b * 1.55, color: INK, width: colW - b * 2.6, height: b * 2 });
-      doc.moveTo(x, y + b * 2.35).lineTo(x + colW, y + b * 2.35).lineWidth(3).strokeColor(pal.a).stroke();
-      s.render(doc, x, y + headerH(b), colW, b, true);
+      write(doc, s.title, x + b * 2.6, y + b * 0.25 + (b * 1.55 - hl.size) * 0.6, { font: F.serifBold, size: hl.size, color: INK, width: colW - b * 2.6, lineGap: hl.size * 0.08 });
+      doc.moveTo(x, y + hl.th + b * 0.35).lineTo(x + colW, y + hl.th + b * 0.35).lineWidth(3).strokeColor(pal.a).stroke();
+      s.render(doc, x, y + hl.h, colW, b, true);
       y += h + extra;
     }
   });
@@ -1350,10 +1476,15 @@ async function renderGraphicalAbstract(doc: Doc, input: VisualInput, pal: Pal, q
   doc.rect(0, 0, W, barH).fill(doc.linearGradient(0, 0, W, 0).stop(0, pal.pd).stop(1, pal.p));
   doc.rect(0, barH, W, 4).fill(pal.a);
   const onBar = onColor(pal.pd);
-  brandMark(doc, input, pal, M, 11, 40);
-  write(doc, input.brand.orgName, M + 52, 15, { font: F.bold, size: 13, color: onBar, width: 700, height: 17 });
-  write(doc, input.brand.journalName, M + 52, 34, { font: F.serifItalic, size: 10.5, color: mix(onBar, pal.pd, 0.25), width: 700, height: 14 });
-  eyebrow(doc, "Graphical abstract", W - M - 300, 25, 11, pal.a, 300);
+  const gaMark = brandMark(doc, input, pal, M, 11, 40, 3.2);
+  write(doc, input.brand.orgName, M + gaMark + 12, 15, { font: F.bold, size: 13, color: onBar, width: 700, height: 17 });
+  write(doc, input.brand.journalName, M + gaMark + 12, 34, { font: F.serifItalic, size: 10.5, color: mix(onBar, pal.pd, 0.25), width: 700, height: 14 });
+  {
+    const tag = c.stage === "proposal" ? "Graphical abstract  ·  Research proposal" : "Graphical abstract";
+    doc.font(F.bold).fontSize(11);
+    const tw = doc.widthOfString(tag.toUpperCase(), { characterSpacing: 11 * 0.18 }) + 4;
+    eyebrow(doc, tag, W - M - tw, 25, 11, pal.a, tw + 4);
+  }
   doc.font(F.bold).fontSize(11);
 
   // Title
@@ -1370,6 +1501,7 @@ async function renderGraphicalAbstract(doc: Doc, input: VisualInput, pal: Pal, q
   const ph = bottom - top;
   const m = c.methods;
   const approach = [m.design, m.participants, m.setting, m.analysis].filter(Boolean);
+  const proposal = c.stage === "proposal";
   const panels: { title: string; kind: IconKind; fill: string; body: (x: number, y: number, w: number, h: number) => void }[] = [
     {
       title: "Context",
@@ -1404,8 +1536,8 @@ async function renderGraphicalAbstract(doc: Doc, input: VisualInput, pal: Pal, q
       },
     },
     {
-      title: "Key findings",
-      kind: "chart",
+      title: proposal ? (c.hypotheses.length ? "Hypotheses" : "Research questions") : "Key findings",
+      kind: proposal ? "question" : "chart",
       fill: pal.pd,
       body: (x, y, w, h) => {
         let cy = y;
@@ -1422,7 +1554,7 @@ async function renderGraphicalAbstract(doc: Doc, input: VisualInput, pal: Pal, q
           });
           cy += th + 12;
         }
-        const finds = c.findings.slice(0, nums.length ? 2 : 3);
+        const finds = (proposal ? (c.hypotheses.length ? c.hypotheses : c.researchQuestions) : c.findings).slice(0, nums.length ? 2 : 3);
         const left = y + h - cy;
         let size = 17;
         const need = (sz: number) => finds.reduce((t, f) => t + textH(doc, f, F.sans, sz, w - 18, 1) + sz * 0.7, 0);
@@ -1435,12 +1567,16 @@ async function renderGraphicalAbstract(doc: Doc, input: VisualInput, pal: Pal, q
       },
     },
     {
-      title: "Conclusion",
+      title: proposal ? "Expected contribution" : "Conclusion",
       kind: "bulb",
       fill: pal.ad,
       body: (x, y, w, h) => {
         const imp = c.implications[0] ?? "";
-        const main = c.conclusion || c.findings[0] || "";
+        const main = proposal ? c.significance || c.objective : c.conclusion || c.findings[0] || "";
+        if (!main) {
+          write(doc, "See the full article.", x, y, { font: F.oblique, size: 12, color: MUTED, width: w });
+          return;
+        }
         const size = fit(doc, main, F.serifItalic, 23, 9.5, w, imp ? h * 0.6 : h);
         const mh = write(doc, main, x, y, { font: F.serifItalic, size, color: INK, width: w, lineGap: size * 0.2, height: imp ? h * 0.62 : h });
         if (imp) {
@@ -1496,9 +1632,9 @@ async function renderFramework(doc: Doc, input: VisualInput, pal: Pal, qr: Buffe
     doc.rect(0, 0, W, bh).fill(doc.linearGradient(0, 0, W, 0).stop(0, pal.pd).stop(1, pal.p));
     doc.rect(0, bh, W, 3).fill(pal.a);
     const on = onColor(pal.pd);
-    brandMark(doc, input, pal, M, 12, 40);
-    write(doc, input.brand.orgName, M + 52, 15, { font: F.bold, size: 11.5, color: on, width: 420, height: 15 });
-    write(doc, input.brand.journalName, M + 52, 33, { font: F.serifItalic, size: 9.5, color: mix(on, pal.pd, 0.25), width: 420, height: 13 });
+    const fwMark = brandMark(doc, input, pal, M, 12, 40, 3.2);
+    write(doc, input.brand.orgName, M + fwMark + 12, 15, { font: F.bold, size: 11.5, color: on, width: 420, height: 15 });
+    write(doc, input.brand.journalName, M + fwMark + 12, 33, { font: F.serifItalic, size: 9.5, color: mix(on, pal.pd, 0.25), width: 420, height: 13 });
     doc.font(F.bold).fontSize(8);
     const tw = doc.widthOfString(eyebrowText.toUpperCase(), { characterSpacing: 1.4 }) + 22;
     doc.roundedRect(W - M - tw, 21, tw, 21, 10.5).fill(pal.a);
