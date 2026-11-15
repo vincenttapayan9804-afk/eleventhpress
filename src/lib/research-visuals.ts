@@ -156,7 +156,7 @@ export function bodyHtmlToText(html: string): string {
     .trim();
 }
 
-function squash(s: string | null | undefined): string {
+export function squash(s: string | null | undefined): string {
   return (s ?? "").replace(/\s+/g, " ").trim();
 }
 
@@ -195,7 +195,7 @@ export function numberGroundedIn(value: string, sourceNorm: string): boolean {
   return nums.length > 0 && nums.every((n) => compactSource.includes(n));
 }
 
-function sentences(text: string): string[] {
+export function sentences(text: string): string[] {
   return squash(text)
     .replace(/\b(e\.g|i\.e|et al|vs|cf|approx|Fig|No|Dr|Prof)\./gi, (m) => m.replace(".", "\u0000"))
     .split(/(?<=[.!?])\s+(?=[A-Z0-9“"(])/)
@@ -203,7 +203,7 @@ function sentences(text: string): string[] {
     .filter((s) => s.length > 12);
 }
 
-function clip(s: string, max: number): string {
+export function clip(s: string, max: number): string {
   const t = squash(s);
   if (t.length <= max) return t;
   const cut = t.slice(0, max);
@@ -477,7 +477,7 @@ const SECTION_PATTERNS: [SectionKey, RegExp][] = [
   ["recommendations", /^(recommendations?|implications?)\b/],
 ];
 
-function headingKey(raw: string): SectionKey | null {
+export function headingKey(raw: string): SectionKey | null {
   const h = squash(raw)
     .toLowerCase()
     .replace(/^chapter\s+[ivx\d]+\s*[:.\-–]?\s*/, "")
@@ -598,7 +598,7 @@ function abstractSections(abstract: string) {
 }
 
 /** Drops in-text citations such as "(Smith & Lee, 2021)" for tight layouts. */
-function stripCitations(s: string): string {
+export function stripCitations(s: string): string {
   return squash(s.replace(/\s*\((?:[^()]*?(?:19|20)\d{2}[a-z]?[^()]*?)\)/g, "").replace(/\s+([.,;])/g, "$1"));
 }
 
@@ -1201,4 +1201,25 @@ export async function getResearchVisualContent(src: ResearchSource): Promise<Res
   p.then((c) => c.mode !== "llm" && memo.delete(key), () => memo.delete(key));
   if (memo.size > 200) memo.delete(memo.keys().next().value as string);
   return p;
+}
+
+/**
+ * The article's analysis without waiting on an LLM: the cached result when
+ * one exists (from any earlier download or the publish warm-up), otherwise
+ * the extractive analysis, which is computed instantly. Used where a
+ * document must be ready immediately (the study guide's first build).
+ */
+export async function peekResearchVisualContent(src: ResearchSource): Promise<ResearchVisualContent> {
+  const bodyText = src.bodyHtml ? bodyHtmlToText(src.bodyHtml) : "";
+  const key = `research-visuals/${src.id}/${sourceHash(src, bodyText)}.json`;
+  try {
+    const cached = await getObject(key);
+    if (cached) {
+      const parsed = JSON.parse(cached.toString("utf-8")) as ResearchVisualContent;
+      if (parsed?.version === RESEARCH_VISUALS_VERSION) return parsed;
+    }
+  } catch {
+    // fall through to the extractive analysis
+  }
+  return { version: RESEARCH_VISUALS_VERSION, mode: "extractive", model: "extractive", generatedAt: new Date().toISOString(), ...extractiveContent(src, bodyText) };
 }

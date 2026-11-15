@@ -11,6 +11,7 @@ import { sendNotificationDigests } from "@/lib/notification-digest";
 import { sendReviewReminders } from "@/lib/review-reminders";
 import { sendReadingAlerts } from "@/lib/reading-alerts";
 import { sendInvoiceReminders } from "@/lib/invoice-reminders";
+import { sweepStudyGuides } from "@/lib/study-guide/server";
 
 /**
  * GET /api/cron/sweep-all
@@ -44,6 +45,10 @@ const SWEEPS = [
   // Not a stuck-job sweep: the Research Assistant's retention policy
   // (conversations inactive past RESEARCH_CHAT_RETENTION_DAYS, old feedback).
   { name: "researchRetention", run: () => purgeExpiredResearchData() },
+  // Not a stuck-job sweep: every published article (platform and tenants)
+  // gets its Researcher's Study Guide ready to download, and guides built
+  // without an LLM are queued for the LLM-written version.
+  { name: "studyGuides", run: () => sweepStudyGuides(150_000) },
   // Daily notification digest for people who chose one email a day.
   // Review invitation nudges, due-soon and overdue reminders, then the
   // daily notification digest — in that order, so a daily-summary user gets
@@ -58,6 +63,8 @@ const SWEEPS = [
     }),
   },
 ] as const;
+
+export const maxDuration = 300;
 
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET;

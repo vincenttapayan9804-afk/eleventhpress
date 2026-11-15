@@ -12,6 +12,7 @@ import { sealArticleProvenance } from "@/lib/article-provenance-server";
 import { generateGlossary } from "@/lib/glossary";
 import { getResearchVisualContent } from "@/lib/research-visuals";
 import { researchSourceFor } from "@/lib/research-visuals-server";
+import { ensureStudyGuide, requestStudyGuideUpgrade } from "@/lib/study-guide/server";
 import { suggestKeywordsAndSummary } from "@/lib/manuscript-checks";
 import { generateGalleysForArticle } from "@/lib/galley-regenerate";
 import { APP_BASE_URL } from "@/lib/site";
@@ -249,6 +250,18 @@ export async function POST(req: NextRequest) {
           if (src) await getResearchVisualContent(src);
         } catch (e) {
           console.error(`[workflow] research visuals warm-up failed for ${articleId}:`, e);
+        }
+      });
+
+      // 1d. Researcher's Study Guide: build it now so it is downloadable
+      //     the moment the article is live, then let the background builder
+      //     replace it with the LLM-written version.
+      after(async () => {
+        try {
+          await ensureStudyGuide(articleId, { full: false });
+          await requestStudyGuideUpgrade(articleId);
+        } catch (e) {
+          console.error(`[workflow] study guide build failed for ${articleId}:`, e);
         }
       });
 
