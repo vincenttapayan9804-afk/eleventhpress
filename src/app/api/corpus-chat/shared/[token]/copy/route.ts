@@ -13,6 +13,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
   const { token } = await params;
   const session = getSessionFromHeaders(req.headers);
   if (!session) return NextResponse.json({ error: "Sign in to continue this conversation" }, { status: 401 });
+  if (!/^[A-Za-z0-9_-]{16,64}$/.test(token)) return NextResponse.json({ error: "This shared conversation isn't available." }, { status: 404 });
   const tenant = await resolveTenantFromHeaders(req.headers).catch(() => null);
   const source = await db.researchConversation.findFirst({
     where: { shareToken: token },

@@ -2698,7 +2698,7 @@ model ResearchConversation {
   title      String
   pinned     Boolean           @default(false)
   // Read-only share link (/research/shared/<token>); null when not shared.
-  shareToken String?           @unique
+  shareToken String?
   sharedAt   DateTime?
   createdAt  DateTime          @default(now())
   updatedAt  DateTime          @updatedAt
@@ -2706,6 +2706,7 @@ model ResearchConversation {
 
   @@index([userId, updatedAt])
   @@index([tenantId, updatedAt])
+  @@index([shareToken])
 }
 
 model ResearchMessage {
