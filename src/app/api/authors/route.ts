@@ -4,6 +4,7 @@ import { parseAuthors } from "@/lib/article";
 import { fetchAuthorCitationMetrics, computeHIndex } from "@/lib/citation-metrics";
 import { resolveTenantFromHeaders, tenantCacheControl } from "@/lib/tenant";
 import { withTenantRlsContext } from "@/lib/db-rls";
+import { identityLevel } from "@/lib/author-profile";
 
 /**
  * GET /api/authors
@@ -122,6 +123,8 @@ export async function GET(req: NextRequest) {
         select: {
           id: true,
           orcid: true,
+          orcidLastSync: true,
+          emailVerifiedAt: true,
           email: true,
           fullName: true,
           avatarUrl: true,
@@ -168,6 +171,7 @@ export async function GET(req: NextRequest) {
         ...rest,
         disciplines: [...e.disciplines],
         hasAccount: !!account,
+        identity: identityLevel(e.orcid, account),
         avatarUrl: account?.avatarUrl || null,
         profession: account?.profession || null,
         bio: account?.bio || null,

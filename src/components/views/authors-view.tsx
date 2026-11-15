@@ -1,6 +1,6 @@
 "use client";
 
-import { authorPath } from "@/lib/author-path";
+import { authorPath, displayCase } from "@/lib/author-path";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useApp } from "@/lib/store";
@@ -76,6 +76,7 @@ interface AuthorEntry {
   // always reflects whatever that author currently has saved in their
   // dashboard Profile tab, refreshed on every load of this directory.
   hasAccount: boolean;
+  identity?: "orcid-authenticated" | "verified-account" | "account" | "listed";
   avatarUrl: string | null;
   profession: string | null;
   bio: string | null;
@@ -232,10 +233,10 @@ export function AuthorsView() {
                 {t("editorsPick")}
               </p>
               <h2 className="mt-2 font-display text-3xl font-semibold text-white sm:text-5xl">
-                {featured.name}
+                {displayCase(featured.name)}
               </h2>
               <p className="mt-2 max-w-xl text-sm text-white/75 sm:text-base">
-                {featured.profession || featured.affiliation || t("noAffiliation")}
+                {displayCase(featured.profession) || featured.affiliation || t("noAffiliation")}
               </p>
               <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2">
                 <HeroStat icon={Quote} value={featured.citationMetrics.citedByCount} label={t("statCitations")} />
@@ -282,7 +283,7 @@ export function AuthorsView() {
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-[oklch(0.16_0.06_295/0.9)] via-transparent to-transparent" />
                 <div className="absolute inset-x-0 bottom-0 p-3 text-left">
-                  <p className="truncate font-display text-sm font-semibold text-white">{a.name}</p>
+                  <p className="truncate font-display text-sm font-semibold text-white">{displayCase(a.name)}</p>
                   <p className="truncate text-[0.65rem] text-white/70">
                     {a.disciplines[0] || a.profession || a.affiliation}
                   </p>
@@ -406,7 +407,8 @@ export function AuthorsView() {
                 </Avatar>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <p className="truncate font-display text-base font-semibold">{a.name}</p>
+                    <p className="truncate font-display text-base font-semibold">{displayCase(a.name)}</p>
+                    {isVerified(a) && <BadgeCheck className="h-4 w-4 flex-shrink-0 text-primary" aria-label="Verified author" />}
                     {a.academicStatus && ACADEMIC_STATUS_LABEL[a.academicStatus] && (
                       <Badge variant="outline" className="text-[0.55rem]">
                         {ACADEMIC_STATUS_LABEL[a.academicStatus]}
@@ -414,7 +416,7 @@ export function AuthorsView() {
                     )}
                   </div>
                   <p className="truncate text-xs text-muted-foreground">
-                    {a.profession || a.affiliation || t("noAffiliation")}
+                    {displayCase(a.profession) || a.affiliation || t("noAffiliation")}
                     {a.department && (
                       <>
                         {" · "}
@@ -472,7 +474,12 @@ export function AuthorsView() {
                   </Avatar>
                   <div>
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <DialogTitle className="font-display text-lg">{selected.name}</DialogTitle>
+                      <DialogTitle className="font-display text-lg">{displayCase(selected.name)}</DialogTitle>
+                      {isVerified(selected) && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[0.65rem] font-semibold text-primary">
+                          <BadgeCheck className="h-3 w-3" aria-hidden="true" /> Verified
+                        </span>
+                      )}
                       {selected.academicStatus && ACADEMIC_STATUS_LABEL[selected.academicStatus] && (
                         <Badge variant="outline" className="text-[0.55rem]">
                           {ACADEMIC_STATUS_LABEL[selected.academicStatus]}
@@ -480,7 +487,7 @@ export function AuthorsView() {
                       )}
                     </div>
                     <DialogDescription>
-                      {selected.profession || selected.affiliation || t("noAffiliation")}
+                      {displayCase(selected.profession) || selected.affiliation || t("noAffiliation")}
                     </DialogDescription>
                     {selected.profession && selected.affiliation && (
                       <p className="text-xs text-muted-foreground">{selected.affiliation}</p>
@@ -502,9 +509,9 @@ export function AuthorsView() {
 
               <a
                 href={authorPath({ name: selected.name, orcid: selected.orcid })}
-                className="inline-flex w-fit items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+                className="inline-flex w-fit items-center gap-1.5 rounded-md bg-primary px-3.5 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
               >
-                View full profile →
+                View verified profile <ChevronRight className="h-4 w-4" aria-hidden="true" />
               </a>
               {selected.bio && (
                 <p className="mt-1 text-sm leading-relaxed text-foreground/85">{selected.bio}</p>
@@ -543,11 +550,12 @@ export function AuthorsView() {
                 )}
               </div>
 
-              <div className="mt-3 grid grid-cols-2 gap-2 rounded-md border border-border bg-muted/30 p-3 text-center sm:grid-cols-4">
+              <div className="mt-3 grid grid-cols-3 gap-y-3 rounded-md border border-border bg-muted/30 p-3 text-center sm:grid-cols-5">
                 <Stat icon={FileText} value={selected.articleCount} label={t("statArticles")} />
                 <Stat icon={Quote} value={selected.citationMetrics.citedByCount} label={t("statCitations")} />
-                <Stat icon={Download} value={selected.totalDownloads} label={t("statDownloads")} />
                 <Stat icon={BadgeCheck} value={selected.citationMetrics.hIndex ?? 0} label="h-index" />
+                <Stat icon={Eye} value={selected.totalViews} label={t("statViews")} />
+                <Stat icon={Download} value={selected.totalDownloads} label={t("statDownloads")} />
               </div>
               <p className="mt-1 text-center text-[0.6rem] text-muted-foreground">
                 {selected.citationMetrics.source === "openalex"
@@ -577,12 +585,23 @@ export function AuthorsView() {
                   ))}
                 </div>
               </div>
+              <a
+                href={authorPath({ name: selected.name, orcid: selected.orcid })}
+                className="mt-2 flex items-center justify-between rounded-lg border border-primary/25 bg-primary/5 px-4 py-3 text-sm font-semibold text-primary hover:bg-primary/10"
+              >
+                <span>Full profile: verification record, sharing and QR code</span>
+                <ChevronRight className="h-4 w-4" aria-hidden="true" />
+              </a>
             </>
           )}
         </DialogContent>
       </Dialog>
     </div>
   );
+}
+
+function isVerified(a: { identity?: string }) {
+  return a.identity === "orcid-authenticated" || a.identity === "verified-account";
 }
 
 function SocialLink({ href, icon: Icon, label }: { href: string; icon: any; label: string }) {
