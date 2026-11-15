@@ -28,7 +28,8 @@ import { APP_BASE_URL } from "@/lib/site";
 import { anyLLMAvailable } from "@/lib/llm";
 import { parseAuthors } from "@/lib/article";
 import { displayCase, getResearchVisualContent, peekResearchVisualContent, type ResearchSource } from "@/lib/research-visuals";
-import { buildExtractiveGuide, getStudyGuide, type StudyGuideData, type StudyGuideSource } from "@/lib/study-guide/build";
+import { buildExtractiveGuide, getStudyGuide, STUDY_GUIDE_VERSION, type StudyGuideData, type StudyGuideSource } from "@/lib/study-guide/build";
+import { STUDY_GUIDE_TEMPLATE } from "@/lib/study-guide/template.generated";
 import { renderStudyGuideHtml, studyGuideFileName, type StudyGuideMeta } from "@/lib/study-guide/render";
 
 const ARTICLE_SELECT = {
@@ -88,6 +89,8 @@ async function load(article: ArticleRow | null): Promise<Loaded | null> {
   const hash = createHash("sha256")
     .update(
       JSON.stringify([
+        // A new guide version or template rebuilds every stored guide.
+        STUDY_GUIDE_VERSION, STUDY_GUIDE_TEMPLATE.length,
         article.title, article.abstract, article.authors, article.doi, article.keywords, article.discipline, article.contentType,
         article.publishedAt?.toISOString() ?? "", bodyHtml ?? "", references,
         identity.publisher, identity.journalName, identity.logoUrl, identity.whitelabel,

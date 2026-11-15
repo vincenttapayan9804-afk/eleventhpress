@@ -36,7 +36,12 @@ import {
 } from "@/lib/research-visuals";
 import { buildOutline, type Outline, type OutlineSection } from "@/lib/study-guide/outline";
 
-export const STUDY_GUIDE_VERSION = 1;
+/**
+ * Bump whenever the guide's content or layout changes: stored guides are
+ * keyed by it, so every published article's guide is rebuilt on its next
+ * download (and by the daily sweep).
+ */
+export const STUDY_GUIDE_VERSION = 2;
 
 export interface GuidePara {
   label: string;
