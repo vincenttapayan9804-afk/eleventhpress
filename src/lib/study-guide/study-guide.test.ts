@@ -52,6 +52,7 @@ const BODY = `
 <p>Bandura, A. (1997). Self-efficacy: The exercise of control. W. H. Freeman.</p>
 <p>Pallant, J. (2020). SPSS survival manual (7th ed.). Routledge.</p>
 <p>Unused, K. (2019). A source never cited in the text. Journal of Examples, 1(1), 1–2.</p>
+<p>Keywords: self-efficacy, engagement, teachers Discipline: Education</p>
 `.repeat(1);
 
 const TITLE = "Teacher Self-Efficacy and Learner Engagement in Public Secondary Schools";
@@ -111,7 +112,7 @@ describe("buildOutline", () => {
     // List items stay with the paragraph that introduces them.
     expect(o.sections[1].paras).toHaveLength(1);
     expect(o.sections[1].paras[0].text).toContain("What is the level of teacher self-efficacy?");
-    expect(o.references).toHaveLength(3);
+    expect(o.references).toHaveLength(4); // raw lines; the guide filters non-references
   });
 
   test("falls back to the abstract when there is no full text", () => {
@@ -142,6 +143,9 @@ describe("buildExtractiveGuide", () => {
     const bandura = g.refs.find((r) => r.key.startsWith("Bandura"));
     expect(bandura?.where).toEqual(["1.1 Background of the Study"]);
     expect(g.refs.find((r) => r.key.startsWith("Unused"))?.where).toEqual([]);
+    // A trailing "Keywords: …" line is not listed as a reference.
+    expect(g.refs).toHaveLength(3);
+    expect(g.slides.map((x) => x.title)).not.toContain("1. introduction");
     expect(g.slides[0].note).toContain("Juan Dela Cruz");
     // Each slide number named on a section exists in the script.
     const nums = new Set(g.slides.map((s) => `Slide ${s.n}`));

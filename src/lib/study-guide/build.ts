@@ -398,7 +398,9 @@ function refKey(text: string): { key: string; surname: string; year: string } | 
 }
 
 export function buildRefs(refs: string[], sections: GuideSection[]): { text: string; key: string; where: string[] }[] {
-  return refs.slice(0, 400).map((raw) => {
+  // Only real reference entries (they carry a year or "n.d."); a stray
+  // "Keywords: …" line after the list is not a source.
+  return refs.filter((r) => /\b(19|20)\d{2}[a-z]?\b|\bn\.d\./.test(r) && !/^\s*(keywords?|discipline|subjects?)\s*:/i.test(r)).slice(0, 400).map((raw) => {
     const text = squash(raw).replace(/^\[?\d+[\].]\s*/, "");
     const k = refKey(text);
     if (!k) return { text, key: "", where: [] };
@@ -441,7 +443,7 @@ function overlap(a: string, b: string): number {
 }
 
 function shortHeading(t: string): string {
-  return t.replace(/^\d+(\.\d+)*\s+/, "").replace(/\b(of the study|of the research)\b/gi, "").replace(/\s+/g, " ").trim();
+  return t.replace(/^(\d+(\.\d+)*\.?|[IVX]+\.)\s+/, "").replace(/\b(of the study|of the research)\b/gi, "").replace(/\s+/g, " ").trim();
 }
 
 function bigPicture(src: StudyGuideSource, outline: Outline, sections: GuideSection[]): StudyGuideData["big"] {
@@ -475,7 +477,7 @@ function bigPicture(src: StudyGuideSource, outline: Outline, sections: GuideSect
   model = model.map((col) => ({ label: col.label, items: (col.items.length ? col.items : ["—"]).slice(0, 5) }));
   const theories = fw.theories.map((t) => t.name).slice(0, 3);
   const modelNote = clip(
-    [fw.narrative, c.methods.design ? `Research design: ${c.methods.design}.` : "", theories.length ? `Anchored on ${joinList(theories)}.` : ""].filter(Boolean).join(" "),
+    [fw.narrative, c.methods.design ? `Research design: ${c.methods.design.replace(/[.;\s]+$/, "")}.` : "", theories.length ? `Anchored on ${joinList(theories)}.` : ""].filter(Boolean).join(" "),
     320
   );
 
