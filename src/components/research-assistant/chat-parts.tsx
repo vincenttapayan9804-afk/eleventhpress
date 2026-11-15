@@ -9,12 +9,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { ResearchMascot } from "./mascot";
-import type { AnswerData, SectionQuestion } from "./types";
+import type { AnswerData, AssistantQuota, SectionQuestion } from "./types";
 
 export interface ApiAnswer extends Partial<AnswerData> {
-  mode: "answered" | "unavailable" | "not-indexed";
+  mode: "answered" | "unavailable" | "not-indexed" | "no-match" | "disabled" | "stopped";
   message?: string;
   answer?: string;
+  quota?: AssistantQuota;
 }
 
 export function toAnswerData(res: ApiAnswer): AnswerData {
@@ -25,6 +26,7 @@ export function toAnswerData(res: ApiAnswer): AnswerData {
     sources: Array.isArray(res.sources) ? res.sources : [],
     evidence: res.evidence,
     evidenceIds: Array.isArray(res.evidenceIds) ? res.evidenceIds : [],
+    ...(res.coverage ? { coverage: res.coverage } : {}),
     suggestedQuestions: Array.isArray(res.suggestedQuestions) ? res.suggestedQuestions : [],
     sectionQuestions: Array.isArray(res.sectionQuestions) ? res.sectionQuestions : [],
     sectionArticle: res.sectionArticle ?? null,
@@ -34,38 +36,98 @@ export function toAnswerData(res: ApiAnswer): AnswerData {
   };
 }
 
-const CORPUS_STEPS = [
+/** The server's steps, in order (see /api/corpus-chat's streamed stages). */
+export type AnswerStage = "sending" | "understanding" | "searching" | "reading" | "writing" | "checking";
+
+const STAGE_ORDER: AnswerStage[] = ["understanding", "searching", "reading", "writing", "checking"];
+
+export interface StageState {
+  stage: AnswerStage;
+  passages?: number;
+  articles?: number;
+  scope?: string;
+}
+
+function stageText(s: StageState): string {
+  switch (s.stage) {
+    case "sending":
+    case "understanding":
+      return "Understanding your question…";
+    case "searching":
+      return s.scope ? `Searching ${s.scope}…` : "Searching the journal's published articles…";
+    case "reading":
+      return s.passages
+        ? `Reading ${s.passages} relevant passage${s.passages === 1 ? "" : "s"} from ${s.articles} article${s.articles === 1 ? "" : "s"}…`
+        : "Reading the most relevant passages…";
+    case "writing":
+      return "Writing a cited answer…";
+    case "checking":
+      return "Checking every citation against the sources…";
+  }
+}
+
+const TIMED_STEPS = [
   "Understanding your question…",
-  "Searching the journal's published articles…",
+  "Searching the published articles…",
   "Reading the most relevant passages…",
   "Checking the evidence…",
   "Writing a cited answer…",
 ];
 
-/** Step-by-step progress with the mascot looking around while it searches. */
+/**
+ * Progress while an answer is prepared, with the mascot looking around.
+ * With `stage` it shows the server's real step (and how much evidence was
+ * found); without it, timed steps. `onStop` adds a Stop button.
+ */
 export function Thinking({
-  steps = CORPUS_STEPS,
+  stage,
+  steps = TIMED_STEPS,
   label = "The Research Assistant is searching the journal",
+  onStop,
 }: {
+  stage?: StageState | null;
   steps?: string[];
   label?: string;
+  onStop?: () => void;
 }) {
-  const [step, setStep] = useState(0);
+  const [timed, setTimed] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
   useEffect(() => {
-    const t = setInterval(() => setStep((s) => Math.min(s + 1, steps.length - 1)), 2600);
-    return () => clearInterval(t);
+    const t = setInterval(() => setTimed((s) => Math.min(s + 1, steps.length - 1)), 2600);
+    const e = setInterval(() => setElapsed((s) => s + 1), 1000);
+    return () => {
+      clearInterval(t);
+      clearInterval(e);
+    };
   }, [steps.length]);
+  const index = stage ? Math.max(0, STAGE_ORDER.indexOf(stage.stage === "sending" ? "understanding" : stage.stage)) : timed;
+  const total = stage ? STAGE_ORDER.length : steps.length;
+  const text = stage ? stageText(stage) : steps[timed];
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-card/80 px-4 py-3.5 shadow-sm" role="status" aria-live="polite">
+    <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-card/80 px-4 py-3.5 shadow-sm">
       <ResearchMascot state="thinking" size={40} title={label} />
-      <div>
-        <p className="text-sm font-medium text-foreground">{steps[step]}</p>
-        <div className="mt-1.5 flex gap-1" aria-hidden="true">
-          {steps.map((_, i) => (
-            <span key={i} className={cn("h-1 w-6 rounded-full transition-colors duration-500", i <= step ? "bg-primary" : "bg-border")} />
-          ))}
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium text-foreground" role="status" aria-live="polite">
+          {text}
+        </p>
+        <div className="mt-1.5 flex items-center gap-2">
+          <div className="flex gap-1" aria-hidden="true">
+            {Array.from({ length: total }, (_, i) => (
+              <span key={i} className={cn("h-1 w-6 rounded-full transition-colors duration-500", i <= index ? "bg-primary" : "bg-border")} />
+            ))}
+          </div>
+          {elapsed >= 3 && <span className="text-xs tabular-nums text-muted-foreground">{elapsed}s</span>}
         </div>
       </div>
+      {onStop && (
+        <button
+          type="button"
+          onClick={onStop}
+          className="inline-flex h-8 flex-shrink-0 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-xs font-semibold text-foreground transition-colors hover:border-destructive/40 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <span className="h-2.5 w-2.5 rounded-[2px] bg-current" aria-hidden="true" /> Stop
+        </button>
+      )}
     </div>
   );
 }
@@ -151,7 +213,7 @@ export function SuggestionList({ label, questions, onPick, disabled }: { label: 
   if (questions.length === 0) return null;
   return (
     <div role="group" aria-label={label}>
-      <p className="mb-2 text-[0.62rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{label}</p>
+      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
       <div className="grid gap-1.5">
         {questions.map((q) => (
           <button
@@ -175,7 +237,7 @@ export function SectionPills({ article, sections, onPick, disabled }: { article?
   const label = article ? `Explore “${article}” by section` : "Explore this paper by section";
   return (
     <div role="group" aria-label={label}>
-      <p className="mb-2 text-[0.62rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{label}</p>
+      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
       <div className="flex flex-wrap gap-1.5">
         {sections.map((s) => (
           <button
@@ -185,7 +247,7 @@ export function SectionPills({ article, sections, onPick, disabled }: { article?
             disabled={disabled}
             title={s.question}
             aria-label={s.question}
-            className="rounded-full border border-border bg-background px-3 py-1 text-[0.72rem] font-medium text-foreground transition-colors hover:border-primary/50 hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+            className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-foreground transition-colors hover:border-primary/50 hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
           >
             {s.section}
           </button>

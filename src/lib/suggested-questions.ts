@@ -196,7 +196,7 @@ export function starterQuestions(titles: string[]): string[] {
 }
 
 export interface StarterPrompt {
-  category: "Explore a paper" | "Compare studies" | "Synthesize the journal";
+  category: "Suggested by the editors" | "Explore a paper" | "Compare studies" | "Synthesize the journal";
   question: string;
 }
 

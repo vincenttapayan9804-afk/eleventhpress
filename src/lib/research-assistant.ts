@@ -71,6 +71,14 @@ export function conversationRetentionDays(): number {
   return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 365;
 }
 
+/** The retention period for conversations held on an institution's site:
+ * its own setting (ResearchAssistantSettings.retentionDays) when it has one. */
+export async function conversationRetentionDaysFor(tenantId: string | null): Promise<number> {
+  const { getAssistantSettings } = await import("@/lib/research-assistant-settings");
+  const own = (await getAssistantSettings(tenantId)).retentionDays;
+  return own ?? conversationRetentionDays();
+}
+
 /** Feedback and issue reports are kept for this long (default 730 days). */
 export function feedbackRetentionDays(): number {
   const n = Number(process.env.RESEARCH_FEEDBACK_RETENTION_DAYS);
@@ -79,18 +87,43 @@ export function feedbackRetentionDays(): number {
 
 /** Deletes conversations inactive beyond the retention period, and old
  * feedback. Idempotent; run by scripts/purge-research-conversations.ts. */
-export async function purgeExpiredResearchData(now = new Date()): Promise<{ conversations: number; feedback: number }> {
-  const convCutoff = new Date(now.getTime() - conversationRetentionDays() * 86_400_000);
-  const fbCutoff = new Date(now.getTime() - feedbackRetentionDays() * 86_400_000);
-  const conversations = await db.researchConversation.deleteMany({ where: { updatedAt: { lt: convCutoff } } });
+export async function purgeExpiredResearchData(now = new Date()): Promise<{ conversations: number; feedback: number; queries: number }> {
+  const day = 86_400_000;
+  const defaultDays = conversationRetentionDays();
+  const fbCutoff = new Date(now.getTime() - feedbackRetentionDays() * day);
+  // Institutions with their own retention period first; everything else
+  // follows the platform default.
+  const custom = await db.researchAssistantSettings
+    .findMany({ where: { retentionDays: { not: null } }, select: { tenantId: true, retentionDays: true } })
+    .catch(() => [] as { tenantId: string; retentionDays: number | null }[]);
+  let conversations = 0;
+  for (const s of custom) {
+    const r = await db.researchConversation.deleteMany({
+      where: { tenantId: s.tenantId, updatedAt: { lt: new Date(now.getTime() - (s.retentionDays ?? defaultDays) * day) } },
+    });
+    conversations += r.count;
+  }
+  const rest = await db.researchConversation.deleteMany({
+    where: {
+      updatedAt: { lt: new Date(now.getTime() - defaultDays * day) },
+      ...(custom.length ? { OR: [{ tenantId: null }, { tenantId: { notIn: custom.map((s) => s.tenantId) } }] } : {}),
+    },
+  });
+  conversations += rest.count;
   const feedback = await db.researchFeedback.deleteMany({ where: { createdAt: { lt: fbCutoff } } });
-  return { conversations: conversations.count, feedback: feedback.count };
+  const { queryLogRetentionDays } = await import("@/lib/research-assistant-settings");
+  const queries = await db.researchQueryLog
+    .deleteMany({ where: { createdAt: { lt: new Date(now.getTime() - queryLogRetentionDays() * day) } } })
+    .then((r) => r.count)
+    .catch(() => 0);
+  return { conversations, feedback: feedback.count, queries };
 }
 
 export const LIMITS = {
   conversationsPerUser: 200,
   messagesPerConversation: 200,
   titleChars: 120,
+  folderChars: 60,
   messageChars: 20_000,
   payloadChars: 60_000,
 } as const;

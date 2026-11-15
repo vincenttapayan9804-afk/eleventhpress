@@ -5,6 +5,7 @@ import { extractRequestIp } from "@/lib/institutions";
 import { checkRateLimit } from "@/lib/ratelimit";
 import { notifyMany } from "@/lib/notify";
 import { cleanSourceIds } from "@/lib/research-query";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
 
 /**
  * POST /api/corpus-chat/feedback — "Helpful", "Not helpful" and "Report
@@ -46,6 +47,8 @@ export async function POST(req: NextRequest) {
   const articleIds = cleanSourceIds(body.articleIds, 16);
   const model = typeof body.model === "string" ? body.model.slice(0, 120) : null;
   const session = getSessionFromHeaders(req.headers);
+  const tenant = await resolveTenantFromHeaders(req.headers).catch(() => null);
+  const tenantId = tenant?.id ?? null;
   if (rating === "ISSUE") {
     // Reports notify editors, so they get a tighter limit of their own.
     const issueLimit = await checkRateLimit(`corpus-chat-issue:${ip}`, 5, 3600);
@@ -55,6 +58,7 @@ export async function POST(req: NextRequest) {
   const row = await db.researchFeedback.create({
     data: {
       userId: session?.userId ?? null,
+      tenantId,
       rating,
       issueType,
       comment,
@@ -68,8 +72,18 @@ export async function POST(req: NextRequest) {
 
   if (rating === "ISSUE") {
     try {
+      // The editors of the institution whose assistant answered: on a
+      // whitelabel site its own editors and admins, on the platform the
+      // platform's editors and super admins.
       const editors = await db.user.findMany({
-        where: { role: { in: ["SUPER_ADMIN", "EDITOR"] }, deletedAt: null },
+        where:
+          tenant && !tenant.isPlatform
+            ? { role: { in: ["TENANT_ADMIN", "EDITOR"] }, tenantId: tenant.id, deletedAt: null }
+            : {
+                role: { in: ["SUPER_ADMIN", "EDITOR"] },
+                deletedAt: null,
+                OR: [{ tenantId: null }, ...(tenant ? [{ tenantId: tenant.id }] : [])],
+              },
         select: { id: true },
         take: 20,
       });
@@ -79,7 +93,7 @@ export async function POST(req: NextRequest) {
           type: "WARNING" as const,
           category: "EDITORIAL",
           title: "Research Assistant answer reported",
-          message: `${ISSUE_LABELS[issueType ?? "OTHER"]}. Question: “${question.slice(0, 200)}”${comment ? ` Reader's note: “${comment.slice(0, 300)}”` : ""} (report ${row.id})`,
+          message: `${ISSUE_LABELS[issueType ?? "OTHER"]}. Question: “${question.slice(0, 200)}”${comment ? ` Reader's note: “${comment.slice(0, 300)}”` : ""} Review it under Dashboard → Research Assistant. (report ${row.id})`,
           ...(articleIds[0] ? { articleId: articleIds[0] } : {}),
         }))
       );

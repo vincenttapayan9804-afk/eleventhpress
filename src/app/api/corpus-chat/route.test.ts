@@ -37,6 +37,11 @@ let chatCalls: { system: string; user: string; opts: any }[] = [];
 let retrievalQueries: string[] = [];
 let retrievalCalls: { query: string; limit: unknown; options: any }[] = [];
 let evidenceLoads: string[][] = [];
+let evidenceWheres: unknown[] = [];
+let rateLimitOverride: Record<string, unknown> | null = null;
+let rateLimitKeys: string[] = [];
+let settingsRow: Record<string, unknown> | null = null;
+let platformTenant = true;
 
 const RECORD = {
   id: "art_1",
@@ -85,6 +90,7 @@ mock.module("@/lib/chunk-embeddings", () => ({
   loadCorpusChunksByIds: (async (...args: Parameters<ChunksModule["loadCorpusChunksByIds"]>) => {
     if (!active) return realChunks.loadCorpusChunksByIds(...args);
     evidenceLoads.push(args[0]);
+    evidenceWheres.push(args[1]);
     return [{ ...PASSAGE, focused: undefined }];
   }) as unknown as ChunksModule["loadCorpusChunksByIds"],
 }));
@@ -93,8 +99,11 @@ mock.module("@/lib/chunk-embeddings", () => ({
 // that would make this route return 429 here.
 mock.module("@/lib/ratelimit", () => ({
   ...realRateLimit,
-  checkRateLimit: (async (...args: Parameters<RateLimitModule["checkRateLimit"]>) =>
-    active ? { ok: true } : realRateLimit.checkRateLimit(...args)) as unknown as RateLimitModule["checkRateLimit"],
+  checkRateLimit: (async (...args: Parameters<RateLimitModule["checkRateLimit"]>) => {
+    if (!active) return realRateLimit.checkRateLimit(...args);
+    rateLimitKeys.push(String(args[0]));
+    return rateLimitOverride ?? { ok: true };
+  }) as unknown as RateLimitModule["checkRateLimit"],
 }));
 
 // Article records come from the database; serve a fixed record here.
@@ -108,12 +117,25 @@ mock.module("@/lib/db", () => ({
       if (active && prop === "journal") {
         return { findFirst: async () => ({ name: "Journal of Test Studies", issn: "1234-5678", publisher: "Test Press" }) };
       }
+      // The request resolves to the platform tenant (or none), with optional assistant settings.
+      if (active && prop === "tenantDomain") return { findFirst: async () => null };
+      if (active && prop === "tenant") {
+        return {
+          findFirst: async () => (platformTenant ? { id: "plat_1", slug: "eleventhpress", name: "Eleventh Press", status: "ACTIVE", isPlatform: true } : null),
+          findUnique: async () => null,
+        };
+      }
+      if (active && prop === "researchAssistantSettings") {
+        return { findUnique: async () => settingsRow };
+      }
+      if (active && prop === "researchQueryLog") return { create: async () => ({}) };
       return Reflect.get(target, prop, receiver);
     },
   }),
 }));
 
 const { POST, GET } = await import("./route");
+const { clearAssistantSettingsCache } = await import("@/lib/research-assistant-settings");
 
 const RAW_ANTHROPIC_401 =
   '401 {"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key"},"request_id":"req_011Cgkqxuocu1QutkjdeChzJ"}';
@@ -122,13 +144,14 @@ let ipCounter = 0;
 function ask(
   question = "What have authors found about climate adaptation?",
   history?: { role: string; content: string; sources?: string[] }[],
-  extra: Record<string, unknown> = {}
+  extra: Record<string, unknown> = {},
+  headers: Record<string, string> = {}
 ) {
   ipCounter += 1;
   return POST(
     new NextRequest("http://localhost/api/corpus-chat", {
       method: "POST",
-      headers: { "content-type": "application/json", "x-forwarded-for": `203.0.113.${ipCounter}` },
+      headers: { "content-type": "application/json", "x-forwarded-for": `203.0.113.${ipCounter}`, ...headers },
       body: JSON.stringify({ question, ...(history ? { history } : {}), ...extra }),
     })
   );
@@ -148,6 +171,12 @@ beforeEach(() => {
   retrievalQueries = [];
   retrievalCalls = [];
   evidenceLoads = [];
+  evidenceWheres = [];
+  rateLimitOverride = null;
+  rateLimitKeys = [];
+  settingsRow = null;
+  platformTenant = true;
+  clearAssistantSettingsCache();
   console.info = () => {};
   console.error = () => {};
   console.warn = () => {};
@@ -396,5 +425,110 @@ describe("suggested questions", () => {
     expect(body.journal).toEqual({ name: "Journal of Test Studies", issn: "1234-5678", publisher: "Test Press" });
     expect(body.stats.articles).toBe(1);
     expect(body.prompts.some((p: { category: string }) => p.category === "Synthesize the journal")).toBe(true);
+  });
+});
+
+describe("scope, tenant isolation and continuing an analysis", () => {
+  test("retrieval is limited to the institution's own published articles", async () => {
+    await ask();
+    expect(retrievalCalls[0].options.articleWhere).toEqual({ status: "PUBLISHED", journal: { tenantId: "plat_1" } });
+  });
+
+  test("a reader's scope narrows retrieval and is stated in the prompt", async () => {
+    const body = await (await ask("What did these studies find?", [], { scope: { disciplines: ["Environmental Science"], yearFrom: 2025, yearTo: 2026 } })).json();
+    const where = retrievalCalls[0].options.articleWhere;
+    expect(where.discipline).toEqual({ in: ["Environmental Science"] });
+    expect(where.publishedAt.gte.toISOString()).toBe("2025-01-01T00:00:00.000Z");
+    expect(chatCalls[0].user).toContain("SCOPE: the reader limited the search to Environmental Science; published 2025–2026");
+    expect(body.coverage.scope).toBe("Environmental Science; published 2025–2026");
+  });
+
+  test("“only this article” focuses retrieval on it", async () => {
+    await ask("What were the limitations?", [], { scope: { articleIds: ["art_1"] } });
+    expect(retrievalCalls[0].options.contextArticleIds).toEqual(["art_1"]);
+    expect(retrievalCalls[0].options.articleWhere.id).toEqual({ in: ["art_1"] });
+  });
+
+  test("“Continue analysis” keeps the earlier answer's evidence and asks the model to build on it", async () => {
+    const body = await (await ask("Go deeper into the methods", [], { continueOf: { question: "What did the coastal paper find?", evidenceIds: ["c9"] } })).json();
+    expect(evidenceLoads).toEqual([["c9"]]);
+    expect(retrievalQueries[0]).toContain("What did the coastal paper find?");
+    expect(chatCalls[0].user).toContain('CONTINUING AN ANALYSIS: the reader is continuing the analysis of their earlier question "What did the coastal paper find?"');
+    expect(body.mode).toBe("answered");
+  });
+
+  test("regenerating only reuses evidence from the institution's own articles", async () => {
+    await ask("What did the coastal paper find?", [], { regenerate: true, evidenceIds: ["c1"] });
+    expect(evidenceWheres[0]).toEqual({ status: "PUBLISHED", journal: { tenantId: "plat_1" } });
+  });
+
+  test("an answer reports how much of the journal it stands on", async () => {
+    const body = await (await ask()).json();
+    expect(body.coverage).toEqual({ level: "limited", citedArticles: 1, articlesReviewed: 1, corpusArticles: 1, scope: null });
+  });
+});
+
+describe("quotas and the institution's switch", () => {
+  test("a signed-out reader's quota is per network address on this institution's site", async () => {
+    await ask();
+    expect(rateLimitKeys[0]).toMatch(/^corpus-chat:ip:plat_1:203\.0\.113\.\d+$/);
+  });
+
+  test("over the limit: 429 with when it resets and a hint to sign in", async () => {
+    rateLimitOverride = { ok: false, mode: "live", message: "", limit: 40, remaining: 0, reset: Date.parse("2026-11-15T10:00:00Z") };
+    const res = await ask();
+    expect(res.status).toBe(429);
+    const body = await res.json();
+    expect(body.error).toMatch(/limit of 40 questions an hour\. Sign in/);
+    expect(body.quota).toEqual({ limit: 40, remaining: 0, resetAt: "2026-11-15T10:00:00.000Z", basis: "network" });
+  });
+
+  test("questions left are returned with an answer when limits are enforced", async () => {
+    rateLimitOverride = { ok: true, mode: "live", message: "", limit: 40, remaining: 39, reset: Date.parse("2026-11-15T10:00:00Z") };
+    const body = await (await ask()).json();
+    expect(body.quota.remaining).toBe(39);
+  });
+
+  test("the institution's own limit applies", async () => {
+    settingsRow = { enabled: true, anonymousHourlyLimit: 500, signedInHourlyLimit: null, logQuestions: true, updatedAt: new Date(), starterQuestions: null };
+    rateLimitOverride = { ok: false, mode: "live", message: "", limit: 500, remaining: 0, reset: Date.now() + 1000 };
+    const body = await (await ask()).json();
+    expect(body.error).toMatch(/limit of 500 questions/);
+  });
+
+  test("switched off by the institution: no answer, no model call", async () => {
+    settingsRow = { enabled: false, logQuestions: true, updatedAt: new Date(), starterQuestions: null };
+    const body = await (await ask()).json();
+    expect(body.mode).toBe("disabled");
+    expect(chatCalls).toHaveLength(0);
+  });
+
+  test("the editors' starter questions come first", async () => {
+    settingsRow = { enabled: true, logQuestions: true, updatedAt: new Date(), starterQuestions: JSON.stringify(["What is new this year?"]) };
+    const body = await (await GET(new NextRequest("http://localhost/api/corpus-chat"))).json();
+    expect(body.prompts[0]).toEqual({ category: "Suggested by the editors", question: "What is new this year?" });
+    expect(body.assistant).toEqual({ enabled: true, disclaimer: null });
+  });
+});
+
+describe("streamed answers", () => {
+  test("each step is sent as it starts, then the answer", async () => {
+    const res = await ask(undefined, undefined, {}, { accept: "application/x-ndjson" });
+    expect(res.headers.get("content-type")).toContain("application/x-ndjson");
+    const lines = (await res.text()).trim().split("\n").map((l) => JSON.parse(l));
+    expect(lines.filter((l) => l.type === "stage").map((l) => l.stage)).toEqual(["understanding", "searching", "reading", "writing", "checking"]);
+    expect(lines.find((l) => l.stage === "reading")).toMatchObject({ passages: 1, articles: 1 });
+    const result = lines.at(-1);
+    expect(result.type).toBe("result");
+    expect(result.mode).toBe("answered");
+    expect(result.citations).toHaveLength(1);
+  });
+
+  test("a failure is still a friendly result line", async () => {
+    chatFailure = new Error(RAW_ANTHROPIC_401);
+    const res = await ask(undefined, undefined, {}, { accept: "application/x-ndjson" });
+    const text = await res.text();
+    expect(text).not.toContain("x-api-key");
+    expect(JSON.parse(text.trim().split("\n").at(-1)!).mode).toBe("unavailable");
   });
 });

@@ -96,6 +96,7 @@ import {
   MyGrantsTab,
   RankingsTab,
   ResearchDashboardTab,
+  ResearchAssistantTab,
   BenchmarkingTab,
   BoardIntelligenceTab,
   ReputationIntelligenceTab,
@@ -343,6 +344,9 @@ export function DashboardView() {
           {dashboardTab === "myGrants" && <MyGrantsTab />}
           {dashboardTab === "grants" && <GrantsTab />}
           {dashboardTab === "researchDashboard" && <ResearchDashboardTab />}
+          {dashboardTab === "researchAssistant" && visibleTabs.some((t) => t.key === "researchAssistant") && (
+            <ResearchAssistantTab role={user.role} platformAdmin={user.role === "SUPER_ADMIN" && isPlatformContext(branding, user)} />
+          )}
           {dashboardTab === "rankings" && <RankingsTab />}
           {dashboardTab === "benchmarking" && <BenchmarkingTab role={user.role} />}
           {dashboardTab === "boardIntelligence" && <BoardIntelligenceTab role={user.role} />}

@@ -4,7 +4,8 @@ import { checkRateLimit } from "@/lib/ratelimit";
 import { anyLLMAvailable, chatJSON } from "@/lib/llm";
 import { loadCorpusChunksByIds, retrieveChunksAcrossCorpus, type CorpusRetrievedChunk } from "@/lib/chunk-embeddings";
 import { db } from "@/lib/db";
-import { resolveTenantFromHeaders, tenantCacheControl } from "@/lib/tenant";
+import { getSessionFromHeaders } from "@/lib/auth";
+import { resolveTenantFromHeaders, tenantCacheControl, type TenantContext } from "@/lib/tenant";
 import { APP_BASE_URL } from "@/lib/site";
 import { parseAuthors } from "@/lib/article";
 import {
@@ -26,6 +27,16 @@ import {
   type EvidenceArticle,
 } from "@/lib/answer-integrity";
 import { loadJournalInfo } from "@/lib/research-assistant";
+import {
+  cleanScope,
+  corpusArticleWhere,
+  coverageOf,
+  describeScope,
+  getAssistantSettings,
+  logResearchQuery,
+  type AssistantSettings,
+  type CorpusScope,
+} from "@/lib/research-assistant-settings";
 
 /**
  * POST /api/corpus-chat — the journal's AI Research Assistant ("Ask the
@@ -50,8 +61,17 @@ import { loadJournalInfo } from "@/lib/research-assistant";
  *    ids of all the evidence used (so "Regenerate" can reuse exactly that
  *    evidence) and follow-up questions.
  *
- * Public, no login required (the content is open access), rate-limited
- * per IP.
+ * Public, no login required (the content is open access). Searches only
+ * the institution's own published articles (the tenant the request belongs
+ * to), optionally narrowed by the reader's scope (disciplines, years, an
+ * issue, chosen articles). Quotas are per account for signed-in readers and
+ * per network address otherwise, both set per institution
+ * (ResearchAssistantSettings).
+ *
+ * With `Accept: application/x-ndjson` the reply is streamed as one JSON
+ * object per line: {"type":"stage",...} as each step starts, then
+ * {"type":"result",...} with the same body the JSON reply has. Closing the
+ * connection (the reader pressed Stop) cancels the model request.
  */
 export const maxDuration = 60;
 
@@ -88,11 +108,11 @@ type RecordRow = {
 
 /** Bibliographic records for the given articles, in order. Best effort: a
  * lookup failure means the answer relies on the passages alone. */
-async function loadArticleRecords(ids: string[]): Promise<RecordRow[]> {
+async function loadArticleRecords(ids: string[], where: Record<string, unknown> = { status: "PUBLISHED" }): Promise<RecordRow[]> {
   if (ids.length === 0) return [];
   try {
     const rows = (await db.article.findMany({
-      where: { id: { in: ids }, status: "PUBLISHED" },
+      where: { ...where, id: { in: ids } } as any,
       select: RECORD_SELECT,
     })) as RecordRow[];
     const byId = new Map(rows.map((r) => [r.id, r]));
@@ -164,44 +184,162 @@ const SYSTEM_PROMPT = (journalName: string) =>
  * publisher, number of published articles) and ready-made research
  * prompts about the journal's newest articles for the empty chat.
  */
+/** What readers see when the institution has switched the assistant off. */
+const DISABLED_MESSAGE = "The Research Assistant isn't available on this journal's site. You can still browse and search the published articles.";
+
+/** Articles of this tenant (the platform included), or every journal when the tenant can't be resolved. */
+function tenantScopeId(tenant: TenantContext | null): string | null {
+  return tenant?.id ?? null;
+}
+
+/** Disciplines, publication years and issues a reader can narrow the search to. */
+async function loadFacets(where: Record<string, unknown>) {
+  // Each lookup is best effort: a failure leaves that filter empty.
+  const safe = <T,>(fn: () => Promise<T>, fallback: T) => Promise.resolve().then(fn).catch(() => fallback);
+  const [disciplines, years, issues] = await Promise.all([
+    safe(() => db.article
+      .findMany({ where: where as any, distinct: ["discipline"], select: { discipline: true }, take: 60 })
+      .then((rows: { discipline?: string | null }[]) => [...new Set(rows.map((r) => r.discipline).filter((d): d is string => !!d))].sort()), [] as string[]),
+    safe(() => db.article
+      .aggregate({ where: where as any, _min: { publishedAt: true }, _max: { publishedAt: true } })
+      .then((a: any) =>
+        a?._min?.publishedAt && a?._max?.publishedAt
+          ? { min: new Date(a._min.publishedAt).getUTCFullYear(), max: new Date(a._max.publishedAt).getUTCFullYear() }
+          : null
+      ), null as { min: number; max: number } | null),
+    safe(() => db.issue
+      .findMany({
+        where: { articles: { some: where as any } },
+        orderBy: [{ year: "desc" }, { volume: "desc" }, { issueNumber: "desc" }],
+        select: { id: true, volume: true, issueNumber: true, year: true, title: true },
+        take: 40,
+      })
+      .then((rows: { id: string; volume: number; issueNumber: number; year: number; title: string | null }[]) =>
+        rows.map((r) => ({ id: r.id, label: `Vol. ${r.volume}, No. ${r.issueNumber} (${r.year})${r.title ? ` · ${r.title}` : ""}` }))
+      ), [] as { id: string; label: string }[]),
+  ]);
+  return { disciplines, years, issues };
+}
+
+/**
+ * GET /api/corpus-chat — the assistant's masthead (journal name, ISSN,
+ * publisher, number of published articles), ready-made research prompts
+ * (the editors' own first), what a reader can narrow the search to, and
+ * the institution's assistant settings that readers see.
+ */
 export async function GET(req?: NextRequest) {
   const tenant = req ? await resolveTenantFromHeaders(req.headers).catch(() => null) : null;
   const tenantId = tenant && !tenant.isPlatform ? tenant.id : null;
+  const where = corpusArticleWhere(tenantScopeId(tenant), null);
+  const cacheValue = "public, s-maxage=60, stale-while-revalidate=600";
+  const settings = await getAssistantSettings(tenantScopeId(tenant));
+  const assistant = { enabled: settings.enabled, disclaimer: settings.disclaimer };
   try {
-    const [recent, articleCount, journal] = await Promise.all([
+    const [recent, articleCount, journal, facets] = await Promise.all([
       db.article.findMany({
-        where: { status: "PUBLISHED" },
+        where: where as any,
         orderBy: { publishedAt: "desc" },
         take: 4,
         select: { title: true },
       }),
-      db.article.count({ where: { status: "PUBLISHED" } }).catch(() => null),
+      db.article.count({ where: where as any }).catch(() => null),
       loadJournalInfo(tenantId),
+      loadFacets(where),
     ]);
-    const prompts = starterPrompts(recent.map((a) => a.title));
+    const editorPrompts = settings.starterQuestions.map((question) => ({ category: "Suggested by the editors" as const, question }));
+    const prompts = [...editorPrompts, ...starterPrompts(recent.map((a) => a.title))];
     return NextResponse.json(
       {
         suggestedQuestions: prompts.filter((p) => p.category === "Explore a paper").map((p) => p.question).slice(0, MAX_SUGGESTIONS),
         prompts,
         journal,
         stats: { articles: articleCount },
+        facets,
+        assistant,
       },
-      { headers: { "Cache-Control": req ? tenantCacheControl(req, tenant, "public, s-maxage=300, stale-while-revalidate=3600") : "public, s-maxage=300, stale-while-revalidate=3600" } }
+      { headers: { "Cache-Control": req ? tenantCacheControl(req, tenant, cacheValue) : cacheValue } }
     );
   } catch (e) {
     console.error("[corpus-chat] starter questions failed:", e);
-    return NextResponse.json({ suggestedQuestions: [], prompts: [], journal: await loadJournalInfo(tenantId), stats: { articles: null } });
+    return NextResponse.json({
+      suggestedQuestions: [],
+      prompts: [],
+      journal: await loadJournalInfo(tenantId),
+      stats: { articles: null },
+      facets: { disciplines: [], years: null, issues: [] },
+      assistant,
+    });
   }
 }
 
+type Stage = "understanding" | "searching" | "reading" | "writing" | "checking";
+type Emit = (stage: Stage, detail?: Record<string, unknown>) => void;
+
+interface AskInput {
+  question: string;
+  history: ContextTurn[];
+  regenerate: boolean;
+  evidenceIds: string[];
+  scope: CorpusScope | null;
+  continueOf: { question: string; evidenceIds: string[] } | null;
+  tenant: TenantContext | null;
+  settings: AssistantSettings;
+  signedIn: boolean;
+  quota: Quota | null;
+}
+
+interface Quota {
+  limit: number;
+  remaining: number;
+  resetAt: string;
+  basis: "account" | "network";
+}
+
+/** Questions per hour: a signed-in reader's own quota, else per network address on this institution's site. */
+async function checkQuota(req: NextRequest, tenant: TenantContext | null, settings: AssistantSettings) {
+  const session = getSessionFromHeaders(req.headers);
+  const tenantKey = tenant?.id ?? "none";
+  const basis: Quota["basis"] = session ? "account" : "network";
+  const limit = session ? settings.signedInHourlyLimit : settings.anonymousHourlyLimit;
+  const key = session ? `corpus-chat:user:${session.userId}` : `corpus-chat:ip:${tenantKey}:${extractRequestIp(req.headers)}`;
+  const rl = await checkRateLimit(key, limit, 3600);
+  const quota: Quota | null =
+    rl.mode === "live" && typeof rl.remaining === "number"
+      ? { limit: rl.limit ?? limit, remaining: Math.max(0, rl.remaining), resetAt: new Date(rl.reset ?? Date.now() + 3_600_000).toISOString(), basis }
+      : null;
+  return { ok: rl.ok, quota, signedIn: !!session, limit, basis };
+}
+
 export async function POST(req: NextRequest) {
-  const ip = extractRequestIp(req.headers);
-  const rl = await checkRateLimit(`corpus-chat:${ip}`, 8, 300);
-  if (!rl.ok) {
-    return NextResponse.json({ error: rl.message }, { status: 429 });
+  const tenant = await resolveTenantFromHeaders(req.headers).catch(() => null);
+  const settings = await getAssistantSettings(tenantScopeId(tenant));
+  if (!settings.enabled) {
+    return NextResponse.json({ mode: "disabled", message: DISABLED_MESSAGE });
   }
 
-  let body: { question?: string; history?: unknown; evidenceIds?: unknown; regenerate?: boolean };
+  const quotaCheck = await checkQuota(req, tenant, settings);
+  if (!quotaCheck.ok) {
+    const resetAt = quotaCheck.quota?.resetAt ?? null;
+    return NextResponse.json(
+      {
+        error:
+          quotaCheck.basis === "account"
+            ? `You've asked ${quotaCheck.limit} questions in the last hour, the limit for your account. You can ask again shortly.`
+            : `This network has reached its limit of ${quotaCheck.limit} questions an hour. Sign in to get your own quota, or try again shortly.`,
+        quota: quotaCheck.quota ?? { limit: quotaCheck.limit, remaining: 0, resetAt, basis: quotaCheck.basis },
+      },
+      { status: 429 }
+    );
+  }
+
+  let body: {
+    question?: string;
+    history?: unknown;
+    evidenceIds?: unknown;
+    regenerate?: boolean;
+    scope?: unknown;
+    continueOf?: { question?: unknown; evidenceIds?: unknown } | null;
+  };
   try {
     body = await req.json();
   } catch {
@@ -216,33 +354,117 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `question must be ${MAX_QUESTION_LENGTH} characters or fewer` }, { status: 400 });
   }
 
-  if (!anyLLMAvailable()) {
-    console.warn("[corpus-chat] no LLM provider configured (set ANTHROPIC_API_KEY, OPENROUTER_API_KEY, or LLM_BASE_URL/LLM_API_KEY)");
-    return NextResponse.json({ mode: "unavailable", message: UNAVAILABLE_MESSAGE });
+  const input: AskInput = {
+    question,
+    history: cleanHistory(body.history),
+    regenerate: body.regenerate === true,
+    evidenceIds: cleanSourceIds(body.evidenceIds, MAX_EVIDENCE_IDS),
+    scope: cleanScope(body.scope),
+    continueOf:
+      body.continueOf && typeof body.continueOf.question === "string" && body.continueOf.question.trim()
+        ? { question: body.continueOf.question.trim().slice(0, MAX_QUESTION_LENGTH), evidenceIds: cleanSourceIds(body.continueOf.evidenceIds, MAX_EVIDENCE_IDS) }
+        : null,
+    tenant,
+    settings,
+    signedIn: quotaCheck.signedIn,
+    quota: quotaCheck.quota,
+  };
+
+  const abort = new AbortController();
+  const onClientGone = () => abort.abort();
+  req.signal?.addEventListener?.("abort", onClientGone);
+
+  const streaming = (req.headers.get("accept") ?? "").includes("application/x-ndjson");
+  if (!streaming) {
+    const result = await answerQuestion(input, () => {}, abort.signal);
+    return NextResponse.json(result);
   }
 
-  const history = cleanHistory(body.history);
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const send = (obj: Record<string, unknown>) => {
+        if (abort.signal.aborted) return;
+        try {
+          controller.enqueue(encoder.encode(`${JSON.stringify(obj)}\n`));
+        } catch {
+          // The reader has gone.
+        }
+      };
+      try {
+        const result = await answerQuestion(input, (stage, detail) => send({ type: "stage", stage, ...(detail ?? {}) }), abort.signal);
+        send({ type: "result", ...result });
+      } finally {
+        try {
+          controller.close();
+        } catch {
+          // Already closed by a cancel.
+        }
+      }
+    },
+    cancel() {
+      abort.abort();
+    },
+  });
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "application/x-ndjson; charset=utf-8",
+      "Cache-Control": "no-store",
+      "X-Accel-Buffering": "no",
+    },
+  });
+}
+
+/** The whole question → cited answer pipeline. Never throws: every failure is a reader-facing result. */
+async function answerQuestion(input: AskInput, emit: Emit, signal: AbortSignal): Promise<Record<string, unknown>> {
+  const started = Date.now();
+  const { question, history, regenerate, evidenceIds, scope, continueOf, tenant, settings, quota } = input;
+  const tenantId = tenantScopeId(tenant);
+  const brandTenantId = tenant && !tenant.isPlatform ? tenant.id : null;
+  const where = corpusArticleWhere(tenantId, scope);
+  const log = (outcome: Parameters<typeof logResearchQuery>[0]["outcome"], extra: Partial<Parameters<typeof logResearchQuery>[0]> = {}) =>
+    logResearchQuery({
+      tenantId,
+      signedIn: input.signedIn,
+      outcome,
+      latencyMs: Date.now() - started,
+      scoped: !!scope,
+      question,
+      logQuestion: settings.logQuestions,
+      ...extra,
+    });
+  const withQuota = (r: Record<string, unknown>) => (quota ? { ...r, quota } : r);
+
+  if (!anyLLMAvailable()) {
+    console.warn("[corpus-chat] no LLM provider configured (set ANTHROPIC_API_KEY, OPENROUTER_API_KEY, or LLM_BASE_URL/LLM_API_KEY)");
+    log("unavailable");
+    return withQuota({ mode: "unavailable", message: UNAVAILABLE_MESSAGE });
+  }
+
+  emit("understanding");
   const historyBlock = formatHistory(history);
   const analysis = analyzeQuestion(question);
   const plan = retrievalPlan(analysis);
-  const contextIds = resolveContextArticles(analysis, history);
-  const regenerate = body.regenerate === true;
-  const evidenceIds = cleanSourceIds(body.evidenceIds, MAX_EVIDENCE_IDS);
+  // Chosen articles are the focus; otherwise the conversation's.
+  const contextIds = scope?.articleIds?.length ? scope.articleIds.slice(0, plan.maxFocused + 2) : resolveContextArticles(analysis, history);
 
   let chunks: CorpusRetrievedChunk[] = [];
   try {
+    emit("searching", scope ? { scope: describeScope(scope) } : {});
     // "Regenerate": the same evidence as the earlier answer.
-    if (regenerate && evidenceIds.length > 0) chunks = await loadCorpusChunksByIds(evidenceIds);
+    if (regenerate && evidenceIds.length > 0) chunks = await loadCorpusChunksByIds(evidenceIds, where);
     if (chunks.length === 0) {
       // A follow-up that refers back ("what were its limitations?") is also
       // retrieved with the reader's previous question, and "the same
       // author" with the authors' names.
-      const previousQuestion = analysis.refersToContext
-        ? [...history].reverse().find((t) => t.role === "user")?.content ?? ""
-        : "";
+      const previousQuestion = continueOf
+        ? continueOf.question
+        : analysis.refersToContext
+          ? [...history].reverse().find((t) => t.role === "user")?.content ?? ""
+          : "";
       let authorNames = "";
       if (analysis.sameAuthor && contextIds.length) {
-        const ctx = await loadArticleRecords(contextIds.slice(0, 1));
+        const ctx = await loadArticleRecords(contextIds.slice(0, 1), where);
         authorNames = ctx.flatMap((r) => parseAuthors(r.authors).map((a) => a?.name ?? "")).join(" ");
       }
       const retrievalQuery = [question, previousQuestion.slice(0, MAX_QUESTION_LENGTH), sectionRetrievalHints(question), authorNames]
@@ -252,26 +474,59 @@ export async function POST(req: NextRequest) {
         contextArticleIds: contextIds,
         maxFocused: plan.maxFocused,
         maxPerArticle: plan.maxPerArticle,
+        articleWhere: where,
       });
+      // "Continue analysis": keep the earlier answer's evidence in view
+      // alongside what the new question finds.
+      if (continueOf?.evidenceIds.length) {
+        const earlier = await loadCorpusChunksByIds(continueOf.evidenceIds, where);
+        const seen = new Set(chunks.map((c) => c.chunkId));
+        chunks = [...chunks, ...earlier.filter((c) => !seen.has(c.chunkId))].slice(0, plan.limit + 6);
+      }
     }
   } catch (e) {
     console.error("[corpus-chat] retrieval failed:", e);
-    return NextResponse.json({ mode: "unavailable", message: UNAVAILABLE_MESSAGE });
+    log("unavailable");
+    return withQuota({ mode: "unavailable", message: UNAVAILABLE_MESSAGE });
+  }
+  if (signal.aborted) {
+    log("stopped");
+    return { mode: "stopped" };
   }
   if (chunks.length === 0) {
-    return NextResponse.json({
-      mode: "not-indexed",
-      message: "No published articles are indexed for the Research Assistant yet.",
-    });
+    log("not-indexed");
+    return withQuota(
+      scope
+        ? {
+            mode: "no-match",
+            message: "No published articles match the scope you set. Widen it (discipline, years, issue or chosen articles) and ask again.",
+          }
+        : { mode: "not-indexed", message: "No published articles are indexed for the Research Assistant yet." }
+    );
   }
 
   // One label per source article (A1, A2, ...), shared by the records and
   // the passages so the model can tie them together.
   const articleIds = [...new Set(chunks.map((c) => c.articleId))];
+  emit("reading", { passages: chunks.length, articles: articleIds.length });
   const labelOf = new Map(articleIds.map((id, i) => [id, `A${i + 1}`]));
-  const [records, journal] = await Promise.all([loadArticleRecords(articleIds), loadJournalInfo(await journalTenantId(req))]);
+  const [records, journal, corpusArticles, issueLabel] = await Promise.all([
+    loadArticleRecords(articleIds, where),
+    loadJournalInfo(brandTenantId),
+    Promise.resolve().then(() => db.article.count({ where: where as any })).catch(() => null),
+    scope?.issueId
+      ? db.issue
+          .findUnique({ where: { id: scope.issueId }, select: { volume: true, issueNumber: true, year: true } })
+          .then((i: any) => (i ? `Vol. ${i.volume}, No. ${i.issueNumber} (${i.year})` : null))
+          .catch(() => null)
+      : Promise.resolve(null),
+  ]);
   const focusedIds = [...new Set(chunks.filter((c) => c.focused).map((c) => c.articleId))];
   const focusedTitles = focusedIds.map((id) => chunks.find((c) => c.articleId === id)!.articleTitle);
+  const scopeTitles = scope?.articleIds?.length
+    ? scope.articleIds.map((id) => records.find((r) => r.id === id)?.title).filter((t): t is string => !!t)
+    : [];
+  const scopeText = describeScope(scope, { issueLabel, articleTitles: scopeTitles });
 
   const recordsBlock = records.length
     ? `ARTICLE RECORDS (bibliographic details of each source article):\n\n${records
@@ -292,21 +547,29 @@ export async function POST(req: NextRequest) {
     focusedTitles.length && !resolvedBlock
       ? `\n\nThe reader appears to be asking about: ${focusedTitles.map((t) => `"${t}"`).join(", ")}.`
       : "";
+  const scopeNote = scope
+    ? `\n\nSCOPE: the reader limited the search to ${scopeText}. Answer only from these articles; if they don't answer the question, say so plainly (the rest of the journal was not searched).`
+    : "";
+  const continueNote = continueOf
+    ? `\n\nCONTINUING AN ANALYSIS: the reader is continuing the analysis of their earlier question "${continueOf.question}". Build on that analysis: go deeper, bring in evidence and detail the earlier answer didn't cover, and connect it to the earlier findings, without repeating the earlier answer.`
+    : "";
   const regenerateNote = regenerate
     ? "\n\nThis is a regenerated answer: write a fresh response from the same evidence, organised and worded independently of any earlier answer."
     : "";
 
   const systemPrompt = SYSTEM_PROMPT(journal.name);
-  const userPrompt = `${recordsBlock}\n\n${passageBlock}${historyBlock}${resolvedBlock}${focusNote}\n\n${INTENT_NOTES[analysis.intent]}${regenerateNote}\n\nReader's question: ${question}`;
+  const userPrompt = `${recordsBlock}\n\n${passageBlock}${historyBlock}${resolvedBlock}${focusNote}${scopeNote}${continueNote}\n\n${INTENT_NOTES[analysis.intent]}${regenerateNote}\n\nReader's question: ${question}`;
 
   try {
+    emit("writing");
     const ask = () =>
       chatJSON<{ answer: string; usedPassages?: number[]; grounded?: boolean; suggestedQuestions?: unknown }>(systemPrompt, userPrompt, {
         maxTokens: analysis.intent === "comparison" ? 2600 : 2000,
         priority: "cost-first",
         temperature: regenerate ? 0.5 : 0.1,
+        signal,
       });
-    const started = Date.now();
+    const llmStarted = Date.now();
     let result: Awaited<ReturnType<typeof ask>>;
     try {
       result = await ask();
@@ -314,13 +577,14 @@ export async function POST(req: NextRequest) {
         throw new Error("model reply had no answer text");
       }
     } catch (first) {
-      if (Date.now() - started > RETRY_IF_FAILED_WITHIN_MS) throw first;
+      if (signal.aborted || Date.now() - llmStarted > RETRY_IF_FAILED_WITHIN_MS) throw first;
       console.warn("[corpus-chat] first attempt failed, retrying once:", first);
       result = await ask();
       if (typeof result.data?.answer !== "string" || !result.data.answer.trim()) {
         throw new Error("model reply had no answer text");
       }
     }
+    emit("checking");
 
     const grounded = result.data.grounded !== false;
     let usedPassages = normalizeUsedPassages(result.data.usedPassages);
@@ -364,7 +628,7 @@ export async function POST(req: NextRequest) {
     }
 
     console.info(
-      `[corpus-chat] answered by ${result.provider}/${result.model}; intent=${analysis.intent}, context=${contextIds.length}, ${chunks.length} passages, ${cited.citations.length} citations, evidence=${verified.check.status}`
+      `[corpus-chat] answered by ${result.provider}/${result.model}; intent=${analysis.intent}, context=${contextIds.length}, ${chunks.length} passages, ${cited.citations.length} citations, evidence=${verified.check.status}${scope ? ", scoped" : ""}${continueOf ? ", continued" : ""}`
     );
 
     // Follow-up questions about the paper the answer is about: the article
@@ -374,7 +638,21 @@ export async function POST(req: NextRequest) {
     const sectionQuestions = primaryTitle ? remainingSectionQuestions(primaryTitle, asked) : [];
     const suggestedQuestions = finalizeSuggestions(result.data.suggestedQuestions, asked, sectionQuestions);
 
-    return NextResponse.json({
+    const coverage = {
+      level: coverageOf({ grounded, citedArticles: sources.length, citations: cited.citations.length, evidenceStatus: verified.check.status }),
+      citedArticles: sources.length,
+      articlesReviewed: articleIds.length,
+      corpusArticles: typeof corpusArticles === "number" ? corpusArticles : null,
+      scope: scopeText || null,
+    };
+    log(grounded ? "answered" : "not-covered", {
+      intent: analysis.intent,
+      evidenceStatus: verified.check.status,
+      articles: sources.length,
+      citations: cited.citations.length,
+    });
+
+    return withQuota({
       mode: "answered",
       answer: verified.answer,
       grounded,
@@ -386,6 +664,7 @@ export async function POST(req: NextRequest) {
         passagesReviewed: chunks.length,
         articlesReviewed: articleIds.length,
       },
+      coverage,
       evidenceIds: chunks.map((c) => c.chunkId),
       suggestedQuestions,
       sectionQuestions,
@@ -395,16 +674,15 @@ export async function POST(req: NextRequest) {
       answeredAt: new Date().toISOString(),
     });
   } catch (e) {
+    if (signal.aborted) {
+      log("stopped");
+      return { mode: "stopped" };
+    }
     // e.g. a 401 from a provider, an exhausted credit balance, a rate limit
     // or a malformed reply. Logged in full here; the reader gets the same
     // friendly banner as every other non-answer path.
     console.error("[corpus-chat] chat failed:", e);
-    return NextResponse.json({ mode: "unavailable", message: UNAVAILABLE_MESSAGE });
+    log("unavailable");
+    return withQuota({ mode: "unavailable", message: UNAVAILABLE_MESSAGE });
   }
-}
-
-/** The whitelabel tenant this request belongs to (null for the platform). */
-async function journalTenantId(req: NextRequest): Promise<string | null> {
-  const tenant = await resolveTenantFromHeaders(req.headers).catch(() => null);
-  return tenant && !tenant.isPlatform ? tenant.id : null;
 }

@@ -47,6 +47,10 @@ export interface RateLimitResult {
   ok: boolean;
   mode: "live" | "simulation";
   message: string;
+  /** Live mode only: the window's limit, requests left in it, and when it resets (ms epoch). */
+  limit?: number;
+  remaining?: number;
+  reset?: number;
 }
 
 /**
@@ -66,10 +70,13 @@ export async function checkRateLimit(key: string, maxRequests: number, windowSec
       message: "Rate limiting not configured — set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN to enable.",
     };
   }
-  const { success } = await getLimiter(maxRequests, windowSeconds).limit(key);
+  const { success, limit, remaining, reset } = await getLimiter(maxRequests, windowSeconds).limit(key);
   return {
     ok: success,
     mode: "live",
     message: success ? "" : "Too many attempts — try again shortly.",
+    limit,
+    remaining,
+    reset,
   };
 }

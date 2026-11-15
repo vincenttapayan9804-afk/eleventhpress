@@ -258,15 +258,19 @@ export function escapeControlCharsInStrings(json: string): string {
 async function chatJSONAnthropic<T>(
   systemPrompt: string,
   userPrompt: string,
-  maxTokens: number
+  maxTokens: number,
+  signal?: AbortSignal
 ): Promise<ChatJSONResult<T>> {
-  const response = await getClient().messages.create({
-    model: ANTHROPIC_MODEL,
-    max_tokens: maxTokens,
-    system: systemPrompt,
-    thinking: { type: "adaptive" },
-    messages: [{ role: "user", content: userPrompt }],
-  });
+  const response = await getClient().messages.create(
+    {
+      model: ANTHROPIC_MODEL,
+      max_tokens: maxTokens,
+      system: systemPrompt,
+      thinking: { type: "adaptive" },
+      messages: [{ role: "user", content: userPrompt }],
+    },
+    signal ? { signal } : undefined
+  );
 
   if (response.stop_reason === "refusal") {
     throw new Error(
@@ -287,12 +291,14 @@ async function chatJSONOss<T>(
   systemPrompt: string,
   userPrompt: string,
   maxTokens: number,
-  temperature?: number
+  temperature?: number,
+  signal?: AbortSignal
 ): Promise<ChatJSONResult<T>> {
   const model = compatModel();
   const call = async (tokens: number, lowReasoning: boolean) => {
     const res = await fetch(`${compatBaseUrl()}/chat/completions`, {
       method: "POST",
+      signal,
       headers: compatHeaders(),
       body: JSON.stringify({
         model,
@@ -388,10 +394,13 @@ export async function chatJSON<T = any>(
      * Anthropic tier uses adaptive thinking, which sets its own sampling,
      * so it ignores this. */
     temperature?: number;
+    /** Cancels the provider request (e.g. the reader pressed Stop). */
+    signal?: AbortSignal;
   } = {}
 ): Promise<ChatJSONResult<T>> {
   const maxTokens = opts.maxTokens ?? 4096;
   const temperature = opts.temperature;
+  const signal = opts.signal;
 
   if (isAirgappedMode()) {
     return chatJSONLocal<T>(systemPrompt, userPrompt, maxTokens);
@@ -406,11 +415,12 @@ export async function chatJSON<T = any>(
 
   if (tryOssFirst) {
     try {
-      return await chatJSONOss<T>(systemPrompt, userPrompt, maxTokens, temperature);
+      return await chatJSONOss<T>(systemPrompt, userPrompt, maxTokens, temperature, signal);
     } catch (ossError) {
+      if (signal?.aborted) throw ossError;
       if (isLLMAvailable()) {
         try {
-          return await chatJSONAnthropic<T>(systemPrompt, userPrompt, maxTokens);
+          return await chatJSONAnthropic<T>(systemPrompt, userPrompt, maxTokens, signal);
         } catch (anthropicError) {
           throw new Error(
             `OSS tier failed (${(ossError as Error).message}) and Anthropic fallback tier also failed: ${(anthropicError as Error).message}`
@@ -425,15 +435,16 @@ export async function chatJSON<T = any>(
 
   if (isLLMAvailable()) {
     try {
-      return await chatJSONAnthropic<T>(systemPrompt, userPrompt, maxTokens);
+      return await chatJSONAnthropic<T>(systemPrompt, userPrompt, maxTokens, signal);
     } catch (e) {
+      if (signal?.aborted) throw e;
       anthropicError = e as Error;
     }
   }
 
   if (ossLLMAvailable()) {
     try {
-      return await chatJSONOss<T>(systemPrompt, userPrompt, maxTokens, temperature);
+      return await chatJSONOss<T>(systemPrompt, userPrompt, maxTokens, temperature, signal);
     } catch (e) {
       if (anthropicError) {
         throw new Error(

@@ -1,8 +1,9 @@
 "use client";
 
 import { getCsrfToken } from "@/lib/csrf-client";
+import { withWorkspaceTag } from "@/lib/api-client";
 import { CSRF_HEADER_NAME } from "@/lib/csrf";
-import type { AnswerData, ChatMessage } from "./types";
+import type { AnswerData, ChatMessage, SavedResponse } from "./types";
 
 export interface ExportItem {
   question: string;
@@ -23,6 +24,44 @@ export function exportItem(question: string, answer: ChatMessage): ExportItem {
     warnings: d?.evidence?.warnings,
     answeredAt: d?.answeredAt,
   };
+}
+
+/** Saved responses (e.g. one collection) as a literature notebook's items. */
+export function notebookItems(saved: SavedResponse[]): ExportItem[] {
+  return saved
+    .slice()
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    .map((s) => exportItem(s.question?.trim() || s.conversationTitle, { id: s.id, role: "assistant", content: s.content, createdAt: s.createdAt, data: s.data }));
+}
+
+function saveBlob(blob: Blob, name: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+/** Downloads the given articles as RIS or BibTeX for a reference manager. */
+export async function downloadCitations(articleIds: string[], format: "ris" | "bibtex"): Promise<void> {
+  const ids = [...new Set(articleIds)].slice(0, 60);
+  if (ids.length === 0) throw new Error("This answer has no sources to export.");
+  const res = await fetch(withWorkspaceTag(`/api/corpus-chat/citations?format=${format}&ids=${encodeURIComponent(ids.join(","))}`), { credentials: "same-origin" });
+  if (!res.ok) {
+    let msg = "The citations couldn't be exported.";
+    try {
+      msg = (await res.json()).error || msg;
+    } catch {
+      // keep default
+    }
+    throw new Error(msg);
+  }
+  const disposition = res.headers.get("Content-Disposition") ?? "";
+  const name = /filename="([^"]+)"/.exec(disposition)?.[1] ?? `sources.${format === "ris" ? "ris" : "bib"}`;
+  saveBlob(await res.blob(), name);
 }
 
 /** Question/answer pairs of a conversation, in order. */
@@ -61,17 +100,9 @@ export async function downloadReport(
     }
     throw new Error(msg);
   }
-  const blob = await res.blob();
   const disposition = res.headers.get("Content-Disposition") ?? "";
   const name = /filename="([^"]+)"/.exec(disposition)?.[1] ?? `research-report.${format}`;
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = name;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  saveBlob(await res.blob(), name);
 }
 
 /** The answer as plain text with its references, for "Copy". */

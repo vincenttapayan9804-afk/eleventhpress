@@ -29,17 +29,19 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       id: true,
       title: true,
       pinned: true,
+      shareToken: true,
       createdAt: true,
       updatedAt: true,
       messages: {
         orderBy: { createdAt: "asc" },
-        select: { id: true, role: true, content: true, payload: true, saved: true, createdAt: true },
+        select: { id: true, role: true, content: true, payload: true, saved: true, folder: true, createdAt: true },
       },
     },
   });
   if (!c) return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
+  const { shareToken, ...rest } = c;
   return NextResponse.json({
-    conversation: { ...c, messages: c.messages.map((m) => ({ ...m, payload: parsePayload(m.payload) })) },
+    conversation: { ...rest, shareToken, messages: c.messages.map((m) => ({ ...m, payload: parsePayload(m.payload) })) },
   });
 }
 
