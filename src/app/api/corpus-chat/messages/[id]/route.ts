@@ -6,7 +6,8 @@ import { LIMITS, serializePayload } from "@/lib/research-assistant";
 /**
  * PATCH /api/corpus-chat/messages/[id] — on the reader's own saved
  * answer: {saved} bookmarks it ("Save important responses"); {content,
- * payload} replaces it with a regenerated answer.
+ * payload} replaces it with a regenerated answer; {folder} files a saved
+ * response in a collection (null or "" removes it from its collection).
  */
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -18,14 +19,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   });
   if (!message) return NextResponse.json({ error: "Message not found" }, { status: 404 });
 
-  let body: { saved?: unknown; content?: unknown; payload?: unknown };
+  let body: { saved?: unknown; content?: unknown; payload?: unknown; folder?: unknown };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
-  const data: { saved?: boolean; content?: string; payload?: string | null } = {};
+  const data: { saved?: boolean; content?: string; payload?: string | null; folder?: string | null } = {};
   if (typeof body.saved === "boolean") data.saved = body.saved;
+  if (body.folder === null || typeof body.folder === "string") {
+    data.folder = typeof body.folder === "string" ? body.folder.replace(/\s+/g, " ").trim().slice(0, LIMITS.folderChars) || null : null;
+    // Filing a response in a collection also saves it.
+    if (data.folder && data.saved === undefined) data.saved = true;
+  }
   if (typeof body.content === "string" && body.content.trim() && message.role === "assistant") {
     data.content = body.content.slice(0, LIMITS.messageChars);
     data.payload = serializePayload(body.payload);

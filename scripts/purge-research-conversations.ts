@@ -14,7 +14,7 @@ import { purgeExpiredResearchData } from "../src/lib/research-assistant";
 
 purgeExpiredResearchData()
   .then((r) => {
-    console.log(`Research Assistant retention: deleted ${r.conversations} conversation(s) and ${r.feedback} feedback record(s).`);
+    console.log(`Research Assistant retention: deleted ${r.conversations} conversation(s), ${r.feedback} feedback record(s) and ${r.queries} usage log row(s).`);
     process.exit(0);
   })
   .catch((e) => {

@@ -364,10 +364,10 @@ const FOCUS_BONUS = 0.05;
 export async function retrieveChunksAcrossCorpus(
   query: string,
   limit = 8,
-  options: CorpusRankOptions = {}
+  options: CorpusRankOptions & { articleWhere?: Record<string, unknown> } = {}
 ): Promise<CorpusRetrievedChunk[]> {
   const rows = await db.articleChunk.findMany({
-    where: { article: { status: "PUBLISHED" } },
+    where: { article: (options.articleWhere as any) ?? { status: "PUBLISHED" } },
     include: { article: { select: { title: true, authors: true, keywords: true, publishedAt: true } } },
     orderBy: [{ articleId: "asc" }, { chunkIndex: "asc" }],
   });
@@ -381,10 +381,10 @@ export async function retrieveChunksAcrossCorpus(
  * answer from exactly the evidence an earlier answer used. Passages of
  * articles that are no longer published are dropped.
  */
-export async function loadCorpusChunksByIds(ids: string[]): Promise<CorpusRetrievedChunk[]> {
+export async function loadCorpusChunksByIds(ids: string[], articleWhere?: Record<string, unknown>): Promise<CorpusRetrievedChunk[]> {
   if (ids.length === 0) return [];
   const rows = await db.articleChunk.findMany({
-    where: { id: { in: ids }, article: { status: "PUBLISHED" } },
+    where: { id: { in: ids }, article: (articleWhere as any) ?? { status: "PUBLISHED" } },
     include: { article: { select: { title: true } } },
   });
   const byId = new Map(rows.map((r) => [r.id, r]));

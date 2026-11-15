@@ -9,6 +9,39 @@ export interface SectionQuestion {
   question: string;
 }
 
+/** How much of the corpus an answer stands on. */
+export interface AnswerCoverage {
+  level: "strong" | "partial" | "limited" | "none";
+  citedArticles: number;
+  articlesReviewed: number;
+  corpusArticles: number | null;
+  /** The reader's scope in words ("Education; published 2022–2024"), or null for the whole journal. */
+  scope: string | null;
+}
+
+/** Questions left this hour (only when limits are enforced). */
+export interface AssistantQuota {
+  limit: number;
+  remaining: number;
+  resetAt: string;
+  basis: "account" | "network";
+}
+
+/** The part of the journal a question searches; empty = the whole journal. */
+export interface CorpusScope {
+  disciplines?: string[];
+  yearFrom?: number;
+  yearTo?: number;
+  issueId?: string;
+  articleIds?: string[];
+}
+
+export interface ScopeFacets {
+  disciplines: string[];
+  years: { min: number; max: number } | null;
+  issues: { id: string; label: string }[];
+}
+
 /** Everything the API returns with an answer, kept with the message. */
 export interface AnswerData {
   grounded: boolean;
@@ -17,6 +50,11 @@ export interface AnswerData {
   sources: AnswerSource[];
   evidence?: EvidenceCheck & { passagesReviewed?: number; articlesReviewed?: number };
   evidenceIds?: string[];
+  coverage?: AnswerCoverage;
+  /** The scope the question was asked in (so "Edit and resend" keeps it). */
+  scope?: CorpusScope | null;
+  /** This answer continued the analysis of an earlier question. */
+  continued?: string | null;
   suggestedQuestions?: string[];
   sectionQuestions?: SectionQuestion[];
   sectionArticle?: string | null;
@@ -33,6 +71,8 @@ export interface ChatMessage {
   content: string;
   createdAt: string;
   saved?: boolean;
+  /** Collection a saved response is filed in. */
+  folder?: string | null;
   data?: AnswerData;
 }
 
@@ -43,12 +83,15 @@ export interface ConversationSummary {
   createdAt: string;
   updatedAt: string;
   messageCount: number;
+  /** A read-only share link exists. */
+  shared?: boolean;
   /** Matching text, for search results. */
   match?: string;
 }
 
 export interface Conversation extends ConversationSummary {
   messages: ChatMessage[];
+  shareToken?: string | null;
 }
 
 export interface SavedResponse {
@@ -56,7 +99,10 @@ export interface SavedResponse {
   conversationId: string;
   conversationTitle: string;
   content: string;
+  /** The question this response answered. */
+  question?: string;
   createdAt: string;
+  folder?: string | null;
   data?: AnswerData;
 }
 

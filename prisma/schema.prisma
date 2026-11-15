@@ -2690,15 +2690,22 @@ model MediaPost {
 // the User model and its many relations stay untouched.
 // ---------------------------------------------------------------------------
 model ResearchConversation {
-  id        String            @id @default(cuid())
-  userId    String
-  title     String
-  pinned    Boolean           @default(false)
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
-  messages  ResearchMessage[]
+  id         String            @id @default(cuid())
+  userId     String
+  // The institution (tenant) the conversation was held on; its retention
+  // setting applies. Null for conversations saved before this column.
+  tenantId   String?
+  title      String
+  pinned     Boolean           @default(false)
+  // Read-only share link (/research/shared/<token>); null when not shared.
+  shareToken String?           @unique
+  sharedAt   DateTime?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+  messages   ResearchMessage[]
 
   @@index([userId, updatedAt])
+  @@index([tenantId, updatedAt])
 }
 
 model ResearchMessage {
@@ -2711,6 +2718,8 @@ model ResearchMessage {
   payload        String?
   // "Save important responses".
   saved          Boolean              @default(false)
+  // Collection a saved response is filed in ("Literature review", ...).
+  folder         String?
   createdAt      DateTime             @default(now())
   conversation   ResearchConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
@@ -2724,6 +2733,8 @@ model ResearchMessage {
 model ResearchFeedback {
   id         String   @id @default(cuid())
   userId     String?
+  // The institution (tenant) whose assistant gave the answer.
+  tenantId   String?
   // "HELPFUL" | "NOT_HELPFUL" | "ISSUE"
   rating     String
   // For ISSUE: "INACCURATE" | "WRONG_CITATION" | "MISSING_INFORMATION" | "WRONG_ARTICLE" | "OTHER"
@@ -2736,10 +2747,63 @@ model ResearchFeedback {
   model      String?
   // For ISSUE: "OPEN" | "RESOLVED"
   status     String   @default("OPEN")
+  // Editor's note when resolving a report.
+  resolution String?
+  resolvedAt DateTime?
+  resolvedBy String?
   createdAt  DateTime @default(now())
 
   @@index([rating, createdAt])
   @@index([createdAt])
+  @@index([tenantId, createdAt])
+}
+
+// One row per question put to the Research Assistant, for the editors'
+// usage and quality analytics (questions asked, answered vs. not covered,
+// evidence checks, response time). No IP address or account is stored;
+// the question text is kept only when the institution allows it
+// (ResearchAssistantSettings.logQuestions) and is deleted with the rest of
+// the row after RESEARCH_LOG_RETENTION_DAYS (default 180).
+model ResearchQueryLog {
+  id             String   @id @default(cuid())
+  tenantId       String?
+  signedIn       Boolean  @default(false)
+  // "answered" | "not-covered" | "not-indexed" | "unavailable" | "stopped"
+  outcome        String
+  intent         String?
+  evidenceStatus String?
+  articles       Int      @default(0)
+  citations      Int      @default(0)
+  latencyMs      Int      @default(0)
+  // A reader-chosen scope (discipline, years, issue or articles) was set.
+  scoped         Boolean  @default(false)
+  question       String?
+  createdAt      DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([createdAt])
+}
+
+// Per-institution controls for the Research Assistant, set by the
+// institution's admin (the platform's row is set by the super admin).
+// Absent = defaults (enabled, no extra disclaimer, platform limits).
+model ResearchAssistantSettings {
+  tenantId             String   @id
+  enabled              Boolean  @default(true)
+  // Shown under the composer, after the standard accuracy note.
+  disclaimer           String?
+  // Days a saved conversation is kept after its last activity.
+  retentionDays        Int?
+  // JSON array of starter questions shown in the empty chat.
+  starterQuestions     String?
+  // Questions per hour for a signed-in reader / per network address for
+  // readers who aren't signed in.
+  signedInHourlyLimit  Int?
+  anonymousHourlyLimit Int?
+  // Keep question text in the usage analytics.
+  logQuestions         Boolean  @default(true)
+  updatedBy            String?
+  updatedAt            DateTime @updatedAt
 }
 
 // One-time build maintenance steps that have completed (scripts/build-maintenance.ts),

@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { LIMITS, conversationRetentionDays, parsePayload, titleFromQuestion } from "@/lib/research-assistant";
+import { LIMITS, conversationRetentionDaysFor, parsePayload, titleFromQuestion } from "@/lib/research-assistant";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
 
 /**
  * GET  /api/corpus-chat/conversations — the signed-in reader's saved
  *      Research Assistant conversations, pinned first, newest first.
  *      ?q= searches titles and message text; ?saved=1 lists the responses
- *      the reader saved, across conversations.
+ *      the reader saved, across conversations (&folder= one collection),
+ *      with the reader's collection names.
  * POST /api/corpus-chat/conversations — starts a conversation.
  *
  * Signed-in readers only: anonymous readers' conversations stay in their
@@ -20,21 +22,43 @@ export async function GET(req: NextRequest) {
   const q = (req.nextUrl.searchParams.get("q") ?? "").trim().slice(0, 200);
 
   if (req.nextUrl.searchParams.get("saved") === "1") {
-    const saved = await db.researchMessage.findMany({
-      where: { saved: true, conversation: { userId } },
-      orderBy: { createdAt: "desc" },
-      take: 100,
-      select: { id: true, content: true, payload: true, createdAt: true, conversation: { select: { id: true, title: true } } },
-    });
+    const folder = (req.nextUrl.searchParams.get("folder") ?? "").trim().slice(0, LIMITS.folderChars);
+    const [saved, folders] = await Promise.all([
+      db.researchMessage.findMany({
+        where: { saved: true, conversation: { userId }, ...(folder ? { folder } : {}) },
+        orderBy: { createdAt: "desc" },
+        take: 200,
+        select: { id: true, content: true, payload: true, folder: true, createdAt: true, conversation: { select: { id: true, title: true } } },
+      }),
+      db.researchMessage.findMany({
+        where: { saved: true, conversation: { userId }, folder: { not: null } },
+        distinct: ["folder"],
+        select: { folder: true },
+        take: 100,
+      }),
+    ]);
+    // The question each saved answer replied to (for notebooks and exports).
+    const questions = saved.length
+      ? await db.researchMessage.findMany({
+          where: { conversationId: { in: [...new Set(saved.map((m) => m.conversation.id))] }, role: "user" },
+          orderBy: { createdAt: "asc" },
+          select: { conversationId: true, content: true, createdAt: true },
+        })
+      : [];
+    const questionFor = (conversationId: string, before: Date) =>
+      questions.filter((q) => q.conversationId === conversationId && q.createdAt <= before).at(-1)?.content ?? "";
     return NextResponse.json({
       saved: saved.map((m) => ({
         id: m.id,
         content: m.content,
+        question: questionFor(m.conversation.id, m.createdAt),
         payload: parsePayload(m.payload),
+        folder: m.folder,
         createdAt: m.createdAt,
         conversationId: m.conversation.id,
         conversationTitle: m.conversation.title,
       })),
+      folders: folders.map((f) => f.folder).filter((f): f is string => !!f).sort((a, b) => a.localeCompare(b)),
     });
   }
 
@@ -55,6 +79,7 @@ export async function GET(req: NextRequest) {
       id: true,
       title: true,
       pinned: true,
+      shareToken: true,
       createdAt: true,
       updatedAt: true,
       _count: { select: { messages: true } },
@@ -70,12 +95,14 @@ export async function GET(req: NextRequest) {
         : {}),
     },
   });
+  const tenant = await resolveTenantFromHeaders(req.headers).catch(() => null);
   return NextResponse.json({
-    retentionDays: conversationRetentionDays(),
+    retentionDays: await conversationRetentionDaysFor(tenant?.id ?? session.tenantId ?? null),
     conversations: conversations.map((c: any) => ({
       id: c.id,
       title: c.title,
       pinned: c.pinned,
+      shared: !!c.shareToken,
       createdAt: c.createdAt,
       updatedAt: c.updatedAt,
       messageCount: c._count.messages,
@@ -114,8 +141,9 @@ export async function POST(req: NextRequest) {
     await db.researchConversation.delete({ where: { id: oldest.id } });
   }
   const title = typeof body.title === "string" && body.title.trim() ? titleFromQuestion(body.title).slice(0, LIMITS.titleChars) : "New conversation";
+  const tenant = await resolveTenantFromHeaders(req.headers).catch(() => null);
   const conversation = await db.researchConversation.create({
-    data: { userId: session.userId, title },
+    data: { userId: session.userId, title, tenantId: tenant?.id ?? session.tenantId ?? null },
     select: { id: true, title: true, pinned: true, createdAt: true, updatedAt: true },
   });
   return NextResponse.json({ conversation: { ...conversation, messageCount: 0 } }, { status: 201 });

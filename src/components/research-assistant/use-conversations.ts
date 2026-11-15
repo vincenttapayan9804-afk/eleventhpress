@@ -84,6 +84,7 @@ function toMessages(raw: any[]): ChatMessage[] {
     content: m.content,
     createdAt: typeof m.createdAt === "string" ? m.createdAt : new Date(m.createdAt).toISOString(),
     saved: !!m.saved,
+    folder: m.folder ?? null,
     ...(m.payload ? { data: m.payload as AnswerData } : {}),
   }));
 }
@@ -157,7 +158,14 @@ export function useConversations(signedIn: boolean) {
       try {
         const res = await apiFetch<{ conversation: any }>(`/api/corpus-chat/conversations/${id}`);
         const c = res.conversation;
-        return { ...c, createdAt: String(c.createdAt), updatedAt: String(c.updatedAt), messageCount: c.messages.length, messages: toMessages(c.messages) };
+        return {
+          ...c,
+          shared: !!c.shareToken,
+          createdAt: String(c.createdAt),
+          updatedAt: String(c.updatedAt),
+          messageCount: c.messages.length,
+          messages: toMessages(c.messages),
+        };
       } catch {
         return null;
       }
@@ -297,23 +305,154 @@ export function useConversations(signedIn: boolean) {
     [mode, commitDevice]
   );
 
-  const savedResponses = useCallback(async (): Promise<SavedResponse[]> => {
-    if (mode === "device") {
-      return device.current.conversations
-        .flatMap((c) =>
-          c.messages
-            .filter((m) => m.saved && m.role === "assistant")
-            .map((m) => ({ id: m.id, conversationId: c.id, conversationTitle: c.title, content: m.content, createdAt: m.createdAt, data: m.data }))
-        )
-        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-    }
-    try {
-      const res = await apiFetch<{ saved: any[] }>("/api/corpus-chat/conversations?saved=1");
-      return res.saved.map((s) => ({ ...s, createdAt: String(s.createdAt), data: s.payload ?? undefined }));
-    } catch {
-      return [];
-    }
-  }, [mode]);
+  /** Saved responses (optionally one collection) and the reader's collection names. */
+  const savedResponses = useCallback(
+    async (folder?: string | null): Promise<{ saved: SavedResponse[]; folders: string[] }> => {
+      if (mode === "device") {
+        const all = device.current.conversations
+          .flatMap((c) =>
+            c.messages
+              .map((m, i) => ({ m, i }))
+              .filter(({ m }) => m.saved && m.role === "assistant")
+              .map(({ m, i }) => ({
+                id: m.id,
+                conversationId: c.id,
+                conversationTitle: c.title,
+                content: m.content,
+                question: [...c.messages.slice(0, i)].reverse().find((x) => x.role === "user")?.content ?? "",
+                createdAt: m.createdAt,
+                folder: m.folder ?? null,
+                data: m.data,
+              }))
+          )
+          .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+        const folders = [...new Set(all.map((s) => s.folder).filter((f): f is string => !!f))].sort((a, b) => a.localeCompare(b));
+        return { saved: folder ? all.filter((s) => s.folder === folder) : all, folders };
+      }
+      try {
+        const res = await apiFetch<{ saved: any[]; folders?: string[] }>(
+          `/api/corpus-chat/conversations?saved=1${folder ? `&folder=${encodeURIComponent(folder)}` : ""}`
+        );
+        return {
+          saved: res.saved.map((s) => ({ ...s, createdAt: String(s.createdAt), data: s.payload ?? undefined })),
+          folders: res.folders ?? [],
+        };
+      } catch {
+        return { saved: [], folders: [] };
+      }
+    },
+    [mode]
+  );
+
+  /** Files a saved response in a collection (null removes it from its collection). */
+  const setFolder = useCallback(
+    async (conversationId: string, messageId: string, folder: string | null) => {
+      const clean = folder ? folder.replace(/\s+/g, " ").trim().slice(0, 60) || null : null;
+      if (mode === "device") {
+        const m = device.current.conversations.find((x) => x.id === conversationId)?.messages.find((x) => x.id === messageId);
+        if (m) {
+          m.folder = clean;
+          if (clean) m.saved = true;
+          commitDevice();
+        }
+        return true;
+      }
+      try {
+        await apiFetch(`/api/corpus-chat/messages/${messageId}`, { method: "PATCH", body: JSON.stringify({ folder: clean }) });
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [mode, commitDevice]
+  );
+
+  /** Removes a message and everything after it ("Edit and resend"). */
+  const truncateFrom = useCallback(
+    async (conversationId: string, messageId: string) => {
+      if (mode === "device") {
+        const c = device.current.conversations.find((x) => x.id === conversationId);
+        const i = c ? c.messages.findIndex((m) => m.id === messageId) : -1;
+        if (c && i !== -1) {
+          c.messages = c.messages.slice(0, i);
+          c.updatedAt = new Date().toISOString();
+          commitDevice();
+        }
+        return true;
+      }
+      try {
+        await apiFetch(`/api/corpus-chat/conversations/${conversationId}/messages?from=${encodeURIComponent(messageId)}`, { method: "DELETE" });
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [mode, commitDevice]
+  );
+
+  /** A copy of the conversation up to and including `upTo`, as a new conversation. Returns its id. */
+  const branch = useCallback(
+    async (conversationId: string, upTo: string): Promise<string | null> => {
+      if (mode === "device") {
+        const c = device.current.conversations.find((x) => x.id === conversationId);
+        const i = c ? c.messages.findIndex((m) => m.id === upTo) : -1;
+        if (!c || i === -1) return null;
+        const now = new Date().toISOString();
+        const copy: Conversation = {
+          id: localId(),
+          title: `${c.title.replace(/\s*\(branch\)$/, "").slice(0, 110)} (branch)`,
+          pinned: false,
+          createdAt: now,
+          updatedAt: now,
+          messageCount: i + 1,
+          messages: c.messages.slice(0, i + 1).map((m) => ({ ...m, id: localId(), saved: false, folder: null })),
+        };
+        device.current.conversations.push(copy);
+        commitDevice();
+        return copy.id;
+      }
+      try {
+        const res = await apiFetch<{ conversation: ConversationSummary }>(`/api/corpus-chat/conversations/${conversationId}/branch`, {
+          method: "POST",
+          body: JSON.stringify({ upTo }),
+        });
+        void refresh();
+        return res.conversation.id;
+      } catch {
+        return null;
+      }
+    },
+    [mode, commitDevice, refresh]
+  );
+
+  /** A read-only share link (signed-in readers only). */
+  const share = useCallback(
+    async (conversationId: string): Promise<string | null> => {
+      if (mode === "device") return null;
+      try {
+        const res = await apiFetch<{ url: string }>(`/api/corpus-chat/conversations/${conversationId}/share`, { method: "POST" });
+        setList((l) => l.map((c) => (c.id === conversationId ? { ...c, shared: true } : c)));
+        return res.url;
+      } catch {
+        return null;
+      }
+    },
+    [mode]
+  );
+
+  const unshare = useCallback(
+    async (conversationId: string) => {
+      if (mode === "device") return false;
+      try {
+        await apiFetch(`/api/corpus-chat/conversations/${conversationId}/share`, { method: "DELETE" });
+        setList((l) => l.map((c) => (c.id === conversationId ? { ...c, shared: false } : c)));
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [mode]
+  );
 
   /** Device mode only: stop (or resume) keeping history in this browser. */
   const setDeviceHistory = useCallback(
@@ -346,10 +485,37 @@ export function useConversations(signedIn: boolean) {
       setPinned,
       remove,
       savedResponses,
+      setFolder,
+      truncateFrom,
+      branch,
+      share,
+      unshare,
       setDeviceHistory,
       clearDevice,
     }),
-    [mode, list, loading, retentionDays, deviceEnabled, refresh, load, saveExchange, updateAnswer, setSaved, rename, setPinned, remove, savedResponses, setDeviceHistory, clearDevice]
+    [
+      mode,
+      list,
+      loading,
+      retentionDays,
+      deviceEnabled,
+      refresh,
+      load,
+      saveExchange,
+      updateAnswer,
+      setSaved,
+      rename,
+      setPinned,
+      remove,
+      savedResponses,
+      setFolder,
+      truncateFrom,
+      branch,
+      share,
+      unshare,
+      setDeviceHistory,
+      clearDevice,
+    ]
   );
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { ArrowUpRight, BookOpen, Check, ChevronLeft, ClipboardCopy, ExternalLink, FileSearch, Quote, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowUpRight, BookOpen, Check, ChevronLeft, ClipboardCopy, Crosshair, ExternalLink, FileSearch, Quote, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { copyText } from "./actions";
 import type { AnswerData, AnswerSource } from "./types";
@@ -53,6 +53,7 @@ function ArticlePreview({
   citation,
   onBack,
   onOpenArticle,
+  onScopeToArticle,
 }: {
   data: AnswerData;
   source: AnswerSource;
@@ -60,23 +61,34 @@ function ArticlePreview({
   onBack: () => void;
   /** Omit to hide "Open article" (e.g. inside the article itself). */
   onOpenArticle?: (id: string) => void;
+  onScopeToArticle?: (source: AnswerSource) => void;
 }) {
   const [showAbstract, setShowAbstract] = useState(false);
+  const backRef = useRef<HTMLButtonElement>(null);
+  // Keyboard users land on the preview, not back at the top of the page.
+  useEffect(() => {
+    backRef.current?.focus({ preventScroll: true });
+  }, [source.id]);
   const cited = data.citations.filter((c) => c.articleId === source.id);
   const focus = cited.find((c) => c.n === citation) ?? cited[0];
   const others = cited.filter((c) => c !== focus);
 
   return (
     <div className="space-y-5">
-      <button type="button" onClick={onBack} className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground">
+      <button
+        ref={backRef}
+        type="button"
+        onClick={onBack}
+        className="inline-flex items-center gap-1 rounded text-xs font-medium text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
         <ChevronLeft className="h-3.5 w-3.5" /> All sources
       </button>
 
       <div>
-        <p className="text-[0.62rem] font-semibold uppercase tracking-[0.18em] text-[var(--gold-600)]">Source {source.n} · Article preview</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--gold-600)]">Source {source.n} · Article preview</p>
         <h3 className="mt-1.5 font-display text-[1.05rem] font-semibold leading-snug text-foreground">{source.title}</h3>
         <Authors source={source} />
-        <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[0.74rem]">
+        <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
           {source.publishedAt && (
             <>
               <dt className="text-muted-foreground">Published</dt>
@@ -103,7 +115,7 @@ function ArticlePreview({
         {source.keywords.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-1">
             {source.keywords.map((k) => (
-              <span key={k} className="rounded-full bg-[var(--royal-50)] px-2 py-0.5 text-[0.66rem] font-medium text-[var(--royal-800)]">
+              <span key={k} className="rounded-full bg-[var(--royal-50)] px-2 py-0.5 text-xs font-medium text-[var(--royal-800)]">
                 {k}
               </span>
             ))}
@@ -113,7 +125,7 @@ function ArticlePreview({
 
       {focus && (
         <section aria-label="Supporting passage">
-          <p className="mb-1.5 flex items-center gap-1.5 text-[0.62rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+          <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
             <Quote className="h-3 w-3" /> Supporting {focus.kind === "record" ? "record" : "passage"} [{focus.n}]
           </p>
           <blockquote className="rounded-r-lg border-l-[3px] border-[var(--gold-500)] bg-[var(--gold-200)]/25 px-3.5 py-3 font-serif text-[0.84rem] leading-relaxed text-foreground dark:bg-[var(--gold-500)]/10">
@@ -123,7 +135,7 @@ function ArticlePreview({
             href={focus.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-1.5 inline-flex items-center gap-1 text-[0.72rem] font-medium text-primary hover:underline"
+            className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
           >
             View this {focus.kind === "record" ? "article" : "passage in the article"} <ArrowUpRight className="h-3 w-3" />
           </a>
@@ -132,7 +144,7 @@ function ArticlePreview({
 
       {others.length > 0 && (
         <section aria-label="Other cited passages">
-          <p className="mb-1.5 text-[0.62rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Also cited from this article</p>
+          <p className="mb-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Also cited from this article</p>
           <div className="space-y-2">
             {others.map((c) => (
               <a
@@ -157,7 +169,7 @@ function ArticlePreview({
           <button
             type="button"
             onClick={() => setShowAbstract((v) => !v)}
-            className="mb-1.5 text-[0.62rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground hover:text-foreground"
+            className="mb-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"
             aria-expanded={showAbstract}
           >
             Abstract {showAbstract ? "−" : "+"}
@@ -167,7 +179,7 @@ function ArticlePreview({
       )}
 
       <section aria-label="Reference" className="rounded-lg border border-border/80 bg-muted/30 p-3">
-        <p className="mb-1 text-[0.62rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Reference (APA 7)</p>
+        <p className="mb-1 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Reference (APA 7)</p>
         <p className="text-[0.76rem] leading-relaxed text-foreground">{source.reference}</p>
       </section>
 
@@ -190,6 +202,15 @@ function ArticlePreview({
           <ExternalLink className="h-3.5 w-3.5" /> New tab
         </a>
         <CopyReference reference={source.reference} />
+        {onScopeToArticle && (
+          <button
+            type="button"
+            onClick={() => onScopeToArticle(source)}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:border-primary/40 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Crosshair className="h-3.5 w-3.5" /> Ask only about this article
+          </button>
+        )}
       </div>
     </div>
   );
@@ -201,6 +222,7 @@ export function EvidencePanel({
   onSelect,
   onOpenArticle,
   onClose,
+  onScopeToArticle,
 }: {
   data: AnswerData | null;
   selection: EvidenceSelection | null;
@@ -208,7 +230,21 @@ export function EvidencePanel({
   /** Omit to hide "Open article" (e.g. inside the article itself). */
   onOpenArticle?: (id: string) => void;
   onClose?: () => void;
+  /** "Ask only about this article": limits the next questions to it. */
+  onScopeToArticle?: (source: AnswerSource) => void;
 }) {
+  const listRef = useRef<HTMLDivElement>(null);
+  /** ↑/↓ move between sources, Home/End to the first/last. */
+  const onListKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) return;
+    const items = Array.from(listRef.current?.querySelectorAll<HTMLButtonElement>("[data-source-item]") ?? []);
+    if (items.length === 0) return;
+    e.preventDefault();
+    const i = items.indexOf(document.activeElement as HTMLButtonElement);
+    const next =
+      e.key === "Home" ? 0 : e.key === "End" ? items.length - 1 : e.key === "ArrowDown" ? Math.min(items.length - 1, i + 1) : Math.max(0, i - 1);
+    items[next]?.focus();
+  };
   const citation = selection?.citation ?? null;
   const selectedSource =
     data && selection
@@ -222,7 +258,7 @@ export function EvidencePanel({
           <FileSearch className="h-4 w-4 text-primary" aria-hidden="true" />
           <h2 className="font-display text-sm font-semibold text-foreground">Evidence</h2>
           {data && data.sources.length > 0 && (
-            <span className="rounded-full bg-muted px-1.5 py-0.5 text-[0.62rem] font-semibold text-muted-foreground">
+            <span className="rounded-full bg-muted px-1.5 py-0.5 text-xs font-semibold text-muted-foreground">
               {data.sources.length} source{data.sources.length === 1 ? "" : "s"} · {data.citations.length} citation{data.citations.length === 1 ? "" : "s"}
             </span>
           )}
@@ -252,15 +288,17 @@ export function EvidencePanel({
             citation={citation}
             onBack={() => onSelect({ messageId: selection.messageId, citation: null })}
             onOpenArticle={onOpenArticle}
+            onScopeToArticle={onScopeToArticle}
           />
         ) : (
-          <div className="space-y-3">
+          <div ref={listRef} className="space-y-3" role="group" aria-label="Sources — use the arrow keys to move between them" onKeyDown={onListKeyDown}>
             {data.sources.map((s) => {
               const cited = data.citations.filter((c) => c.articleId === s.id);
               return (
                 <button
                   key={s.id}
                   type="button"
+                  data-source-item
                   onClick={() => selection && onSelect({ messageId: selection.messageId, citation: cited[0]?.n ?? null, sourceId: s.id })}
                   className="block w-full rounded-xl border border-border/80 bg-background p-3.5 text-left transition-all hover:-translate-y-px hover:border-primary/40 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
@@ -272,7 +310,7 @@ export function EvidencePanel({
                         {s.authors.map((a) => a.name).join(", ") || "Authors not listed"}
                         {s.year ? ` · ${s.year}` : ""}
                       </p>
-                      <p className="mt-1.5 text-[0.66rem] font-medium text-[var(--gold-600)]">
+                      <p className="mt-1.5 text-xs font-medium text-[var(--gold-600)]">
                         Cited as {cited.map((c) => `[${c.n}]`).join(" ")}
                         {s.doi ? ` · DOI ${s.doi}` : ""}
                       </p>

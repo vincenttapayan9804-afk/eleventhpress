@@ -50,3 +50,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   await db.researchConversation.update({ where: { id }, data: { updatedAt: new Date() } });
   return NextResponse.json({ ids }, { status: 201 });
 }
+
+/**
+ * DELETE /api/corpus-chat/conversations/[id]/messages?from=<messageId> —
+ * removes that message and every later one ("Edit and resend" a question:
+ * the conversation continues from the edited question).
+ */
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const session = getSessionFromHeaders(req.headers);
+  if (!session) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  const from = req.nextUrl.searchParams.get("from") ?? "";
+  const message = await db.researchMessage.findFirst({
+    where: { id: from, conversationId: id, conversation: { userId: session.userId } },
+    select: { createdAt: true },
+  });
+  if (!message) return NextResponse.json({ error: "Message not found" }, { status: 404 });
+  const removed = await db.researchMessage.deleteMany({ where: { conversationId: id, createdAt: { gte: message.createdAt } } });
+  await db.researchConversation.update({ where: { id }, data: { updatedAt: new Date() } });
+  return NextResponse.json({ ok: true, removed: removed.count });
+}

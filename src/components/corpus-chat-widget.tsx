@@ -16,11 +16,47 @@
 // JS never blocks the page it's floating on top of.
 // ---------------------------------------------------------------------------
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { ResearchMascot } from "@/components/research-assistant/mascot";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/lib/store";
+import { apiFetch } from "@/lib/api-client";
+
+const STATUS_KEY = "epip-assistant-status";
+const STATUS_TTL_MS = 5 * 60 * 1000;
+
+/** Whether the institution offers the assistant (its admin can switch it off). Cached for the browser session. */
+function useAssistantEnabled(): boolean {
+  const [enabled, setEnabled] = useState(true);
+  useEffect(() => {
+    let cancelled = false;
+    const cached = (): { at: number; enabled: boolean } | null => {
+      try {
+        const c = JSON.parse(sessionStorage.getItem(STATUS_KEY) || "null");
+        return c && Date.now() - c.at < STATUS_TTL_MS ? c : null;
+      } catch {
+        return null;
+      }
+    };
+    const hit = cached();
+    (hit ? Promise.resolve(hit) : apiFetch<{ enabled: boolean }>("/api/corpus-chat/status"))
+      .then((r) => {
+        if (cancelled) return;
+        setEnabled(r.enabled !== false);
+        try {
+          sessionStorage.setItem(STATUS_KEY, JSON.stringify({ at: Date.now(), enabled: r.enabled !== false }));
+        } catch {
+          // storage unavailable
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return enabled;
+}
 
 const CorpusChatPanel = dynamic(() => import("./corpus-chat-panel").then((m) => m.CorpusChatPanel), {
   ssr: false,
@@ -32,6 +68,8 @@ export function CorpusChatWidget() {
   // Signing in or out switches where conversations are kept (account vs
   // this browser), so the assistant starts fresh rather than mixing them.
   const signedIn = useApp((s) => !!s.user);
+  const enabled = useAssistantEnabled();
+  if (!enabled && !open) return null;
 
   return (
     <>

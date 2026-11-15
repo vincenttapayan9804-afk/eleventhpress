@@ -37,6 +37,7 @@ import {
   Briefcase,
   ListOrdered,
   NotebookPen,
+  MessageSquareText,
 } from "lucide-react";
 
 /**
@@ -136,6 +137,14 @@ export const TABS: DashboardTabDef[] = [
     group: "Analytics & Reporting",
   },
   { key: "rankings", label: "Institutional rankings", icon: ListOrdered, roles: ["SUPER_ADMIN"], group: "Analytics & Reporting" },
+  // Ask the Corpus usage, reader feedback and issue reports, and (for admins) its settings.
+  {
+    key: "researchAssistant",
+    label: "Research Assistant",
+    icon: MessageSquareText,
+    roles: ["SUPER_ADMIN", "TENANT_ADMIN", "EDITOR"],
+    group: "Analytics & Reporting",
+  },
 
   // --- Executive Command Intelligence ---
   // A single module with each phase as a sub-section under this one group
