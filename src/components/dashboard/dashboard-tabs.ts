@@ -52,6 +52,8 @@ export interface DashboardTabDef {
   icon: LucideIcon | any;
   roles: string[];
   group: string;
+  /** Shown only on the main Eleventh Press site to a platform account — never on a whitelabel (tenant) platform. */
+  platformOnly?: boolean;
 }
 
 export const TABS: DashboardTabDef[] = [
@@ -180,12 +182,27 @@ export const TABS: DashboardTabDef[] = [
   { key: "branding", label: "Branding & profile", icon: Palette, roles: ["TENANT_ADMIN"], group: "Institution Administration" },
   { key: "team", label: "Team & access", icon: Users2, roles: ["TENANT_ADMIN"], group: "Institution Administration" },
   { key: "branding", label: "Branding", icon: Palette, roles: ["SUPER_ADMIN"], group: "Platform Administration" },
-  { key: "tenants", label: "Tenants", icon: Globe, roles: ["SUPER_ADMIN"], group: "Platform Administration" },
+  { key: "tenants", label: "Tenants", icon: Globe, roles: ["SUPER_ADMIN"], group: "Platform Administration", platformOnly: true },
   { key: "admin", label: "Admin & audit", icon: Users, roles: ["SUPER_ADMIN"], group: "Platform Administration" },
 ];
 
-/** Tabs a role can see, in sidebar order. */
-export function tabsForRole(role: string | undefined | null): DashboardTabDef[] {
+/**
+ * Tabs a role can see, in sidebar order. `onPlatform` is false on a
+ * whitelabel (tenant) site, or for an account that belongs to a tenant:
+ * institution management (the Tenants tab) is then never offered, whatever
+ * the role — a tenant manages its own departments, never other tenants.
+ */
+export function tabsForRole(role: string | undefined | null, onPlatform = true): DashboardTabDef[] {
   if (!role) return [];
-  return TABS.filter((t) => t.roles.includes("*") || t.roles.includes(role));
+  return TABS.filter((t) => (t.roles.includes("*") || t.roles.includes(role)) && (onPlatform || !t.platformOnly));
+}
+
+/** True when the page is the main Eleventh Press site and the account belongs to the platform (or to no tenant). */
+export function isPlatformContext(
+  branding: { isPlatform: boolean; tenantId: string | null },
+  user: { workspace?: { isPlatform: boolean } | null } | null | undefined
+): boolean {
+  const onWhitelabelSite = !branding.isPlatform && !!branding.tenantId;
+  const tenantAccount = user?.workspace ? !user.workspace.isPlatform : false;
+  return !onWhitelabelSite && !tenantAccount;
 }

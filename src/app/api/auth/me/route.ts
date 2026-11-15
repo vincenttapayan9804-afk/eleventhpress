@@ -1,3 +1,4 @@
+import { workspaceOf } from "@/lib/workspace";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders, clearSessionCookie, verifyToken, sessionCookieOptions, SESSION_COOKIE_NAME, type SessionPayload } from "@/lib/auth";
@@ -75,7 +76,9 @@ export async function GET(req: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
-  const res = NextResponse.json({ user });
+  // Which platform the account belongs to (main site or an institution) — the
+  // dashboard uses it to keep platform-only tools, such as Tenants, off tenant accounts.
+  const res = NextResponse.json({ user: { ...user, workspace: await workspaceOf(user.tenantId) } });
   if (migrated) {
     res.cookies.set(sessionCookieNameFor(migrated.slug), migrated.token, sessionCookieOptions());
     res.cookies.set(SESSION_COOKIE_NAME, "", { ...sessionCookieOptions(), maxAge: 0 });

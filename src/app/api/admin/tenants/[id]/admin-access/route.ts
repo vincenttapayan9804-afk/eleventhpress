@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/auth";
+import { requirePlatformSuperAdmin } from "@/lib/tenant-auth";
 import { parseBody } from "@/lib/validate";
 import { issueTemporaryPassword, sendTenantAdminCredentials, tenantLinks } from "@/lib/tenant-onboarding";
 
@@ -14,7 +14,7 @@ const Schema = z.object({ userId: z.string().min(1).optional() });
  * or a forgotten password. The admin must choose a new password at sign-in.
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = requireRole(req.headers, ["SUPER_ADMIN"]);
+  const auth = await requirePlatformSuperAdmin(req.headers);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const { id } = await params;
 

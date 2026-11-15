@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { ALL_ROLES as VALID_ROLES } from "@/lib/roles";
 import { parseBody } from "@/lib/validate";
+import { requirePlatformSuperAdmin } from "@/lib/tenant-auth";
 
 const RoleChangeSchema = z.object({ role: z.string().min(1).max(50) });
 
@@ -52,6 +53,24 @@ export async function POST(
     }
     if (PLATFORM_ONLY_ROLES.has(role) || PLATFORM_ONLY_ROLES.has(target.role)) {
       return NextResponse.json({ error: "Only a platform SUPER_ADMIN can grant or change a platform-level role" }, { status: 403 });
+    }
+  }
+
+  if (session.role === "SUPER_ADMIN" && PLATFORM_ONLY_ROLES.has(role)) {
+    // Granting a platform-level role is itself a platform action: only the
+    // main site's own super admin may do it.
+    const platform = await requirePlatformSuperAdmin(req.headers);
+    if (!platform.ok) return NextResponse.json({ error: platform.error }, { status: platform.status });
+    if (role === "SUPER_ADMIN" && target.tenantId) {
+      // A SUPER_ADMIN inside an institution could create other institutions.
+      // An institution's administrator is a TENANT_ADMIN instead.
+      const targetTenant = await db.tenant.findUnique({ where: { id: target.tenantId }, select: { isPlatform: true } });
+      if (targetTenant && !targetTenant.isPlatform) {
+        return NextResponse.json(
+          { error: "This account belongs to an institution. Make it the institution's administrator (TENANT_ADMIN) instead — only Eleventh Press platform accounts can be super admins." },
+          { status: 400 }
+        );
+      }
     }
   }
 
