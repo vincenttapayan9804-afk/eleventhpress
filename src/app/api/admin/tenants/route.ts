@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/auth";
+import { requirePlatformSuperAdmin } from "@/lib/tenant-auth";
 import { parseBody } from "@/lib/validate";
 import { getOrCreateTenantJournal } from "@/lib/tenant";
 import { getTenantEntitlements, syncTenantEntitlements } from "@/lib/tenant-entitlements";
@@ -54,7 +54,7 @@ const CreateTenantSchema = z
   .refine((v) => !v.adminEmail || !!v.adminName, { message: "Enter the administrator's full name", path: ["adminName"] });
 
 export async function GET(req: NextRequest) {
-  const auth = requireRole(req.headers, ["SUPER_ADMIN"]);
+  const auth = await requirePlatformSuperAdmin(req.headers);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   const tenants = await db.tenant.findMany({
@@ -106,7 +106,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = requireRole(req.headers, ["SUPER_ADMIN"]);
+  const auth = await requirePlatformSuperAdmin(req.headers);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   const parsed = await parseBody(req, CreateTenantSchema);

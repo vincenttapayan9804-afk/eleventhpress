@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/auth";
+import { requirePlatformSuperAdmin } from "@/lib/tenant-auth";
 import { anonymizeUserAccount } from "@/lib/account-privacy";
 import { withRlsContext } from "@/lib/db-rls";
 import { parseBody } from "@/lib/validate";
@@ -100,7 +100,7 @@ async function deleteMagazineIssueCascade(tx: any, issueId: string) {
  * behalf.
  */
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = requireRole(req.headers, ["SUPER_ADMIN"]);
+  const auth = await requirePlatformSuperAdmin(req.headers);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   const { id } = await params;

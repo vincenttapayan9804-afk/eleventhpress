@@ -5,7 +5,7 @@ import { AuthorAnalyticsTab } from "@/components/dashboard/author-analytics-tab"
 import { DashboardNav } from "@/components/dashboard/dashboard-nav";
 import { AttentionPanel } from "@/components/dashboard/attention-panel";
 import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
-import { TABS as ALL_TABS } from "@/components/dashboard/dashboard-tabs";
+import { tabsForRole, isPlatformContext } from "@/components/dashboard/dashboard-tabs";
 import { ResumeDraftCard } from "@/components/dashboard/resume-draft-card";
 import { useEffect, useState, useCallback } from "react";
 import { useTenantBranding, isWhitelabel } from "@/lib/tenant-branding-context";
@@ -173,9 +173,7 @@ export function DashboardView() {
   // rather than one flat 33-item list. Grouping is purely presentational —
   // every tab keeps its exact pre-existing `roles` gate, so this changes
   // nothing about who can see what, only how it's organized on screen.
-  const TABS = ALL_TABS;
-
-  const visibleTabs = TABS.filter((t) => t.roles.includes("*") || t.roles.includes(user.role));
+  const visibleTabs = tabsForRole(user.role, isPlatformContext(branding, user));
 
   async function markAllRead() {
     try {
@@ -337,7 +335,7 @@ export function DashboardView() {
           {dashboardTab === "narration" && <NarrationTab />}
           {dashboardTab === "researchIntegrity" && <ResearchIntegrityTab />}
           {dashboardTab === "branding" && <BrandingTab />}
-          {dashboardTab === "tenants" && <TenantsTab />}
+          {dashboardTab === "tenants" && visibleTabs.some((t) => t.key === "tenants") && <TenantsTab />}
           {dashboardTab === "team" && <TeamTab />}
           {dashboardTab === "departments" && <DepartmentsTab />}
           {dashboardTab === "ethics" && <EthicsTab />}

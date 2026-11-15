@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/auth";
-import { requireTenantScope } from "@/lib/tenant-auth";
+import { requireTenantScope, requirePlatformSuperAdmin } from "@/lib/tenant-auth";
 import { TENANT_SCOPED_ADMIN_ROLES } from "@/lib/roles";
 import { parseBody } from "@/lib/validate";
 
@@ -41,7 +40,7 @@ const CreatePoInvoiceSchema = z.object({
  * no sane amount or payer to bill otherwise.
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = requireRole(req.headers, ["SUPER_ADMIN"]);
+  const auth = await requirePlatformSuperAdmin(req.headers);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   const { id } = await params;

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/auth";
+import { requirePlatformSuperAdmin } from "@/lib/tenant-auth";
 import { parseBody } from "@/lib/validate";
 
 const UpdatePoInvoiceSchema = z.object({
@@ -20,7 +20,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string; invoiceId: string }> }
 ) {
-  const auth = requireRole(req.headers, ["SUPER_ADMIN"]);
+  const auth = await requirePlatformSuperAdmin(req.headers);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   const { id, invoiceId } = await params;

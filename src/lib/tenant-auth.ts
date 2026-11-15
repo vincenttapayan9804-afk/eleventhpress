@@ -85,3 +85,41 @@ export async function canActOnArticle(session: SessionPayload | null | undefined
 
 /** 403 body for an article outside the caller's institution. */
 export const OTHER_INSTITUTION_ERROR = "This article belongs to another institution";
+
+/** 403 body when someone other than the main platform's super admin tries to manage institutions. */
+export const PLATFORM_ONLY_ERROR =
+  "Only the Eleventh Press platform administrator can create or manage institutions. Sign in on the main Eleventh Press site with a platform account.";
+
+/**
+ * Gate for institution (tenant) management: creating, deleting, purging,
+ * re-planning, billing and granting admin access to tenants. Only a
+ * SUPER_ADMIN of the main Eleventh Press platform passes, and only while
+ * working on the main site:
+ *  - the account itself must belong to the platform tenant (or carry no
+ *    tenant, as tokens signed before tenants existed do). A SUPER_ADMIN
+ *    account sitting inside a whitelabel tenant is refused, so an
+ *    institution can never end up able to create another institution;
+ *  - the request must not come from a whitelabel site (its own domain or
+ *    a /t/<slug> portal). A tenant platform shows its own departments,
+ *    never the list of institutions.
+ * Fails closed: an account whose tenant can't be found is refused.
+ */
+export async function requirePlatformSuperAdmin(headers: Headers): Promise<RequireTenantScopeResult> {
+  const auth = requireRole(headers, ["SUPER_ADMIN"]);
+  if (!auth.ok) return auth;
+  const forbidden = { ok: false as const, status: 403 as const, error: PLATFORM_ONLY_ERROR };
+
+  const { db } = await import("./db");
+  if (auth.session.tenantId) {
+    const own = await db.tenant
+      .findUnique({ where: { id: auth.session.tenantId }, select: { isPlatform: true } })
+      .catch(() => null);
+    if (!own?.isPlatform) return forbidden;
+  }
+
+  const { resolveTenantFromHeaders } = await import("./tenant");
+  const site = await resolveTenantFromHeaders(headers);
+  if (site && !site.isPlatform) return forbidden;
+
+  return auth;
+}

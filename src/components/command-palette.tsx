@@ -17,7 +17,8 @@ import { useApp } from "@/lib/store";
 import { apiFetch } from "@/lib/api-client";
 import { stateForPath, VIEW_META } from "@/lib/spa-routes";
 import { applyRoute } from "@/components/spa-url-sync";
-import { tabsForRole } from "@/components/dashboard/dashboard-tabs";
+import { tabsForRole, isPlatformContext } from "@/components/dashboard/dashboard-tabs";
+import { useTenantBranding } from "@/lib/tenant-branding-context";
 
 interface ResultItem { title: string; subtitle: string; path: string }
 interface ResultGroup { key: string; label: string; items: ResultItem[] }
@@ -99,7 +100,9 @@ export function CommandPalette() {
     return () => window.clearTimeout(t);
   }, [q]);
 
-  const tabs = useMemo(() => tabsForRole(user?.role), [user?.role]);
+  const branding = useTenantBranding();
+  const onPlatform = isPlatformContext(branding, user);
+  const tabs = useMemo(() => tabsForRole(user?.role, onPlatform), [user?.role, onPlatform]);
 
   const run = (fn: () => void) => {
     setOpen(false);
