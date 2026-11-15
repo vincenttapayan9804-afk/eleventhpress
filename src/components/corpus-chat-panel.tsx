@@ -1420,7 +1420,7 @@ export function CorpusChatPanel({ open, onOpenChange }: { open: boolean; onOpenC
                                   }}
                                   maxLength={MAX_QUESTION}
                                   aria-label="Edit your question"
-                                  className="min-h-[72px] resize-none border-0 bg-transparent text-[0.92rem] shadow-none focus-visible:ring-0"
+                                  className="min-h-[72px] resize-none border-0 bg-transparent text-[0.92rem] shadow-none focus-visible:ring-0 focus-visible:!outline-none"
                                 />
                                 <div className="mt-1.5 flex items-center justify-between gap-2">
                                   <p className="text-xs text-muted-foreground">Later messages in this conversation will be replaced.</p>
@@ -1557,7 +1557,7 @@ export function CorpusChatPanel({ open, onOpenChange }: { open: boolean; onOpenC
                         }
                         aria-label="Your research question"
                         aria-describedby="composer-hint"
-                        className="max-h-[220px] min-h-[44px] w-full resize-none border-0 bg-transparent px-1 py-2 text-[0.95rem] shadow-none focus-visible:ring-0"
+                        className="max-h-[220px] min-h-[44px] w-full resize-none border-0 bg-transparent px-1 py-2 text-[0.95rem] shadow-none focus-visible:ring-0 focus-visible:!outline-none"
                         rows={1}
                         maxLength={MAX_QUESTION}
                         disabled={!assistant.enabled}
@@ -1573,7 +1573,7 @@ export function CorpusChatPanel({ open, onOpenChange }: { open: boolean; onOpenC
                           open={scopeOpen}
                           onOpenChange={setScopeOpen}
                         />
-                        <span className="ml-auto hidden text-xs tabular-nums text-muted-foreground sm:inline">
+                        <span className="ml-auto text-xs tabular-nums text-muted-foreground" aria-live="polite">
                           {input.length > MAX_QUESTION * 0.8 ? `${input.length}/${MAX_QUESTION}` : ""}
                         </span>
                         {busy ? (

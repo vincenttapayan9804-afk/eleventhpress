@@ -138,7 +138,7 @@ export function ScopePicker({
           {count ? `Scope · ${count}` : "Whole journal"}
         </button>
       </PopoverTrigger>
-      <PopoverContent align="start" side="top" className="w-[min(24rem,calc(100vw-2rem))] p-0">
+      <PopoverContent align="start" side="top" className="w-[min(24rem,calc(100vw-2rem))] bg-background p-0 shadow-xl">
         <div className="border-b border-border/70 px-4 py-3">
           <p className="font-display text-sm font-semibold text-foreground">Search in</p>
           <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">Limit answers to part of the journal. Applies to every question until you clear it.</p>
