@@ -10,6 +10,7 @@ import {
   Building2,
   CalendarDays,
   CheckCircle2,
+  ChevronDown,
   Circle,
   Download,
   ExternalLink,
@@ -459,10 +460,15 @@ export default async function AuthorProfilePage({ params }: { params: Promise<{ 
               )}
             </ul>
             {certificates.length > 0 && (
-              <div className="mt-4 border-t border-border/70 pt-4">
-                <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                  <FileBadge2 className="h-3.5 w-3.5" aria-hidden="true" /> Certificates
-                </p>
+              <details className="group mt-4 border-t border-border/70 pt-3">
+                <summary className="-mx-2 flex cursor-pointer list-none items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted [&::-webkit-details-marker]:hidden">
+                  <FileBadge2 className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" aria-hidden="true" />
+                  <span className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Certificates</span>
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[0.7rem] font-semibold tabular-nums text-primary">{certificates.length}</span>
+                  <span className="ml-auto text-xs font-medium text-primary group-open:hidden">Show</span>
+                  <span className="ml-auto hidden text-xs font-medium text-primary group-open:inline">Hide</span>
+                  <ChevronDown className="h-4 w-4 flex-shrink-0 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" />
+                </summary>
                 <ul className="mt-2 space-y-2">
                   {certificates.map((c) => (
                     <li key={c.serialNumber}>
@@ -476,7 +482,7 @@ export default async function AuthorProfilePage({ params }: { params: Promise<{ 
                     </li>
                   ))}
                 </ul>
-              </div>
+              </details>
             )}
             <p className="mt-4 flex items-center gap-1.5 border-t border-border/70 pt-3 text-xs text-muted-foreground">
               <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" /> Checked live on {fmtDay(p.verification.checkedAt)}
