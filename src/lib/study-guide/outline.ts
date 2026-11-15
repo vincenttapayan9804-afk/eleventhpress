@@ -72,7 +72,7 @@ const IMRAD_LABELS: Record<number, string> = {
 
 const IS_REFERENCES = /^(references?|bibliography|literature cited|works cited|reference list)\b/i;
 const IS_BACK_MATTER = /^(appendix|appendices|curriculum vitae|acknowledge?ments?|about the authors?|author (biograph|contribution)|conflicts? of interest|funding|data availability)\b/i;
-const IS_FRONT_MATTER = /^(table of contents|contents|list of (tables|figures|appendices)|title page|approval sheet|dedication|abstract)\b/i;
+const IS_FRONT_MATTER = /^(table of contents|contents|list of (tables|figures|appendices)|title page|approval sheet|dedication|abstract|authors?|author information|affiliations?|keywords|how to cite|citation)\b/i;
 
 function isAllCaps(s: string): boolean {
   const letters = s.replace(/[^A-Za-z]/g, "");
