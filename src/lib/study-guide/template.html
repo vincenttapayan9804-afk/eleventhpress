@@ -267,7 +267,7 @@ table.t tr:nth-child(even) td{background:var(--surface-2)}
         <div class="toc-mobile"><select id="tocSel" aria-label="Jump to section"></select></div>
         <div class="searchbar">
           <label class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-            <input id="q" type="search" placeholder="Search notes, manuscript text, and panel questions…" autocomplete="off"></label>
+            <input id="q" type="search" placeholder="Search notes, manuscript text, and study questions…" autocomplete="off"></label>
           <label class="toggle"><input type="checkbox" id="showOrig"> Show manuscript text</label>
           <span class="count" id="count"></span>
         </div>
@@ -307,7 +307,7 @@ const $$ = (s, r=document) => [...r.querySelectorAll(s)];
 })();
 
 /* tabs */
-const TABS = [['notes','Study Notes'],['big','Big Picture'],['script','Presentation Script'],['qa','Defense Q&A'],['flash','Flashcards'],['nums','Key Numbers'],['gloss','Glossary'],['src','Sources']];
+const TABS = [['notes','Study Notes'],['big','Big Picture'],['script','Presentation Notes'],['qa','Study Q&A'],['flash','Flashcards'],['nums','Key Numbers'],['gloss','Glossary'],['src','Sources']];
 function showTab(id){
   $$('.tab').forEach(b => b.setAttribute('aria-selected', b.dataset.t===id));
   $$('.view').forEach(v => v.classList.toggle('on', v.id==='v-'+id));
@@ -334,7 +334,7 @@ function renderNotes(){
         ${p.role ? `<div><div class="lab">Why it's there · how to present it</div><p class="role">${esc(p.role)}</p></div>` : ''}
         <div><button class="orig-btn" type="button"><span class="chev">›</span> Manuscript text</button><div class="orig">${esc(p.orig)}</div></div>
       </article>`; }).join('');
-    const qa = s.qa.length ? `<div class="qa"><h4>Likely panel questions</h4>${s.qa.map(x => `
+    const qa = s.qa.length ? `<div class="qa"><h4>Likely study questions</h4>${s.qa.map(x => `
       <details data-txt="${esc((x.q+' '+x.a).toLowerCase())}"><summary>${esc(x.q)}</summary><div class="ans">${esc(x.a)}</div></details>`).join('')}</div>` : '';
     html += `<section class="sec" id="s-${s.id}" data-s="${s.id}">
       <div class="sec-h"><div><div class="meta"><span class="tag">${CH[s.ch].split(' · ')[0]}</span><span class="tag sl">${esc(s.slides)}</span></div><h2>${esc(s.title)}</h2></div>
@@ -411,7 +411,7 @@ $$('.sec').forEach(s => spy.observe(s));
   </div>`;
 })();
 
-/* presentation script with rehearsal timer */
+/* presentation notes with rehearsal timer */
 (function(){
   const per = 70; // suggested seconds per slide
   $('#v-script').innerHTML = `
@@ -427,7 +427,7 @@ $$('.sec').forEach(s => spy.observe(s));
   setTimeout(()=>$$('.slide').forEach(e => e.classList.toggle('cur', e.id==='sl-1')), 0);
 })();
 
-/* defense Q&A (all sections) */
+/* study Q&A (all sections) */
 (function(){
   let h = `<div class="searchbar"><label class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="qq" type="search" placeholder="Filter questions…"></label>
     <button class="iconbtn" id="qaOpen">Expand all</button><button class="iconbtn" id="qaClose">Collapse all</button></div>`;
@@ -448,7 +448,7 @@ $$('.sec').forEach(s => spy.observe(s));
   };
   let deck = 'qa', order = [], i = 0;
   $('#v-flash').innerHTML = `<div class="fc-wrap">
-    <div class="fc-controls"><div class="seg" id="deckSeg"><button data-d="qa" aria-pressed="true">Panel questions (${decks.qa.length})</button><button data-d="nums" aria-pressed="false">Key numbers (${decks.nums.length})</button><button data-d="terms" aria-pressed="false">Terms (${decks.terms.length})</button></div>
+    <div class="fc-controls"><div class="seg" id="deckSeg"><button data-d="qa" aria-pressed="true">Study Q&amp;A (${decks.qa.length})</button><button data-d="nums" aria-pressed="false">Key numbers (${decks.nums.length})</button><button data-d="terms" aria-pressed="false">Terms (${decks.terms.length})</button></div>
       <button class="iconbtn" id="shuf">⤮ Shuffle</button></div>
     <div class="fc" id="fc" tabindex="0" role="button" aria-label="Flashcard, press to flip"><div class="fc-in">
       <div class="face front"><div class="ft" id="fT"></div><div class="fq" id="fQ"></div></div>
@@ -468,7 +468,7 @@ $$('.sec').forEach(s => spy.observe(s));
 })();
 
 /* numbers, glossary, sources */
-$('#v-nums').innerHTML = `<p class="lead" style="margin-top:0">Numbers the panel may ask about. Cover the description and test yourself.</p><div class="grid g3">${DATA.numbers.map(n => `<div class="num-card"><div class="v">${esc(n.v)}</div><div class="d">${esc(n.t)}</div></div>`).join('')}</div>`;
+$('#v-nums').innerHTML = `<p class="lead" style="margin-top:0">Key figures from the study. Cover the description and test yourself.</p><div class="grid g3">${DATA.numbers.map(n => `<div class="num-card"><div class="v">${esc(n.v)}</div><div class="d">${esc(n.t)}</div></div>`).join('')}</div>`;
 $('#v-gloss').innerHTML = `<div class="searchbar"><label class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="gq" type="search" placeholder="Filter terms…"></label></div>
   <div class="card"><dl style="margin:0">${DATA.glossary.map(g => `<div class="gl" data-txt="${esc((g.term+' '+g.def_).toLowerCase())}"><dt>${esc(g.term)}</dt><dd>${esc(g.def_)}</dd></div>`).join('')}</dl></div>`;
 $('#gq').oninput = e => { const t=e.target.value.trim().toLowerCase(); $$('#v-gloss .gl').forEach(x => x.classList.toggle('hidden', !!t && !x.dataset.txt.includes(t))); };

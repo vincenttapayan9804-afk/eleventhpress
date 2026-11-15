@@ -2,7 +2,7 @@ import { after, NextRequest, NextResponse } from "next/server";
 import { requestStudyGuideUpgrade, serveStudyGuide } from "@/lib/study-guide/server";
 
 /**
- * GET /api/articles/[id]/study-guide — the article's Researcher's Study
+ * GET /api/articles/[id]/study-guide — the article's Research Study
  * Guide, a self-contained interactive HTML file (src/lib/study-guide/*).
  * Public for published articles, like the galleys. Every published article
  * has one ready: it is built at publish time and by the daily sweep, and

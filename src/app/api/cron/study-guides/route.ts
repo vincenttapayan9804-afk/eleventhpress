@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureStudyGuide, sweepStudyGuides } from "@/lib/study-guide/server";
 
 /**
- * GET /api/cron/study-guides — background builder for the Researcher's
+ * GET /api/cron/study-guides — background builder for the Research
  * Study Guides (src/lib/study-guide/server.ts).
  *
  *   ?article=<id>  build that article's LLM-written guide (called after

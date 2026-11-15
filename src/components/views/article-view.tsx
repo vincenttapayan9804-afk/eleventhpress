@@ -63,7 +63,6 @@ import {
   Download,
   Share2,
   FileText,
-  BookOpen,
   BookText,
   ExternalLink,
   Database,
@@ -953,7 +952,8 @@ export function ArticleView() {
           <Card className="paper-card">
             <CardContent className="p-5">
               <p className="eyebrow">Galleys</p>
-              <div className="mt-3 space-y-2">
+              {/* Labels wrap inside their button instead of spilling past it in a narrow sidebar. */}
+              <div className="mt-3 space-y-2 [&>[data-slot=button]]:h-auto [&>[data-slot=button]]:min-h-9 [&>[data-slot=button]]:whitespace-normal [&>[data-slot=button]]:py-2 [&>[data-slot=button]]:text-left [&>[data-slot=button]]:leading-snug">
                 <Button
                   className="w-full justify-start"
                   variant="default"
@@ -993,19 +993,10 @@ export function ArticleView() {
                 {pdfPreviewUrl && (
                   <PdfPreview src={pdfPreviewUrl} className="h-[70dvh] max-h-[640px]" />
                 )}
-                <Button
-                  className="w-full justify-start"
-                  variant="outline"
-                  onClick={async () => {
-                    try {
-                      const r = await apiFetch<{ url: string }>(`/api/articles/${article.id}/galley?format=html`);
-                      window.open(r.url, "_blank");
-                    } catch (e: any) {
-                      toast.error("Galley not available", { description: e.message });
-                    }
-                  }}
-                >
-                  <IconChip icon={BookOpen} /> View HTML
+                <Button className="w-full justify-start" variant="outline" asChild>
+                  <a href={`/api/articles/${article.id}/study-guide`} download>
+                    <IconChip icon={GraduationCap} /> Research Study Guide
+                  </a>
                 </Button>
                 <Button
                   className="w-full justify-start"
@@ -1065,11 +1056,6 @@ export function ArticleView() {
                 )}
                 <ResearchVisualButton articleId={article.id} kind="infographic" label="Research infographic (PDF)" icon={LayoutDashboard} />
                 <ResearchVisualButton articleId={article.id} kind="poster" label="Research poster, A0 (PDF)" icon={Presentation} />
-                <Button className="w-full justify-start" variant="outline" asChild>
-                  <a href={`/api/articles/${article.id}/study-guide`} download>
-                    <IconChip icon={GraduationCap} /> Researcher&apos;s study guide (HTML)
-                  </a>
-                </Button>
                 {article.doi && (
                   <Button
                     className="w-full justify-start"

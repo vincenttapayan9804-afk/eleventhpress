@@ -22,7 +22,7 @@ afterAll(() => {
 });
 
 const { buildOutline } = await import("./outline");
-const { buildExtractiveGuide, generateStudyGuide } = await import("./build");
+const { buildExtractiveGuide, generateStudyGuide, neutralPov } = await import("./build");
 const { renderStudyGuideHtml, studyGuideFileName } = await import("./render");
 const { STUDY_GUIDE_TEMPLATE } = await import("./template.generated");
 const { extractiveContent, RESEARCH_VISUALS_VERSION } = await import("@/lib/research-visuals");
@@ -45,7 +45,7 @@ const BODY = `
 <p><strong>CHAPTER II</strong></p>
 <p><strong>METHODOLOGY</strong></p>
 <p><strong>Research Respondents</strong></p>
-<p>The respondents were 312 teachers from public secondary schools selected through stratified random sampling, with a margin of error of 0.05 and a confidence level of 95%.</p>
+<p>We surveyed the respondents, and our sample was drawn with care. The respondents were 312 teachers from public secondary schools selected through stratified random sampling, with a margin of error of 0.05 and a confidence level of 95%.</p>
 <p><strong>Statistical Tools</strong></p>
 <p>Mean and standard deviation describe the levels of the variables, while Pearson r tests the relationship between teacher self-efficacy and learner engagement (Pallant, 2020).</p>
 <p><strong>REFERENCES</strong></p>
@@ -152,6 +152,35 @@ describe("buildExtractiveGuide", () => {
     for (const s of g.sections) if (s.slides.startsWith("Slide ")) expect(nums.has(s.slides)).toBe(true);
     expect(g.chapters[3]).toBe("Figures, Tables & References");
   });
+
+  test("everything the guide writes is in a general point of view; manuscript text stays verbatim", () => {
+    const FIRST = /\b(I|me|my|we|us|our|ours)\b/i;
+    const written = [
+      ...g.sections.flatMap((s) => [s.overview, ...s.paras.flatMap((p) => [p.label, p.gist, p.role]), ...s.qa.flatMap((x) => [x.q, x.a])]),
+      ...g.slides.map((x) => x.note),
+      ...g.elevator,
+      ...g.numbers.map((x) => x.t),
+      ...g.glossary.map((x) => x.def_),
+    ];
+    for (const t of written) expect(t).not.toMatch(FIRST);
+    expect(g.slides[0].note).toStartWith("This presentation introduces the study");
+    expect(g.slides[g.slides.length - 1].note).toEndWith("The presentation closes by inviting questions.");
+    expect(g.sections.flatMap((s) => s.paras).some((p) => p.orig.includes("We surveyed the respondents, and our sample"))).toBe(true);
+  });
+});
+
+describe("neutralPov", () => {
+  test("rewrites first person into the third person", () => {
+    expect(neutralPov("We surveyed 312 teachers, and our sample was random.")).toBe("The researchers surveyed 312 teachers, and the sample was random.");
+    expect(neutralPov("In this study, I am interested in how we teach. My aim is clear.")).toBe("In this study, the researcher is interested in how the researchers teach. The aim is clear.");
+    expect(neutralPov("I examined the data that helped us.")).toBe("The researcher examined the data that helped the researchers.");
+  });
+
+  test("leaves Roman numerals, quoted titles, the US and Our Lady names alone", () => {
+    for (const t of ["Chapter I presents the problem.", "A Type I error is possible.", "Data from the US were used.", "Respondents from Our Lady of Fatima University took part.", "The study “We Are Here” was read."]) {
+      expect(neutralPov(t)).toBe(t);
+    }
+  });
 });
 
 describe("renderStudyGuideHtml", () => {
@@ -165,7 +194,11 @@ describe("renderStudyGuideHtml", () => {
     expect(data.sections[0].paras[0].orig).toContain("</script><script>alert(1)</script> {{TITLE}}");
     expect(data.big.modelSvg).toStartWith("<svg");
     expect(html).toContain(`<h1>${TITLE}</h1>`);
+    expect(html).toContain("Research Study Guide · Research Article");
+    expect(html).not.toContain("Researcher's Study Guide");
     expect(html).toContain("localStorage.getItem('study-guide-a1:'+k)");
+    expect(html).toContain("['script','Presentation Notes'],['qa','Study Q&A']");
+    expect(html).not.toMatch(/Presentation Script|Defense Q&A|panel questions/i);
     // Platform documents carry the EP medallion and no platform credit.
     expect(html).toContain(">EP</text>");
     expect(html).not.toContain("Powered by");
@@ -184,7 +217,7 @@ describe("renderStudyGuideHtml", () => {
   });
 
   test("file name uses the first author's surname", () => {
-    expect(studyGuideFileName({ authors: ["Darra Marie C. Nazon"], shortTitle: "X" })).toBe("Nazon_Study_Guide.html");
+    expect(studyGuideFileName({ authors: ["Darra Marie C. Nazon"], shortTitle: "X" })).toBe("Nazon_Research_Study_Guide.html");
   });
 });
 
@@ -198,7 +231,7 @@ describe("generateStudyGuide with an LLM", () => {
           sections: ids.map((id) => ({
             id,
             overview: id.startsWith("research-respondents") ? "Explains who answered the survey: 312 teachers." : "Explains the section.",
-            slideNote: "Here I explain this part.",
+            slideNote: "Here I explain our sampling.",
             paras: [{ i: 0, label: "Who took part", gist: id.startsWith("research-respondents") ? "A total of 999 teachers took part." : "A grounded paraphrase.", role: "Shows the sample." }],
             qa: [{ q: "Who took part?", a: id.startsWith("research-respondents") ? "312 teachers, chosen by stratified random sampling." : "As the section explains." }],
           })),
@@ -216,6 +249,8 @@ describe("generateStudyGuide with an LLM", () => {
       expect(resp.paras[0].gist).not.toContain("999");
       expect(resp.paras[0].gist).toContain("312");
       expect(g.elevator).toHaveLength(3);
+      // First-person model output is rewritten into the general point of view.
+      expect(resp.overview).not.toMatch(/\b(I|our)\b/);
     } finally {
       active = false;
     }

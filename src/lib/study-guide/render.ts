@@ -1,6 +1,6 @@
 /**
  * Renders a study guide (src/lib/study-guide/build.ts) into the
- * Researcher's Study Guide HTML: a single self-contained page with Study
+ * Research Study Guide HTML: a single self-contained page with Study
  * Notes, Big Picture, Presentation Script, Defense Q&A, Flashcards, Key
  * Numbers, Glossary and Sources tabs, light/dark themes, search, review
  * progress and print.
@@ -136,12 +136,12 @@ function monthYear(d: Date | null): string {
 export function studyGuideFileName(meta: Pick<StudyGuideMeta, "authors" | "shortTitle">): string {
   const surname = (meta.authors[0] ?? "").replace(/,.*$/, "").trim().split(/\s+/).pop() ?? "";
   const base = (surname || meta.shortTitle.split(/\s+/).slice(0, 4).join(" ")).normalize("NFKD").replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
-  return `${base || "Article"}_Study_Guide.html`;
+  return `${base || "Article"}_Research_Study_Guide.html`;
 }
 
 export function renderStudyGuideHtml(guide: StudyGuideData, meta: StudyGuideMeta): string {
   const typeLabel = TYPE_LABEL[meta.contentType] ?? "Research Article";
-  const kicker = `Researcher's Study Guide · ${typeLabel}`;
+  const kicker = `Research Study Guide · ${typeLabel}`;
   const affs = [...new Set(meta.affiliations.filter(Boolean))];
   const who = [
     meta.authors.length ? `<b>${esc(meta.authors.join(", "))}</b>` : "",
@@ -184,7 +184,7 @@ export function renderStudyGuideHtml(guide: StudyGuideData, meta: StudyGuideMeta
   };
 
   const values: Record<string, string> = {
-    TITLE: esc(`${meta.shortTitle} · Study Guide`),
+    TITLE: esc(`${meta.shortTitle} · Research Study Guide`),
     KICKER: esc(kicker),
     SHORT: esc(meta.shortTitle),
     LOGO: logo,
