@@ -5,6 +5,7 @@ import { fetchAuthorCitationMetrics, computeHIndex } from "@/lib/citation-metric
 import { resolveTenantFromHeaders, tenantCacheControl } from "@/lib/tenant";
 import { withTenantRlsContext } from "@/lib/db-rls";
 import { identityLevel } from "@/lib/author-profile";
+import { bylineMatchesAccount } from "@/lib/author-path";
 
 /**
  * GET /api/authors
@@ -161,7 +162,12 @@ export async function GET(req: NextRequest) {
 
   const authors = entries
     .map((e) => {
-      const account = (e.orcid && accountByOrcid.get(e.orcid)) || (e.email && accountByEmail.get(e.email.toLowerCase())) || null;
+      // A match by email alone must carry this byline's surname, so one
+      // email shared across two people's bylines can't lend one person's
+      // profile and verified status to the other.
+      const byEmail = e.email ? accountByEmail.get(e.email.toLowerCase()) : undefined;
+      const account =
+        (e.orcid && accountByOrcid.get(e.orcid)) || (byEmail && bylineMatchesAccount(e.name, byEmail.fullName) ? byEmail : null) || null;
       const live = liveMetrics.get(e.key);
       const citationMetrics = live
         ? { worksCount: live.worksCount, citedByCount: live.citedByCount, hIndex: live.hIndex, source: "openalex" as const }

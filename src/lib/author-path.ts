@@ -42,3 +42,28 @@ export function displayCase(value: string | null | undefined): string {
     })
     .join(" ");
 }
+
+/**
+ * Whether a registered account matched to a byline by email address alone
+ * plausibly belongs to that byline: the surname on the byline must appear
+ * in the account's name (or the other way round). An email shared between
+ * two different people's bylines otherwise lends one person's photo,
+ * profile and "verified" status to the other. A match by ORCID iD needs no
+ * such check — the iD is unique to the person.
+ */
+export function bylineMatchesAccount(bylineName: string, accountName: string | null | undefined): boolean {
+  const tokens = (s: string) =>
+    s
+      .normalize("NFD")
+      .replace(/\p{M}/gu, "")
+      .toLowerCase()
+      .replace(/^(dr|prof|mr|mrs|ms)\.?\s+/, "")
+      .split(/[^a-z]+/)
+      .filter((t) => t.length > 1);
+  const byline = tokens(bylineName);
+  const account = tokens(accountName || "");
+  if (!byline.length || !account.length) return false;
+  const surname = byline[byline.length - 1];
+  const accountSurname = account[account.length - 1];
+  return account.includes(surname) || byline.includes(accountSurname);
+}

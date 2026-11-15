@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { parseAuthors } from "@/lib/article";
 import { withTenantRlsContext } from "@/lib/db-rls";
-import { authorSlug } from "@/lib/author-path";
+import { authorSlug, bylineMatchesAccount } from "@/lib/author-path";
 import { computeHIndex, fetchAuthorCitationMetrics } from "@/lib/citation-metrics";
 
 /**
@@ -132,11 +132,12 @@ export async function getAuthorProfile(slug: string, tenantId: string | null) {
   }
   if (!mine.length) return null;
 
-  const account = await db.user
+  const candidate = await db.user
     .findFirst({
       where: { OR: [...(orcid ? [{ orcid }] : []), ...(email ? [{ email }] : [])], deletedAt: null },
       select: {
         id: true,
+        fullName: true,
         orcid: true,
         orcidLastSync: true,
         emailVerifiedAt: true,
@@ -162,6 +163,9 @@ export async function getAuthorProfile(slug: string, tenantId: string | null) {
       },
     })
     .catch(() => null);
+  // An account found by email alone must carry this byline's surname.
+  const orcidMatch = !!candidate && !!orcid && cleanOrcid(candidate.orcid) === cleanOrcid(orcid);
+  const account = candidate && (orcidMatch || bylineMatchesAccount(name, candidate.fullName)) ? candidate : null;
 
   // Authorship the author confirmed through the emailed co-author link.
   const confirmed = email
@@ -202,7 +206,7 @@ export async function getAuthorProfile(slug: string, tenantId: string | null) {
     const roles = confirmedBy.get(a.id);
     return {
       id: a.id,
-      title: a.title,
+      title: a.title.replace(/\s+/g, " ").trim(),
       discipline: a.discipline,
       contentType: a.contentType,
       doi: a.doi,

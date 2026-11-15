@@ -5,7 +5,7 @@ mock.module("@/lib/db", () => ({ db: {} }));
 mock.module("@/lib/db-rls", () => ({ withTenantRlsContext: async () => [] }));
 
 const { identityLevel, summarizeChecks, IDENTITY_LABEL } = await import("./author-profile");
-const { displayCase } = await import("./author-path");
+const { displayCase, bylineMatchesAccount } = await import("./author-path");
 
 describe("displayCase", () => {
   test("title-cases names and job titles typed in capitals", () => {
@@ -47,5 +47,17 @@ describe("summarizeChecks", () => {
         { sealed: false, doi: "10.5072/y", authorship: "confirmed" },
       ])
     ).toEqual({ sealed: 2, withDoi: 2, authorshipConfirmed: 2, total: 3 });
+  });
+});
+
+describe("bylineMatchesAccount", () => {
+  test("same person under different name forms", () => {
+    expect(bylineMatchesAccount("VINCENT MARFE TAPAYAN", "Vincent Marfe Tapayan")).toBe(true);
+    expect(bylineMatchesAccount("V. M. Tapayan", "VINCENT MARFE TAPAYAN")).toBe(true);
+    expect(bylineMatchesAccount("Dr. José Núñez", "Jose Nunez Garcia")).toBe(true);
+  });
+  test("a different person sharing the email is not matched", () => {
+    expect(bylineMatchesAccount("VINCENT PARIS", "VINCENT MARFE TAPAYAN")).toBe(false);
+    expect(bylineMatchesAccount("Ana Lim", null)).toBe(false);
   });
 });
