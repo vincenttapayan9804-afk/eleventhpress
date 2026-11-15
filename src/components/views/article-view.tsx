@@ -953,7 +953,8 @@ export function ArticleView() {
           <Card className="paper-card">
             <CardContent className="p-5">
               <p className="eyebrow">Galleys</p>
-              <div className="mt-3 space-y-2">
+              {/* Labels wrap inside their button instead of spilling past it in a narrow sidebar. */}
+              <div className="mt-3 space-y-2 [&>[data-slot=button]]:h-auto [&>[data-slot=button]]:min-h-9 [&>[data-slot=button]]:whitespace-normal [&>[data-slot=button]]:py-2 [&>[data-slot=button]]:text-left [&>[data-slot=button]]:leading-snug">
                 <Button
                   className="w-full justify-start"
                   variant="default"

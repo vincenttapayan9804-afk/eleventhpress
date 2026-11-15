@@ -7,11 +7,11 @@
  *
  * - Study notes: the article's own sections and paragraphs (the manuscript
  *   text is shown verbatim), each with a plain-language "what it says", a
- *   "why it's there · how to present it" note and likely panel questions.
+ *   "why it's there · how to present it" note and likely study questions.
  * - Big picture: a 60-second summary, the study's model (its framework,
  *   variables or Input-Process-Output paradigm), the research questions →
  *   method → finding table and how the manuscript is built.
- * - Presentation script, flashcards, key numbers, glossary and sources
+ * - Presentation notes, flashcards, key numbers, glossary and sources
  *   (with where each reference is cited).
  *
  * An extractive pass builds the whole guide from the text alone, so a guide
@@ -41,7 +41,7 @@ import { buildOutline, type Outline, type OutlineSection } from "@/lib/study-gui
  * keyed by it, so every published article's guide is rebuilt on its next
  * download (and by the daily sweep).
  */
-export const STUDY_GUIDE_VERSION = 2;
+export const STUDY_GUIDE_VERSION = 3;
 
 export interface GuidePara {
   label: string;
@@ -181,7 +181,7 @@ const ROLE: Partial<Record<SectionKey, string>> = {
   hypotheses: "States the claims the study tests statistically. Be ready to say how each is accepted or rejected.",
   framework: "Names the theory and the variables or constructs, and how they connect. This is the logic the methods test.",
   significance: "Explains who benefits and how. Useful for closing remarks and 'so what?' questions.",
-  scope: "Draws the boundaries: who, where, when and what is not covered. Mention it before the panel asks.",
+  scope: "Draws the boundaries: who, where, when and what is not covered. Stating it early heads off questions about what is not covered.",
   literature: "Shows what earlier studies found and where they fall short. Use it to justify the variables and the gap.",
   definitions: "Fixes how key terms are used in this study. Define on request, in the study's own words.",
   design: "Names the research design and why it fits the questions. Expect 'why this design and not another?'.",
@@ -209,7 +209,7 @@ function roleFor(section: OutlineSection, i: number, text: string): string {
   else bits.push(i === 1 && base ? "Develops the section's main point with detail." : "Adds supporting detail to the section's argument.");
   const cite = text.match(CITE_RE);
   if (cite) bits.push(`Backed by ${cite[1] ?? cite[3]} (${cite[2] ?? cite[4]}); be ready to name the source.`);
-  else if (HAS_NUMBER.test(text)) bits.push("Contains figures the panel may ask you to recall.");
+  else if (HAS_NUMBER.test(text)) bits.push("Contains figures worth remembering exactly.");
   return bits.join(" ");
 }
 
@@ -243,7 +243,7 @@ const QA: Partial<Record<SectionKey, QATemplate[]>> = {
   results: [{ q: "What is the main finding?", re: /\b(found|reveal|show|indicat|result|significan|highest|lowest|mean|level)\w*/i }],
   discussion: [{ q: "How do the findings compare with earlier studies?", re: /\b(consistent|support|agree|align|contrary|contrast|similar|earlier|previous|confirm)\w*/i }],
   conclusion: [{ q: "What does the study conclude?", re: /\b(conclude|therefore|thus|overall|in summary|findings)\w*/i }],
-  recommendations: [{ q: "What do you recommend, and to whom?", re: /\b(recommend|should|may|encouraged|suggest)\w*/i }],
+  recommendations: [{ q: "What does the study recommend, and to whom?", re: /\b(recommend|should|may|encouraged|suggest)\w*/i }],
   limitations: [{ q: "What are the limitations of the study?", re: /\b(limit|only|cannot|small|single|self-report|generaliz)\w*/i }],
   ethics: [{ q: "How were the participants protected?", re: /\b(consent|confidential|privacy|anonym|risk|voluntary|withdraw|data privacy|ethics)\w*/i }],
 };
@@ -298,7 +298,7 @@ function contextFor(sentence: string, value: string): string {
 export function extractNumbers(sections: OutlineSection[], max = 40): { v: string; t: string; section: string }[] {
   const out: { v: string; t: string; section: string }[] = [];
   const seen = new Set<string>();
-  // Methods and results first: those are the numbers a panel asks about.
+  // Methods and results first: those are the numbers most worth knowing.
   const order = [...sections].sort((a, b) => rank(a.key) - rank(b.key));
   for (const s of order) {
     for (const p of s.paras) {
@@ -526,6 +526,68 @@ function bigPicture(src: StudyGuideSource, outline: Outline, sections: GuideSect
 
 // ─── Extractive guide ──────────────────────────────────────────────────────
 
+// ─── Point of view ─────────────────────────────────────────────────────────
+
+/** Roman-numeral "I" (Chapter I, Type I error …) is not a pronoun. */
+const ROMAN_I_BEFORE = /\b(chapter|phase|type|table|figure|fig\.|section|part|level|grade|article|stage|class|tier|appendix|model|book|volume|vol\.|world war|cycle|round|step|unit|study|experiment|trial|group|category)\s*$/i;
+
+function withCase(match: string, out: string): string {
+  return /^[A-Z]/.test(match) ? capFirst(out) : out;
+}
+
+/**
+ * Rewrites first-person wording (I, me, my, we, us, our) into a general,
+ * third-person point of view ("the researcher", "the researchers", "the
+ * study"), so guide text never speaks as the author. Applied to everything
+ * the guide writes; the manuscript's own text (shown verbatim) is untouched.
+ */
+export function neutralPov(text: string): string {
+  if (!text || !/\b(I|me|my|we|us|our|ours)\b/i.test(text)) return text;
+  // Quoted text (a title, a quoted line) and names such as "Our Lady of …" are kept as written.
+  return text
+    .split(/(“[^”]*”|"[^"]*"|\bOur Lady\b[^,;.]*)/)
+    .map((part, k) => (k % 2 ? part : povPart(part)))
+    .join("");
+}
+
+function povPart(text: string): string {
+  const t = text
+    .replace(/\b(our|my) (own )?(study|research|paper|thesis|dissertation|article|investigation|inquiry|findings?|results?|data|dataset|sample|respondents|participants|informants|analysis|framework|model|hypothes[ie]s|questionnaire|instrument|survey|method(?:s|ology)?|approach|objectives?|aims?|work|project|experiments?|review|team)\b/gi, (m, _p, _o, noun: string) => withCase(m, `the ${noun}`))
+    .replace(/\bwe(?: are|['’]re)\b/gi, (m) => withCase(m, "the researchers are"))
+    .replace(/\bwe['’]ve\b/gi, (m) => withCase(m, "the researchers have"))
+    .replace(/\bwe\b/gi, (m) => withCase(m, "the researchers"))
+    .replace(/\bours?\b/gi, (m) => withCase(m, "the researchers'"))
+    .replace(/\bus\b/g, "the researchers")
+    .replace(/\bmy\b/gi, (m) => withCase(m, "the researcher's"))
+    .replace(/\bme\b/g, "the researcher");
+  return t.replace(/\bI(?: am|['’]m)\b|\bI(?: have|['’]ve)\b|\bI\b(?=\s+[a-z])/g, (m: string, off: number, all: string) => {
+    if (ROMAN_I_BEFORE.test(all.slice(0, off))) return m;
+    const out = /m$/.test(m) ? "the researcher is" : /(ve|have)$/.test(m) ? "the researcher has" : "the researcher";
+    return off === 0 || /[.!?:]["”)]?\s+$/.test(all.slice(0, off)) ? capFirst(out) : out;
+  });
+}
+
+/** Every guide-written field in a general point of view (manuscript text and references stay verbatim). */
+function neutralGuide(g: StudyGuideData): StudyGuideData {
+  const n = neutralPov;
+  for (const s of g.sections) {
+    s.overview = n(s.overview);
+    for (const p of s.paras) {
+      p.gist = n(p.gist);
+      p.role = n(p.role);
+    }
+    s.qa = s.qa.map((x) => ({ q: n(x.q), a: n(x.a) }));
+  }
+  g.elevator = g.elevator.map(n);
+  g.slides = g.slides.map((x) => ({ ...x, title: n(x.title), note: n(x.note) }));
+  g.numbers = g.numbers.map((x) => ({ ...x, t: n(x.t) }));
+  g.glossary = g.glossary.map((x) => ({ ...x, def_: n(x.def_) }));
+  g.big.modelNote = n(g.big.modelNote);
+  g.big.rows = g.big.rows.map((r): [string, string, string, string] => [r[0], n(r[1]), n(r[2]), n(r[3])]);
+  g.big.cards = g.big.cards.map((c) => ({ ...c, p: n(c.p) }));
+  return g;
+}
+
 const NOT_A_SLIDE: Partial<Record<SectionKey, string>> = {
   literature: "Not a slide (be ready to discuss)",
   definitions: "Not a slide (define on request)",
@@ -566,7 +628,7 @@ export function buildExtractiveGuide(src: StudyGuideSource): StudyGuideData {
   const figs = outline.captions.filter((x) => /^fig/i.test(x));
   const tabs = outline.captions.filter((x) => /^table/i.test(x));
   if (figs.length) backParas.push({ label: "Figures", gist: `The manuscript has ${figs.length} figure${figs.length > 1 ? "s" : ""}: ${clip(figs.join("; "), 360)}`, role: "Know what each figure shows and where it is discussed.", orig: figs.join("\n") });
-  if (tabs.length) backParas.push({ label: "Tables", gist: `The manuscript has ${tabs.length} table${tabs.length > 1 ? "s" : ""}: ${clip(tabs.join("; "), 360)}`, role: "Know what each table summarises; panels often ask you to read one aloud.", orig: tabs.join("\n") });
+  if (tabs.length) backParas.push({ label: "Tables", gist: `The manuscript has ${tabs.length} table${tabs.length > 1 ? "s" : ""}: ${clip(tabs.join("; "), 360)}`, role: "Know what each table summarises and how to read its values.", orig: tabs.join("\n") });
   if (refsRaw.length) backParas.push({ label: "References", gist: `The reference list has ${refsRaw.length} entries. The Sources tab lists each one and where it is cited.`, role: "Every source cited in the text should appear in the list, and every listed source should be cited.", orig: `${refsRaw.length} references (see the Sources tab).` });
   const chapters = { ...outline.chapters };
   if (backParas.length) {
@@ -581,7 +643,7 @@ export function buildExtractiveGuide(src: StudyGuideSource): StudyGuideData {
     n: 1,
     title: "Title slide",
     note: clip(
-      `Good day, panel members. ${first ? `I am ${first}${src.authors.length > 1 ? `, presenting with ${joinList(src.authors.slice(1).map((a) => displayCase(a.name)))}` : ""}. ` : ""}Our study is entitled “${displayCase(src.title)}”. ${c.objective ? `In short, ${c.objective.replace(/^(this|the) (study|research|paper|inquiry)\s+/i, "it ")}` : ""}`,
+      `This presentation introduces the study “${displayCase(src.title)}”${first ? ` by ${joinList(src.authors.map((a) => displayCase(a.name)).filter(Boolean))}` : ""}. ${c.objective ? `In brief, ${c.objective.replace(/^(this|the) (study|research|paper|inquiry)\s+/i, "the study ")}` : ""}`,
       700
     ),
   });
@@ -610,7 +672,7 @@ export function buildExtractiveGuide(src: StudyGuideSource): StudyGuideData {
   slides.push({
     n,
     title: c.stage === "proposal" ? "Expected contribution and closing" : "Conclusion and closing",
-    note: clip(`${c.stage === "proposal" ? c.significance : c.conclusion || c.significance} Thank you. I welcome the panel's questions.`.trim(), 600),
+    note: clip(`${c.stage === "proposal" ? c.significance : c.conclusion || c.significance} The presentation closes by inviting questions.`.trim(), 600),
   });
 
   const elevator = [
@@ -633,7 +695,7 @@ export function buildExtractiveGuide(src: StudyGuideSource): StudyGuideData {
     ...src.keywords.split(/[;,]/).map((k) => k.trim()).filter(Boolean).slice(0, 3),
   ].filter((x): x is string => !!x && x.length > 2);
 
-  return {
+  return neutralGuide({
     version: STUDY_GUIDE_VERSION,
     mode: "extractive",
     model: "extractive",
@@ -648,31 +710,31 @@ export function buildExtractiveGuide(src: StudyGuideSource): StudyGuideData {
     big: bigPicture(src, outline, sections),
     pace: `≈ ${minutes} minutes overall`,
     chips: [...new Set(chips)].slice(0, 7),
-  };
+  });
 }
 
 // ─── LLM enrichment ────────────────────────────────────────────────────────
 
-const SECTION_PROMPT = `You are an experienced thesis adviser preparing a researcher's study guide for an oral defense. For each manuscript section you are given, explain it so the researcher can present and defend it without notes.
+const SECTION_PROMPT = `You are an experienced research adviser preparing a study guide for a published study. For each manuscript section you are given, explain it so any reader can understand, present and discuss it without notes.
 
 Return JSON: {"sections":[{"id":"<id as given>","overview":"...","slideNote":"...","paras":[{"i":0,"label":"...","gist":"...","role":"..."}],"qa":[{"q":"...","a":"..."}]}]}
 
 - overview: 2–3 sentences on what the section does and how to remember its logic.
 - paras: one entry per paragraph, by its index i. label: 2–6 word title. gist: "What it says" — a faithful plain-language paraphrase in 2–4 sentences. role: "Why it's there · how to present it" — 1–2 sentences, may include a suggested way to say it.
-- qa: 2–3 questions a defense panel is likely to ask about this section, each with a model answer of 2–4 sentences.
-- slideNote: what the presenter says on this section's slide, first person, 3–5 sentences.
+- qa: 2–3 questions a reader or reviewer is likely to ask about this section, each with a model answer of 2–4 sentences.
+- slideNote: presentation notes for this section's slide, 3–5 sentences.
 
-Rules: use ONLY the given text. Never invent numbers, names, sources, findings or results; copy any number exactly as written. If the text is a proposal (future tense, no results), never present findings. Plain, precise academic English.`;
+Rules: write everything from a general, third-person point of view about the study ("the study", "the researchers", "this section"); never use first person (I, me, my, we, us, our) and never speak as the author. Use ONLY the given text. Never invent numbers, names, sources, findings or results; copy any number exactly as written. If the text is a proposal (future tense, no results), never present findings. Plain, precise academic English.`;
 
-const GUIDE_PROMPT = `You are an experienced thesis adviser preparing a researcher's study guide for an oral defense. From the manuscript facts given, return JSON:
+const GUIDE_PROMPT = `You are an experienced research adviser preparing a study guide for a published study. From the manuscript facts given, return JSON:
 
 {"elevator":["5 sentences: context and problem; aim; method; main findings (or, for a proposal, what is tested); significance"],
  "numbers":[{"i":0,"t":"what this number refers to in the study, ≤ 18 words"}],
  "glossary":[{"i":0,"def":"plain definition as used in this study, 1–2 sentences"}],
- "titleNote":"what the researcher says on the title slide: greeting, name, title, one-sentence summary",
- "closingNote":"closing slide: conclusion or expected contribution, then invite questions"}
+ "titleNote":"presentation notes for the title slide: the study's title and authors, then a one-sentence summary",
+ "closingNote":"presentation notes for the closing slide: conclusion or expected contribution, then an invitation to questions"}
 
-Rules: use ONLY the given facts; copy numbers exactly; never invent findings, names or sources.`;
+Rules: write from a general, third-person point of view about the study ("the study", "the researchers"); never use first person (I, me, my, we, us, our) and never speak as the author. Use ONLY the given facts; copy numbers exactly; never invent findings, names or sources.`;
 
 const LLM_BUDGET_MS = 140_000;
 const BATCH_CHARS = 9000;
@@ -847,7 +909,7 @@ export async function generateStudyGuide(src: StudyGuideSource): Promise<StudyGu
     guide.mode = "llm";
     guide.model = sec.model || "llm";
   }
-  return guide;
+  return neutralGuide(guide);
 }
 
 // ─── Cache ─────────────────────────────────────────────────────────────────
