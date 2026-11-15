@@ -1,5 +1,5 @@
 /**
- * The content of an article's Researcher's Study Guide: the interactive
+ * The content of an article's Research Study Guide: the interactive
  * HTML document (src/lib/study-guide/render.ts) offered with every
  * published article's galleys.
  *

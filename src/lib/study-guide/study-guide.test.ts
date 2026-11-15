@@ -194,6 +194,8 @@ describe("renderStudyGuideHtml", () => {
     expect(data.sections[0].paras[0].orig).toContain("</script><script>alert(1)</script> {{TITLE}}");
     expect(data.big.modelSvg).toStartWith("<svg");
     expect(html).toContain(`<h1>${TITLE}</h1>`);
+    expect(html).toContain("Research Study Guide · Research Article");
+    expect(html).not.toContain("Researcher's Study Guide");
     expect(html).toContain("localStorage.getItem('study-guide-a1:'+k)");
     expect(html).toContain("['script','Presentation Notes'],['qa','Study Q&A']");
     expect(html).not.toMatch(/Presentation Script|Defense Q&A|panel questions/i);
@@ -215,7 +217,7 @@ describe("renderStudyGuideHtml", () => {
   });
 
   test("file name uses the first author's surname", () => {
-    expect(studyGuideFileName({ authors: ["Darra Marie C. Nazon"], shortTitle: "X" })).toBe("Nazon_Study_Guide.html");
+    expect(studyGuideFileName({ authors: ["Darra Marie C. Nazon"], shortTitle: "X" })).toBe("Nazon_Research_Study_Guide.html");
   });
 });
 

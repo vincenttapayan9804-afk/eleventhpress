@@ -253,7 +253,7 @@ export async function POST(req: NextRequest) {
         }
       });
 
-      // 1d. Researcher's Study Guide: build it now so it is downloadable
+      // 1d. Research Study Guide: build it now so it is downloadable
       //     the moment the article is live, then let the background builder
       //     replace it with the LLM-written version.
       after(async () => {

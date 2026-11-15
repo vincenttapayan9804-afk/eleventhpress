@@ -63,7 +63,6 @@ import {
   Download,
   Share2,
   FileText,
-  BookOpen,
   BookText,
   ExternalLink,
   Database,
@@ -994,19 +993,10 @@ export function ArticleView() {
                 {pdfPreviewUrl && (
                   <PdfPreview src={pdfPreviewUrl} className="h-[70dvh] max-h-[640px]" />
                 )}
-                <Button
-                  className="w-full justify-start"
-                  variant="outline"
-                  onClick={async () => {
-                    try {
-                      const r = await apiFetch<{ url: string }>(`/api/articles/${article.id}/galley?format=html`);
-                      window.open(r.url, "_blank");
-                    } catch (e: any) {
-                      toast.error("Galley not available", { description: e.message });
-                    }
-                  }}
-                >
-                  <IconChip icon={BookOpen} /> View HTML
+                <Button className="w-full justify-start" variant="outline" asChild>
+                  <a href={`/api/articles/${article.id}/study-guide`} download>
+                    <IconChip icon={GraduationCap} /> Research Study Guide
+                  </a>
                 </Button>
                 <Button
                   className="w-full justify-start"
@@ -1066,11 +1056,6 @@ export function ArticleView() {
                 )}
                 <ResearchVisualButton articleId={article.id} kind="infographic" label="Research infographic (PDF)" icon={LayoutDashboard} />
                 <ResearchVisualButton articleId={article.id} kind="poster" label="Research poster, A0 (PDF)" icon={Presentation} />
-                <Button className="w-full justify-start" variant="outline" asChild>
-                  <a href={`/api/articles/${article.id}/study-guide`} download>
-                    <IconChip icon={GraduationCap} /> Researcher&apos;s study guide (HTML)
-                  </a>
-                </Button>
                 {article.doi && (
                   <Button
                     className="w-full justify-start"

@@ -46,7 +46,7 @@ const SWEEPS = [
   // (conversations inactive past RESEARCH_CHAT_RETENTION_DAYS, old feedback).
   { name: "researchRetention", run: () => purgeExpiredResearchData() },
   // Not a stuck-job sweep: every published article (platform and tenants)
-  // gets its Researcher's Study Guide ready to download, and guides built
+  // gets its Research Study Guide ready to download, and guides built
   // without an LLM are queued for the LLM-written version.
   { name: "studyGuides", run: () => sweepStudyGuides(150_000) },
   // Daily notification digest for people who chose one email a day.

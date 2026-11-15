@@ -1,5 +1,5 @@
 /**
- * Builds, stores and serves each published article's Researcher's Study
+ * Builds, stores and serves each published article's Research Study
  * Guide (HTML), so every article — on the platform and on every tenant —
  * has one ready to download without anyone having to request it first.
  *
