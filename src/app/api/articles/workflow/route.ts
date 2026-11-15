@@ -119,7 +119,8 @@ export async function POST(req: NextRequest) {
       patch.publishedAt = new Date();
       // Activate DOI: draft suffix → published suffix
       if (article.doi && article.doi.includes(".draft.")) {
-        const newDoi = article.doi.replace(".draft.", ".2024.");
+        // The year segment is the year of publication (it was a fixed "2024").
+        const newDoi = article.doi.replace(".draft.", `.${new Date().getUTCFullYear()}.`);
         patch.doi = newDoi;
         patch.doiStatus = "PUBLISHED";
       } else if (article.doi) {
@@ -189,10 +190,11 @@ export async function POST(req: NextRequest) {
         // Fall back to placeholder galley keys — and actually write content
         // at those keys, since a key with nothing behind it is a dead
         // download link for readers.
-        const suffix = updated.doi?.split(".").pop() || Math.floor(Math.random() * 90000) + 10000;
-        const pdfKey = `published-galleys/${suffix}.pdf`;
-        const htmlKey = `published-galleys/${suffix}.html`;
-        const placeholderHtml = `<!DOCTYPE html><html><body><h1>${updated.title}</h1><p>${updated.abstract}</p><p><em>Galley rendering is temporarily unavailable; this is a plain-text fallback.</em></p></body></html>`;
+        // Keyed by the article id: a DOI's last segment is not unique across journals.
+        const pdfKey = `published-galleys/${articleId}.pdf`;
+        const htmlKey = `published-galleys/${articleId}.html`;
+        const esc = (v: string) => v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const placeholderHtml = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>${esc(updated.title)}</title></head><body><h1>${esc(updated.title)}</h1><p>${esc(updated.abstract || "")}</p><p><em>Galley rendering is temporarily unavailable; this is a plain-text fallback.</em></p></body></html>`;
         const placeholderPdf = await renderMinimalErrorPdf({ title: updated.title });
         await Promise.all([
           putObject(htmlKey, Buffer.from(placeholderHtml, "utf-8"), "text/html; charset=utf-8"),

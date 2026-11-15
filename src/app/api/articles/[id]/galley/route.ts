@@ -4,8 +4,7 @@ import { presignGet, objectExists, getObject, putObject } from "@/lib/storage";
 import { recordCounterEvent } from "@/lib/institutions";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { stampPdf, stampEpub, type DownloadStamp } from "@/lib/watermark";
-import { APP_BASE_URL } from "@/lib/site";
-import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { resolveTenantFromHeaders, tenantBaseUrl } from "@/lib/tenant";
 import { withTenantRlsContext } from "@/lib/db-rls";
 
 /**
@@ -37,6 +36,9 @@ export async function GET(
   const { id } = await params;
   const { searchParams } = new URL(req.url);
   const format = (searchParams.get("format") || "pdf").toLowerCase();
+  // "Read online" (?preview=1) shows the published file as is: no
+  // per-download copy to stamp and store, and it isn't counted as a download.
+  const preview = searchParams.get("preview") === "1";
   if (!["pdf", "html", "jats", "epub"].includes(format)) {
     return NextResponse.json({ error: "format must be pdf, html, jats, or epub" }, { status: 400 });
   }
@@ -86,7 +88,7 @@ export async function GET(
   // both built on — until now this route never wrote to either, so
   // downloads never moved no matter how many readers actually downloaded
   // the PDF. Scoped to PDF only, matching the metric's own label.
-  if (format === "pdf") {
+  if (format === "pdf" && !preview) {
     db.article.update({ where: { id }, data: { downloads: { increment: 1 } } }).catch(() => {});
     recordCounterEvent({
       articleId: id,
@@ -107,26 +109,30 @@ export async function GET(
   // — it only makes provenance traceable if a copy surfaces elsewhere.
   // HTML/JATS aren't stamped: JATS is a machine-readable archival/indexing
   // format, and HTML is served for in-browser reading, not carried away.
-  if (format === "pdf" || format === "epub") {
+  if ((format === "pdf" || format === "epub") && !preview) {
     try {
-      const original = await getObject(galleyKey);
+      // Fetch the file and record the download at the same time.
+      const [original, download, baseUrl] = await Promise.all([
+        getObject(galleyKey),
+        db.articleDownload.create({
+          data: {
+            articleId: article.id,
+            format: format.toUpperCase(),
+            userId: session?.userId ?? null,
+            label: session?.fullName || "Anonymous reader",
+          },
+        }),
+        // A tenant's galley points readers to its own site's verification page.
+        tenantBaseUrl(article.journal?.tenantId ?? null),
+      ]);
       if (!original) throw new Error("galley bytes not found in storage");
-
-      const download = await db.articleDownload.create({
-        data: {
-          articleId: article.id,
-          format: format.toUpperCase(),
-          userId: session?.userId ?? null,
-          label: session?.fullName || "Anonymous reader",
-        },
-      });
 
       const stamp: DownloadStamp = {
         downloadId: download.id,
         label: download.label,
         timestampLabel: new Date().toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" }),
         doi: article.doi,
-        verifyUrl: `${APP_BASE_URL}/verify/article/${article.id}`,
+        verifyUrl: `${baseUrl}/verify/article/${article.id}`,
       };
       const stamped = format === "pdf" ? await stampPdf(original, stamp) : stampEpub(original, stamp);
 

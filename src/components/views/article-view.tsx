@@ -81,7 +81,6 @@ import {
   Globe2,
   Lock,
   FileCode,
-  Layers,
   Printer,
   Users,
   Scale,
@@ -981,7 +980,8 @@ export function ArticleView() {
                       return;
                     }
                     try {
-                      const r = await apiFetch<{ url: string }>(`/api/articles/${article.id}/galley?format=pdf`);
+                      // Reading online shows the published file directly: faster, and not counted as a download.
+                      const r = await apiFetch<{ url: string }>(`/api/articles/${article.id}/galley?format=pdf&preview=1`);
                       setPdfPreviewUrl(r.url);
                     } catch (e: any) {
                       toast.error("Galley not available", { description: e.message });
@@ -1005,23 +1005,6 @@ export function ArticleView() {
                 >
                   <IconChip icon={Printer} /> Print-ready preview
                 </Button>
-                {article.galleyPdfKey && (
-                  <Button
-                    className="w-full justify-start"
-                    variant="outline"
-                    onClick={async () => {
-                      try {
-                        const r = await apiFetch<{ url: string }>(`/api/articles/${article.id}/galley?format=pdf`);
-                        window.open(r.url, "_blank");
-                        setArticle((prev) => (prev ? { ...prev, downloads: prev.downloads + 1 } : prev));
-                      } catch (e: any) {
-                        toast.error("Galley not available", { description: e.message });
-                      }
-                    }}
-                  >
-                    <IconChip icon={Layers} /> Download flipbook (PDF)
-                  </Button>
-                )}
                 {article.galleyEpubKey && (
                   <Button
                     className="w-full justify-start"
@@ -1081,19 +1064,21 @@ export function ArticleView() {
               </div>
               <Separator className="my-4" />
               <div className="space-y-1.5 text-xs">
-                <p className="flex items-center justify-between">
-                  <span className="text-muted-foreground">S3 key</span>
-                  <code className="font-mono">{article.galleyPdfKey || "—"}</code>
+                <p className="flex items-center justify-between gap-3">
+                  <span className="text-muted-foreground">Licence</span>
+                  <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer" className="font-medium hover:underline">
+                    CC BY 4.0
+                  </a>
                 </p>
-                <p className="flex items-center justify-between">
+                <p className="flex items-center justify-between gap-3">
                   <span className="text-muted-foreground">DOI status</span>
                   <Badge variant="outline" className="font-mono text-[0.6rem]">
-                    {article.doiStatus}
+                    {(article.doiStatus || "—").replace(/_/g, " ")}
                   </Badge>
                 </p>
-                <p className="flex items-center justify-between">
+                <p className="flex items-center justify-between gap-3">
                   <span className="text-muted-foreground">Review model</span>
-                  <span>{article.reviewModel.replace("_", " ")}</span>
+                  <span className="text-right capitalize">{(article.reviewModel || "").replace(/_/g, " ").toLowerCase()}</span>
                 </p>
               </div>
             </CardContent>
@@ -1116,17 +1101,24 @@ export function ArticleView() {
                   variant="outline"
                   size="sm"
                   className="w-full justify-start"
-                  onClick={() => {
-                    navigator.clipboard.writeText(`https://doi.org/${article.doi}`);
-                    toast.success("DOI link copied");
+                  onClick={async () => {
+                    // No DOI yet: share the article's own address instead of "doi.org/null".
+                    const link = article.doi ? `https://doi.org/${article.doi}` : window.location.href;
+                    try {
+                      await navigator.clipboard.writeText(link);
+                      toast.success(article.doi ? "DOI link copied" : "Article link copied");
+                    } catch {
+                      toast.error("Couldn't copy the link", { description: link });
+                    }
                   }}
                 >
-                  <IconChip icon={Share2} size="sm" /> Copy DOI link
+                  <IconChip icon={Share2} size="sm" /> {article.doi ? "Copy DOI link" : "Copy article link"}
                 </Button>
               </div>
               <Separator className="my-4" />
               <p className="text-xs font-medium text-foreground">Export to reference manager</p>
-              <div className="mt-2 space-y-2">
+              {/* Labels wrap inside their button instead of spilling past it in a narrow sidebar. */}
+              <div className="mt-2 space-y-2 [&>[data-slot=button]]:h-auto [&>[data-slot=button]]:min-h-8 [&>[data-slot=button]]:whitespace-normal [&>[data-slot=button]]:py-1.5 [&>[data-slot=button]]:text-left [&>[data-slot=button]]:leading-snug">
                 <Button variant="outline" size="sm" className="w-full justify-start" asChild>
                   <a href={`/api/articles/${article.id}/export?format=ris`} download>
                     <IconChip icon={Download} size="sm" /> RIS (Zotero, EndNote)
@@ -1160,7 +1152,7 @@ export function ArticleView() {
                   {article.issueTitle}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {article.publisher} · ISSN {article.journalIssn}
+                  {[article.publisher, article.journalIssn ? `ISSN ${article.journalIssn}` : null].filter(Boolean).join(" · ")}
                 </p>
               </CardContent>
             </Card>

@@ -2,11 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { canViewUnpublishedArticle } from "@/lib/article-access";
-import { buildBibTeX, buildRis, buildWikidataQuickStatements, buildMarcXml } from "@/lib/citation-export";
-import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { buildBibTeX, buildRis, buildWikidataQuickStatements, buildMarcXml, citeKey } from "@/lib/citation-export";
+import { resolveTenantFromHeaders, tenantBaseUrl } from "@/lib/tenant";
 import { withTenantRlsContext } from "@/lib/db-rls";
-import { APP_BASE_URL } from "@/lib/site";
-import { withTrademark } from "@/lib/brand-mark";
+import { publisherIdentityForJournal } from "@/lib/publisher-identity";
 
 /**
  * GET /api/articles/[id]/export?format=ris|bibtex|wikidata|marc
@@ -49,25 +48,31 @@ export async function GET(
     }
   }
 
+  // A tenant's article is cited under its own publisher, journal and site.
+  const [identity, baseUrl] = await Promise.all([
+    publisherIdentityForJournal(article.journal ?? null),
+    tenantBaseUrl(article.journal?.tenantId ?? null),
+  ]);
   const exportable = {
     id: article.id,
     title: article.title,
     authors: article.authors,
     publishedAt: article.publishedAt,
     doi: article.doi,
-    journalName: article.journal?.name,
-    journalIssn: article.journal?.issn,
+    journalName: article.journal?.name || identity.journalName,
+    journalIssn: article.journal?.issn || identity.issn,
     volume: article.issue?.volume,
     issueNumber: article.issue?.issueNumber,
     year: article.issue?.year,
     abstract: article.abstract,
     keywords: article.keywords,
     discipline: article.discipline,
-    publisher: withTrademark(article.journal?.publisher),
-    articleUrl: `${APP_BASE_URL}/article/${article.id}`,
+    publisher: identity.publisher,
+    articleUrl: `${baseUrl}/article/${article.id}`,
   };
 
-  const filename = article.doi?.replace(/[^a-z0-9]/gi, "-") || article.id;
+  // "tan2026microplastic.ris" — the cite key reference managers use.
+  const filename = citeKey(exportable) || article.id;
   const body =
     format === "ris"
       ? buildRis(exportable)

@@ -56,7 +56,13 @@ function stampLine(stamp: DownloadStamp): string {
 export async function stampPdf(pdfBytes: Buffer, stamp: DownloadStamp): Promise<Buffer> {
   const pdfDoc = await PDFDocument.load(pdfBytes);
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const line = stampLine(stamp);
+  // The built-in Helvetica can only encode WinAnsi text; a reader's name in
+  // another script would otherwise make the stamp fail and the download go
+  // out unstamped.
+  const line = stampLine(stamp)
+    .normalize("NFKD")
+    .replace(/[^\x20-\x7E\xA0-\xFF\u2013\u2014\u2018\u2019\u201C\u201D\u2022\u2026]/g, "")
+    .replace(/ {2,}/g, " ");
   const maroon = rgb(0.478, 0.122, 0.169);
 
   for (const page of pdfDoc.getPages()) {

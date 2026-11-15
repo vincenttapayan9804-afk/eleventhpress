@@ -7,6 +7,7 @@
  * so src/lib/galley.ts can also call it for a single-chapter article
  * EPUB without creating a circular import between the two.
  */
+import { createHash } from "node:crypto";
 import { buildZip, type ZipEntry } from "@/lib/zip-writer";
 import { ARTICLE_LANGUAGE, JOURNAL_IDENTITY } from "@/lib/site";
 
@@ -28,6 +29,17 @@ function escapeXml(s: string): string {
   });
 }
 
+/**
+ * Makes sanitized HTML safe inside an XHTML chapter: void elements closed,
+ * HTML-only named entities turned into numeric ones (XML knows just five).
+ */
+export function toXhtml(html: string): string {
+  const named: Record<string, number> = { nbsp: 160, ndash: 8211, mdash: 8212, hellip: 8230, lsquo: 8216, rsquo: 8217, ldquo: 8220, rdquo: 8221, copy: 169, reg: 174, trade: 8482, deg: 176, times: 215, plusmn: 177, middot: 183, micro: 181 };
+  return html
+    .replace(/<(br|hr|img|col|wbr)(\s[^>]*?)?\s*\/?>/gi, (_m, tag: string, attrs = "") => `<${tag.toLowerCase()}${attrs}/>`)
+    .replace(/&([a-z]+);/gi, (m, name: string) => (["amp", "lt", "gt", "quot", "apos"].includes(name) ? m : named[name.toLowerCase()] ? `&#${named[name.toLowerCase()]};` : `&amp;${name};`));
+}
+
 export function buildEpub(
   book: {
     id: string;
@@ -39,11 +51,18 @@ export function buildEpub(
     publisher?: string | null;
     /** Fixed platform credit for a whitelabel tenant's e-books (printed under the contents). */
     credit?: string | null;
+    /** DOI, recorded as a second identifier. */
+    doi?: string | null;
+    /** Stylesheet shared by every chapter (OEBPS/style.css). */
+    css?: string | null;
   },
   chapters: EpubChapter[]
 ): Buffer {
   const authorNames = book.authors.filter(Boolean);
-  const uid = `urn:uuid:epip-${book.id}`;
+  // urn:uuid needs a real UUID; derive a stable one from the id (name-based, v5-style).
+  const h = createHash("sha1").update(`epip:${book.id}`).digest("hex");
+  const uid = `urn:uuid:${h.slice(0, 8)}-${h.slice(8, 12)}-5${h.slice(13, 16)}-${((parseInt(h[16], 16) & 0x3) | 0x8).toString(16)}${h.slice(17, 20)}-${h.slice(20, 32)}`;
+  const cssLink = book.css ? `<link rel="stylesheet" type="text/css" href="style.css"/>` : "";
   const modified = new Date().toISOString().replace(/\.\d+Z$/, "Z");
 
   const manifestItems = chapters
@@ -55,6 +74,7 @@ export function buildEpub(
 <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="pub-id">
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
     <dc:identifier id="pub-id">${escapeXml(uid)}</dc:identifier>
+    ${book.doi ? `<dc:identifier>doi:${escapeXml(book.doi)}</dc:identifier>` : ""}
     <dc:title>${escapeXml(book.title)}</dc:title>
     ${book.subtitle ? `<dc:description>${escapeXml(book.subtitle)}</dc:description>` : ""}
     <dc:language>${ARTICLE_LANGUAGE}</dc:language>
@@ -65,7 +85,7 @@ ${authorNames.map((n) => `    <dc:creator>${escapeXml(n)}</dc:creator>`).join("\
   </metadata>
   <manifest>
     <item id="nav" href="nav.xhtml" properties="nav" media-type="application/xhtml+xml"/>
-${manifestItems}
+${book.css ? `    <item id="css" href="style.css" media-type="text/css"/>\n` : ""}${manifestItems}
   </manifest>
   <spine>
 ${spineItems}
@@ -75,8 +95,8 @@ ${spineItems}
 
   const navItems = chapters.map((c, i) => `      <li><a href="chapter-${i + 1}.xhtml">${escapeXml(c.title)}</a></li>`).join("\n");
   const navXhtml = `<?xml version="1.0" encoding="UTF-8"?>
-<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
-<head><title>Table of Contents</title></head>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="${ARTICLE_LANGUAGE}" lang="${ARTICLE_LANGUAGE}">
+<head><title>Table of Contents</title>${cssLink}</head>
 <body>
   <nav epub:type="toc" id="toc">
     <h1>${escapeXml(book.title)}</h1>
@@ -102,10 +122,11 @@ ${navItems}
     { name: "META-INF/container.xml", data: Buffer.from(containerXml, "utf-8") },
     { name: "OEBPS/content.opf", data: Buffer.from(contentOpf, "utf-8") },
     { name: "OEBPS/nav.xhtml", data: Buffer.from(navXhtml, "utf-8") },
+    ...(book.css ? [{ name: "OEBPS/style.css", data: Buffer.from(book.css, "utf-8") }] : []),
     ...chapters.map((c, i) => ({
       name: `OEBPS/chapter-${i + 1}.xhtml`,
       data: Buffer.from(
-        `<?xml version="1.0" encoding="UTF-8"?>\n<html xmlns="http://www.w3.org/1999/xhtml"><head><title>${escapeXml(c.title)}</title></head><body><h1>${escapeXml(c.title)}</h1>${c.html}</body></html>\n`,
+        `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE html>\n<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="${ARTICLE_LANGUAGE}" lang="${ARTICLE_LANGUAGE}"><head><meta charset="utf-8"/><title>${escapeXml(c.title)}</title>${cssLink}</head><body><h1>${escapeXml(c.title)}</h1>${toXhtml(c.html)}</body></html>\n`,
         "utf-8"
       ),
     })),

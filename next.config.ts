@@ -97,6 +97,11 @@ const nextConfig: NextConfig = {
           (route): [string, string[]] => [route, ["./src/assets/fonts/*.ttf"]]
         )
       )
+      // PDF galley fonts (src/lib/galley-pdf.ts reads them from disk). Galleys
+      // are rendered from many API routes (publish, crons, regeneration,
+      // tenant refresh), so every API function carries them (~1.9 MB); the
+      // renderer falls back to the built-in PDF fonts if they are missing.
+      .concat([["/api/**/*", ["./src/assets/fonts/galley/*"]] as [string, string[]]])
       // Kokoro voice embeddings (kokoro-js reads voices/*.bin from disk at runtime).
       .concat(
         [
