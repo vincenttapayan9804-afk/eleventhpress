@@ -156,7 +156,7 @@ describe("buildExtractiveGuide", () => {
   test("everything the guide writes is in a general point of view; manuscript text stays verbatim", () => {
     const FIRST = /\b(I|me|my|we|us|our|ours)\b/i;
     const written = [
-      ...g.sections.flatMap((s) => [s.overview, ...s.paras.flatMap((p) => [p.gist, p.role]), ...s.qa.flatMap((x) => [x.q, x.a])]),
+      ...g.sections.flatMap((s) => [s.overview, ...s.paras.flatMap((p) => [p.label, p.gist, p.role]), ...s.qa.flatMap((x) => [x.q, x.a])]),
       ...g.slides.map((x) => x.note),
       ...g.elevator,
       ...g.numbers.map((x) => x.t),

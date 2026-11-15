@@ -573,6 +573,7 @@ function neutralGuide(g: StudyGuideData): StudyGuideData {
   for (const s of g.sections) {
     s.overview = n(s.overview);
     for (const p of s.paras) {
+      p.label = n(p.label);
       p.gist = n(p.gist);
       p.role = n(p.role);
     }
