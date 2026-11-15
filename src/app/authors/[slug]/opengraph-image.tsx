@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { resolveTenantFromHeaders } from "@/lib/tenant";
-import { getAuthorProfile } from "@/lib/author-profile";
+import { getAuthorProfile, IDENTITY_LABEL } from "@/lib/author-profile";
+import { displayCase } from "@/lib/author-path";
 import { ogCard, OG_SIZE } from "@/lib/og-card";
 
 export const size = OG_SIZE;
@@ -16,9 +17,9 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   if (!p) return ogCard({ eyebrow: "Author", title: wlName || "Eleventh Press International Publishing™", ...brand });
   return ogCard({
     ...brand,
-    eyebrow: "Author profile",
-    title: p.name,
-    byline: [p.profession, p.affiliation].filter(Boolean).join(" · ") || p.disciplines.join(" · "),
-    footer: `${p.articles.length} publication${p.articles.length === 1 ? "" : "s"} · ${p.disciplines.slice(0, 3).join(", ")}`,
+    eyebrow: `${IDENTITY_LABEL[p.verification.identity].badge} · Author profile`,
+    title: displayCase(p.name),
+    byline: [displayCase(p.profession), p.affiliation].filter(Boolean).join(" · ") || p.disciplines.join(" · "),
+    footer: `${p.articles.length} publication${p.articles.length === 1 ? "" : "s"} · ${p.verification.checks.sealed} provenance-sealed · ${p.disciplines.slice(0, 2).join(", ")}`,
   });
 }
