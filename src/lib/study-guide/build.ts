@@ -41,7 +41,7 @@ import { buildOutline, type Outline, type OutlineSection } from "@/lib/study-gui
  * keyed by it, so every published article's guide is rebuilt on its next
  * download (and by the daily sweep).
  */
-export const STUDY_GUIDE_VERSION = 3;
+export const STUDY_GUIDE_VERSION = 4;
 
 export interface GuidePara {
   label: string;
