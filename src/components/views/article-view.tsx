@@ -87,6 +87,7 @@ import {
   Users,
   Scale,
   LayoutDashboard,
+  GraduationCap,
   Presentation,
   Image as ImageIcon,
   Network,
@@ -1064,6 +1065,11 @@ export function ArticleView() {
                 )}
                 <ResearchVisualButton articleId={article.id} kind="infographic" label="Research infographic (PDF)" icon={LayoutDashboard} />
                 <ResearchVisualButton articleId={article.id} kind="poster" label="Research poster, A0 (PDF)" icon={Presentation} />
+                <Button className="w-full justify-start" variant="outline" asChild>
+                  <a href={`/api/articles/${article.id}/study-guide`} download>
+                    <IconChip icon={GraduationCap} /> Researcher&apos;s study guide (HTML)
+                  </a>
+                </Button>
                 {article.doi && (
                   <Button
                     className="w-full justify-start"

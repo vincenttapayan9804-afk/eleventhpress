@@ -129,6 +129,13 @@ export async function runGalleyJob(
       },
     });
 
+    // A new HTML galley changes the article text the study guide is built
+    // from: rebuild it now (instant version) so the download stays current.
+    // Best-effort, and a no-op for articles that are not published.
+    await import("@/lib/study-guide/server")
+      .then((m) => m.ensureStudyGuide(article.id, { full: false }).then(() => m.requestStudyGuideUpgrade(article.id)))
+      .catch((e) => console.error(`[galley-job] study guide refresh failed for ${article.id}`, e));
+
     await db.galleyJob.update({
       where: { id: jobId },
       data: {
