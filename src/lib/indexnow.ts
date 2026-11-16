@@ -11,7 +11,7 @@ import { APP_BASE_URL } from "@/lib/site";
  * Google does not take part in IndexNow; it discovers pages through the
  * sitemap (submitted once in Search Console) and links.
  */
-export const INDEXNOW_KEY = "2386b45ae0baab7758d37e4a159f8834";
+export const INDEXNOW_KEY = "2386b45ae0baab7758d37e4a159f8834"; // gitleaks:allow (public by design)
 
 const ENDPOINT = "https://api.indexnow.org/indexnow";
 const BATCH = 10_000; // protocol limit per request
