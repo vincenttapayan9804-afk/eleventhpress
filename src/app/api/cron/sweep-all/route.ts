@@ -12,6 +12,7 @@ import { sendReviewReminders } from "@/lib/review-reminders";
 import { sendReadingAlerts } from "@/lib/reading-alerts";
 import { sendInvoiceReminders } from "@/lib/invoice-reminders";
 import { sweepStudyGuides } from "@/lib/study-guide/server";
+import { submitSitemapToIndexNow } from "@/lib/indexnow";
 
 /**
  * GET /api/cron/sweep-all
@@ -49,6 +50,9 @@ const SWEEPS = [
   // gets its Research Study Guide ready to download, and guides built
   // without an LLM are queued for the LLM-written version.
   { name: "studyGuides", run: () => sweepStudyGuides(150_000) },
+  // Not a stuck-job sweep: re-announce every sitemap URL to IndexNow
+  // search engines so changed pages are recrawled promptly.
+  { name: "indexNow", run: () => submitSitemapToIndexNow() },
   // Daily notification digest for people who chose one email a day.
   // Review invitation nudges, due-soon and overdue reminders, then the
   // daily notification digest — in that order, so a daily-summary user gets

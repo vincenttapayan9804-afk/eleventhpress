@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { Inter, Fraunces, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
-import { DOI_REGISTRAR } from "@/lib/site";
+import { APP_BASE_URL, DOI_REGISTRAR } from "@/lib/site";
 import { getCurrentTenant, brandingOf } from "@/lib/tenant";
 import { TenantBrandingProvider, type ClientBranding } from "@/lib/tenant-branding-context";
 import { brandCssVars } from "@/lib/brand-colors";
@@ -49,13 +49,34 @@ export async function generateMetadata(): Promise<Metadata> {
   const title = tenant?.siteName
     ? `${tenant.siteName} — ${tenant.tagline || POWERED_BY_CREDIT}`
     : DEFAULT_TITLE;
-  const description = tenant?.tagline || DEFAULT_DESCRIPTION;
+  // A short tagline alone ("An Enterprise Research Ecosystem") is too thin
+  // for a search snippet; the platform site keeps it and adds the full pitch.
+  const description = !tenant?.tagline
+    ? DEFAULT_DESCRIPTION
+    : tenant.isPlatform && tenant.tagline.length < 80
+      ? `${tenant.tagline.replace(/[.\s]+$/, "")}. ${DEFAULT_DESCRIPTION}`
+      : tenant.tagline;
   // Home-screen icon: a whitelabel tenant's own logo/initials (src/app/pwa-icon).
   const appleIcon = tenant && !tenant.isPlatform ? `/pwa-icon/180?t=${encodeURIComponent(tenant.slug)}` : "/pwa-icon/180";
 
+  const siteName = tenant?.siteName || "Eleventh Press International Publishing™";
+  // Search Console / Bing Webmaster ownership tags, set per deployment.
+  const google = process.env.GOOGLE_SITE_VERIFICATION?.split(",").map((v) => v.trim()).filter(Boolean);
+  const bing = process.env.BING_SITE_VERIFICATION?.trim();
+
   return {
+    metadataBase: new URL(APP_BASE_URL),
     title,
     description,
+    applicationName: siteName,
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: { index: true, follow: true, "max-snippet": -1, "max-image-preview": "large", "max-video-preview": -1 },
+    },
+    ...(google?.length || bing
+      ? { verification: { ...(google?.length ? { google } : {}), ...(bing ? { other: { "msvalidate.01": bing } } : {}) } }
+      : {}),
     keywords: [
       tenant?.siteName || "Eleventh Press",
       "open access journal",
@@ -73,6 +94,8 @@ export async function generateMetadata(): Promise<Metadata> {
       title,
       description,
       type: "website",
+      siteName,
+      locale: "en_US",
     },
     twitter: {
       card: "summary_large_image",

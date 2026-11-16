@@ -525,6 +525,15 @@ export async function POST(req: NextRequest) {
         })
         .catch((e) => console.error(`[workflow] auto table-accessibility job failed for ${articleId}:`, e));
 
+      // Search engines: announce the new article page right away (IndexNow;
+      // Google picks it up from the sitemap).
+      Promise.all([import("@/lib/indexnow"), import("@/lib/tenant"), import("@/lib/spa-routes")])
+        .then(async ([{ submitToIndexNow }, { tenantBaseUrl }, { articlePath }]) => {
+          const base = await tenantBaseUrl(article.journal?.tenantId);
+          return submitToIndexNow([`${base}${articlePath(articleId, article.title)}`, `${base}/articles`, `${base}/`]);
+        })
+        .catch((e) => console.error(`[workflow] IndexNow submit failed for ${articleId}:`, e));
+
       // Review report DOI — only meaningful when transparency was already
       // turned on before this publish. An editor who enables it afterward
       // uses the manual retry (POST /api/articles/[id]/review-report-doi).
