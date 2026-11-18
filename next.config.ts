@@ -48,6 +48,10 @@ const CSP = [
   "form-action 'self'",
 ].join("; ");
 
+
+/** Former production hostnames, now redirected to the site's own domain (see redirects()). */
+const LEGACY_HOSTS = ["eleventhpress.vercel.app", "eleventhpress-billia.vercel.app"];
+
 const nextConfig: NextConfig = {
   output: "standalone",
   /* config options here */
@@ -148,6 +152,30 @@ const nextConfig: NextConfig = {
         headers: [{ key: "Access-Control-Allow-Origin", value: "*" }],
       },
     ];
+  },
+  // The site moved from eleventhpress.vercel.app to its own domain. Pages
+  // on the old production hosts permanently redirect (308) to the same path
+  // on the new domain, so search engines transfer rankings and old links,
+  // DOI landing URLs and shared citations keep working. /api/* is NOT
+  // redirected: payment and other webhooks, crons and OAuth callbacks
+  // registered against the old host keep working (most webhook senders
+  // don't follow redirects). The Search Console verification file and the
+  // IndexNow key stay served on the old host too, so the old Search Console
+  // property remains verified for its Change of Address. Preview deployment
+  // URLs are untouched (exact host match only).
+  async redirects() {
+    const target = (process.env.APP_BASE_URL || "https://eleventhpress.com").replace(/\/+$/, "");
+    if (/\.vercel\.app$/i.test(new URL(target).host)) return [];
+    const keep = "api/|_next/|google[0-9a-f]+\\.html$|[0-9a-f]{32}\\.txt$";
+    return LEGACY_HOSTS.flatMap((host) => [
+      { source: "/", has: [{ type: "host" as const, value: host }], destination: `${target}/`, permanent: true },
+      {
+        source: `/:path((?!${keep}).+)`,
+        has: [{ type: "host" as const, value: host }],
+        destination: `${target}/:path`,
+        permanent: true,
+      },
+    ]);
   },
 };
 

@@ -4,15 +4,15 @@
  * Google Scholar citation tags, Crossref/OJS export hrefs, Crossmark domain
  * whitelist).
  *
- * Defaults to the real, live deployment. eleventhpress.org is not a
- * registered domain — using it would DNS-fail for every crawler, harvester,
- * and DOI resolver that follows these links. Once a real custom domain is
- * purchased and pointed at this deployment, set APP_BASE_URL (and
- * NEXT_PUBLIC_APP_BASE_URL for the client-side citation tags) to override
- * this default.
+ * Defaults to the site's own registered domain, eleventhpress.com (the
+ * former eleventhpress.vercel.app host 308-redirects its pages here; see
+ * redirects() in next.config.ts). eleventhpress.org is not a registered
+ * domain — never use it in links. APP_BASE_URL (and
+ * NEXT_PUBLIC_APP_BASE_URL for the client-side citation tags) still
+ * override this default, e.g. for a self-hosted copy.
  */
 export const APP_BASE_URL =
-  process.env.APP_BASE_URL || "https://eleventhpress.vercel.app";
+  process.env.APP_BASE_URL || "https://eleventhpress.com";
 
 /** Bare hostname, for contexts that want just the host (OAI identifiers, Crossmark domain). */
 export const APP_HOST = new URL(APP_BASE_URL).host;

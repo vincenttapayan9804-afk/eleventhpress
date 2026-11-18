@@ -114,7 +114,7 @@ describe("buildBloggerPost", () => {
     expect(post.html).toContain("Ada Lovelace");
     expect(post.html).toContain("Alan Turing");
     expect(post.html).toContain(ARTICLE.journalName);
-    expect(post.html).toContain(`href="https://eleventhpress.vercel.app/article/${ARTICLE.id}"`);
+    expect(post.html).toContain(`href="https://eleventhpress.com/article/${ARTICLE.id}"`);
   });
 
   test("prefers the lay summary over the raw abstract when available", () => {
