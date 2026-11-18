@@ -38,7 +38,7 @@ export function buildArchiveTemplate(journal: { name: string; publisher: string;
     `Handle: RePEc:${code}`,
     `Name: ${journal.publisher}`,
     "Maintainer-Name: Editorial Office",
-    `Maintainer-Email: ${journal.maintainerEmail || "editorial@eleventhpress.org"}`,
+    `Maintainer-Email: ${journal.maintainerEmail || "editorial@eleventhpress.com"}`,
     `Description: ${journal.name} — real-time open-access article metadata, harvested for RePEc/IDEAS/EconPapers.`,
     `URL: ${REDIF_BASE_URL}?type=series`,
   ].join("\n");

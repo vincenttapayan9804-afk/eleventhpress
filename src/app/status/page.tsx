@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { CircleAlert, CircleCheck, CircleDashed, CircleX } from "lucide-react";
-import { systemStatus, type ComponentState } from "@/lib/system-status";
+import { headers } from "next/headers";
+import { getSessionFromHeaders } from "@/lib/auth";
+import { publicView, systemStatus, type ComponentState } from "@/lib/system-status";
 
-export const metadata: Metadata = { title: "Platform status", description: "Live status of the website, email, payments and DOI registration." };
+export const metadata: Metadata = { title: "Platform status", description: "Live status of the website, email, DOI registration and search." };
 export const dynamic = "force-dynamic";
 
 const STYLE: Record<ComponentState, { label: string; cls: string; Icon: typeof CircleCheck }> = {
@@ -21,7 +23,9 @@ const HEADLINE: Record<ComponentState, string> = {
 
 /** /status — live platform health (src/lib/system-status.ts); /api/health is the machine-readable version. */
 export default async function StatusPage() {
-  const s = await systemStatus();
+  const admin = getSessionFromHeaders(await headers())?.role === "SUPER_ADMIN";
+  const full = await systemStatus();
+  const s = admin ? full : publicView(full);
   const banner = s.overall === "operational" ? "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200" : s.overall === "down" ? "border-rose-200 bg-rose-50 text-rose-900 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-200" : "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200";
   return (
     <main className="min-h-dvh bg-background px-4 py-14">
@@ -44,6 +48,11 @@ export default async function StatusPage() {
             );
           })}
         </ul>
+        {admin && (
+          <p className="mt-4 rounded-lg border border-border bg-muted/40 px-4 py-3 text-xs text-muted-foreground">
+            You&apos;re signed in as a platform administrator, so internal rows (payments, sign-in protection) and setup notes are shown. Visitors see a shorter list without them.
+          </p>
+        )}
         <p className="mt-4 text-xs text-muted-foreground">
           Checked {new Date(s.checkedAt).toUTCString()}. Refresh for the latest. Uptime monitors can poll <code className="font-mono">/api/health</code>.
         </p>

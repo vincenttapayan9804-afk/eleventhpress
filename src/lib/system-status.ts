@@ -12,11 +12,34 @@ export interface ComponentStatus {
   name: string;
   state: ComponentState;
   detail: string;
+  /** Only shown to platform administrators: reveals how the platform is configured. */
+  internal?: boolean;
 }
+
+/**
+ * What the public may see. Rows that describe configuration (payments mode,
+ * sign-in protection) are dropped, and a component that is merely "limited"
+ * by configuration gets a neutral note instead of the reason, so the public
+ * page never tells anyone which protections or providers are switched off.
+ */
+export function publicView<T extends { components: ComponentStatus[] }>(s: T): T {
+  return {
+    ...s,
+    components: s.components
+      .filter((c) => !c.internal)
+      .map(({ internal: _internal, ...c }) => (c.state === "limited" ? { ...c, detail: PUBLIC_LIMITED[c.key] ?? "Available with reduced features" } : c)),
+  };
+}
+
+const PUBLIC_LIMITED: Record<string, string> = {
+  email: "Some notification emails may be delayed",
+  doi: "DOIs are being assigned on a delayed schedule",
+};
 
 /**
  * Health of each part of the platform, for /status and GET /api/health.
  * Only states and plain-language notes — never configuration values.
+ * Public callers get publicView() of this; the full list is for platform admins.
  */
 export async function systemStatus(): Promise<{ overall: ComponentState; checkedAt: string; components: ComponentStatus[] }> {
   const components: ComponentStatus[] = [];
@@ -48,6 +71,7 @@ export async function systemStatus(): Promise<{ overall: ComponentState; checked
   const live = providers.filter((p) => p.liveMode);
   components.push({
     key: "payments",
+    internal: true,
     name: "Payments",
     state: live.length ? "operational" : "limited",
     detail: live.length ? `${live.map((p) => p.label).join(", ")}` : "Running in test mode",
@@ -69,6 +93,7 @@ export async function systemStatus(): Promise<{ overall: ComponentState; checked
 
   components.push({
     key: "security",
+    internal: true,
     name: "Sign-in protection",
     state: ratelimitLiveMode() ? "operational" : "limited",
     detail: ratelimitLiveMode() ? "Rate limiting and instant sign-out are active" : "Rate limiting isn't configured",

@@ -77,7 +77,7 @@ async function submitToIThenticate(
     method: "POST",
     headers: { ...headers, "Content-Type": "application/json" },
     body: JSON.stringify({
-      owner: "editorial@eleventhpress.org",
+      owner: "editorial@eleventhpress.com",
       title: articleTitle,
       metadata: { external_id: articleId },
     }),

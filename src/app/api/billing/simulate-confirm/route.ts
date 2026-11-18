@@ -12,11 +12,23 @@ import { confirmPayment } from "@/lib/payments/confirm";
  * a checkout session redirects to when its provider has no real API keys
  * configured. Refuses to run if the provider actually IS in live mode, so
  * this can never be used to bypass a real charge.
+ *
+ * On the production site only a platform super admin may use it: otherwise,
+ * while payments are still in test mode, any signed-in user could mark their
+ * own invoice as paid without paying. Preview/local deployments keep the
+ * open behaviour for testing.
  */
 export async function POST(req: NextRequest) {
   const session = getSessionFromHeaders(req.headers);
   if (!session) {
     return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  }
+
+  if (process.env.VERCEL_ENV === "production" && session.role !== "SUPER_ADMIN") {
+    return NextResponse.json(
+      { error: "Online payment isn't available yet. Please contact the editorial office to arrange payment." },
+      { status: 403 }
+    );
   }
 
   const { referenceId, provider: providerId, providerRef } = (await req.json()) as {
@@ -48,7 +60,8 @@ export async function POST(req: NextRequest) {
   try {
     await confirmPayment({ referenceId, provider: provider.id, providerRef });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    console.error("simulate-confirm failed", e);
+    return NextResponse.json({ error: "Payment confirmation failed" }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true });

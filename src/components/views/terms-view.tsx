@@ -1,5 +1,6 @@
 "use client";
 
+import { LEGAL_PAGES_UPDATED } from "@/lib/site";
 import { useApp } from "@/lib/store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -34,7 +35,7 @@ export function TermsView() {
           reviewed and published, see the Policies page. For what we collect and how to export or
           delete your data, see the Privacy page.
         </p>
-        <p className="mt-2 text-xs text-muted-foreground">Last updated: {new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</p>
+        <p className="mt-2 text-xs text-muted-foreground">Last updated: {LEGAL_PAGES_UPDATED}</p>
       </div>
 
       {legal.whitelabel && (
@@ -201,7 +202,7 @@ export function TermsView() {
             <p>
               {legal.whitelabel
                 ? `These terms are governed by ${legal.governingLaw}, without regard to conflict-of-law principles.`
-                : "These terms are governed by the laws of England and Wales, matching our editorial office's jurisdiction (London, United Kingdom), without regard to conflict-of-law principles."} We may update these terms from time to time; material changes will be
+                : "These terms are governed by the laws of the Republic of the Philippines, where our editorial office is based, without regard to conflict-of-law principles. Nothing in these terms limits any mandatory consumer or data-protection rights you have under the law of the country where you live."} We may update these terms from time to time; material changes will be
               reflected in the "Last updated" date above.
             </p>
           </CardContent>

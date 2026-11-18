@@ -71,9 +71,16 @@ export const JOURNAL_IDENTITY = {
   issn: "2945-1138",
   doiPrefix: "10.52011",
   established: 2021,
-  location: "London, United Kingdom",
-  editorialEmail: "editorial@eleventhpress.org",
+  location: "Philippines",
+  editorialEmail: "editorial@eleventhpress.com",
   license: "CC BY 4.0",
   licenseUrl: "https://creativecommons.org/licenses/by/4.0/",
   apc: "USD 97",
 } as const;
+
+/**
+ * When the Terms of Service and Privacy page were last materially changed.
+ * Update it whenever their wording changes — never derive it from today's
+ * date, which would claim the terms changed on every visit.
+ */
+export const LEGAL_PAGES_UPDATED = "November 18, 2026";

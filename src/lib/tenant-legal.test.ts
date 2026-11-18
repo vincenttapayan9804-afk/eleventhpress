@@ -25,7 +25,7 @@ describe("legalIdentityOf", () => {
     const l = legalIdentityOf(DEFAULT_CLIENT_BRANDING);
     expect(l.whitelabel).toBe(false);
     expect(l.legalName).toBe("Eleventh Press International Publishing™");
-    expect(l.governingLaw).toBe("the laws of England and Wales");
+    expect(l.governingLaw).toBe("the laws of the Republic of the Philippines");
   });
 
   test("a tenant is the operator, with its own law and contacts", () => {
@@ -52,7 +52,7 @@ describe("faqsFor", () => {
   test("tenant FAQs never mention Eleventh Press or its inbox", () => {
     const text = JSON.stringify(faqsFor(legalIdentityOf(RON)));
     expect(text).not.toContain("Eleventh Press");
-    expect(text).not.toContain("editorial@eleventhpress.org");
+    expect(text).not.toContain("editorial@eleventhpress.com");
     expect(text).toContain("Ron Publishing");
     expect(text).toContain("office@ron.example");
   });

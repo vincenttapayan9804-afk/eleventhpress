@@ -42,7 +42,7 @@
  */
 
 const SENDER_NAME = "Eleventh Press International Publishing";
-const SENDER_EMAIL = "editorial@eleventhpress.org";
+const SENDER_EMAIL = "editorial@eleventhpress.com";
 /** Only language this platform's submission/production pipeline supports today — see src/lib/site.ts's ARTICLE_LANGUAGE. */
 const ONIX_LANGUAGE_CODE = "eng"; // ISO 639-2/B, per ONIX List 74
 

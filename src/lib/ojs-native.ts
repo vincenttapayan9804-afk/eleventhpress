@@ -39,7 +39,7 @@ const CC_BY_LICENSE_URL = "https://creativecommons.org/licenses/by/4.0/";
  * produce schema-invalid output by omitting a required field, every author
  * gets this placeholder; real addresses are never included.
  */
-const REDACTED_EMAIL = "redacted@eleventhpress.org";
+const REDACTED_EMAIL = "redacted@eleventhpress.com";
 
 /** Maps an EPIP workflow status to the OJS submission "stage" attribute. */
 export function mapStatusToOjsStage(

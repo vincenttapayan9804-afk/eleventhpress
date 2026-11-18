@@ -59,7 +59,7 @@ export async function buildStatusReport() {
     Status: "OK",
     Message: "Service is operating normally.",
     Registry_Time: new Date().toISOString(),
-    Administrator: "editorial@eleventhpress.org",
+    Administrator: "editorial@eleventhpress.com",
     Warning: [],
     Note: [],
 };

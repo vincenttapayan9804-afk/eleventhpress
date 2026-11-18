@@ -663,10 +663,10 @@ export const GUIDE_DOCS: Record<string, GuideDoc> = {
         application: "Collective benefit, authority to control, responsibility and ethics for data about Indigenous peoples.",
       },
       {
-        name: "UK GDPR and Data Protection Act 2018",
-        issuer: "United Kingdom",
+        name: "Data Privacy Act of 2012 (Republic Act No. 10173)",
+        issuer: "National Privacy Commission, Philippines",
         edition: "Current",
-        url: "https://ico.org.uk/",
+        url: "https://privacy.gov.ph/data-privacy-act/",
         application: "Lawful processing, anonymisation and controlled sharing of personal data.",
       },
     ],
@@ -724,7 +724,7 @@ export const GUIDE_DOCS: Record<string, GuideDoc> = {
       {
         heading: "Sensitive, personal and Indigenous data",
         paragraphs: [
-          "Not all data can be fully open. Personal data must be processed lawfully, which for a journal based in London means in line with UK GDPR and the Data Protection Act 2018 as well as the law that applies where the data were collected. Anonymise data where possible, remembering that combinations of variables can re-identify people. Where anonymisation would destroy the data's value, share through a controlled-access repository or data enclave and describe the access conditions.",
+          "Not all data can be fully open. Personal data must be processed lawfully, which for a journal based in the Philippines means in line with the Data Privacy Act of 2012 (Republic Act No. 10173) as well as the law that applies where the data were collected, such as the GDPR for data about people in Europe. Anonymise data where possible, remembering that combinations of variables can re-identify people. Where anonymisation would destroy the data's value, share through a controlled-access repository or data enclave and describe the access conditions.",
           "Data about Indigenous peoples should follow the CARE Principles for Indigenous Data Governance — collective benefit, authority to control, responsibility and ethics — alongside FAIR. Data that could cause harm if released, such as the locations of endangered species or security-sensitive information, may also justify restrictions. Explain any restriction in the statement.",
         ],
       },

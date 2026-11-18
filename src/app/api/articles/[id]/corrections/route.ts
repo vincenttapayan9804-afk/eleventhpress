@@ -20,7 +20,7 @@ export async function GET(
   const corrections = await db.correction.findMany({
     where: { articleId: id },
     orderBy: { issuedAt: "desc" },
-    include: { issuedBy: { select: { fullName: true, role: true } } },
+    include: { issuedBy: { select: { fullName: true } } },
   });
   return NextResponse.json({ corrections });
 }

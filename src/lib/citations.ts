@@ -17,7 +17,7 @@
 const OPENALEX_BASE = "https://api.openalex.org";
 // OpenAlex's "polite pool" gets faster, more reliable rate limits for
 // requests that identify a contact — see https://docs.openalex.org/how-to-use-the-api/rate-limits-and-authentication
-const USER_AGENT = "EPIP-Citation-Validator/1.0 (mailto:editorial@eleventhpress.org)";
+const USER_AGENT = "EPIP-Citation-Validator/1.0 (mailto:editorial@eleventhpress.com)";
 
 export interface ReferenceValidation {
   status: "VALID" | "NOT_FOUND" | "AMBIGUOUS";

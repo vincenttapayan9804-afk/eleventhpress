@@ -5,6 +5,7 @@ import { useApp } from "@/lib/store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { openCookiePreferences } from "@/lib/cookie-consent";
+import { LEGAL_PAGES_UPDATED } from "@/lib/site";
 import {
   ShieldCheck,
   Download,
@@ -43,6 +44,7 @@ export function PrivacyView() {
           What we collect, why, how long we keep it, and how to export or erase your own account
           data — self-service, no request form required.
         </p>
+        <p className="mt-2 text-xs text-muted-foreground">Last updated: {LEGAL_PAGES_UPDATED}</p>
       </div>
 
       <section className="mt-10" data-testid="privacy-controller">
@@ -89,6 +91,14 @@ export function PrivacyView() {
               desc="Invoice amount, status, and provider reference for APCs/subscriptions. Card numbers are handled entirely by the payment provider — never stored on our servers."
             />
             <PrivacyItem
+              title="AI assistant conversations"
+              desc="Questions you type into Ask the Corpus and the answers, saved to your account so you can return to them. Delete any conversation at any time; they are erased with your account."
+            />
+            <PrivacyItem
+              title="Security records"
+              desc="A sign-in history (time, approximate device and location) and, if you enable them, your passkeys and two-factor settings — used to protect your account and show you where you're signed in."
+            />
+            <PrivacyItem
               title="Usage events"
               desc="Article views/downloads and, for institutional subscribers, COUNTER 5 usage events — includes IP address at the time of the request, used to attribute usage to a subscribing institution."
             />
@@ -123,7 +133,7 @@ export function PrivacyView() {
         <Card className="paper-card mt-4">
           <CardContent className="p-6 space-y-3">
             <p className="text-sm text-muted-foreground text-justify">
-              We set three strictly necessary cookies, which require no consent under GDPR/ePrivacy,
+              We set three strictly necessary cookies, which require no consent under data-protection and ePrivacy rules,
               plus one optional cookie that does — covered by the consent banner shown on your first
               visit, and here plainly either way:
             </p>
@@ -173,11 +183,15 @@ export function PrivacyView() {
               We don&apos;t sell data. A limited set of processors handle it on our behalf, only for the
               purpose named: {legal.whitelabel ? "Eleventh Press International Publishing™ (the platform provider, which operates the service below for us), " : ""}our hosting and database provider (running the application and storing
               your account/submission data), our object storage provider (manuscript files, galleys,
-              avatars), your chosen payment gateway (Stripe, PayPal, PayMongo, Lemon Squeezy, or
+              avatars), our email delivery provider (Resend — sends account and notification emails),
+              our error-monitoring service (Sentry — receives technical details of a failed request,
+              which can include your IP address), our rate-limiting service (Upstash — briefly holds IP
+              addresses to block abusive traffic), your chosen payment gateway (Stripe, PayPal, PayMongo, Lemon Squeezy, or
               Xendit — whichever you select at checkout; card details go directly to them, never to
               us), VirusTotal (scans uploaded files for malware — the file only, not your account
-              details), Anthropic (assists editorial triage on submitted manuscript text when this
-              feature is enabled), and Zenodo (mints your article's DOI, which is inherently public
+              details), AI model providers (OpenRouter and the model hosts it routes to, or Anthropic) —
+              which receive submitted manuscript text for editorial triage and the questions you ask
+              the AI assistant, without your account details — and Zenodo (mints your article's DOI, which is inherently public
               once published). ORCID and Blogger only ever receive data if you explicitly connect
               those accounts yourself.
             </p>
@@ -237,6 +251,35 @@ export function PrivacyView() {
                 that DOI's record and is not retroactively changed.
               </p>
             </div>
+          </CardContent>
+          <CardContent className="space-y-3 px-6 pb-6 pt-0 text-sm text-muted-foreground text-justify" data-testid="privacy-rights-law">
+            <p>
+              You also have the right to be informed, to access and correct your data, to object to
+              or restrict processing, to data portability, and to claim damages for unlawful
+              processing — under the Philippine Data Privacy Act of 2012 (Republic Act No. 10173) and,
+              if you are in the European Union or United Kingdom, the GDPR. Most profile corrections
+              can be made yourself in the Profile tab; for anything else, email{" "}
+              <a className="text-primary hover:underline" href={`mailto:${contactEmail}`}>{contactEmail}</a>{" "}
+              and we will respond within 30 days.
+            </p>
+            <p>
+              If you believe we have mishandled your data, you can complain to{" "}
+              {legal.whitelabel ? "the data-protection authority where you live" : (
+                <>
+                  the{" "}
+                  <a className="text-primary hover:underline" href="https://privacy.gov.ph" target="_blank" rel="noopener noreferrer">
+                    National Privacy Commission of the Philippines
+                  </a>{" "}
+                  or the data-protection authority where you live
+                </>
+              )}
+              . We would appreciate the chance to put it right first.
+            </p>
+            <p>
+              This site is not intended for children under 13, and we do not knowingly collect their
+              data. Data is processed on cloud infrastructure that may be outside your country; where
+              it is, we rely on our providers&apos; standard contractual safeguards.
+            </p>
           </CardContent>
           <CardContent className="flex flex-wrap gap-3 px-6 pb-6 pt-0">
             <Button onClick={() => (user ? openDashboard("profile") : setView("login"))}>

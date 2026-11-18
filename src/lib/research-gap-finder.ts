@@ -22,7 +22,7 @@ import { htmlToPlainText } from "@/lib/chunk-embeddings";
 import { formatCitation } from "@/lib/article";
 
 const EXTERNAL_FETCH_TIMEOUT_MS = 10_000;
-const EXTERNAL_FETCH_USER_AGENT = "EleventhPressResearchLab/1.0 (+https://eleventhpress.org)";
+const EXTERNAL_FETCH_USER_AGENT = "EleventhPressResearchLab/1.0 (+https://eleventhpress.com)";
 const MAX_EXCERPT_CHARS = 3000;
 
 function ipv4ToInt(ip: string): number {
