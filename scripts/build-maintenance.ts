@@ -30,6 +30,7 @@ const STEPS: Step[] = [
   { script: "backfill-email-verified.ts", args: ["--confirm"], mode: "once", alreadyApplied: true },
   { script: "refresh-citation-metrics.ts", args: ["--confirm"], mode: "every" },
   { script: "enable-review-history.ts", mode: "once", alreadyApplied: true },
+  { script: "clear-unassigned-identifiers.ts", mode: "once" },
   { script: "purge-old-ip-addresses.ts", mode: "every" },
   { script: "purge-research-conversations.ts", mode: "every" },
 ];

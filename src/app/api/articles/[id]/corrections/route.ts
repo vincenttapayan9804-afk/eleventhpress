@@ -5,7 +5,7 @@ import { notify } from "@/lib/notify";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { correctionTypeToIntegrityStatus, CorrectionType, CORRECTION_TYPE_LABELS } from "@/lib/article";
 import { depositToCrossref, depositCrossmarkUpdate } from "@/lib/crossref";
-import { APP_BASE_URL } from "@/lib/site";
+import { APP_BASE_URL, PLACEHOLDER_DOI_PREFIX } from "@/lib/site";
 import { withRlsContext } from "@/lib/db-rls";
 
 /**
@@ -78,7 +78,7 @@ export async function POST(
   }
 
   const suffix = Math.floor(Math.random() * 90000) + 10000;
-  const noticeDoi = `10.52011/epip.correction.${suffix}`;
+  const noticeDoi = `${PLACEHOLDER_DOI_PREFIX}/epip.correction.${suffix}`;
   const articleUrl = `${APP_BASE_URL}/article/${article.id}`;
   const issuedAt = new Date();
 

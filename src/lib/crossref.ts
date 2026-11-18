@@ -75,8 +75,7 @@ export function buildDoiBatchXml(input: CrossrefDepositInput): string {
       <journal_metadata language="en">
         <full_title>${esc(journal.name || "Eleventh Press International Journal of Multidisciplinary Research")}</full_title>
         <abbrev_title>EPIP Int. J. Multidiscip. Res.</abbrev_title>
-        <issn media_type="electronic">${esc(journal.issn || "2945-1138")}</issn>
-      </journal_metadata>
+${journal.issn ? `        <issn media_type="electronic">${esc(journal.issn)}</issn>\n` : ""}      </journal_metadata>
       <journal_issue>
         <publication_date media_type="online"><year>${year}</year></publication_date>
         <journal_volume><volume>${issue.volume || 1}</volume></journal_volume>
@@ -249,8 +248,7 @@ export function buildCrossmarkUpdateXml(input: CrossmarkUpdateInput): string {
       <journal_metadata language="en">
         <full_title>${esc(journal.name || "Eleventh Press International Journal of Multidisciplinary Research")}</full_title>
         <abbrev_title>EPIP Int. J. Multidiscip. Res.</abbrev_title>
-        <issn media_type="electronic">${esc(journal.issn || "2945-1138")}</issn>
-      </journal_metadata>
+${journal.issn ? `        <issn media_type="electronic">${esc(journal.issn)}</issn>\n` : ""}      </journal_metadata>
       <journal_issue>
         <publication_date media_type="online"><year>${year}</year></publication_date>
         <journal_volume><volume>${issue.volume || 1}</volume></journal_volume>

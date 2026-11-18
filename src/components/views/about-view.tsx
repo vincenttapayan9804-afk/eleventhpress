@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
-import { DOI_REGISTRAR } from "@/lib/site";
+import { DOI_REGISTRAR, issnLabel } from "@/lib/site";
 import { DISCIPLINES } from "@/lib/article";
 import { DISCIPLINE_ICONS } from "@/components/discipline-icons";
 import {
@@ -159,7 +159,7 @@ export function AboutView() {
               A Full-Stack Peer Reviewed Press &amp; Multidisciplinary Syndication Network
             </p>
             <p className="mt-3 text-sm text-muted-foreground">
-              ISSN 2945-1138 · Publisher prefix 10.52011 · Est. 2021 · Philippines
+              {issnLabel()} · Philippines
             </p>
           </>
         )}

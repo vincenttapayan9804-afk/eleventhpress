@@ -1,4 +1,4 @@
-import { APP_BASE_URL, JOURNAL_IDENTITY } from "@/lib/site";
+import { APP_BASE_URL, JOURNAL_IDENTITY, issnLabel } from "@/lib/site";
 import { MEDIA_STORIES, stripCitations } from "@/lib/media/stories";
 import { BLOGS, GUIDES } from "@/lib/resources-content";
 
@@ -15,7 +15,7 @@ export function GET() {
   const lines = [
     `# ${J.name}`,
     "",
-    `> ${J.tagline}. Peer-reviewed, open-access (${J.license}) journal across twelve disciplines. ISSN ${J.issn}. ${J.location}. Contact: ${J.editorialEmail}.`,
+    `> ${J.tagline}. Peer-reviewed, open-access (${J.license}) journal across twelve disciplines. ${issnLabel(J.issn)}. ${J.location}. Contact: ${J.editorialEmail}.`,
     "",
     "## Official guides",
     "",

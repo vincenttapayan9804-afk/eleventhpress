@@ -324,7 +324,6 @@ export async function main() {
   const journal = await db.journal.create({
     data: {
       name: "Eleventh Press International Journal of Multidisciplinary Research",
-      issn: "2945-1138",
       publisher: "Eleventh Press International Publishing",
       description:
         "A peer-reviewed, open-access multidisciplinary journal publishing original research across the natural sciences, engineering, social sciences, and humanities.",
@@ -360,7 +359,7 @@ export async function main() {
       data: {
         journalId: journal.id,
         issueId: a.status === "PUBLISHED" ? issue.id : null,
-        doi: a.status === "PUBLISHED" ? `10.52011/epip.2024.${doiSuffix}` : (a.submittedAt ? `10.52011/epip.draft.${doiSuffix}` : null),
+        doi: a.status === "PUBLISHED" ? `10.5072/epip.2024.${doiSuffix}` : (a.submittedAt ? `10.5072/epip.draft.${doiSuffix}` : null),
         doiStatus: a.status === "PUBLISHED" ? "PUBLISHED" : (a.submittedAt ? "DRAFT" : "NONE"),
         title: a.title,
         abstract: a.abstract,
@@ -458,7 +457,7 @@ export async function main() {
           userId: userMap["author@eleventhpress.org"],
           type: "SUCCESS",
           title: "Article Published",
-          message: `Your article "${a.title}" has been published. DOI: 10.52011/epip.2024.${doiSuffix}`,
+          message: `Your article "${a.title}" has been published. DOI: 10.5072/epip.2024.${doiSuffix}`,
           articleId: article.id,
         },
       });

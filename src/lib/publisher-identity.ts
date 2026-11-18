@@ -6,7 +6,7 @@
  * title needs the same answer: "whose name, ISSN, colours and contact
  * details go on this?". For a whitelabel tenant that is the tenant's own
  * institution — never Eleventh Press's name, and never Eleventh Press's
- * ISSN (2945-1138), which belongs to the platform journal only.
+ * ISSN, which belongs to the platform journal only.
  *
  * Fallback order for a tenant: the journal's own fields → the tenant's
  * display name/branding → nothing (an empty ISSN is better than a wrong

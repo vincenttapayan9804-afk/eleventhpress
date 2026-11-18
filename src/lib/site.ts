@@ -68,15 +68,32 @@ export const JOURNAL_IDENTITY = {
   name: "Eleventh Press International Publishing™",
   shortName: "Eleventh Press",
   tagline: "A Full-Stack Peer Reviewed Press & Multidisciplinary Syndication Network",
-  issn: "2945-1138",
-  doiPrefix: "10.52011",
-  established: 2021,
+  /** Not yet assigned — the ISSN application is in progress. Set the real
+   * number here once the National Library of the Philippines issues it. */
+  issn: null as string | null,
+  /** Not yet assigned — set once Crossref membership gives a prefix. */
+  doiPrefix: null as string | null,
   location: "Philippines",
   editorialEmail: "editorial@eleventhpress.com",
   license: "CC BY 4.0",
   licenseUrl: "https://creativecommons.org/licenses/by/4.0/",
   apc: "USD 97",
 } as const;
+
+/** Shown wherever the platform's ISSN would appear until one is assigned. */
+export const ISSN_PENDING_LABEL = "ISSN: applied for";
+
+/** "ISSN 1234-5678", or the pending label when none is assigned yet. */
+export function issnLabel(issn: string | null | undefined = JOURNAL_IDENTITY.issn): string {
+  return issn ? `ISSN ${issn}` : ISSN_PENDING_LABEL;
+}
+
+/**
+ * Prefix for internal placeholder DOIs (drafts, correction notices) until
+ * the journal has its own Crossref prefix. 10.5072 is the reserved test
+ * prefix, so these can never be mistaken for, or collide with, real DOIs.
+ */
+export const PLACEHOLDER_DOI_PREFIX = process.env.CROSSREF_DOI_PREFIX || "10.5072";
 
 /**
  * When the Terms of Service and Privacy page were last materially changed.

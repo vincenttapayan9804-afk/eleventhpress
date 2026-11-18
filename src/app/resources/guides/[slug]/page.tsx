@@ -10,7 +10,7 @@ import {
   ShieldCheck,
   ListOrdered,
 } from "lucide-react";
-import { APP_BASE_URL, ARTICLE_LANGUAGE, JOURNAL_IDENTITY } from "@/lib/site";
+import { APP_BASE_URL, ARTICLE_LANGUAGE, JOURNAL_IDENTITY, issnLabel } from "@/lib/site";
 import { GUIDES } from "@/lib/resources-content";
 import { fmtLongDate, getGuideDoc, guideById, guideCitation, guidePath, guidePdfPath } from "@/lib/resources";
 import { ResourcePageShell, BackToResources } from "@/components/resources/resource-page-shell";
@@ -87,7 +87,7 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
       isAccessibleForFree: true,
       license: JOURNAL_IDENTITY.licenseUrl,
       author: org,
-      publisher: { ...org, issn: JOURNAL_IDENTITY.issn },
+      publisher: { ...org, ...(JOURNAL_IDENTITY.issn ? { issn: JOURNAL_IDENTITY.issn } : {}) },
       encoding: { "@type": "MediaObject", encodingFormat: "application/pdf", contentUrl: pdfUrl, name: `${g.title} (PDF)` },
       citation: g.standards.map((s) => ({
         "@type": "CreativeWork",
@@ -167,7 +167,7 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
             </Button>
           </div>
           <p className="mt-4 text-xs text-white/60">
-            ISSN {JOURNAL_IDENTITY.issn} · Publisher DOI prefix {JOURNAL_IDENTITY.doiPrefix} · {JOURNAL_IDENTITY.location} · {JOURNAL_IDENTITY.editorialEmail}
+            {issnLabel(JOURNAL_IDENTITY.issn)} · {JOURNAL_IDENTITY.location} · {JOURNAL_IDENTITY.editorialEmail}
           </p>
         </header>
 
