@@ -21,6 +21,7 @@ export function emailBrandOf(tenant: TenantForBrand | null | undefined): EmailBr
       b.websiteUrl ? b.websiteUrl.replace(/^https?:\/\//, "").replace(/\/$/, "") : "",
       b.address ?? "",
     ].filter(Boolean),
+    replyTo: b.officialEmail || b.supportEmail || undefined,
   };
 }
 

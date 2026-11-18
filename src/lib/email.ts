@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { JOURNAL_IDENTITY } from "@/lib/site";
 import { POWERED_BY_CREDIT } from "@/lib/powered-by";
 
 /**
@@ -34,6 +35,13 @@ export interface SendEmailParams {
   subject: string;
   html: string;
   text?: string;
+  /**
+   * Where replies go. Defaults to the platform's editorial inbox
+   * (EMAIL_REPLY_TO, else editorial@eleventhpress.com), so an author who
+   * hits Reply on an automatic email reaches a person. A whitelabel
+   * tenant's emails pass the tenant's own address (EmailBrand.replyTo).
+   */
+  replyTo?: string;
   /** Extra headers, e.g. List-Unsubscribe for notification emails. */
   headers?: Record<string, string>;
 }
@@ -55,6 +63,7 @@ export async function sendEmail(params: SendEmailParams): Promise<SendEmailResul
     const { error } = await getClient().emails.send({
       from: process.env.EMAIL_FROM || FALLBACK_FROM,
       to: params.to,
+      replyTo: params.replyTo || process.env.EMAIL_REPLY_TO || JOURNAL_IDENTITY.editorialEmail,
       subject: params.subject,
       html: params.html,
       text: params.text,
@@ -79,6 +88,8 @@ export interface EmailBrand {
   logoUrl: string | null;
   primaryColor: string | null;
   contactLines: string[];
+  /** The tenant's own inbox for replies; unset on the platform site. */
+  replyTo?: string;
 }
 
 function escapeAttr(v: string): string {

@@ -62,6 +62,7 @@ export async function sendNotificationDigests(): Promise<{ users: number; notifi
       </table></td></tr></table></body></html>`;
     const result = await sendEmail({
       to: user.email,
+      replyTo: brand?.replyTo,
       subject: `Your daily summary — ${pending.length} update${pending.length === 1 ? "" : "s"}`,
       html,
       headers: {

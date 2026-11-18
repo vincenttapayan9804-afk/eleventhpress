@@ -37,6 +37,7 @@ async function send(
     const content = body(escapeHtml(site));
     return await sendEmail({
       to: user.email,
+      replyTo: b?.replyTo,
       subject: subject(site),
       html: notificationEmailHtml({ ...content, brand: b }),
       text: content.text,

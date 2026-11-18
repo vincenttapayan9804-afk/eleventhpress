@@ -86,7 +86,8 @@ export async function notifyMany(inputs: NotifyInput[]): Promise<void> {
       const decision = user?.email ? (prefs ? emailDecision(prefs, category) : "now") : "none";
       let emailedAt: Date | null = null;
       if (decision === "now" && user?.email) {
-        const result = await sendEmail({ to: user.email, ...emailFor(i, emailBrandOf(user.tenant), i.userId, category) });
+        const brand = emailBrandOf(user.tenant);
+        const result = await sendEmail({ to: user.email, replyTo: brand?.replyTo, ...emailFor(i, brand, i.userId, category) });
         if (result.ok) emailedAt = new Date();
       }
       await db.notification.create({

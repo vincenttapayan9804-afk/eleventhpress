@@ -55,6 +55,7 @@ export async function issueEmailCode(
   const spaced = `${code.slice(0, 3)} ${code.slice(3)}`;
   const result = await sendEmail({
     to: user.email,
+    replyTo: brand?.replyTo,
     subject: `${spaced} is your ${name} verification code`,
     html: notificationEmailHtml({
       title: "Your verification code",
