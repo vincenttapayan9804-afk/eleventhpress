@@ -38,6 +38,8 @@ function reset() {
   limitCalls = [];
   delete process.env.UPSTASH_REDIS_REST_URL;
   delete process.env.UPSTASH_REDIS_REST_TOKEN;
+  delete process.env.KV_REST_API_URL;
+  delete process.env.KV_REST_API_TOKEN;
 }
 
 beforeEach(reset);
@@ -55,6 +57,12 @@ describe("ratelimitLiveMode", () => {
   test("true when both env vars are set", () => {
     process.env.UPSTASH_REDIS_REST_URL = "https://example.upstash.io";
     process.env.UPSTASH_REDIS_REST_TOKEN = "token123";
+    expect(ratelimitLiveMode()).toBe(true);
+  });
+
+  test("true with the Vercel Marketplace names (KV_REST_API_*)", () => {
+    process.env.KV_REST_API_URL = "https://example.upstash.io";
+    process.env.KV_REST_API_TOKEN = "token123";
     expect(ratelimitLiveMode()).toBe(true);
   });
 });

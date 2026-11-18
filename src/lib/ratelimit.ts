@@ -1,5 +1,6 @@
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
+import { upstashEnv } from "@/lib/upstash-env";
 
 /**
  * Real per-IP rate limiting on auth endpoints, backed by Upstash's
@@ -12,16 +13,13 @@ import { Redis } from "@upstash/redis";
  * route-specific business knowledge.
  */
 export function ratelimitLiveMode(): boolean {
-  return !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+  return upstashEnv() !== null;
 }
 
 let redis: Redis | null = null;
 function getRedis(): Redis {
   if (!redis) {
-    redis = new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL!,
-      token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-    });
+    redis = new Redis(upstashEnv()!);
   }
   return redis;
 }
