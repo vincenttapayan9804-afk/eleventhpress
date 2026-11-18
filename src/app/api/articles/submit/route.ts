@@ -1,3 +1,4 @@
+import { PLACEHOLDER_DOI_PREFIX } from "@/lib/site";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { notifyMany } from "@/lib/notify";
@@ -119,7 +120,7 @@ export async function POST(req: NextRequest) {
 
     // Mint draft DOI (mock Crossref)
     const doiSuffix = Math.floor(Math.random() * 90000) + 10000;
-    const draftDoi = `10.52011/epip.draft.${doiSuffix}`;
+    const draftDoi = `${PLACEHOLDER_DOI_PREFIX}/epip.draft.${doiSuffix}`;
 
     // Real in-corpus similarity check (see src/lib/manuscript-checks.ts)
     const similarity = await checkSimilarity(`${title}. ${abstract}`);

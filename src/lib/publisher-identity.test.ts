@@ -16,11 +16,11 @@ const RON = {
 };
 
 describe("publisherIdentityOf", () => {
-  test("platform keeps Eleventh Press's identity and ISSN", () => {
+  test("platform keeps Eleventh Press's identity, with no ISSN until one is assigned", () => {
     const id = publisherIdentityOf(null, null);
     expect(id.whitelabel).toBe(false);
     expect(id.publisher).toBe("Eleventh Press International Publishing™");
-    expect(id.issn).toBe("2945-1138");
+    expect(id.issn).toBeNull();
     expect(id.email).toBe(PLATFORM_IDENTITY.email);
   });
 
@@ -71,5 +71,14 @@ describe("hexOr", () => {
     expect(hexOr("#abc", "#000000")).toBe("#aabbcc");
     expect(hexOr("red", "#000000")).toBe("#000000");
     expect(hexOr(null, "#111111")).toBe("#111111");
+  });
+});
+
+describe("issnLabel", () => {
+  test("shows the pending label until an ISSN is assigned", async () => {
+    const { issnLabel, ISSN_PENDING_LABEL } = await import("@/lib/site");
+    expect(issnLabel(null)).toBe("ISSN: applied for");
+    expect(issnLabel()).toBe(ISSN_PENDING_LABEL);
+    expect(issnLabel("1234-5679")).toBe("ISSN 1234-5679");
   });
 });

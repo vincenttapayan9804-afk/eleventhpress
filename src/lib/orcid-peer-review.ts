@@ -57,10 +57,10 @@ export async function pushPeerReviewToOrcid(
   // ORCID groups peer reviews by the journal's ISSN. A whitelabel tenant's
   // journal is never filed under Eleventh Press's ISSN — without its own,
   // the push is skipped rather than crediting the review to the wrong journal.
-  if (params.whitelabel && !params.journalIssn) {
+  if (!params.journalIssn) {
     return { mode: "skipped", reason: "The journal has no ISSN to group the ORCID peer review under" };
   }
-  const issn = params.journalIssn || "2945-1138";
+  const issn = params.journalIssn;
 
   const payload = {
     "reviewer-role": "reviewer",

@@ -22,7 +22,7 @@
  */
 import PDFDocument from "pdfkit";
 import QRCode from "qrcode";
-import { APP_BASE_URL, JOURNAL_IDENTITY } from "@/lib/site";
+import { APP_BASE_URL, ISSN_PENDING_LABEL, JOURNAL_IDENTITY } from "@/lib/site";
 import { pdfSafe } from "@/lib/provenance-certificate-pdf";
 import { fmtLongDate, guideById, guideCitation, guidePath, type FullGuide } from "@/lib/resources";
 
@@ -234,8 +234,8 @@ export async function buildGuidePdf(g: FullGuide): Promise<Buffer> {
     doc.font("Times-Bold").fontSize(12.5).fillColor(PURPLE).text(J.name, ix, iy + 14, { width: iw });
     doc.font("Helvetica").fontSize(8.2).fillColor(MUTED).text(J.tagline, ix, doc.y + 1, { width: iw });
     const idLines = [
-      `ISSN ${J.issn} (Online)  ·  Publisher DOI prefix ${J.doiPrefix}`,
-      `Established ${J.established}  ·  ${J.location}`,
+      `${J.issn ? `ISSN ${J.issn} (Online)` : ISSN_PENDING_LABEL}`,
+      `${J.location}`,
       `${J.editorialEmail}  ·  ${APP_BASE_URL.replace(/^https?:\/\//, "")}`,
     ];
     doc.font("Helvetica").fontSize(8.2).fillColor(INK);
@@ -422,7 +422,7 @@ export async function buildGuidePdf(g: FullGuide): Promise<Buffer> {
         .text(`${J.name.toUpperCase()}  ·  ${g.code}  ·  VERSION ${g.version}`, M, fy + 7, { characterSpacing: 0.8, lineBreak: false });
       doc.font("Helvetica").fontSize(6.8).fillColor(MUTED).text(`Page ${pageNo} of ${range.count}`, M, fy + 7, { width: CW, align: "right", lineBreak: false });
       doc.font("Helvetica").fontSize(6.4).fillColor(MUTED)
-        .text(`ISSN ${J.issn} (Online)  ·  ${J.location}  ·  ${J.editorialEmail}  ·  ${APP_BASE_URL.replace(/^https?:\/\//, "")}`, M, fy + 17, { width: CW, lineBreak: false });
+        .text(`${J.issn ? `ISSN ${J.issn} (Online)` : ISSN_PENDING_LABEL}  ·  ${J.location}  ·  ${J.editorialEmail}  ·  ${APP_BASE_URL.replace(/^https?:\/\//, "")}`, M, fy + 17, { width: CW, lineBreak: false });
 
       doc.page.margins.bottom = savedBottom;
     }

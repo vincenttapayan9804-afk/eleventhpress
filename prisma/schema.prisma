@@ -375,7 +375,7 @@ model Article {
   id        String  @id @default(cuid())
   journalId String
   issueId   String?
-  doi       String? // e.g. 10.52011/epip.2024.001
+  doi       String? // e.g. 10.xxxxx/epip.2026.001
   doiStatus String  @default("NONE") // NONE | DRAFT | REGISTERED | PUBLISHED
 
   title                 String
