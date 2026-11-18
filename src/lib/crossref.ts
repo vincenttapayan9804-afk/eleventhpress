@@ -66,7 +66,7 @@ export function buildDoiBatchXml(input: CrossrefDepositInput): string {
     <timestamp>${Date.now()}</timestamp>
     <depositor>
       <depositor_name>Eleventh Press International Publishing</depositor_name>
-      <email_address>editorial@eleventhpress.org</email_address>
+      <email_address>editorial@eleventhpress.com</email_address>
     </depositor>
     <registrant>Eleventh Press International Publishing</registrant>
   </head>
@@ -240,7 +240,7 @@ export function buildCrossmarkUpdateXml(input: CrossmarkUpdateInput): string {
     <timestamp>${Date.now()}</timestamp>
     <depositor>
       <depositor_name>Eleventh Press International Publishing</depositor_name>
-      <email_address>editorial@eleventhpress.org</email_address>
+      <email_address>editorial@eleventhpress.com</email_address>
     </depositor>
     <registrant>Eleventh Press International Publishing</registrant>
   </head>
@@ -347,7 +347,7 @@ async function postDepositXml(
       headers: {
         "Content-Type": `multipart/form-data; boundary=${boundary}`,
         Authorization: `Basic ${auth}`,
-        "User-Agent": "EPIP-Crossref-Depositor/1.0 (mailto:editorial@eleventhpress.org)",
+        "User-Agent": "EPIP-Crossref-Depositor/1.0 (mailto:editorial@eleventhpress.com)",
       },
       body,
     });

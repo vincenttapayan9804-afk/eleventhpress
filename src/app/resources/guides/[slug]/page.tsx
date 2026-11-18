@@ -65,7 +65,7 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
     url: APP_BASE_URL,
     logo: { "@type": "ImageObject", url: `${APP_BASE_URL}/logo.svg` },
     email: JOURNAL_IDENTITY.editorialEmail,
-    address: { "@type": "PostalAddress", addressLocality: "London", addressCountry: "GB" },
+    address: { "@type": "PostalAddress", addressCountry: "PH" },
   };
   const jsonLd = [
     {

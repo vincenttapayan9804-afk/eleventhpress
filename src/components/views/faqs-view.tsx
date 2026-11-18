@@ -60,7 +60,7 @@ const PLATFORM_FAQS: { q: string; a: string }[] = [
   },
   {
     q: "How do I request a correction, retraction, or report a concern about a published article?",
-    a: "Email the editorial office at editorial@eleventhpress.org with the article's DOI and a description of the issue. Depending on severity, the editorial team may issue a Corrigendum (author error), an Erratum (publisher error), an Expression of Concern (unresolved doubt pending investigation), or a Retraction — each following COPE/ICMJE guidelines and published as a linked notice attached to the original article.",
+    a: "Email the editorial office at editorial@eleventhpress.com with the article's DOI and a description of the issue. Depending on severity, the editorial team may issue a Corrigendum (author error), an Erratum (publisher error), an Expression of Concern (unresolved doubt pending investigation), or a Retraction — each following COPE/ICMJE guidelines and published as a linked notice attached to the original article.",
   },
 ];
 
@@ -83,7 +83,7 @@ export function faqsFor(legal: LegalIdentity): { q: string; a: string }[] {
     return {
       q: item.q.replace(/Eleventh Press International Publishing™?|Eleventh Press/g, org),
       a: item.a
-        .replace(/editorial@eleventhpress\.org/g, legal.contactEmail)
+        .replace(/editorial@eleventhpress\.com/g, legal.contactEmail)
         .replace(/Eleventh Press International Publishing™?|Eleventh Press/g, org),
     };
   });

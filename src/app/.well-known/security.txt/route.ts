@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
  * self-hosted deployment on a custom domain would otherwise ship a
  * Canonical field pointing at the wrong host.
  *
- * Contact reuses editorial@eleventhpress.org — the one real, monitored
+ * Contact reuses editorial@eleventhpress.com — the one real, monitored
  * address already used everywhere this codebase identifies itself to an
  * external service (Crossref, OpenAlex, COUNTER/SUSHI, ...), rather than
  * inventing a security@ alias nobody's actually watching yet.
@@ -20,7 +20,7 @@ export async function GET() {
   expires.setFullYear(expires.getFullYear() + 1);
 
   const body = [
-    "Contact: mailto:editorial@eleventhpress.org",
+    "Contact: mailto:editorial@eleventhpress.com",
     `Expires: ${expires.toISOString()}`,
     `Canonical: ${APP_BASE_URL}/.well-known/security.txt`,
     "Preferred-Languages: en",

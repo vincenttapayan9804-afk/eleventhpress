@@ -40,7 +40,7 @@ const FETCH_TIMEOUT_MS = 6000;
 // for requests that identify a contact — see
 // https://api.crossref.org/swagger-ui/index.html and
 // https://docs.openalex.org/how-to-use-the-api/rate-limits-and-authentication
-const USER_AGENT = "EPIP-Open-Discovery/1.0 (mailto:editorial@eleventhpress.org)";
+const USER_AGENT = "EPIP-Open-Discovery/1.0 (mailto:editorial@eleventhpress.com)";
 
 export type DiscoverySource =
   | "crossref"
@@ -201,7 +201,7 @@ export async function searchEric(query: string, limit = 5): Promise<DiscoveryRes
 // tool/email params for their politeness/rate-limit policy, same spirit as
 // the "polite pool" headers used for Crossref/OpenAlex above.
 const NCBI_TOOL = "EPIP-Open-Discovery";
-const NCBI_EMAIL = "editorial@eleventhpress.org";
+const NCBI_EMAIL = "editorial@eleventhpress.com";
 
 /** PubMed Central (NCBI E-utilities) — NIH/NLM's free, keyless full-text
  *  biomedical/life-sciences archive. Every PMC record is itself an

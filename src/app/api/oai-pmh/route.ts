@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
     <repositoryName>${escapeXml(identity.whitelabel ? identity.publisher : "Eleventh Press International Publishing™")}</repositoryName>
     <baseURL>${BASE_URL}</baseURL>
     <protocolVersion>2.0</protocolVersion>
-    <adminEmail>${escapeXml(identity.email || "editorial@eleventhpress.org")}</adminEmail>
+    <adminEmail>${escapeXml(identity.email || "editorial@eleventhpress.com")}</adminEmail>
     <earliestDatestamp>2021-01-01T00:00:00Z</earliestDatestamp>
     <deletedRecord>persistent</deletedRecord>
     <granularity>YYYY-MM-DDThh:mm:ssZ</granularity>

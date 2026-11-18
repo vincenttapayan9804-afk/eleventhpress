@@ -74,8 +74,13 @@ export async function GET() {
     (a, b) => (ROLE_RANK[a.role] ?? 99) - (ROLE_RANK[b.role] ?? 99) || a.fullName.localeCompare(b.fullName)
   );
 
+  // The internal account role (e.g. SUPER_ADMIN) is never published: it
+  // would tell anyone which account holds platform-wide privileges.
+  // roleLabel ("Editor-in-Chief", "Editor", ...) is the public title.
+  const publicBoard = board.map(({ role: _role, ...m }) => m);
+
   return NextResponse.json(
-    { board, total: board.length },
+    { board: publicBoard, total: publicBoard.length },
     { headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=600" } }
   );
 }

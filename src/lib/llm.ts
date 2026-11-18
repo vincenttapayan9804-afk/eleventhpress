@@ -107,7 +107,7 @@ export function compatHeaders(): Record<string, string> {
   if (key) headers.Authorization = `Bearer ${key}`;
   if (compatIsOpenRouter()) {
     // OpenRouter's optional app-attribution headers; other servers don't use them.
-    headers["HTTP-Referer"] = process.env.NEXT_PUBLIC_APP_URL || "https://eleventhpress.org";
+    headers["HTTP-Referer"] = process.env.NEXT_PUBLIC_APP_URL || "https://eleventhpress.com";
     headers["X-Title"] = "Eleventh Press";
   }
   return headers;

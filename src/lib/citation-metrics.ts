@@ -17,7 +17,7 @@
  */
 
 const OPENALEX_BASE = "https://api.openalex.org";
-const USER_AGENT = "EPIP-Citation-Metrics/1.0 (mailto:editorial@eleventhpress.org)";
+const USER_AGENT = "EPIP-Citation-Metrics/1.0 (mailto:editorial@eleventhpress.com)";
 const FETCH_TIMEOUT_MS = 5000;
 
 async function fetchJson(url: string): Promise<any | null> {

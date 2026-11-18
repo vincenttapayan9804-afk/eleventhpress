@@ -159,7 +159,7 @@ export function AboutView() {
               A Full-Stack Peer Reviewed Press &amp; Multidisciplinary Syndication Network
             </p>
             <p className="mt-3 text-sm text-muted-foreground">
-              ISSN 2945-1138 · Publisher prefix 10.52011 · Est. 2021 · London, United Kingdom
+              ISSN 2945-1138 · Publisher prefix 10.52011 · Est. 2021 · Philippines
             </p>
           </>
         )}
@@ -567,7 +567,7 @@ export function AboutView() {
           <Card className="paper-card mt-5">
             <CardContent className="p-6 text-sm text-muted-foreground">
               Editorial board listings are being finalized as editorial accounts are added.
-              Contact <a href="mailto:editorial@eleventhpress.org" className="text-primary underline underline-offset-2">editorial@eleventhpress.org</a> for the current handling editor on any submission.
+              Contact <a href="mailto:editorial@eleventhpress.com" className="text-primary underline underline-offset-2">editorial@eleventhpress.com</a> for the current handling editor on any submission.
             </CardContent>
           </Card>
         )}
@@ -661,7 +661,7 @@ export function AboutView() {
             </div>
             <div className="mt-4">
               <Button variant="outline" size="sm" asChild>
-                <a href="mailto:editorial@eleventhpress.org?subject=Research%20integrity%20concern">
+                <a href="mailto:editorial@eleventhpress.com?subject=Research%20integrity%20concern">
                   <Mail className="mr-2 h-3.5 w-3.5" /> Report a concern
                 </a>
               </Button>
@@ -792,7 +792,7 @@ export function AboutView() {
         <h2 className="font-display text-2xl font-semibold">Compliance</h2>
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <ComplianceCard icon={ShieldCheck} title="PCI-DSS" desc="Credit card data never touches our servers — handled entirely by the hosted checkout of your chosen payment gateway." />
-          <ComplianceCard icon={Scale} title="GDPR / CCPA" desc="Account deletion cascades through all databases, anonymising review comments but retaining published papers." />
+          <ComplianceCard icon={Scale} title="Data privacy" desc="Built around the Philippine Data Privacy Act of 2012 and GDPR principles: self-service data export and account deletion, which anonymises review comments but retains published papers." />
           <ComplianceCard icon={Workflow} title="Audit log" desc="Every state transition is recorded in an append-only audit log with user + metadata." />
         </div>
       </section>

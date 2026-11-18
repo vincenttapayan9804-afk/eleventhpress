@@ -66,7 +66,7 @@ export function isWhitelabel(b: ClientBranding): boolean {
 }
 
 /** The platform's own editorial inbox. */
-export const PLATFORM_CONTACT_EMAIL = "editorial@eleventhpress.org";
+export const PLATFORM_CONTACT_EMAIL = "editorial@eleventhpress.com";
 
 /**
  * Where "email us" links on this site should go: a whitelabel tenant's own
@@ -95,7 +95,7 @@ export interface LegalIdentity {
   orgName: string;
   /** Registered legal entity named as the contracting party / data controller. */
   legalName: string;
-  /** Governing-law clause body, e.g. "the laws of England and Wales". */
+  /** Governing-law clause body, e.g. "the laws of the Republic of the Philippines". */
   governingLaw: string;
   /** Where the operator is based, when known. */
   location: string | null;
@@ -111,8 +111,8 @@ export function legalIdentityOf(b: ClientBranding): LegalIdentity {
       whitelabel: false,
       orgName: "Eleventh Press",
       legalName: PLATFORM_LEGAL_NAME,
-      governingLaw: "the laws of England and Wales",
-      location: "London, United Kingdom",
+      governingLaw: "the laws of the Republic of the Philippines",
+      location: "Philippines",
       contactEmail: PLATFORM_CONTACT_EMAIL,
       privacyEmail: PLATFORM_CONTACT_EMAIL,
     };

@@ -81,7 +81,7 @@ interface DirectoryListing {
 export function IndexingTab() {
   // Examples show the tenant's own site, never Eleventh Press's ISSN/domain.
   const whitelabel = isWhitelabel(useTenantBranding());
-  const siteOrigin = whitelabel ? "https://…" : "https://eleventhpress.org";
+  const siteOrigin = whitelabel ? "https://…" : "https://eleventhpress.com";
   const user = useApp((s) => s.user);
   const isAdmin = user?.role === "SUPER_ADMIN";
   const [preservationDeposits, setPreservationDeposits] = useState<PreservationDeposit[]>([]);
