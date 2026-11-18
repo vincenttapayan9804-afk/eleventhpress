@@ -4,16 +4,17 @@
  * imports so the proxy bundle stays small. Without Redis, revocation is
  * still enforced by GET /api/auth/me (src/lib/user-sessions.ts).
  */
+import { upstashEnv } from "@/lib/upstash-env";
 const PREFIX = "epip-revoked:";
 const TTL_SECONDS = 8 * 24 * 3600;
 
 function configured() {
-  return !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+  return upstashEnv() !== null;
 }
 
 async function client() {
   const { Redis } = await import("@upstash/redis");
-  return new Redis({ url: process.env.UPSTASH_REDIS_REST_URL!, token: process.env.UPSTASH_REDIS_REST_TOKEN! });
+  return new Redis(upstashEnv()!);
 }
 
 export async function markRevoked(ids: string[]): Promise<void> {

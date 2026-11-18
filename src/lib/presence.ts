@@ -1,4 +1,5 @@
 import { Redis } from "@upstash/redis";
+import { upstashEnv } from "@/lib/upstash-env";
 
 /**
  * Real-time reader presence — "N people reading this now" on the article
@@ -18,16 +19,13 @@ import { Redis } from "@upstash/redis";
  * isn't configured.
  */
 export function presenceLiveMode(): boolean {
-  return !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+  return upstashEnv() !== null;
 }
 
 let redis: Redis | null = null;
 function getRedis(): Redis {
   if (!redis) {
-    redis = new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL!,
-      token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-    });
+    redis = new Redis(upstashEnv()!);
   }
   return redis;
 }
