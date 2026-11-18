@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { articleIdFromSegment, articlePath } from "@/lib/spa-routes";
 import { db } from "@/lib/db";
-import { presignGet } from "@/lib/storage";
 import { parseAuthors, formatCitation } from "@/lib/article";
 import { coinsSpanProps } from "@/lib/citation-export";
 import { publisherIdentityForJournal } from "@/lib/publisher-identity";
@@ -91,7 +90,9 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     // updated access rule (published articles are public, matching the
     // site's own Open Access / CC BY 4.0 claims and Google Scholar's hard
     // requirement that indexed full text not sit behind an auth gate.
-    other.citation_pdf_url = await presignGet(article.galleyPdfKey, `${article.doi?.replace(/[^a-z0-9]/gi, "-") || article.id}.pdf`);
+    // Served from the article's own URL (./pdf/route.ts): Google Scholar
+    // expects the PDF on the same site as the article page.
+    other.citation_pdf_url = `${canonicalUrl}/pdf`;
   }
 
   return {
@@ -154,7 +155,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ id: st
     issueNumber: article.issue?.issueNumber,
   });
   const identity = await publisherIdentityForJournal(article.journal);
-  const pdfUrl = article.galleyPdfKey ? await presignGet(article.galleyPdfKey, `${article.doi?.replace(/[^a-z0-9]/gi, "-") || article.id}.pdf`) : null;
+  const pdfUrl = article.galleyPdfKey ? `${articlePath(article.id, article.title)}/pdf` : null;
 
   // schema.org/ScholarlyArticle JSON-LD — rendered server-side (unlike the
   // equivalent block in article-view.tsx, which only ever reaches
