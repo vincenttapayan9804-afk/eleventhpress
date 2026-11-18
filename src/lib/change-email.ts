@@ -49,6 +49,7 @@ export async function sendChangeEmailCode(
   const spaced = `${code.slice(0, 3)} ${code.slice(3)}`;
   const result = await sendEmail({
     to: newEmail,
+    replyTo: brand?.replyTo,
     subject: `${spaced} confirms your new ${brandName(brand)} sign-in email`,
     html: notificationEmailHtml({
       title: "Confirm your new sign-in email",
@@ -143,6 +144,7 @@ export async function applyEmailChange(
   const brand = await emailBrandForTenantId(before.tenantId);
   await sendEmail({
     to: before.email,
+    replyTo: brand?.replyTo,
     subject: `Your ${brandName(brand)} sign-in email was changed`,
     html: notificationEmailHtml({
       title: "Your sign-in email was changed",

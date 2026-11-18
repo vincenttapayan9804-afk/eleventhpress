@@ -53,6 +53,7 @@ export async function POST(req: NextRequest) {
       const site = brandName(brand);
       const result = await sendEmail({
         to: user.email,
+        replyTo: brand?.replyTo,
         subject: `Reset your password — ${site}`,
         html: notificationEmailHtml({
           title: "Reset your password",

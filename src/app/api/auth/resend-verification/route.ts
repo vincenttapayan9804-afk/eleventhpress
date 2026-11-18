@@ -42,6 +42,7 @@ export async function POST(req: NextRequest) {
   const brand = await emailBrandForTenantId(user.tenantId);
   const result = await sendEmail({
     to: user.email,
+    replyTo: brand?.replyTo,
     subject: `Verify your email — ${brandName(brand)}`,
     html: notificationEmailHtml({
       title: "Verify your email",

@@ -75,6 +75,7 @@ export async function POST(req: NextRequest) {
   const roleLabel = role.replace(/_/g, " ").toLowerCase();
   const result = await sendEmail({
     to: email,
+    replyTo: brand?.replyTo,
     subject: `You've been added to ${org}`,
     html: notificationEmailHtml({
       title: `Welcome to ${esc(org)}`,

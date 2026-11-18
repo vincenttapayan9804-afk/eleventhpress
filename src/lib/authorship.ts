@@ -51,6 +51,7 @@ export async function requestAuthorshipConfirmations(params: {
     const url = `${APP_BASE_URL}/confirm-authorship?token=${token}`;
     const r = await sendEmail({
       to: email,
+      replyTo: brand?.replyTo,
       subject: `Please confirm your authorship: "${params.title.slice(0, 80)}"`,
       html: notificationEmailHtml({
         title: "Please confirm your authorship",
