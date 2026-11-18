@@ -51,8 +51,13 @@ test("pricing page lists the plans", async ({ page }) => {
 
 test("the search palette opens with the keyboard", async ({ page }) => {
   await page.goto("/about");
-  await page.keyboard.press("ControlOrMeta+k");
-  await expect(page.getByPlaceholder(/Search articles/)).toBeVisible();
+  // The shortcut listener attaches on hydration, which under `next dev` can
+  // land after goto() resolves; retry the keypress until the palette opens
+  // instead of failing on a press that happened before the listener existed.
+  await expect(async () => {
+    await page.keyboard.press("ControlOrMeta+k");
+    await expect(page.getByPlaceholder(/Search articles/)).toBeVisible({ timeout: 1000 });
+  }).toPass({ timeout: 20000 });
   await page.keyboard.press("Escape");
   await expect(page.getByPlaceholder(/Search articles/)).toBeHidden();
 });
