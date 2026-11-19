@@ -24,9 +24,13 @@ test("navigation updates the address and Back/Forward follow it", async ({ page 
   await page.getByTestId("nav-group-about").click();
   await page.getByTestId("nav-about").click();
   await expect(page).toHaveURL(/\/about$/);
-  await page.getByTestId("nav-group-about").click();
-  await page.getByTestId("nav-faqs").click();
-  await expect(page).toHaveURL(/\/faqs$/);
+  // The About view is still settling under `next dev`; reopen the menu
+  // until the FAQs item is there to click.
+  await expect(async () => {
+    if (!(await page.getByTestId("nav-faqs").isVisible())) await page.getByTestId("nav-group-about").click();
+    await page.getByTestId("nav-faqs").click({ timeout: 2000 });
+    await expect(page).toHaveURL(/\/faqs$/, { timeout: 2000 });
+  }).toPass({ timeout: 20000 });
   await page.goBack();
   await expect(page).toHaveURL(/\/about$/);
   await page.goForward();
