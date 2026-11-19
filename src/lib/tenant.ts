@@ -130,7 +130,9 @@ export async function resolveTenantFromHost(
       // the platform": the session and portal checks below must still run,
       // or a whitelabel portal link (/t/<slug>) and a tenant member signed in
       // on the official host would both always see Eleventh Press.
-      if (domain && !domain.tenant.isPlatform) return toTenantContext(domain.tenant, "domain");
+      // A suspended tenant's domain falls back to the official site, the
+      // same as its /t/<slug> portal and its members' sessions below.
+      if (domain && !domain.tenant.isPlatform && domain.tenant.status !== "SUSPENDED") return toTenantContext(domain.tenant, "domain");
       if (domain) platformRow = domain.tenant;
     }
 

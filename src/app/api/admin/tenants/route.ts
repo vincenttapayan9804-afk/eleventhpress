@@ -15,6 +15,7 @@ import {
   generateTemporaryPassword,
   sendTenantAdminCredentials,
   tenantLinks,
+  ensureTenantSubdomain,
 } from "@/lib/tenant-onboarding";
 
 /**
@@ -168,17 +169,10 @@ export async function POST(req: NextRequest) {
   await getOrCreateTenantJournal(tenant);
   if (plan) await syncTenantEntitlements(tenant.id, plan);
 
-  // Free subdomain under the configured root domain, if one is set — no DNS
-  // challenge needed since we already control the whole zone.
-  const rootDomain = process.env.TENANT_ROOT_DOMAIN;
-  let subdomain: { hostname: string } | null = null;
-  if (rootDomain) {
-    const hostname = `${tenant.slug}.${rootDomain}`;
-    const domain = await db.tenantDomain.create({
-      data: { tenantId: tenant.id, hostname, isPrimary: true, verified: true, verifiedAt: new Date() },
-    });
-    subdomain = { hostname: domain.hostname };
-  }
+  // Free <slug>.eleventhpress.com subdomain — no DNS challenge needed since
+  // we control the whole zone, and the wildcard domain covers its SSL.
+  const subHost = await ensureTenantSubdomain(tenant);
+  const subdomain = subHost ? { hostname: subHost } : null;
 
   const delivery =
     admin && temporaryPassword
