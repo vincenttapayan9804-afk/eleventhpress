@@ -22,14 +22,17 @@
  */
 import PDFDocument from "pdfkit";
 import QRCode from "qrcode";
-import { APP_BASE_URL, ISSN_PENDING_LABEL, JOURNAL_IDENTITY } from "@/lib/site";
+import { ISSN_PENDING_LABEL, JOURNAL_IDENTITY } from "@/lib/site";
 import { pdfSafe } from "@/lib/provenance-certificate-pdf";
 import { fmtLongDate, guideById, guideCitation, guidePath, type FullGuide } from "@/lib/resources";
+import { PLATFORM_RESOURCE_BRAND, brandCode, type ResourceBrand } from "@/lib/resources/tenant-brand";
 
-const PURPLE = "#4c1d95";
-const PURPLE_DEEP = "#2a1458";
-const GOLD = "#c9a55c";
-const GOLD_DEEP = "#8a6a28";
+/** `hex` mixed toward black by `amount` (0–1), for the deep shade of a tenant's colours. */
+function darken(hex: string, amount: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  const ch = (shift: number) => Math.round(((n >> shift) & 255) * (1 - amount));
+  return `#${[16, 8, 0].map((sh) => ch(sh).toString(16).padStart(2, "0")).join("")}`;
+}
 const INK = "#241b3a";
 const BODY = "#2e2742";
 const MUTED = "#6b6478";
@@ -44,14 +47,34 @@ const TOP = 74;
 const BOTTOM_MARGIN = 76;
 const BOTTOM_LIMIT = PAGE_H - BOTTOM_MARGIN;
 
-const J = JOURNAL_IDENTITY;
-
-export function guidePdfFileName(g: FullGuide): string {
+export function guidePdfFileName(g: FullGuide, brand: ResourceBrand = PLATFORM_RESOURCE_BRAND): string {
   const slug = g.slug.replace(/[^a-z0-9-]+/gi, "-").toLowerCase();
-  return `eleventh-press-${g.code.toLowerCase()}-${slug}-v${g.version}.pdf`;
+  const owner = brand.whitelabel
+    ? brand.shortName.normalize("NFKD").replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase().slice(0, 40) || "guide"
+    : "eleventh-press";
+  return `${owner}-${g.code.toLowerCase()}-${slug}-v${g.version}.pdf`;
 }
 
-export async function buildGuidePdf(g: FullGuide): Promise<Buffer> {
+/**
+ * The branded PDF edition of a guide. `g` should already be branded for the
+ * site (getGuideDoc(slug, brand)); `brand` sets the publisher, contact
+ * details and colours printed around it.
+ */
+export async function buildGuidePdf(g: FullGuide, brand: ResourceBrand = PLATFORM_RESOURCE_BRAND): Promise<Buffer> {
+  const APP_BASE_URL = brand.baseUrl;
+  const PURPLE = brand.primaryHex;
+  const PURPLE_DEEP = brand.whitelabel ? darken(brand.primaryHex, 0.42) : "#2a1458";
+  const GOLD = brand.accentHex;
+  const GOLD_DEEP = brand.whitelabel ? darken(brand.accentHex, 0.32) : "#8a6a28";
+  const J = {
+    name: brand.publisher,
+    tagline: brand.whitelabel ? (brand.journalName !== brand.publisher ? brand.journalName : "Official publishing guides") : JOURNAL_IDENTITY.tagline,
+    license: JOURNAL_IDENTITY.license,
+    licenseUrl: JOURNAL_IDENTITY.licenseUrl,
+  };
+  const host = APP_BASE_URL.replace(/^https?:\/\//, "");
+  const issnLine = brand.issn ? `ISSN ${brand.issn} (Online)` : brand.whitelabel ? null : ISSN_PENDING_LABEL;
+  const contactLine = [issnLine, brand.location, brand.email, host].filter(Boolean).join("  ·  ");
   const onlineUrl = `${APP_BASE_URL}${guidePath(g)}`;
   const qr = await QRCode.toBuffer(onlineUrl, { errorCorrectionLevel: "M", margin: 1, width: 240, color: { dark: INK, light: "#ffffff" } });
 
@@ -233,11 +256,7 @@ export async function buildGuidePdf(g: FullGuide): Promise<Buffer> {
     const iw = CW - 130;
     doc.font("Times-Bold").fontSize(12.5).fillColor(PURPLE).text(J.name, ix, iy + 14, { width: iw });
     doc.font("Helvetica").fontSize(8.2).fillColor(MUTED).text(J.tagline, ix, doc.y + 1, { width: iw });
-    const idLines = [
-      `${J.issn ? `ISSN ${J.issn} (Online)` : ISSN_PENDING_LABEL}`,
-      `${J.location}`,
-      `${J.editorialEmail}  ·  ${APP_BASE_URL.replace(/^https?:\/\//, "")}`,
-    ];
+    const idLines = [issnLine, brand.location, [brand.email, host].filter(Boolean).join("  ·  ")].filter((l): l is string => !!l);
     doc.font("Helvetica").fontSize(8.2).fillColor(INK);
     let ly = doc.y + 7;
     for (const line of idLines) {
@@ -366,13 +385,13 @@ export async function buildGuidePdf(g: FullGuide): Promise<Buffer> {
       ensure(30);
       const y = doc.y;
       doc.save().rect(M + 3, y + 4.6, 3.6, 3.6).fill(GOLD).restore();
-      doc.font("Times-Bold").fontSize(10.4).fillColor(INK).text(t(`${r.code} — ${r.title}`), M + 18, y, { width: CW - 18 });
+      doc.font("Times-Bold").fontSize(10.4).fillColor(INK).text(t(`${brandCode(r.code, brand)} — ${r.title}`), M + 18, y, { width: CW - 18 });
       const url = `${APP_BASE_URL}${guidePath(r)}`;
       doc.font("Helvetica").fontSize(7.8).fillColor(PURPLE).text(url, M + 18, doc.y + 1, { width: CW - 18, link: url });
       doc.y += 5;
     }
     doc.y += 6;
-    const cite = t(guideCitation(g));
+    const cite = t(guideCitation(g, brand));
     doc.font("Times-Roman").fontSize(10);
     const chh = doc.heightOfString(cite, { width: CW - 28, lineGap: 1.5 }) + 20;
     ensure(chh + 60);
@@ -383,7 +402,7 @@ export async function buildGuidePdf(g: FullGuide): Promise<Buffer> {
     doc.y = cy + chh + 10;
     doc.font("Helvetica").fontSize(7.8).fillColor(MUTED).text(
       t(
-        `This PDF is the official printable edition of ${g.code}, Version ${g.version}. The online edition at ${APP_BASE_URL}${guidePath(g)} is authoritative and is updated whenever the guide is revised. Questions about this guide: ${J.editorialEmail}. © ${g.effective.slice(0, 4)} ${J.name}. Licensed under ${J.license} (${J.licenseUrl}).`
+        `This PDF is the official printable edition of ${g.code}, Version ${g.version}. The online edition at ${APP_BASE_URL}${guidePath(g)} is authoritative and is updated whenever the guide is revised.${brand.email ? ` Questions about this guide: ${brand.email}.` : ""} © ${g.effective.slice(0, 4)} ${J.name}. Licensed under ${J.license} (${J.licenseUrl}).`
       ),
       M,
       doc.y,
@@ -422,7 +441,7 @@ export async function buildGuidePdf(g: FullGuide): Promise<Buffer> {
         .text(`${J.name.toUpperCase()}  ·  ${g.code}  ·  VERSION ${g.version}`, M, fy + 7, { characterSpacing: 0.8, lineBreak: false });
       doc.font("Helvetica").fontSize(6.8).fillColor(MUTED).text(`Page ${pageNo} of ${range.count}`, M, fy + 7, { width: CW, align: "right", lineBreak: false });
       doc.font("Helvetica").fontSize(6.4).fillColor(MUTED)
-        .text(`${J.issn ? `ISSN ${J.issn} (Online)` : ISSN_PENDING_LABEL}  ·  ${J.location}  ·  ${J.editorialEmail}  ·  ${APP_BASE_URL.replace(/^https?:\/\//, "")}`, M, fy + 17, { width: CW, lineBreak: false });
+        .text(contactLine, M, fy + 17, { width: CW, lineBreak: false });
 
       doc.page.margins.bottom = savedBottom;
     }

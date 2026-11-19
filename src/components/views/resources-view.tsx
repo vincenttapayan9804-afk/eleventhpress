@@ -1,6 +1,6 @@
 "use client";
 
-import { useContactEmail } from "@/lib/tenant-branding-context";
+import { useContactEmail, useTenantBranding, isWhitelabel } from "@/lib/tenant-branding-context";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -69,7 +69,11 @@ const RESOURCE_KIND_LABEL: Record<ResourceSearchHit["kind"], string> = {
 export function ResourcesView() {
   const t = useTranslations("resources");
   const router = useRouter();
-  const tab = useApp((s) => s.resourcesTab);
+  // Tenant sites show the guides under their own name but not Eleventh
+  // Press's own blog posts (see src/lib/resources/tenant-brand.ts).
+  const whitelabel = isWhitelabel(useTenantBranding());
+  const storedTab = useApp((s) => s.resourcesTab);
+  const tab = whitelabel && storedTab === "blogs" ? "guides" : storedTab;
   const setTab = (v: string) => useApp.setState({ resourcesTab: v });
 
   const [resourceQuery, setResourceQuery] = useState("");
@@ -85,12 +89,12 @@ export function ResourcesView() {
     setResourceSearching(true);
     const handle = setTimeout(() => {
       apiFetch<{ results: ResourceSearchHit[] }>(`/api/resources/search?q=${encodeURIComponent(q)}`)
-        .then((r) => setResourceHits(r.results))
+        .then((r) => setResourceHits(whitelabel ? r.results.filter((h) => h.kind !== "blog") : r.results))
         .catch(() => setResourceHits([]))
         .finally(() => setResourceSearching(false));
     }, 300);
     return () => clearTimeout(handle);
-  }, [resourceQuery]);
+  }, [resourceQuery, whitelabel]);
 
   function openResourceHit(hit: ResourceSearchHit) {
     const blog = hit.kind === "blog" ? BLOGS.find((b) => b.id === hit.id) : undefined;
@@ -141,7 +145,7 @@ export function ResourcesView() {
           <input
             value={resourceQuery}
             onChange={(e) => setResourceQuery(e.target.value)}
-            placeholder="Search guides, blogs, trainings, webinars, books…"
+            placeholder={whitelabel ? "Search guides, trainings, webinars, books…" : "Search guides, blogs, trainings, webinars, books…"}
             className="h-10 w-full rounded-md border border-border bg-background pl-9 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
           {resourceSearching && <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />}
@@ -167,16 +171,18 @@ export function ResourcesView() {
       </div>
 
       <Tabs value={tab} onValueChange={setTab} className="mt-8">
-        <TabsList className="grid h-auto w-full grid-cols-2 gap-0.5 sm:grid-cols-3 lg:grid-cols-6 [&>button]:h-8">
+        <TabsList className={`grid h-auto w-full grid-cols-2 gap-0.5 sm:grid-cols-3 ${whitelabel ? "lg:grid-cols-5" : "lg:grid-cols-6"} [&>button]:h-8`}>
           <TabsTrigger value="trainings">
             <GraduationCap className="mr-1.5 h-3.5 w-3.5" /> {t("tabTrainings")}
           </TabsTrigger>
           <TabsTrigger value="webinars">
             <Video className="mr-1.5 h-3.5 w-3.5" /> {t("tabWebinars")}
           </TabsTrigger>
-          <TabsTrigger value="blogs">
-            <Newspaper className="mr-1.5 h-3.5 w-3.5" /> {t("tabBlogs")}
-          </TabsTrigger>
+          {!whitelabel && (
+            <TabsTrigger value="blogs">
+              <Newspaper className="mr-1.5 h-3.5 w-3.5" /> {t("tabBlogs")}
+            </TabsTrigger>
+          )}
           <TabsTrigger value="guides">
             <FileText className="mr-1.5 h-3.5 w-3.5" /> {t("tabGuides")}
           </TabsTrigger>
@@ -210,7 +216,7 @@ export function ResourcesView() {
 
         {/* Blogs */}
         <TabsContent value="blogs" className="mt-6 space-y-3">
-          {BLOGS.map((b) => (
+          {!whitelabel && BLOGS.map((b) => (
             <Link key={b.id} href={`/resources/blog/${b.slug}`} className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
               <Card className="paper-card">
                 <CardContent className="p-5">
@@ -243,7 +249,7 @@ export function ResourcesView() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-[0.68rem] font-semibold uppercase tracking-wider text-muted-foreground">
-                      {g.code} · Version {g.version}
+                      {whitelabel ? g.code.replace(/^EP-/, "") : g.code} · Version {g.version}
                     </p>
                     <Link href={`/resources/guides/${g.slug}`} className="mt-1 block font-display text-base font-semibold hover:text-primary">
                       {g.title}

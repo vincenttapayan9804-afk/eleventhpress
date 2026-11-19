@@ -52,7 +52,8 @@ export async function GET(req: NextRequest) {
   }
 
   const resources = [
-    ...BLOGS.filter((b) => b.title.toLowerCase().includes(lower)).map((b) => ({ title: b.title, subtitle: "Blog", path: `/resources/blog/${b.slug}` })),
+    // Eleventh Press's own blog posts aren't part of a tenant's site.
+    ...(tenant && !tenant.isPlatform ? [] : BLOGS).filter((b) => b.title.toLowerCase().includes(lower)).map((b) => ({ title: b.title, subtitle: "Blog", path: `/resources/blog/${b.slug}` })),
     ...GUIDES.filter((g) => g.title.toLowerCase().includes(lower)).map((g) => ({ title: g.title, subtitle: "Guide", path: `/resources/guides/${g.slug}` })),
   ].slice(0, PER_GROUP);
 

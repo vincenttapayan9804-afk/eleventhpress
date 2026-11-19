@@ -10,8 +10,10 @@ import {
   ShieldCheck,
   ListOrdered,
 } from "lucide-react";
-import { APP_BASE_URL, ARTICLE_LANGUAGE, JOURNAL_IDENTITY, issnLabel } from "@/lib/site";
-import { GUIDES } from "@/lib/resources-content";
+import { ARTICLE_LANGUAGE, JOURNAL_IDENTITY } from "@/lib/site";
+import { getCurrentTenant } from "@/lib/tenant";
+import { brandCode, brandContactLine } from "@/lib/resources/tenant-brand";
+import { resourceBrandFor } from "@/lib/resources/tenant-brand-server";
 import { fmtLongDate, getGuideDoc, guideById, guideCitation, guidePath, guidePdfPath } from "@/lib/resources";
 import { ResourcePageShell, BackToResources } from "@/components/resources/resource-page-shell";
 import { FaqBlock, NumberedList, OnThisPage, SectionBlock, slugifyHeading } from "@/components/resources/content-blocks";
@@ -24,27 +26,31 @@ import { Button } from "@/components/ui/button";
  * PDF edition at ./pdf, so the two never disagree.
  */
 
-export function generateStaticParams() {
-  return GUIDES.map((g) => ({ slug: g.slug }));
+// Rendered per request: a tenant's site shows the guide under its own name.
+export const dynamic = "force-dynamic";
+
+async function brandForRequest() {
+  return resourceBrandFor(await getCurrentTenant().catch(() => null));
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const g = getGuideDoc(slug);
+  const brand = await brandForRequest();
+  const g = getGuideDoc(slug, brand);
   if (!g) return { title: "Guide not found" };
-  const url = `${APP_BASE_URL}${guidePath(g)}`;
+  const url = `${brand.baseUrl}${guidePath(g)}`;
   return {
-    title: `${g.title} (${g.code}) | ${JOURNAL_IDENTITY.name}`,
+    title: `${g.title} (${g.code}) | ${brand.publisher}`,
     description: g.metaDescription,
     keywords: [...g.keywords, ...g.benchmarks],
-    authors: [{ name: `Editorial Office, ${JOURNAL_IDENTITY.name}` }],
-    alternates: { canonical: url, types: { "application/pdf": `${APP_BASE_URL}${guidePdfPath(g)}` } },
+    authors: [{ name: `Editorial Office, ${brand.publisher}` }],
+    alternates: { canonical: url, types: { "application/pdf": `${brand.baseUrl}${guidePdfPath(g)}` } },
     openGraph: {
       title: `${g.title} — Official guide`,
       description: g.metaDescription,
       url,
       type: "article",
-      siteName: JOURNAL_IDENTITY.name,
+      siteName: brand.publisher,
       modifiedTime: g.effective,
       tags: g.keywords,
     },
@@ -54,18 +60,19 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function GuidePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const g = getGuideDoc(slug);
+  const brand = await brandForRequest();
+  const g = getGuideDoc(slug, brand);
   if (!g) notFound();
 
-  const url = `${APP_BASE_URL}${guidePath(g)}`;
-  const pdfUrl = `${APP_BASE_URL}${guidePdfPath(g)}`;
+  const url = `${brand.baseUrl}${guidePath(g)}`;
+  const pdfUrl = `${brand.baseUrl}${guidePdfPath(g)}`;
   const org = {
     "@type": "Organization",
-    name: JOURNAL_IDENTITY.name,
-    url: APP_BASE_URL,
-    logo: { "@type": "ImageObject", url: `${APP_BASE_URL}/logo.svg` },
-    email: JOURNAL_IDENTITY.editorialEmail,
-    address: { "@type": "PostalAddress", addressCountry: "PH" },
+    name: brand.publisher,
+    url: brand.baseUrl,
+    logo: { "@type": "ImageObject", url: brand.logoUrl },
+    ...(brand.email ? { email: brand.email } : {}),
+    ...(brand.whitelabel ? {} : { address: { "@type": "PostalAddress", addressCountry: "PH" } }),
   };
   const jsonLd = [
     {
@@ -87,7 +94,7 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
       isAccessibleForFree: true,
       license: JOURNAL_IDENTITY.licenseUrl,
       author: org,
-      publisher: { ...org, ...(JOURNAL_IDENTITY.issn ? { issn: JOURNAL_IDENTITY.issn } : {}) },
+      publisher: { ...org, ...(brand.issn ? { issn: brand.issn } : {}) },
       encoding: { "@type": "MediaObject", encodingFormat: "application/pdf", contentUrl: pdfUrl, name: `${g.title} (PDF)` },
       citation: g.standards.map((s) => ({
         "@type": "CreativeWork",
@@ -106,8 +113,8 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
       "@context": "https://schema.org",
       "@type": "BreadcrumbList",
       itemListElement: [
-        { "@type": "ListItem", position: 1, name: JOURNAL_IDENTITY.shortName, item: APP_BASE_URL },
-        { "@type": "ListItem", position: 2, name: "Resources", item: `${APP_BASE_URL}/` },
+        { "@type": "ListItem", position: 1, name: brand.shortName, item: brand.baseUrl },
+        { "@type": "ListItem", position: 2, name: "Resources", item: `${brand.baseUrl}/` },
         { "@type": "ListItem", position: 3, name: g.title, item: url },
       ],
     },
@@ -130,10 +137,13 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
         <BackToResources tab="guides" label="Resources · Guides" />
 
         {/* Masthead */}
-        <header className="relative mt-6 overflow-hidden rounded-2xl bg-gradient-to-br from-[#2a1458] to-[#4c1d95] p-6 text-white shadow-lg sm:p-9">
+        <header
+          className="relative mt-6 overflow-hidden rounded-2xl bg-gradient-to-br from-[#2a1458] to-[#4c1d95] p-6 text-white shadow-lg sm:p-9"
+          style={brand.whitelabel ? { backgroundImage: `linear-gradient(to bottom right, color-mix(in srgb, ${brand.primaryHex} 62%, black), ${brand.primaryHex})` } : undefined}
+        >
           <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full border border-[#c9a55c]/25" />
           <div aria-hidden className="pointer-events-none absolute -right-6 -top-6 h-40 w-40 rounded-full border border-[#c9a55c]/25" />
-          <p className="text-[0.68rem] font-bold uppercase tracking-[0.2em] text-[#e2c785]">{JOURNAL_IDENTITY.name}</p>
+          <p className="text-[0.68rem] font-bold uppercase tracking-[0.2em] text-[#e2c785]">{brand.publisher}</p>
           <p className="mt-4 inline-flex rounded border border-[#c9a55c]/70 px-2.5 py-1 text-[0.68rem] font-bold uppercase tracking-wider text-[#e2c785]">
             Official guide · {g.code}
           </p>
@@ -167,7 +177,7 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
             </Button>
           </div>
           <p className="mt-4 text-xs text-white/60">
-            {issnLabel(JOURNAL_IDENTITY.issn)} · {JOURNAL_IDENTITY.location} · {JOURNAL_IDENTITY.editorialEmail}
+            {brandContactLine(brand)}
           </p>
         </header>
 
@@ -259,7 +269,7 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
             <section aria-labelledby="cite" className="space-y-6 border-t border-border pt-8">
               <div>
                 <h2 id="cite" className="font-display text-xl font-semibold">How to cite this guide</h2>
-                <p className="mt-3 border-l-[3px] border-[var(--gold-500)] bg-muted/30 p-4 text-sm leading-relaxed break-words">{guideCitation(g)}</p>
+                <p className="mt-3 border-l-[3px] border-[var(--gold-500)] bg-muted/30 p-4 text-sm leading-relaxed break-words">{guideCitation(g, brand)}</p>
               </div>
               {related.length > 0 && (
                 <div>
@@ -267,7 +277,7 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
                   <ul className="mt-3 grid gap-3 sm:grid-cols-2">
                     {related.map((r) => (
                       <li key={r.id} className="paper-card rounded-lg border border-border p-4">
-                        <p className="text-[0.7rem] font-semibold uppercase tracking-wider text-muted-foreground">{r.code}</p>
+                        <p className="text-[0.7rem] font-semibold uppercase tracking-wider text-muted-foreground">{brandCode(r.code, brand)}</p>
                         <Link href={guidePath(r)} className="mt-1 block font-display text-sm font-semibold hover:text-primary">
                           {r.title}
                         </Link>
@@ -287,7 +297,7 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
               <p className="flex items-start gap-2 text-xs leading-relaxed text-muted-foreground">
                 <CalendarCheck2 className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                 This online edition is authoritative and is updated whenever the guide is revised; the PDF is its printable
-                edition. Questions about this guide: {JOURNAL_IDENTITY.editorialEmail}.
+                edition.{brand.email ? ` Questions about this guide: ${brand.email}.` : ""}
               </p>
             </section>
           </div>
