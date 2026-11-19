@@ -24,6 +24,7 @@ const STEPS: Step[] = [
   { script: "seed.ts", mode: "every", required: true },
   { script: "apply-password-reset.ts", mode: "every" },
   { script: "backfill-platform-tenant.ts", args: ["--confirm"], mode: "every" },
+  { script: "backfill-tenant-subdomains.ts", mode: "every" },
   { script: "backfill-audit-tenant.ts", args: ["--confirm"], mode: "once", alreadyApplied: true },
   { script: "backfill-galleys.ts", args: ["--confirm"], mode: "every" },
   { script: "backfill-provenance.ts", args: ["--confirm"], mode: "every" },

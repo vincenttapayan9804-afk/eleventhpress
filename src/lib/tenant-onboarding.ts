@@ -9,11 +9,19 @@
 import crypto from "crypto";
 import { db } from "./db";
 import { hashPassword } from "./auth";
-import { APP_BASE_URL } from "./site";
+import { APP_BASE_URL, APP_HOST } from "./site";
 import { sendEmail, notificationEmailHtml } from "./email";
 
-/** Slugs that collide with routes or would read as official. */
-export const RESERVED_TENANT_SLUGS = new Set(["exit", "www", "api", "admin", "app", "t", "eleventhpress", "platform", "official"]);
+/**
+ * Slugs that collide with routes, would read as official, or are taken by
+ * the domain's own DNS records (email sending, mail services), which a
+ * <slug>.eleventhpress.com subdomain would otherwise clash with.
+ */
+export const RESERVED_TENANT_SLUGS = new Set([
+  "exit", "www", "api", "admin", "app", "t", "eleventhpress", "platform", "official",
+  "send", "rsend", "mail", "email", "smtp", "imap", "pop", "webmail", "mx", "ns1", "ns2",
+  "status", "docs", "help", "support", "blog", "cdn", "static", "assets", "login", "auth", "dashboard",
+]);
 
 export function slugify(name: string): string {
   return (
@@ -51,7 +59,56 @@ export function generateTemporaryPassword(): string {
   return `${pick(4)}-${pick(4)}-${pick(4)}`;
 }
 
+/**
+ * The parent domain tenants get a free subdomain under (<slug>.<root>).
+ * TENANT_ROOT_DOMAIN overrides it; otherwise it is the site's own domain
+ * (eleventhpress.com), whose wildcard *.eleventhpress.com is attached to the
+ * Vercel project. A vercel.app, localhost or ported host can't carry
+ * wildcard subdomains, so those get none and tenants use /t/<slug> instead.
+ */
+export function tenantRootDomain(): string | null {
+  const explicit = process.env.TENANT_ROOT_DOMAIN?.trim().toLowerCase().replace(/^\*\./, "").replace(/\.+$/, "");
+  if (explicit) return explicit;
+  const host = APP_HOST.toLowerCase();
+  if (host.includes(":") || host === "localhost" || host.endsWith(".vercel.app") || !host.includes(".")) return null;
+  return host;
+}
+
+/** The tenant's free subdomain hostname, or null when there is none for this slug. */
+export function tenantSubdomain(slug: string): string | null {
+  const root = tenantRootDomain();
+  if (!root || RESERVED_TENANT_SLUGS.has(slug) || !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(slug)) return null;
+  return `${slug}.${root}`;
+}
+
+/**
+ * Gives a tenant its free subdomain if it doesn't have it yet. It's our own
+ * zone, so the row is verified at once, and the wildcard domain on Vercel
+ * already covers its SSL. It becomes the primary address only when the
+ * tenant has no primary domain yet (a custom domain keeps that role).
+ * Never throws; returns the hostname when the tenant has it.
+ */
+export async function ensureTenantSubdomain(tenant: { id: string; slug: string }): Promise<string | null> {
+  const hostname = tenantSubdomain(tenant.slug);
+  if (!hostname) return null;
+  try {
+    const existing = await db.tenantDomain.findUnique({ where: { hostname } });
+    if (existing) return existing.tenantId === tenant.id ? hostname : null;
+    const primary = await db.tenantDomain.findFirst({ where: { tenantId: tenant.id, isPrimary: true }, select: { id: true } });
+    await db.tenantDomain.create({
+      data: { tenantId: tenant.id, hostname, isPrimary: !primary, verified: true, verifiedAt: new Date(), vercelAdded: true },
+    });
+    return hostname;
+  } catch (err) {
+    console.error(`[tenant] could not add subdomain ${hostname}:`, err);
+    return null;
+  }
+}
+
+/** Sign-in and public links for a tenant: its own subdomain when it has one, else the /t/<slug> portal. */
 export function tenantLinks(slug: string) {
+  const sub = tenantSubdomain(slug);
+  if (sub) return { loginUrl: `https://${sub}/?view=login`, portalUrl: `https://${sub}` };
   return {
     loginUrl: `${APP_BASE_URL}/?view=login`,
     portalUrl: `${APP_BASE_URL}/t/${slug}`,
