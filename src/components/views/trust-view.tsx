@@ -301,6 +301,7 @@ export function TrustView() {
           rows={[
             { standard: "WCAG 2.2 Level AA", what: "Our target for every page; automated axe-core checks run on every change and block a release on failure.", status: "self-assessed" },
             { standard: "Accessibility Conformance Report (VPAT 2.5 INT)", what: "A criterion-by-criterion report covering WCAG 2.2, US Section 508 and EU EN 301 549, published on our Accessibility page.", status: "self-assessed" },
+            { standard: "Tagged PDF (ISO 14289 PDF/UA structure)", what: "Article PDFs carry a full structure tree — headings, paragraphs, lists, tables with header cells, figures with alt text — plus a document language, and mark page furniture as decoration so screen readers skip it.", status: "in-place" },
             { standard: "EPUB Accessibility 1.1", what: "Every e-book declares its accessibility features, and only claims WCAG conformance when every image has a text alternative.", status: "in-place" },
             { standard: "Language of page (WCAG 3.1.1)", what: "The page language follows the language you choose, so screen readers read it with the right voice.", status: "in-place" },
           ]}

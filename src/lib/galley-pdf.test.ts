@@ -126,3 +126,17 @@ describe("toXhtml", () => {
     expect(toXhtml('<p>a<br>b&nbsp;c &amp; <img src="x.png" alt="y"></p>')).toBe('<p>a<br/>b&#160;c &amp; <img src="x.png" alt="y"/></p>');
   });
 });
+
+describe("tagged PDF galley", () => {
+  test("has a structure tree, document language and tagged headings, lists and tables", async () => {
+    const { renderPdfKitGalley } = await import("@/lib/galley");
+    const meta = { title: "T", authors: JSON.stringify([{ name: "Ada Lovelace" }]), abstract: "Abs.", journalName: "J", volume: 1, issue: 1, year: 2026 };
+    const html = "<h1>Intro</h1><p>Body text.</p><ul><li>One</li></ul><table><tr><th>A</th></tr><tr><td>1</td></tr></table>";
+    const pdf = (await renderPdfKitGalley(meta, html)).toString("latin1");
+    expect(pdf).toContain("/StructTreeRoot");
+    expect(pdf).toMatch(/\/Marked true/);
+    expect(pdf).toMatch(/\/Lang \(en/);
+    expect(pdf).toContain("/DisplayDocTitle true");
+    for (const tag of ["/H1", "/H2", "/P", "/L", "/LI", "/Table", "/TR", "/TH", "/TD"]) expect(pdf).toContain(tag);
+  });
+});

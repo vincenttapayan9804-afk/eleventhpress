@@ -30,7 +30,7 @@ import { parseAuthors } from "@/lib/article";
 import { ARTICLE_LANGUAGE, JOURNAL_IDENTITY } from "@/lib/site";
 import { POWERED_BY_CREDIT } from "@/lib/powered-by";
 import { withTrademark } from "@/lib/brand-mark";
-import { registerGalleyFonts, printable, renderBody, htmlToBlocks, type Run } from "@/lib/galley-pdf";
+import { registerGalleyFonts, printable, renderBody, htmlToBlocks, pdfArtifact, pdfStructureRoot, pdfTag, type Run } from "@/lib/galley-pdf";
 
 const PLATFORM_PUBLISHER_NAME = JOURNAL_IDENTITY.name;
 
@@ -915,7 +915,7 @@ export function htmlToPlainText(html: string, stripLeadingParagraphs: (string | 
  * JS, no native binaries) — this is the path that actually runs on Vercel's
  * serverless runtime, where WeasyPrint isn't installed.
  */
-function renderPdfKitGalley(meta: any, htmlContent: string): Promise<Buffer> {
+export function renderPdfKitGalley(meta: any, htmlContent: string): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     try {
       const licenseNotice = buildLicenseNotice(meta);
@@ -923,6 +923,13 @@ function renderPdfKitGalley(meta: any, htmlContent: string): Promise<Buffer> {
         size: "A4",
         margins: { top: 64, bottom: 62, left: 60, right: 60 },
         bufferPages: true,
+        // Tagged PDF (structure tree, language, title shown in the window
+        // bar) so screen readers can navigate headings, lists, tables and
+        // figures — see pdfTag in src/lib/galley-pdf.ts.
+        tagged: true,
+        lang: ARTICLE_LANGUAGE,
+        displayTitle: true,
+        pdfVersion: "1.7",
         info: {
           Title: meta.title || "Untitled",
           Author: authorNames(meta),
@@ -943,34 +950,49 @@ function renderPdfKitGalley(meta: any, htmlContent: string): Promise<Buffer> {
       const ACCENT = b.accent;
       const left = doc.page.margins.left;
       const width = doc.page.width - left - doc.page.margins.right;
+      const root = pdfStructureRoot(doc);
 
       // Masthead — the publishing tenant's logo sits top-right when set.
       const logoW = meta.logoPng ? 100 : 0;
       if (meta.logoPng) {
         try {
-          doc.image(meta.logoPng, doc.page.width - doc.page.margins.right - 90, doc.page.margins.top - 30, { fit: [90, 40], align: "right" });
+          pdfTag(doc, root, "Figure", () => {
+            doc.image(meta.logoPng, doc.page.width - doc.page.margins.right - 90, doc.page.margins.top - 30, { fit: [90, 40], align: "right" });
+          }, { alt: `${b.publisher} logo` });
         } catch {
           /* unreadable logo — masthead text still identifies the publisher */
         }
       }
-      doc.fillColor(ACCENT).font(fonts.sansBold).fontSize(7.5).text(t(b.publisher.toUpperCase()), left, doc.page.margins.top, { width: width - logoW, characterSpacing: 0.8 });
+      pdfTag(doc, root, "P", () => {
+        doc.fillColor(ACCENT).font(fonts.sansBold).fontSize(7.5).text(t(b.publisher.toUpperCase()), left, doc.page.margins.top, { width: width - logoW, characterSpacing: 0.8 });
+      });
       doc.moveDown(0.25);
-      doc.fillColor(PRIMARY).font(fonts.sansBold).fontSize(12).text(t(meta.journalName || ""), { width: width - logoW });
+      pdfTag(doc, root, "P", () => {
+        doc.fillColor(PRIMARY).font(fonts.sansBold).fontSize(12).text(t(meta.journalName || ""), { width: width - logoW });
+      });
       const issueLine = [
         issnText(b),
         `Vol. ${meta.volume}, No. ${meta.issue} (${meta.year})`,
         meta.doi ? `DOI: ${meta.doi}` : "",
       ].filter(Boolean).join("  ·  ");
-      doc.fillColor("#5f5873").font(fonts.serif).fontSize(8.5).text(t(issueLine), { width: width - logoW, link: meta.doi ? `https://doi.org/${meta.doi}` : undefined });
+      pdfTag(doc, root, "P", () => {
+        doc.fillColor("#5f5873").font(fonts.serif).fontSize(8.5).text(t(issueLine), { width: width - logoW, link: meta.doi ? `https://doi.org/${meta.doi}` : undefined });
+      });
       doc.moveDown(0.35);
-      doc.save().moveTo(left, doc.y).lineTo(left + width, doc.y).lineWidth(1.4).strokeColor(PRIMARY).stroke().restore();
-      doc.save().moveTo(left, doc.y + 2.5).lineTo(left + width, doc.y + 2.5).lineWidth(0.5).strokeColor(ACCENT).stroke().restore();
+      pdfArtifact(doc, true, () => {
+        doc.save().moveTo(left, doc.y).lineTo(left + width, doc.y).lineWidth(1.4).strokeColor(PRIMARY).stroke().restore();
+        doc.save().moveTo(left, doc.y + 2.5).lineTo(left + width, doc.y + 2.5).lineWidth(0.5).strokeColor(ACCENT).stroke().restore();
+      });
       doc.y += 16;
 
       // Article type + title
-      doc.fillColor(ACCENT).font(fonts.sansBold).fontSize(8).text(t((meta.discipline ? `RESEARCH ARTICLE  ·  ${String(meta.discipline).toUpperCase()}` : "RESEARCH ARTICLE")), left, doc.y, { width, characterSpacing: 0.6 });
+      pdfTag(doc, root, "P", () => {
+        doc.fillColor(ACCENT).font(fonts.sansBold).fontSize(8).text(t((meta.discipline ? `RESEARCH ARTICLE  ·  ${String(meta.discipline).toUpperCase()}` : "RESEARCH ARTICLE")), left, doc.y, { width, characterSpacing: 0.6 });
+      });
       doc.moveDown(0.4);
-      doc.fillColor(PRIMARY).font(fonts.sansBold).fontSize(18).text(t(meta.title || "Untitled"), left, doc.y, { width, lineGap: 2 });
+      pdfTag(doc, root, "H1", () => {
+        doc.fillColor(PRIMARY).font(fonts.sansBold).fontSize(18).text(t(meta.title || "Untitled"), left, doc.y, { width, lineGap: 2 });
+      });
       doc.moveDown(0.6);
 
       // Authors with numbered affiliations (one number per distinct affiliation).
@@ -984,12 +1006,16 @@ function renderPdfKitGalley(meta: any, htmlContent: string): Promise<Buffer> {
         const line = authors
           .map((a: any) => t(a.name) + (numbered && a.affiliation ? supNum(affiliations.indexOf(a.affiliation) + 1) : ""))
           .join(", ");
-        doc.fillColor("#1f1a2e").font(fonts.serifBold).fontSize(11).text(line, left, doc.y, { width, lineGap: 1 });
+        pdfTag(doc, root, "P", () => {
+          doc.fillColor("#1f1a2e").font(fonts.serifBold).fontSize(11).text(line, left, doc.y, { width, lineGap: 1 });
+        });
         if (affiliations.length) {
           doc.moveDown(0.3);
-          doc.font(fonts.serifItalic).fontSize(8.5).fillColor("#5f5873");
           affiliations.forEach((aff, i) => {
-            doc.text(t(numbered ? `${supNum(i + 1)} ${aff}` : aff), left, doc.y, { width, lineGap: 0.5 });
+            pdfTag(doc, root, "P", () => {
+              doc.font(fonts.serifItalic).fontSize(8.5).fillColor("#5f5873");
+              doc.text(t(numbered ? `${supNum(i + 1)} ${aff}` : aff), left, doc.y, { width, lineGap: 0.5 });
+            });
           });
         }
         doc.moveDown(0.9);
@@ -1006,33 +1032,49 @@ function renderPdfKitGalley(meta: any, htmlContent: string): Promise<Buffer> {
         const boxH = pad + 12 + absH + kwH + pad;
         if (doc.y + boxH > doc.page.height - doc.page.margins.bottom) doc.addPage();
         const y0 = doc.y;
-        doc.save().fillColor(PRIMARY).fillOpacity(0.06).rect(left, y0, width, boxH).fill().restore();
-        doc.save().rect(left, y0, 3, boxH).fill(ACCENT).restore();
-        doc.fillColor(PRIMARY).font(fonts.sansBold).fontSize(8.5).text("ABSTRACT", left + pad + 4, y0 + pad, { width: width - pad * 2 - 4, characterSpacing: 0.8 });
+        pdfArtifact(doc, true, () => {
+          doc.save().fillColor(PRIMARY).fillOpacity(0.06).rect(left, y0, width, boxH).fill().restore();
+          doc.save().rect(left, y0, 3, boxH).fill(ACCENT).restore();
+        });
+        pdfTag(doc, root, "H2", () => {
+          doc.fillColor(PRIMARY).font(fonts.sansBold).fontSize(8.5).text("ABSTRACT", left + pad + 4, y0 + pad, { width: width - pad * 2 - 4, characterSpacing: 0.8 });
+        });
         doc.y = y0 + pad + 12;
-        doc.fillColor("#1f1a2e").font(fonts.serif).fontSize(9.8).text(t(meta.abstract), left + pad + 4, doc.y, { width: width - pad * 2 - 4, lineGap: 1.8, align: "justify" });
+        pdfTag(doc, root, "P", () => {
+          doc.fillColor("#1f1a2e").font(fonts.serif).fontSize(9.8).text(t(meta.abstract), left + pad + 4, doc.y, { width: width - pad * 2 - 4, lineGap: 1.8, align: "justify" });
+        });
         if (kwText) {
           doc.y += 6;
-          doc.font(fonts.serifBold).fontSize(8.8).fillColor(PRIMARY).text("Keywords: ", left + pad + 4, doc.y, { continued: true, width: width - pad * 2 - 4 });
-          doc.font(fonts.serifItalic).fillColor("#3d3550").text(t(meta.keywords));
+          pdfTag(doc, root, "P", () => {
+            doc.font(fonts.serifBold).fontSize(8.8).fillColor(PRIMARY).text("Keywords: ", left + pad + 4, doc.y, { continued: true, width: width - pad * 2 - 4 });
+            doc.font(fonts.serifItalic).fillColor("#3d3550").text(t(meta.keywords));
+          });
         }
         doc.y = y0 + boxH + 10;
       } else if (meta.keywords) {
-        doc.font(fonts.serifItalic).fontSize(8.8).fillColor("#3d3550").text(t(`Keywords: ${meta.keywords}`), left, doc.y, { width });
+        pdfTag(doc, root, "P", () => {
+          doc.font(fonts.serifItalic).fontSize(8.8).fillColor("#3d3550").text(t(`Keywords: ${meta.keywords}`), left, doc.y, { width });
+        });
         doc.moveDown(0.8);
       }
 
       // How to cite + licence, set small under the abstract.
       const cite = `${citationAuthors(authors)} (${meta.year}). ${meta.title}. ${meta.journalName}, ${meta.volume}(${meta.issue}).${meta.doi ? ` https://doi.org/${meta.doi}` : ""}`;
-      doc.font(fonts.serifBold).fontSize(7.8).fillColor(PRIMARY).text("Cite as: ", left, doc.y, { continued: true, width });
-      doc.font(fonts.serif).fillColor("#5f5873").text(t(cite), { lineGap: 0.6 });
-      doc.font(fonts.serifBold).fillColor(PRIMARY).text("Licence: ", left, doc.y + 1, { continued: true, width });
-      doc.font(fonts.serif).fillColor("#5f5873").text(
-        t(`© ${meta.year} the authors. Open access under the Creative Commons Attribution 4.0 International licence (CC BY 4.0), which permits use, distribution and reproduction in any medium, provided the original work is properly cited.`),
-        { lineGap: 0.6, link: "https://creativecommons.org/licenses/by/4.0/" }
-      );
+      pdfTag(doc, root, "P", () => {
+        doc.font(fonts.serifBold).fontSize(7.8).fillColor(PRIMARY).text("Cite as: ", left, doc.y, { continued: true, width });
+        doc.font(fonts.serif).fillColor("#5f5873").text(t(cite), { lineGap: 0.6 });
+      });
+      pdfTag(doc, root, "P", () => {
+        doc.font(fonts.serifBold).fontSize(7.8).fillColor(PRIMARY).text("Licence: ", left, doc.y + 1, { continued: true, width });
+        doc.font(fonts.serif).fillColor("#5f5873").text(
+          t(`© ${meta.year} the authors. Open access under the Creative Commons Attribution 4.0 International licence (CC BY 4.0), which permits use, distribution and reproduction in any medium, provided the original work is properly cited.`),
+          { lineGap: 0.6, link: "https://creativecommons.org/licenses/by/4.0/" }
+        );
+      });
       doc.y += 8;
-      doc.save().moveTo(left, doc.y).lineTo(left + width, doc.y).lineWidth(0.5).strokeColor("#d8d3e2").stroke().restore();
+      pdfArtifact(doc, true, () => {
+        doc.save().moveTo(left, doc.y).lineTo(left + width, doc.y).lineWidth(0.5).strokeColor("#d8d3e2").stroke().restore();
+      });
       doc.y += 12;
 
       // Body — headings, paragraphs, lists, tables, figures and references,
@@ -1044,7 +1086,9 @@ function renderPdfKitGalley(meta: any, htmlContent: string): Promise<Buffer> {
         ink: "#1f1a2e",
         muted: "#5f5873",
         skipLeading: [meta.title, meta.abstract],
+        tagRoot: root,
       });
+      root.end();
 
       // Running header (from page 2) and footer on every page. Writing
       // outside the margins must not make PDFKit start a new page, so the
@@ -1060,6 +1104,8 @@ function renderPdfKitGalley(meta: any, htmlContent: string): Promise<Buffer> {
         doc.page.margins.top = 0;
         doc.page.margins.bottom = 0;
         const pageNo = i - range.start + 1;
+        // Running headers and footers are page furniture: Artifacts, not content.
+        (doc as any).markContent("Artifact", { type: "Pagination" });
         if (pageNo > 1) {
           doc.font(fonts.serifItalic).fontSize(7.5).fillColor("#7a7390");
           doc.text(t(runningAuthors), left, top - 26, { width: width / 2 - 6, lineBreak: false, ellipsis: true });
@@ -1074,6 +1120,7 @@ function renderPdfKitGalley(meta: any, htmlContent: string): Promise<Buffer> {
           // Fixed platform credit under the running footer of every page.
           doc.font(fonts.serif).fontSize(6.5).fillColor("#888888").text(t(b.credit), left, fy + 12, { width, align: "center", lineBreak: false });
         }
+        (doc as any).endMarkedContent();
         doc.page.margins.top = top;
         doc.page.margins.bottom = bottom;
       }

@@ -418,6 +418,65 @@ export interface BodyTheme {
   muted: string;
   /** Plain text of leading blocks to skip (title/abstract already set above the body). */
   skipLeading?: string[];
+  /**
+   * Structure element the body is tagged under (a tagged PDF — see
+   * pdfTag below). Absent: the body is drawn untagged, as before.
+   */
+  tagRoot?: PdfStructElement | null;
+}
+
+// ─── Tagged PDF (ISO 14289 PDF/UA structure) ───────────────────────────────
+// PDFKit's structure API: every piece of real content is drawn inside a
+// structure element (H1–H6, P, L/LI/Lbl/LBody, Table/TR/TH/TD, Figure with
+// alt text, Caption), and decoration (rules, shading, running headers and
+// footers, repeated table headers) is marked as an Artifact so screen
+// readers skip it. Marked content carries across page breaks on its own.
+
+export type PdfStructElement = PDFKit.PDFStructureElement;
+
+/** Draws `draw` as a `type` structure element under `parent`; plain drawing when untagged. */
+export function pdfTag(
+  doc: Doc,
+  parent: PdfStructElement | null | undefined,
+  type: string,
+  draw: () => void,
+  options: Record<string, unknown> = {}
+): PdfStructElement | null {
+  if (!parent) {
+    draw();
+    return null;
+  }
+  const el = doc.struct(type, options as Parameters<Doc["struct"]>[1]);
+  parent.add(el);
+  el.add(draw);
+  el.end();
+  return el;
+}
+
+/** A container structure element (L, LI, Table, TR) whose children are added by the caller. */
+export function pdfGroup(doc: Doc, parent: PdfStructElement | null | undefined, type: string): PdfStructElement | null {
+  if (!parent) return null;
+  const el = doc.struct(type);
+  parent.add(el);
+  return el;
+}
+
+/** Draws decoration screen readers should skip (rules, shading, page furniture). */
+export function pdfArtifact(doc: Doc, tagged: boolean, draw: () => void, type: "Layout" | "Pagination" = "Layout") {
+  if (!tagged) {
+    draw();
+    return;
+  }
+  doc.markContent("Artifact", { type } as Parameters<Doc["markContent"]>[1]);
+  draw();
+  doc.endMarkedContent();
+}
+
+/** Starts the document's structure tree. Call once, right after creating a `tagged: true` document. */
+export function pdfStructureRoot(doc: Doc): PdfStructElement {
+  const root = doc.struct("Document");
+  doc.addStructure(root);
+  return root;
 }
 
 const REFERENCE_HEADING = /^(\d+(\.\d+)*\.?\s+)?(references?|bibliography|works cited|literature cited|reference list|sources)\s*:?$/i;
@@ -535,6 +594,12 @@ function renderHeading(doc: Doc, b: Extract<Block, { kind: "heading" }>, t: Body
   ensureSpace(doc, before + size * 1.6 + BODY_SIZE * 4.2);
   doc.y += before;
   const text = printable(runsText(b.runs).replace(/\s+/g, " ").trim(), t.fonts);
+  // The article title is the document's H1, so body headings start at H2.
+  pdfTag(doc, t.tagRoot, `H${Math.min(level + 1, 6)}`, () => drawHeadingText(doc, text, level, size, t));
+  doc.y += level <= 2 ? 5 : 3;
+}
+
+function drawHeadingText(doc: Doc, text: string, level: number, size: number, t: BodyTheme) {
   if (level <= 2) {
     doc.font(t.fonts.sansBold).fontSize(size).fillColor(t.primary).text(text, doc.page.margins.left, doc.y, { width: contentWidth(doc), lineGap: 1 });
   } else if (level === 3) {
@@ -542,11 +607,11 @@ function renderHeading(doc: Doc, b: Extract<Block, { kind: "heading" }>, t: Body
   } else {
     doc.font(t.fonts.serifBoldItalic).fontSize(size).fillColor(t.ink).text(text, doc.page.margins.left, doc.y, { width: contentWidth(doc), lineGap: 1 });
   }
-  doc.y += level <= 2 ? 5 : 3;
 }
 
 function renderList(doc: Doc, b: Extract<Block, { kind: "list" }>, t: BodyTheme) {
   doc.y += 2;
+  const list = pdfGroup(doc, t.tagRoot, "L");
   for (const item of b.items) {
     const indent = 14 + item.depth * 16;
     const markerW = b.ordered ? 18 : 12;
@@ -554,12 +619,17 @@ function renderList(doc: Doc, b: Extract<Block, { kind: "list" }>, t: BodyTheme)
     const width = contentWidth(doc) - indent - markerW;
     ensureSpace(doc, Math.min(measureRuns(doc, item.runs, t, width, BODY_SIZE), BODY_SIZE * 3));
     const y = doc.y;
-    doc.font(t.fonts.serif).fontSize(BODY_SIZE).fillColor(b.ordered ? t.ink : t.primary)
-      .text(printable(item.marker, t.fonts), x, y, { width: markerW - 4, align: b.ordered ? "right" : "left", lineBreak: false });
+    const li = pdfGroup(doc, list, "LI");
+    pdfTag(doc, li, "Lbl", () => {
+      doc.font(t.fonts.serif).fontSize(BODY_SIZE).fillColor(b.ordered ? t.ink : t.primary)
+        .text(printable(item.marker, t.fonts), x, y, { width: markerW - 4, align: b.ordered ? "right" : "left", lineBreak: false });
+    });
     doc.y = y;
-    writeRuns(doc, item.runs, t, { x: x + markerW, width, align: "left" });
+    pdfTag(doc, li, "LBody", () => writeRuns(doc, item.runs, t, { x: x + markerW, width, align: "left" }));
+    li?.end();
     doc.y += 2.5;
   }
+  list?.end();
   doc.y += 4;
 }
 
@@ -606,34 +676,46 @@ function renderTable(doc: Doc, b: Extract<Block, { kind: "table" }>, t: BodyThem
       })
     ) + pad * 2;
 
-  const drawRow = (r: { header: boolean; cells: Run[][] }, shaded: boolean) => {
+  const tagged = !!t.tagRoot;
+  let table: PdfStructElement | null = null;
+  const drawRow = (r: { header: boolean; cells: Run[][] }, shaded: boolean, repeat = false) => {
     const h = rowHeight(r);
     if (doc.y + h > bottomLimit(doc)) {
       doc.addPage();
-      // Repeat the header row on the new page.
-      if (!r.header) for (const hr of header) drawRow(hr, false);
+      // Repeat the header row on the new page (decoration: already in the structure once).
+      if (!r.header) for (const hr of header) drawRow(hr, false, true);
     }
     const y = doc.y;
-    if (r.header) doc.save().fillColor(t.primary).fillOpacity(0.08).rect(left, y, total, h).fill().restore();
-    else if (shaded) doc.save().rect(left, y, total, h).fill("#f7f6f9").restore();
+    pdfArtifact(doc, tagged, () => {
+      if (r.header) doc.save().fillColor(t.primary).fillOpacity(0.08).rect(left, y, total, h).fill().restore();
+      else if (shaded) doc.save().rect(left, y, total, h).fill("#f7f6f9").restore();
+    });
+    const tr = repeat ? null : pdfGroup(doc, table, "TR");
     let x = left;
     for (let c = 0; c < ncol; c++) {
       const runs = r.cells[c] ?? [];
       doc.y = y + pad;
-      if (runs.length) {
+      const cellX = x;
+      const drawCell = () => {
+        if (!runs.length) return;
         writeRuns(doc, r.header ? runs.map((x2) => ({ ...x2, bold: true })) : runs, t, {
-          x: x + pad,
+          x: cellX + pad,
           width: widths[c] - pad * 2,
           size,
           align: "left",
           lineGap: 1,
           color: r.header ? t.primary : t.ink,
         });
-      }
+      };
+      if (repeat) pdfArtifact(doc, tagged, drawCell);
+      else pdfTag(doc, tr, r.header ? "TH" : "TD", drawCell);
       x += widths[c];
     }
+    tr?.end();
     doc.y = y + h;
-    doc.save().moveTo(left, doc.y).lineTo(left + total, doc.y).lineWidth(r.header ? 0.8 : 0.3).strokeColor(r.header ? t.primary : "#cfcbd8").stroke().restore();
+    pdfArtifact(doc, tagged, () => {
+      doc.save().moveTo(left, doc.y).lineTo(left + total, doc.y).lineWidth(r.header ? 0.8 : 0.3).strokeColor(r.header ? t.primary : "#cfcbd8").stroke().restore();
+    });
   };
 
   // A short table moves whole to the next page rather than leaving one row behind.
@@ -641,13 +723,17 @@ function renderTable(doc: Doc, b: Extract<Block, { kind: "table" }>, t: BodyThem
   const pageRoom = bottomLimit(doc) - doc.page.margins.top;
   ensureSpace(doc, fullHeight <= pageRoom * 0.45 ? fullHeight : Math.min(rowHeight(b.rows[0]) * 3 + 20, 160));
   doc.y += 6;
+  table = pdfGroup(doc, t.tagRoot, "Table");
   if (b.caption?.length) {
-    writeRuns(doc, b.caption.map((r) => ({ ...r, bold: true })), t, { size: 9, align: "left", color: t.ink });
+    pdfTag(doc, table, "Caption", () => writeRuns(doc, b.caption!.map((r) => ({ ...r, bold: true })), t, { size: 9, align: "left", color: t.ink }));
     doc.y += 3;
   }
-  doc.save().moveTo(left, doc.y).lineTo(left + total, doc.y).lineWidth(0.8).strokeColor(t.primary).stroke().restore();
+  pdfArtifact(doc, tagged, () => {
+    doc.save().moveTo(left, doc.y).lineTo(left + total, doc.y).lineWidth(0.8).strokeColor(t.primary).stroke().restore();
+  });
   let body = 0;
   for (const r of b.rows) drawRow(r, !r.header && body++ % 2 === 1);
+  table?.end();
   doc.x = left;
   doc.y += 10;
 }
@@ -663,10 +749,12 @@ function renderImage(doc: Doc, b: Extract<Block, { kind: "image" }>, t: BodyThem
     const h = img.height * scale;
     ensureSpace(doc, h + 30);
     doc.y += 6;
-    doc.image(img as any, doc.page.margins.left + (maxW - w) / 2, doc.y, { width: w, height: h });
-    doc.y += h + 4;
     const cap = b.caption?.length ? b.caption : b.alt ? [{ text: b.alt, italic: true }] : [];
-    if (cap.length) writeRuns(doc, cap.map((r) => ({ ...r, italic: true })), t, { size: 9, align: "center", color: t.muted });
+    const alt = (b.alt || runsText(cap) || "Figure").replace(/\s+/g, " ").trim();
+    const iy = doc.y;
+    pdfTag(doc, t.tagRoot, "Figure", () => doc.image(img as any, doc.page.margins.left + (maxW - w) / 2, iy, { width: w, height: h }), { alt });
+    doc.y = iy + h + 4;
+    if (cap.length) pdfTag(doc, t.tagRoot, "Caption", () => writeRuns(doc, cap.map((r) => ({ ...r, italic: true })), t, { size: 9, align: "center", color: t.muted }));
     doc.y += 8;
   } catch {
     /* unreadable image — leave it out rather than fail the galley */
@@ -709,12 +797,12 @@ export function renderBody(doc: Doc, html: string, t: BodyTheme): number {
           const hang = 16;
           const w = contentWidth(doc) - hang;
           ensureSpace(doc, Math.min(measureRuns(doc, b.runs, t, w, 9.5), 9.5 * 3.5));
-          writeRuns(doc, b.runs, t, { x: doc.page.margins.left + hang, width: w, size: 9.5, align: "left", indent: -hang, lineGap: 1.6 });
+          pdfTag(doc, t.tagRoot, "P", () => writeRuns(doc, b.runs, t, { x: doc.page.margins.left + hang, width: w, size: 9.5, align: "left", indent: -hang, lineGap: 1.6 }));
           doc.y += 4;
           return;
         }
         ensureSpace(doc, Math.min(measureRuns(doc, b.runs, t, contentWidth(doc), BODY_SIZE), BODY_SIZE * 2.6));
-        writeRuns(doc, b.runs, t, { indent: afterHeading ? 0 : 14, align: "justify" });
+        pdfTag(doc, t.tagRoot, "P", () => writeRuns(doc, b.runs, t, { indent: afterHeading ? 0 : 14, align: "justify" }));
         doc.y += 4;
         afterHeading = false;
         return;
@@ -724,7 +812,7 @@ export function renderBody(doc: Doc, html: string, t: BodyTheme): number {
           for (const it of b.items) {
             const hang = 16;
             ensureSpace(doc, 9.5 * 3);
-            writeRuns(doc, it.runs, t, { x: doc.page.margins.left + hang, width: contentWidth(doc) - hang, size: 9.5, align: "left", indent: -hang, lineGap: 1.6 });
+            pdfTag(doc, t.tagRoot, "P", () => writeRuns(doc, it.runs, t, { x: doc.page.margins.left + hang, width: contentWidth(doc) - hang, size: 9.5, align: "left", indent: -hang, lineGap: 1.6 }));
             doc.y += 4;
           }
         } else renderList(doc, b, t);
@@ -738,15 +826,19 @@ export function renderBody(doc: Doc, html: string, t: BodyTheme): number {
         const inset = 22;
         ensureSpace(doc, BODY_SIZE * 3);
         const y0 = doc.y;
-        writeRuns(doc, b.runs, t, { x: doc.page.margins.left + inset, width: contentWidth(doc) - inset * 2, size: 10, align: "left", color: "#3d3550" });
-        doc.save().moveTo(doc.page.margins.left + 8, y0).lineTo(doc.page.margins.left + 8, Math.max(doc.y, y0 + 10)).lineWidth(2).strokeColor(t.accent).stroke().restore();
+        pdfTag(doc, t.tagRoot, "BlockQuote", () => writeRuns(doc, b.runs, t, { x: doc.page.margins.left + inset, width: contentWidth(doc) - inset * 2, size: 10, align: "left", color: "#3d3550" }));
+        pdfArtifact(doc, !!t.tagRoot, () => {
+          doc.save().moveTo(doc.page.margins.left + 8, y0).lineTo(doc.page.margins.left + 8, Math.max(doc.y, y0 + 10)).lineWidth(2).strokeColor(t.accent).stroke().restore();
+        });
         doc.y += 6;
         afterHeading = true;
         return;
       }
       case "code":
         ensureSpace(doc, 30);
-        doc.font("Courier").fontSize(8.5).fillColor(t.ink).text(printable(b.text, t.fonts), doc.page.margins.left + 10, doc.y, { width: contentWidth(doc) - 20, lineGap: 1 });
+        pdfTag(doc, t.tagRoot, "Code", () => {
+          doc.font("Courier").fontSize(8.5).fillColor(t.ink).text(printable(b.text, t.fonts), doc.page.margins.left + 10, doc.y, { width: contentWidth(doc) - 20, lineGap: 1 });
+        });
         doc.y += 6;
         return;
       case "image":
@@ -756,7 +848,9 @@ export function renderBody(doc: Doc, html: string, t: BodyTheme): number {
       case "rule":
         ensureSpace(doc, 14);
         doc.y += 6;
-        doc.save().moveTo(doc.page.margins.left + contentWidth(doc) * 0.35, doc.y).lineTo(doc.page.margins.left + contentWidth(doc) * 0.65, doc.y).lineWidth(0.6).strokeColor(t.accent).stroke().restore();
+        pdfArtifact(doc, !!t.tagRoot, () => {
+          doc.save().moveTo(doc.page.margins.left + contentWidth(doc) * 0.35, doc.y).lineTo(doc.page.margins.left + contentWidth(doc) * 0.65, doc.y).lineWidth(0.6).strokeColor(t.accent).stroke().restore();
+        });
         doc.y += 8;
         return;
     }

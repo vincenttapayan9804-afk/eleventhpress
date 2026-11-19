@@ -28,7 +28,7 @@ export const WCAG22_CONFORMANCE: ConformanceRow[] = [
   { sc: "1.2.3", name: "Audio Description or Media Alternative (Prerecorded)", level: "A", conformance: "Partially supports", remarks: "Text summaries accompany media items; full audio description is not produced." },
   { sc: "1.2.4", name: "Captions (Live)", level: "AA", conformance: "Not applicable", remarks: "No live audio or video is broadcast." },
   { sc: "1.2.5", name: "Audio Description (Prerecorded)", level: "AA", conformance: "Partially supports", remarks: "As 1.2.3." },
-  { sc: "1.3.1", name: "Info and Relationships", level: "A", conformance: "Supports", remarks: "Landmarks, heading hierarchy, labelled form controls, list and table markup throughout the interface." },
+  { sc: "1.3.1", name: "Info and Relationships", level: "A", conformance: "Supports", remarks: "Landmarks, heading hierarchy, labelled form controls, list and table markup throughout the interface. Article PDFs are tagged with the same structure (headings, lists, tables with header cells, figures with alt text)." },
   { sc: "1.3.2", name: "Meaningful Sequence", level: "A", conformance: "Supports", remarks: "DOM order matches the visual reading order." },
   { sc: "1.3.3", name: "Sensory Characteristics", level: "A", conformance: "Supports", remarks: "Instructions do not rely on shape, position or colour alone." },
   { sc: "1.3.4", name: "Orientation", level: "AA", conformance: "Supports", remarks: "All views work in portrait and landscape." },
