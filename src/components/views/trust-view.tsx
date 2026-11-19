@@ -27,22 +27,22 @@ import {
  * platform implements and how, for librarians, funders, institutional
  * security reviewers and authors. Same honesty convention as
  * AccessibilityView/PoliciesView: every row describes something that exists
- * in this codebase today; self-assessments are labelled as such (there is
+ * in this codebase today; internal assessments are labelled as such (there is
  * no third-party audit or paid certification behind them), and anything
  * still rolling out says so.
  */
 
-type Status = "in-place" | "self-assessed" | "rolling-out";
+type Status = "in-place" | "internally-assessed" | "rolling-out";
 
 const STATUS_LABEL: Record<Status, string> = {
   "in-place": "In place",
-  "self-assessed": "Self-assessed",
+  "internally-assessed": "Internally assessed",
   "rolling-out": "Rolling out",
 };
 
 const STATUS_CLASS: Record<Status, string> = {
   "in-place": "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  "self-assessed": "border-sky-500/40 bg-sky-500/10 text-sky-700 dark:text-sky-300",
+  "internally-assessed": "border-sky-500/40 bg-sky-500/10 text-sky-700 dark:text-sky-300",
   "rolling-out": "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300",
 };
 
@@ -53,9 +53,9 @@ interface Row {
 }
 
 const SECURITY: Row[] = [
-  { standard: "OWASP ASVS 5.0 · Level 2", what: "Application security requirements checked area by area: input handling and output encoding, authentication, sessions, access control, cryptography, secure communication, data protection, configuration and logging.", status: "self-assessed" },
-  { standard: "NIST Cybersecurity Framework 2.0", what: "Controls organised under Govern, Identify, Protect, Detect, Respond and Recover — see the breakdown below.", status: "self-assessed" },
-  { standard: "CIS Critical Security Controls v8 · IG1", what: "The essential-hygiene safeguards: software inventory, secure configuration, account and access management, data protection, audit logs, malware and vulnerability management, incident response.", status: "self-assessed" },
+  { standard: "OWASP ASVS 5.0 · Level 2", what: "Application security requirements checked area by area: input handling and output encoding, authentication, sessions, access control, cryptography, secure communication, data protection, configuration and logging.", status: "internally-assessed" },
+  { standard: "NIST Cybersecurity Framework 2.0", what: "Controls organised under Govern, Identify, Protect, Detect, Respond and Recover — see the breakdown below.", status: "internally-assessed" },
+  { standard: "CIS Critical Security Controls v8 · IG1", what: "The essential-hygiene safeguards: software inventory, secure configuration, account and access management, data protection, audit logs, malware and vulnerability management, incident response.", status: "internally-assessed" },
   { standard: "RFC 9116 security.txt", what: "A published, machine-readable contact for reporting vulnerabilities at /.well-known/security.txt.", status: "in-place" },
   { standard: "CycloneDX SBOM", what: "A software bill of materials generated automatically on every change, listing every component and version shipped.", status: "in-place" },
   { standard: "Automated code scanning", what: "Static analysis (Semgrep), secret scanning (Gitleaks) and dependency updates (Dependabot) run on every change and block a release when they fail.", status: "in-place" },
@@ -211,7 +211,7 @@ export function TrustView() {
         <h1 className="mt-2 font-display text-4xl font-semibold sm:text-5xl">Trust Center</h1>
         <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
           The open standards {legal.orgName} follows for security, privacy, accessibility, open scholarship and
-          responsible AI — and exactly how we meet each one. Items marked <em>self-assessed</em> are checked by us
+          responsible AI — and exactly how we meet each one. Items marked <em>internally assessed</em> are checked by us
           against the published standard, not certified by an outside auditor.
         </p>
         <nav aria-label="On this page" className="mt-5 flex flex-wrap gap-2">
@@ -299,8 +299,8 @@ export function TrustView() {
       <Section id="accessibility" icon={Accessibility} title="Accessibility">
         <RowList
           rows={[
-            { standard: "WCAG 2.2 Level AA", what: "Our target for every page; automated axe-core checks run on every change and block a release on failure.", status: "self-assessed" },
-            { standard: "Accessibility Conformance Report (VPAT 2.5 INT)", what: "A criterion-by-criterion report covering WCAG 2.2, US Section 508 and EU EN 301 549, published on our Accessibility page.", status: "self-assessed" },
+            { standard: "WCAG 2.2 Level AA", what: "Our target for every page; automated axe-core checks run on every change and block a release on failure.", status: "internally-assessed" },
+            { standard: "Accessibility Conformance Report (VPAT 2.5 INT)", what: "A criterion-by-criterion report covering WCAG 2.2, US Section 508 and EU EN 301 549, published on our Accessibility page.", status: "internally-assessed" },
             { standard: "Tagged PDF (ISO 14289 PDF/UA structure)", what: "Article PDFs carry a full structure tree — headings, paragraphs, lists, tables with header cells, figures with alt text — plus a document language, and mark page furniture as decoration so screen readers skip it.", status: "in-place" },
             { standard: "EPUB Accessibility 1.1", what: "Every e-book declares its accessibility features, and only claims WCAG conformance when every image has a text alternative.", status: "in-place" },
             { standard: "Language of page (WCAG 3.1.1)", what: "The page language follows the language you choose, so screen readers read it with the right voice.", status: "in-place" },
