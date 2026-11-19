@@ -17,27 +17,30 @@ import AxeBuilder from "@axe-core/playwright";
  * /article/[id] or any dashboard tab, which is why those still aren't
  * covered (see docs/accessibility.md).
  */
-const PAGES: { name: string; trigger?: string }[] = [
+// `group` is the header dropdown that holds the trigger (About, FAQs and
+// Policies sit under the "About" menu), opened first.
+const PAGES: { name: string; trigger?: string; group?: string }[] = [
   { name: "home" },
-  { name: "about", trigger: "nav-about" },
-  { name: "faqs", trigger: "nav-faqs" },
-  { name: "policies", trigger: "nav-policies" },
+  { name: "about", group: "nav-group-about", trigger: "nav-about" },
+  { name: "faqs", group: "nav-group-about", trigger: "nav-faqs" },
+  { name: "policies", group: "nav-group-about", trigger: "nav-policies" },
   { name: "privacy", trigger: "footer-nav-privacy" },
   { name: "terms", trigger: "footer-nav-terms" },
   { name: "accessibility", trigger: "footer-nav-accessibility" },
 ];
 
-async function gotoView(page: Page, trigger?: string) {
+async function gotoView(page: Page, trigger?: string, group?: string) {
   await page.goto("/", { waitUntil: "networkidle" });
+  if (group) await page.getByTestId(group).click();
   if (trigger) {
     await page.getByTestId(trigger).first().click();
     await page.waitForLoadState("networkidle");
   }
 }
 
-for (const { name, trigger } of PAGES) {
+for (const { name, trigger, group } of PAGES) {
   test(`${name} has no automatically-detectable accessibility violations`, async ({ page }) => {
-    await gotoView(page, trigger);
+    await gotoView(page, trigger, group);
 
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag22aa"])
