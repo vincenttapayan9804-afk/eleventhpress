@@ -1,5 +1,6 @@
 "use client";
 
+import { openContact } from "@/lib/contact-store";
 import { useTranslations } from "next-intl";
 import { useApp } from "@/lib/store";
 import { Button } from "@/components/ui/button";
@@ -121,10 +122,8 @@ export function FaqsView() {
         <p className="eyebrow">{t("stillHaveQuestions")}</p>
         <h2 className="mt-2 font-display text-2xl font-semibold">{t("contactHeadline")}</h2>
         <div className="mt-5 flex flex-wrap justify-center gap-3">
-          <Button asChild>
-            <a href={`mailto:${legal.contactEmail}`}>
-              <Mail className="mr-2 h-4 w-4" /> {t("emailUs")}
-            </a>
+          <Button onClick={() => openContact("general")} data-testid="cta-contact-faqs">
+            <Mail className="mr-2 h-4 w-4" /> {t("emailUs")}
           </Button>
           <Button variant="outline" onClick={() => setView("about")}>
             {th("aboutJournal")}

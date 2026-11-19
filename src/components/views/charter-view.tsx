@@ -1,6 +1,6 @@
 "use client";
 
-import { useContactEmail } from "@/lib/tenant-branding-context";
+import { openContact } from "@/lib/contact-store";
 import { useApp } from "@/lib/store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,7 +35,6 @@ import {
  * honesty convention on the Policies page.
  */
 export function CharterView() {
-  const contactEmail = useContactEmail();
   const { setView, openDashboard, user } = useApp();
 
   return (
@@ -222,10 +221,8 @@ export function CharterView() {
           <Button variant="outline" onClick={() => setView("experts")}>
             <Users2 className="mr-2 h-4 w-4" /> Council of Experts' Directory
           </Button>
-          <Button variant="outline" asChild>
-            <a href={`mailto:${contactEmail}?subject=Council%20of%20Experts%20inquiry`}>
-              <Mail className="mr-2 h-4 w-4" /> Email the editorial office
-            </a>
+          <Button variant="outline" onClick={() => openContact("council", { subject: "Council of Experts inquiry" })} data-testid="cta-contact-council">
+            <Mail className="mr-2 h-4 w-4" /> Contact the editorial office
           </Button>
         </div>
       </section>

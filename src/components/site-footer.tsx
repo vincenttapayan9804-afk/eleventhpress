@@ -192,6 +192,15 @@ export function SiteFooter() {
                 </li>
                 <li>
                   <button
+                    onClick={() => setView("contact")}
+                    data-testid="footer-nav-contact"
+                    className="text-left underline-offset-2 hover:text-primary hover:underline transition-colors"
+                  >
+                    {t("contactUs")}
+                  </button>
+                </li>
+                <li>
+                  <button
                     onClick={() => setView("trust")}
                     data-testid="footer-nav-trust"
                     className="text-left underline-offset-2 hover:text-primary hover:underline transition-colors"

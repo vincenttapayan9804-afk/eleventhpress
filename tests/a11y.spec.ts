@@ -28,6 +28,7 @@ const PAGES: { name: string; trigger?: string; group?: string }[] = [
   { name: "terms", trigger: "footer-nav-terms" },
   { name: "accessibility", trigger: "footer-nav-accessibility" },
   { name: "trust", group: "nav-group-about", trigger: "nav-trust" },
+  { name: "contact", group: "nav-group-about", trigger: "nav-contact" },
 ];
 
 async function gotoView(page: Page, trigger?: string, group?: string) {

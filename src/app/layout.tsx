@@ -9,6 +9,7 @@ import { TenantBrandingProvider, type ClientBranding } from "@/lib/tenant-brandi
 import { brandCssVars } from "@/lib/brand-colors";
 import { ThemeProvider } from "@/components/theme-provider";
 import { CookieConsentBanner } from "@/components/cookie-consent-banner";
+import { ContactDialog } from "@/components/contact/contact-dialog";
 import { UiSoundEffects } from "@/components/ui-sound";
 import { POWERED_BY_CREDIT } from "@/lib/powered-by";
 
@@ -159,6 +160,7 @@ export default async function RootLayout({
             {children}
             <Toaster />
             <CookieConsentBanner />
+            <ContactDialog />
             <UiSoundEffects />
             <ServiceWorkerRegister />
           </TenantBrandingProvider>

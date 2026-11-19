@@ -1,5 +1,6 @@
 "use client";
 
+import { openContact } from "@/lib/contact-store";
 import { LEGAL_PAGES_UPDATED } from "@/lib/site";
 import { useApp } from "@/lib/store";
 import { Card, CardContent } from "@/components/ui/card";
@@ -214,10 +215,8 @@ export function TermsView() {
         <h2 className="mt-2 font-display text-2xl font-semibold">Need clarification on these terms?</h2>
         <div className="mt-5 flex flex-wrap justify-center gap-3">
           <Button onClick={() => (user ? openDashboard("profile") : setView("login"))}>Manage my account</Button>
-          <Button variant="outline" asChild>
-            <a href={`mailto:${legal.contactEmail}?subject=Terms%20of%20Service%20question`}>
-              <Mail className="mr-2 h-4 w-4" /> Email us
-            </a>
+          <Button variant="outline" onClick={() => openContact("terms")} data-testid="cta-contact-terms">
+            <Mail className="mr-2 h-4 w-4" /> Ask a question
           </Button>
           <Button variant="outline" onClick={() => setView("privacy")}>
             View privacy &amp; data rights

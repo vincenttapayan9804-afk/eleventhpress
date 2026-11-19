@@ -282,7 +282,11 @@ export default async function MediaStoryPage({ params }: Props) {
               </ol>
               <p className="mt-6 rounded-lg border border-border bg-muted/40 p-4 text-xs leading-relaxed text-muted-foreground">
                 Editorial standards: every figure in this {isNews ? "story" : "post"} is taken from the source cited beside it, primary sources first.
-                Spotted an error? Write to{" "}
+                Spotted an error?{" "}
+                <a href="#contact-editorial" className="text-primary hover:underline">
+                  Report it here
+                </a>{" "}
+                or write to{" "}
                 <a href={`mailto:${JOURNAL_IDENTITY.editorialEmail}`} className="text-primary hover:underline">
                   {JOURNAL_IDENTITY.editorialEmail}
                 </a>{" "}
