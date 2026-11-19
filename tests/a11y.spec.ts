@@ -27,6 +27,7 @@ const PAGES: { name: string; trigger?: string; group?: string }[] = [
   { name: "privacy", trigger: "footer-nav-privacy" },
   { name: "terms", trigger: "footer-nav-terms" },
   { name: "accessibility", trigger: "footer-nav-accessibility" },
+  { name: "trust", group: "nav-group-about", trigger: "nav-trust" },
 ];
 
 async function gotoView(page: Page, trigger?: string, group?: string) {

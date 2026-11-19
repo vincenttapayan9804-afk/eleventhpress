@@ -72,6 +72,9 @@ export const PrivacyView = dynamic(() => import("./privacy-view").then((m) => m.
 export const AccessibilityView = dynamic(() => import("./accessibility-view").then((m) => m.AccessibilityView), {
   loading: () => <ViewLoadingFallback />,
 });
+export const TrustView = dynamic(() => import("./trust-view").then((m) => m.TrustView), {
+  loading: () => <ViewLoadingFallback />,
+});
 export const TermsView = dynamic(() => import("./terms-view").then((m) => m.TermsView), {
   loading: () => <ViewLoadingFallback />,
 });

@@ -385,6 +385,8 @@ export function extractGlossary(sections: OutlineSection[], keywords: string, ma
   for (const term of candidates) {
     if (have(term) || out.length >= max) continue;
     // Only a sentence that defines the term ("X is …", "X refers to …") near its start.
+    // The term is regex-escaped and every quantifier is bounded, so no ReDoS.
+    // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp
     const re = new RegExp(`^(?:\\S+\\s+){0,3}${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b[^.]{0,30}?\\b(is (?:defined as|a|an|the)|are (?:defined as|the)|refers? to|means|pertains to|is described as)\\b`, "i");
     const sent = sentences(plain(all)).find((x) => re.test(x));
     if (sent) out.push({ term: displayCase(term), def_: clip(sent, 300) });
@@ -411,6 +413,8 @@ export function buildRefs(refs: string[], sections: GuideSection[]): { text: str
     if (!k) return { text, key: "", where: [] };
     // "Alam and Mohanty (2024)", "(Alam & Mohanty, 2024)", "Åsebø et al. (2022)": the surname, then the year within the same citation.
     const name = k.surname.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    // Surname is regex-escaped, the year is digits, the gap is bounded: no ReDoS.
+    // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp
     const near = new RegExp(`(?<!\\p{L})${name}(?!\\p{L})[^;]{0,90}?\\b${k.year}\\b`, "iu");
     const where = sections.filter((s) => s.paras.some((p) => near.test(p.orig))).map((s) => s.title);
     return { text, key: k.key, where: [...new Set(where)].slice(0, 6) };

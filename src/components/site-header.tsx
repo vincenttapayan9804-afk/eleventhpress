@@ -75,8 +75,9 @@ export function SiteHeader() {
         { label: t("aboutUs"), view: "about" },
         { label: t("faqs"), view: "faqs" },
         { label: t("policies"), view: "policies" },
+        { label: t("trust"), view: "trust" },
       ],
-      active: ["about", "faqs", "policies"].includes(view),
+      active: ["about", "faqs", "policies", "trust"].includes(view),
     },
   ];
 

@@ -238,8 +238,20 @@ function toTenantContext(tenant: TenantRow, source: TenantSource): TenantContext
 function cookieValue(headers: Headers, name: string): string | null {
   const raw = headers.get("cookie");
   if (!raw) return null;
-  const match = raw.match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`));
-  return match ? decodeURIComponent(match[1]) : null;
+  // Plain string parsing rather than a regex built from `name`.
+  for (const part of raw.split(";")) {
+    const eq = part.indexOf("=");
+    if (eq > 0 && part.slice(0, eq).trim() === name) {
+      const value = part.slice(eq + 1).trim();
+      if (!value) return null;
+      try {
+        return decodeURIComponent(value);
+      } catch {
+        return value;
+      }
+    }
+  }
+  return null;
 }
 
 /** Headers-object entry point for API route handlers — mirrors getSessionFromHeaders(headers). */

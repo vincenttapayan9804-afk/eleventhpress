@@ -28,6 +28,7 @@ export type ViewKey =
   | "privacy"
   | "terms"
   | "accessibility"
+  | "trust"
   | "adminPortal"
   | "magazines"
   | "magazineIssue"

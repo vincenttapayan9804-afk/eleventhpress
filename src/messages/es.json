@@ -18,6 +18,7 @@
     "aboutUs": "Quiénes somos",
     "faqs": "Preguntas frecuentes",
     "policies": "Políticas",
+    "trust": "Centro de confianza",
     "dashboard": "Panel",
     "signIn": "Iniciar sesión",
     "signOut": "Cerrar sesión",
@@ -50,6 +51,7 @@
     "policyPci": "PCI-DSS en todas las pasarelas de pago",
     "termsOfService": "Términos de servicio",
     "accessibilityStatement": "Declaración de accesibilidad",
+    "trustCenter": "Centro de confianza",
     "copyright": "© {year} Eleventh Press International Publishing™. Todos los artículos se publican bajo CC BY 4.0 salvo que se indique lo contrario.",
     "indexedLine": "Indexado en: Google Scholar · {registrar} · OAI-PMH · DOAJ"
   },

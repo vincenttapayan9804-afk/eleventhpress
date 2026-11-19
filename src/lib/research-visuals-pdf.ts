@@ -362,8 +362,10 @@ function docInfo(input: VisualInput, kind: ResearchVisualKind): PDFKit.DocumentI
   return {
     Title: T(`${RESEARCH_VISUAL_LABELS[kind]} — ${input.article.title}`),
     Author: T(authors || input.brand.orgName),
-    Subject: T(`${RESEARCH_VISUAL_LABELS[kind]} of "${input.article.title}", ${input.brand.journalName}`),
-    Keywords: T(input.article.keywords ?? ""),
+    // Machine-readable AI disclosure (EU AI Act Art. 50): the layout is
+    // automated and the content may be AI-extracted from the article.
+    Subject: T(`${RESEARCH_VISUAL_LABELS[kind]} of "${input.article.title}", ${input.brand.journalName}. AI-assisted: generated automatically from the published article.`),
+    Keywords: T([input.article.keywords ?? "", "AI-assisted", "trainedAlgorithmicMedia"].filter(Boolean).join("; ")),
     Creator: T(`${input.brand.orgName} — Research Visuals`),
     Producer: T(input.brand.orgName),
   };

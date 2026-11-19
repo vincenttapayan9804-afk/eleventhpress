@@ -1,5 +1,6 @@
 "use client";
 
+import { AiLabel } from "@/components/ai-label";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown, { defaultUrlTransform, type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -327,6 +328,7 @@ export const AnswerView = memo(function AnswerView({
             <CornerDownRight className="h-3 w-3" aria-hidden="true" /> Continues the earlier analysis
           </span>
         )}
+        <AiLabel what="answer" className="ml-auto" />
       </header>
 
       {data.coverage?.scope && scope === "journal" && (

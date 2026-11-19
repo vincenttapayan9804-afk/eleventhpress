@@ -18,6 +18,7 @@
     "aboutUs": "Tungkol sa amin",
     "faqs": "FAQs",
     "policies": "Mga Patakaran",
+    "trust": "Trust Center",
     "dashboard": "Dashboard",
     "signIn": "Mag-sign in",
     "signOut": "Mag-sign out",
@@ -50,6 +51,7 @@
     "policyPci": "PCI-DSS sa lahat ng payment gateway",
     "termsOfService": "Mga Tuntunin ng Serbisyo",
     "accessibilityStatement": "Pahayag sa accessibility",
+    "trustCenter": "Trust Center",
     "copyright": "© {year} Eleventh Press International Publishing™. Ang lahat ng artikulo ay nailathala sa ilalim ng CC BY 4.0 maliban na lang kung nakasaad.",
     "indexedLine": "Naka-index sa: Google Scholar · {registrar} · OAI-PMH · DOAJ"
   },

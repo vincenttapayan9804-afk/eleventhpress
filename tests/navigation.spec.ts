@@ -20,9 +20,12 @@ test("a direct visit opens that page with its own title", async ({ page }) => {
 
 test("navigation updates the address and Back/Forward follow it", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("link", { name: /^About$/ }).first().click();
+  // About us and FAQs sit in the header's "About" dropdown.
+  await page.getByTestId("nav-group-about").click();
+  await page.getByTestId("nav-about").click();
   await expect(page).toHaveURL(/\/about$/);
-  await page.getByRole("link", { name: /^FAQs$/ }).first().click();
+  await page.getByTestId("nav-group-about").click();
+  await page.getByTestId("nav-faqs").click();
   await expect(page).toHaveURL(/\/faqs$/);
   await page.goBack();
   await expect(page).toHaveURL(/\/about$/);
