@@ -35,27 +35,50 @@ export function SiteHeader() {
   const t = useTranslations("nav");
   const tHeader = useTranslations("header");
 
-  const NAV_ITEMS = [
-    { label: t("home"), view: "home" as const },
-    { label: t("authors"), view: "authors" as const },
-    { label: t("experts"), view: "experts" as const },
-    { label: t("resources"), view: "resources" as const },
-    { label: t("collections"), view: "collections" as const },
-    { label: t("about"), view: "about" as const },
-    { label: t("faqs"), view: "faqs" as const },
-    { label: t("policies"), view: "policies" as const },
+  // The desktop bar holds five slots: Home, three dropdowns and Resources.
+  // The same groups drive the mobile menu, with each group as a heading.
+  type NavView = Parameters<typeof setView>[0];
+  type NavGroup = { key: string; label: string; items: { label: string; view: NavView }[]; active: boolean };
+  const GROUPS: NavGroup[] = [
+    {
+      key: "publications",
+      label: t("publications"),
+      items: [
+        { label: t("articles"), view: "browse" },
+        { label: t("books"), view: "books" },
+        { label: t("magazines"), view: "magazines" },
+        { label: t("podcasts"), view: "podcasts" },
+        { label: t("media"), view: "media" },
+        { label: t("collections"), view: "collections" },
+      ],
+      active: ["browse", "books", "magazines", "magazineIssue", "podcasts", "media", "mediaPost", "collections"].includes(view),
+    },
+    {
+      key: "people",
+      label: t("people"),
+      items: [
+        { label: t("authors"), view: "authors" },
+        { label: t("experts"), view: "experts" },
+      ],
+      active: ["authors", "authorProfile", "experts"].includes(view),
+    },
+    {
+      key: "resources",
+      label: t("resources"),
+      items: [{ label: t("resources"), view: "resources" }],
+      active: view === "resources" || view === "resourcePage",
+    },
+    {
+      key: "about",
+      label: t("about"),
+      items: [
+        { label: t("aboutUs"), view: "about" },
+        { label: t("faqs"), view: "faqs" },
+        { label: t("policies"), view: "policies" },
+      ],
+      active: ["about", "faqs", "policies"].includes(view),
+    },
   ];
-
-  const PUBLICATIONS_ITEMS = [
-    { label: t("articles"), view: "browse" as const },
-    { label: t("books"), view: "books" as const },
-    { label: t("magazines"), view: "magazines" as const },
-    { label: t("podcasts"), view: "podcasts" as const },
-    { label: t("media"), view: "media" as const },
-  ];
-  const publicationsActive =
-    view === "browse" || view === "books" || view === "magazines" || view === "magazineIssue" ||
-    view === "podcasts" || view === "media" || view === "mediaPost";
 
   const initials = user?.fullName?.split(" ").map((s) => s[0]).slice(0, 2).join("") ?? "EP";
 
@@ -113,38 +136,39 @@ export function SiteHeader() {
               {t("home")}
             </SpaLink>
 
-            {/* Publications dropdown — replaces the old flat "Articles"
-                link so Journal Articles and Books can share one nav slot. */}
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                data-active={publicationsActive}
-                className="nav-underline flex flex-shrink-0 items-center gap-1 whitespace-nowrap font-sans text-[0.83rem] font-medium text-foreground/80 outline-none hover:text-foreground transition-colors 2xl:text-sm"
-              >
-                {t("publications")} <ChevronDown className="h-3 w-3" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="glass-strong">
-                {PUBLICATIONS_ITEMS.map((item) => (
-                  <DropdownMenuItem key={item.view} asChild>
-                    <SpaLink to={{ view: item.view }} onNavigate={() => setView(item.view)}>
-                      {item.label}
-                    </SpaLink>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {NAV_ITEMS.filter((item) => item.view !== "home").map((item) => (
-              <SpaLink
-                key={item.view}
-                to={{ view: item.view }}
-                onNavigate={() => setView(item.view)}
-                data-active={view === item.view || (item.view === "resources" && view === "resourcePage") || (item.view === "authors" && view === "authorProfile")}
-                data-testid={`nav-${item.view}`}
-                className="nav-underline flex-shrink-0 whitespace-nowrap font-sans text-[0.83rem] font-medium text-foreground/80 hover:text-foreground transition-colors 2xl:text-sm"
-              >
-                {item.label}
-              </SpaLink>
-            ))}
+            {GROUPS.map((group) =>
+              group.items.length === 1 ? (
+                <SpaLink
+                  key={group.key}
+                  to={{ view: group.items[0].view }}
+                  onNavigate={() => setView(group.items[0].view)}
+                  data-active={group.active}
+                  data-testid={`nav-${group.items[0].view}`}
+                  className="nav-underline flex-shrink-0 whitespace-nowrap font-sans text-[0.83rem] font-medium text-foreground/80 hover:text-foreground transition-colors 2xl:text-sm"
+                >
+                  {group.label}
+                </SpaLink>
+              ) : (
+                <DropdownMenu key={group.key}>
+                  <DropdownMenuTrigger
+                    data-active={group.active}
+                    data-testid={`nav-group-${group.key}`}
+                    className="nav-underline flex flex-shrink-0 items-center gap-1 whitespace-nowrap font-sans text-[0.83rem] font-medium text-foreground/80 outline-none hover:text-foreground transition-colors 2xl:text-sm"
+                  >
+                    {group.label} <ChevronDown className="h-3 w-3" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="glass-strong min-w-44">
+                    {group.items.map((item) => (
+                      <DropdownMenuItem key={item.view} asChild>
+                        <SpaLink to={{ view: item.view }} onNavigate={() => setView(item.view)} data-testid={`nav-${item.view}`}>
+                          {item.label}
+                        </SpaLink>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ),
+            )}
             {user && (
               <SpaLink
                 to={{ view: "dashboard" }}
@@ -220,13 +244,21 @@ export function SiteHeader() {
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="glass-strong w-72">
+              <SheetContent side="right" className="glass-strong w-72 overflow-y-auto pb-8">
                 <SheetHeader>
                   <SheetTitle className="font-display text-foreground">
                     {branding.siteName || "Eleventh Press"}
                   </SheetTitle>
                 </SheetHeader>
-                <nav className="mt-6 flex flex-col gap-1">
+                {/* Theme and sound switches sit at the top of the menu, where
+                    they are always on screen; at the bottom they fell below
+                    the fold of an unscrolled menu on phones. */}
+                <div className="flex items-center gap-2 border-b border-border px-3 pb-3 sm:hidden">
+                  <ThemeToggle className="size-11" />
+                  <SoundToggle className="size-11" />
+                  <span className="text-xs text-muted-foreground">Light/dark &amp; sounds</span>
+                </div>
+                <nav className="mt-3 flex flex-col gap-1">
                   <SpaLink
                     to={{ view: "home" }}
                     onNavigate={() => { setView("home"); setMobileNavOpen(false); }}
@@ -235,31 +267,34 @@ export function SiteHeader() {
                     {t("home")}
                   </SpaLink>
 
-                  {/* Publications group */}
-                  <p className="mt-2 px-3 text-[0.65rem] font-semibold uppercase tracking-wider text-muted-foreground">
-                    {t("publications")}
-                  </p>
-                  {PUBLICATIONS_ITEMS.map((item) => (
-                    <SpaLink
-                      key={item.view}
-                      to={{ view: item.view }}
-                      onNavigate={() => { setView(item.view); setMobileNavOpen(false); }}
-                      className="rounded-md px-3 py-2 pl-5 text-left font-sans text-sm font-medium hover:bg-[var(--royal-100)] transition-colors"
-                    >
-                      {item.label}
-                    </SpaLink>
-                  ))}
-
-                  {NAV_ITEMS.filter((item) => item.view !== "home").map((item) => (
-                    <SpaLink
-                      key={item.view}
-                      to={{ view: item.view }}
-                      onNavigate={() => { setView(item.view); setMobileNavOpen(false); }}
-                      className="rounded-md px-3 py-2 text-left font-sans text-sm font-medium hover:bg-[var(--royal-100)] transition-colors"
-                    >
-                      {item.label}
-                    </SpaLink>
-                  ))}
+                  {GROUPS.map((group) =>
+                    group.items.length === 1 ? (
+                      <SpaLink
+                        key={group.key}
+                        to={{ view: group.items[0].view }}
+                        onNavigate={() => { setView(group.items[0].view); setMobileNavOpen(false); }}
+                        className="rounded-md px-3 py-2 text-left font-sans text-sm font-medium hover:bg-[var(--royal-100)] transition-colors"
+                      >
+                        {group.label}
+                      </SpaLink>
+                    ) : (
+                      <div key={group.key} className="flex flex-col gap-1">
+                        <p className="mt-2 px-3 text-[0.65rem] font-semibold uppercase tracking-wider text-muted-foreground">
+                          {group.label}
+                        </p>
+                        {group.items.map((item) => (
+                          <SpaLink
+                            key={item.view}
+                            to={{ view: item.view }}
+                            onNavigate={() => { setView(item.view); setMobileNavOpen(false); }}
+                            className="rounded-md px-3 py-2 pl-5 text-left font-sans text-sm font-medium hover:bg-[var(--royal-100)] transition-colors"
+                          >
+                            {item.label}
+                          </SpaLink>
+                        ))}
+                      </div>
+                    ),
+                  )}
                   {user && (
                     <button
                       onClick={() => { openDashboard("overview"); setMobileNavOpen(false); }}
@@ -277,11 +312,6 @@ export function SiteHeader() {
                     </button>
                   )}
                 </nav>
-                <div className="mt-6 flex items-center gap-2 border-t border-border px-3 pt-4 sm:hidden">
-                  <ThemeToggle className="size-11" />
-                  <SoundToggle className="size-11" />
-                  <span className="text-xs text-muted-foreground">Theme &amp; sounds</span>
-                </div>
               </SheetContent>
             </Sheet>
           </div>
