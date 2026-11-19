@@ -40,6 +40,47 @@ export function toXhtml(html: string): string {
     .replace(/&([a-z]+);/gi, (m, name: string) => (["amp", "lt", "gt", "quot", "apos"].includes(name) ? m : named[name.toLowerCase()] ? `&#${named[name.toLowerCase()]};` : `&amp;${name};`));
 }
 
+/**
+ * EPUB Accessibility 1.1 discovery metadata (schema.org accessibility
+ * properties in the OPF). Library catalogues, Ace by DAISY and reading
+ * systems show these to readers before they download. Claims are derived
+ * from the real content: alternative text and the WCAG conformance claim are
+ * only asserted when every image actually carries a non-empty alt.
+ */
+export function epubAccessibilityMetadata(chapters: EpubChapter[], certifier: string): string {
+  const imgs = chapters.flatMap((c) => c.html.match(/<img\b[^>]*>/gi) ?? []);
+  const hasImages = imgs.length > 0;
+  const allAlt = imgs.every((tag) => /\balt\s*=\s*("[^"]*\S[^"]*"|'[^']*\S[^']*')/i.test(tag));
+  const hasTables = chapters.some((c) => /<table\b/i.test(c.html));
+  const hasMath = chapters.some((c) => /<math\b/i.test(c.html));
+
+  const features = ["tableOfContents", "readingOrder", "structuralNavigation", "displayTransformability"];
+  if (hasImages && allAlt) features.push("alternativeText");
+  if (hasTables) features.push("table");
+  if (hasMath) features.push("MathML");
+
+  const lines = [
+    `<meta property="schema:accessMode">textual</meta>`,
+    ...(hasImages ? [`<meta property="schema:accessMode">visual</meta>`] : []),
+    ...(!hasImages || allAlt ? [`<meta property="schema:accessModeSufficient">textual</meta>`] : []),
+    ...(hasImages ? [`<meta property="schema:accessModeSufficient">textual,visual</meta>`] : []),
+    ...features.map((f) => `<meta property="schema:accessibilityFeature">${f}</meta>`),
+    `<meta property="schema:accessibilityHazard">none</meta>`,
+    `<meta property="schema:accessibilitySummary">${escapeXml(
+      !hasImages || allAlt
+        ? "Reflowable text with a navigable table of contents, headings for every chapter and a logical reading order. Text can be resized and restyled, and every image has a text alternative. No flashing, sound or motion hazards."
+        : "Reflowable text with a navigable table of contents, headings for every chapter and a logical reading order. Text can be resized and restyled. Some images do not yet have text alternatives. No flashing, sound or motion hazards."
+    )}</meta>`,
+  ];
+  if (!hasImages || allAlt) {
+    lines.push(
+      `<meta property="dcterms:conformsTo">EPUB Accessibility 1.1 - WCAG 2.2 Level AA</meta>`,
+      `<meta property="a11y:certifiedBy">${escapeXml(certifier)}</meta>`,
+    );
+  }
+  return lines.map((l) => `    ${l}`).join("\n");
+}
+
 export function buildEpub(
   book: {
     id: string;
@@ -65,13 +106,15 @@ export function buildEpub(
   const cssLink = book.css ? `<link rel="stylesheet" type="text/css" href="style.css"/>` : "";
   const modified = new Date().toISOString().replace(/\.\d+Z$/, "Z");
 
+  const a11y = epubAccessibilityMetadata(chapters, book.publisher || JOURNAL_IDENTITY.name);
+
   const manifestItems = chapters
     .map((_, i) => `    <item id="chap${i + 1}" href="chapter-${i + 1}.xhtml" media-type="application/xhtml+xml"/>`)
     .join("\n");
   const spineItems = chapters.map((_, i) => `    <itemref idref="chap${i + 1}"/>`).join("\n");
 
   const contentOpf = `<?xml version="1.0" encoding="UTF-8"?>
-<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="pub-id">
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="pub-id" prefix="a11y: http://www.idpf.org/epub/vocab/package/a11y/#">
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
     <dc:identifier id="pub-id">${escapeXml(uid)}</dc:identifier>
     ${book.doi ? `<dc:identifier>doi:${escapeXml(book.doi)}</dc:identifier>` : ""}
@@ -82,6 +125,7 @@ export function buildEpub(
 ${authorNames.map((n) => `    <dc:creator>${escapeXml(n)}</dc:creator>`).join("\n")}
     ${book.rights ? `<dc:rights>${escapeXml(book.rights)}</dc:rights>` : ""}
     <meta property="dcterms:modified">${modified}</meta>
+${a11y}
   </metadata>
   <manifest>
     <item id="nav" href="nav.xhtml" properties="nav" media-type="application/xhtml+xml"/>

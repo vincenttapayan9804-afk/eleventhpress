@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
-import { articleIdFromSegment } from "@/lib/spa-routes";
 import { getObject, presignGet } from "@/lib/storage";
+import { articleIdFromSegment, articlePath } from "@/lib/spa-routes";
+import { contentFileSignposts, toLinkHeader } from "@/lib/signposting";
 
 /**
  * GET /article/<segment>/pdf
@@ -13,10 +14,10 @@ import { getObject, presignGet } from "@/lib/storage";
  * since crawlers fetch it too. The file is streamed so large PDFs aren't
  * held in memory.
  */
-export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: segment } = await params;
   const raw = decodeURIComponent(segment);
-  const select = { id: true, status: true, doi: true, galleyPdfKey: true } as const;
+  const select = { id: true, title: true, status: true, doi: true, galleyPdfKey: true } as const;
   const article =
     (await db.article.findUnique({ where: { id: raw }, select })) ??
     (raw.includes("--") ? await db.article.findUnique({ where: { id: articleIdFromSegment(segment) }, select }) : null);
@@ -30,6 +31,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     "Content-Type": "application/pdf",
     "Content-Disposition": `inline; filename="${filename}"`,
     "Cache-Control": "public, max-age=3600, s-maxage=86400",
+    // FAIR Signposting for content files: point back at the landing page,
+    // the persistent identifier and the license (src/lib/signposting.ts).
+    Link: toLinkHeader(
+      contentFileSignposts(`${new URL(req.url).origin}${articlePath(article.id, article.title)}`, article.doi),
+    ),
   };
 
   const url = await presignGet(article.galleyPdfKey);

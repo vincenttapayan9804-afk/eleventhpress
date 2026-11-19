@@ -51,7 +51,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     // without consent.
     if (session) {
       readerKey = `user:${session.userId}`;
-    } else if (req.cookies.get(COOKIE_CONSENT_COOKIE_NAME)?.value === "all") {
+    } else if (
+      req.cookies.get(COOKIE_CONSENT_COOKIE_NAME)?.value === "all" &&
+      // Global Privacy Control: a Sec-GPC: 1 request never gets the
+      // optional tracking cookie, whatever was clicked earlier.
+      req.headers.get("sec-gpc") !== "1"
+    ) {
       readerKey = req.cookies.get(READER_KEY_COOKIE)?.value || null;
       if (!readerKey) {
         readerKey = `anon:${randomUUID()}`;

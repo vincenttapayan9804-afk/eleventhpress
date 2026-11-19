@@ -191,6 +191,15 @@ export function SiteFooter() {
                   </button>
                 </li>
                 <li>
+                  <button
+                    onClick={() => setView("trust")}
+                    data-testid="footer-nav-trust"
+                    className="text-left underline-offset-2 hover:text-primary hover:underline transition-colors"
+                  >
+                    {t("trustCenter")}
+                  </button>
+                </li>
+                <li>
                   <a href="/status" className="text-left underline-offset-2 hover:text-primary hover:underline transition-colors">
                     Platform status
                   </a>

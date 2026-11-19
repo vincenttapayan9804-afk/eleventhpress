@@ -1,5 +1,6 @@
 "use client";
 
+import { AiLabel } from "@/components/ai-label";
 import { isWhitelabel, useTenantBranding } from "@/lib/tenant-branding-context";
 import { articlePath } from "@/lib/spa-routes";
 import { ReaderToolsCard, HighlightCapture } from "@/components/article-reader-tools";
@@ -548,6 +549,7 @@ export function ArticleView() {
 
                 <div className="flex items-center justify-between gap-3 not-prose">
                   <h2 className="font-display text-xl font-semibold">Abstract</h2>
+                  {translatedAbstract && !showOriginalAbstract && <AiLabel what="translation" className="mr-auto" />}
                   {translatedAbstract && (
                     <Button
                       variant="ghost"
@@ -1258,7 +1260,10 @@ function ResearchVisualSection({
   const [preview, setPreview] = useState(false);
   return (
     <div>
-      <p className="eyebrow mb-2">{eyebrow}</p>
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <p className="eyebrow">{eyebrow}</p>
+        <AiLabel what="visual" />
+      </div>
       <div className="rounded-md border border-border p-4">
         <p className="text-sm text-muted-foreground">{description}</p>
         <div className="mt-3 flex flex-wrap gap-2">
@@ -1336,7 +1341,10 @@ function SupplementalMaterialsTab({ article }: { article: ArticleDetail }) {
         icon={Network}
       />
       <div>
-        <p className="eyebrow mb-2">Automated summary</p>
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          <p className="eyebrow">Automated summary</p>
+          {article.laySummary && <AiLabel what="summary" />}
+        </div>
         {article.laySummary ? (
           <p className="rounded-md border border-primary/20 bg-primary/5 p-4 text-sm leading-relaxed text-foreground/85">
             {article.laySummary}

@@ -4,8 +4,16 @@ import { useContactEmail } from "@/lib/tenant-branding-context";
 import { useApp } from "@/lib/store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  ACR_REVIEWED,
+  WCAG22_CONFORMANCE,
+  conformanceSummary,
+  type ConformanceLevel,
+} from "@/lib/accessibility-conformance";
 import {
   Accessibility,
+  ClipboardList,
   Eye,
   Keyboard,
   Mail,
@@ -71,13 +79,15 @@ export function AccessibilityView() {
         <Card className="paper-card mt-4">
           <CardContent className="p-6 space-y-3">
             <p className="text-sm text-muted-foreground text-justify">
-              An axe-core accessibility scan runs in CI on every change, scoped for now to the pages
-              that render without a database (most of this app has no distinct URL per page — it's a
-              single-page app switching views under one address). It's currently informational rather
-              than merge-blocking: axe-core has a documented limitation resolving contrast on
-              gradient and glassmorphic backgrounds (it compares against the wrong composited color),
-              which needs a human visual check to tell apart from a real issue — the same reason a
-              rendered-page audit, not just a static one, matters.
+              An axe-core scan against the WCAG 2.0, 2.1 and 2.2 A/AA rules runs on every change and blocks a release
+              when it finds a violation. It covers the pages that render without signing in; the article reader and
+              dashboards are checked by hand. The one region it skips is the home page hero, where axe-core cannot
+              measure contrast against a gradient — that was verified visually instead.
+            </p>
+            <p className="text-sm text-muted-foreground text-justify">
+              E-books carry EPUB Accessibility 1.1 metadata describing their features, and only claim WCAG
+              conformance when every image has a text alternative. The page language follows the interface language
+              you choose, so screen readers use the right voice.
             </p>
             <p className="text-sm text-muted-foreground text-justify">
               AI-generated alt-text suggestions are produced automatically for every figure when an
@@ -106,6 +116,8 @@ export function AccessibilityView() {
         </Card>
       </section>
 
+      <AcrSection />
+
       <section className="mt-14 rounded-md border border-border bg-card p-8 text-center">
         <Accessibility className="mx-auto h-6 w-6 text-primary" />
         <h2 className="mt-3 font-display text-2xl font-semibold">Found an accessibility barrier?</h2>
@@ -133,5 +145,89 @@ function PolicyItem({ title, desc }: { title: string; desc: string }) {
       <p className="font-display text-sm font-semibold">{title}</p>
       <p className="mt-1 text-xs text-muted-foreground">{desc}</p>
     </div>
+  );
+}
+
+const LEVEL_CLASS: Record<ConformanceLevel, string> = {
+  Supports: "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+  "Partially supports": "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+  "Does not support": "border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-300",
+  "Not applicable": "border-border text-muted-foreground",
+};
+
+/**
+ * Accessibility Conformance Report (VPAT 2.5 INT format) — data in
+ * src/lib/accessibility-conformance.ts.
+ */
+function AcrSection() {
+  const summary = conformanceSummary();
+  return (
+    <section className="mt-10" id="conformance-report" aria-labelledby="acr-title">
+      <div className="flex flex-wrap items-center gap-2">
+        <ClipboardList className="h-5 w-5 text-primary" aria-hidden="true" />
+        <h2 id="acr-title" className="font-display text-2xl font-semibold">Accessibility Conformance Report</h2>
+      </div>
+      <p className="mt-2 max-w-3xl text-sm text-muted-foreground text-justify">
+        Prepared in the format of the ITI VPAT&reg; 2.5 International Edition, which covers WCAG 2.2, US Section 508
+        and EU EN 301 549 (whose web requirements are the same WCAG Level A and AA criteria). Self-assessed; last
+        reviewed {ACR_REVIEWED}.
+      </p>
+      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {(Object.keys(summary) as ConformanceLevel[]).map((k) => (
+          <div key={k} className="rounded-md border border-border p-3">
+            <p className="text-xs text-muted-foreground">{k}</p>
+            <p className="font-display text-2xl font-semibold">{summary[k]}</p>
+          </div>
+        ))}
+      </div>
+      <Card className="paper-card mt-4">
+        <CardContent className="p-0">
+          <ul className="divide-y divide-border sm:hidden" aria-label="WCAG 2.2 conformance">
+            {WCAG22_CONFORMANCE.map((r) => (
+              <li key={r.sc} className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-sm font-medium">
+                    {r.sc} {r.name} <span className="text-xs text-muted-foreground">(Level {r.level})</span>
+                  </p>
+                  <Badge variant="outline" className={`shrink-0 whitespace-nowrap text-[10px] ${LEVEL_CLASS[r.conformance]}`}>
+                    {r.conformance}
+                  </Badge>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{r.remarks}</p>
+              </li>
+            ))}
+          </ul>
+          <div className="hidden overflow-x-auto sm:block" role="region" aria-label="WCAG 2.2 conformance table" tabIndex={0}>
+            <table className="w-full min-w-[640px] text-left text-xs">
+              <caption className="sr-only">WCAG 2.2 Level A and AA success criteria, conformance level and remarks</caption>
+              <thead className="border-b border-border bg-muted/40">
+                <tr>
+                  <th scope="col" className="p-3 font-semibold">Criterion</th>
+                  <th scope="col" className="p-3 font-semibold">Level</th>
+                  <th scope="col" className="p-3 font-semibold">Conformance</th>
+                  <th scope="col" className="p-3 font-semibold">Remarks</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {WCAG22_CONFORMANCE.map((r) => (
+                  <tr key={r.sc} className="align-top">
+                    <th scope="row" className="p-3 font-medium">
+                      {r.sc} {r.name}
+                    </th>
+                    <td className="p-3">{r.level}</td>
+                    <td className="p-3">
+                      <Badge variant="outline" className={`whitespace-nowrap text-[10px] ${LEVEL_CLASS[r.conformance]}`}>
+                        {r.conformance}
+                      </Badge>
+                    </td>
+                    <td className="p-3 text-muted-foreground">{r.remarks}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </section>
   );
 }

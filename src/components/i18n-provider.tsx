@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { NextIntlClientProvider } from "next-intl";
 import { useApp, type Locale } from "@/lib/store";
 
@@ -26,6 +27,14 @@ const MESSAGES: Record<Locale, any> = {
  */
 export function I18nProvider({ children }: { children: React.ReactNode }) {
   const locale = useApp((s) => s.locale);
+  // WCAG 2.2 SC 3.1.1 (Language of Page): the server renders <html lang="en">
+  // because the locale is client-side state, so keep the document's lang in
+  // step with the chosen language. Screen readers pick their voice and
+  // pronunciation rules from this attribute, and browsers use it for
+  // hyphenation, spell-check and translation prompts.
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
   return (
     <NextIntlClientProvider locale={locale} messages={MESSAGES[locale]} timeZone="UTC">
       {children}

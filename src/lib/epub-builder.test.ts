@@ -29,3 +29,22 @@ describe("buildEpub", () => {
     expect(text).toContain("OEBPS/chapter-2.xhtml");
   });
 });
+
+describe("epubAccessibilityMetadata", () => {
+  test("claims WCAG conformance only when every image has alt text", async () => {
+    const { epubAccessibilityMetadata } = await import("@/lib/epub-builder");
+    const ok = epubAccessibilityMetadata([{ title: "c", html: '<p>x</p><img src="a.png" alt="A chart"/>' }], "Pub");
+    expect(ok).toContain("schema:accessModeSufficient\">textual<");
+    expect(ok).toContain("alternativeText");
+    expect(ok).toContain("EPUB Accessibility 1.1 - WCAG 2.2 Level AA");
+
+    const missing = epubAccessibilityMetadata([{ title: "c", html: '<img src="a.png" alt="">' }], "Pub");
+    expect(missing).not.toContain("alternativeText");
+    expect(missing).not.toContain("conformsTo");
+    expect(missing).toContain("Some images do not yet have text alternatives");
+
+    const text = epubAccessibilityMetadata([{ title: "c", html: "<p>only text</p>" }], "Pub");
+    expect(text).not.toContain("accessMode\">visual");
+    expect(text).toContain("accessibilityHazard\">none");
+  });
+});

@@ -210,6 +210,11 @@ body[data-tenant-font="system"] {
   * {
     @apply border-border outline-ring/50;
   }
+  /* WCAG 2.2 SC 2.4.11 Focus Not Obscured: keep anchored and keyboard-focused
+     elements clear of the sticky site header when the page scrolls to them. */
+  html {
+    scroll-padding-top: 5rem;
+  }
   html, body {
     /* Safety net: no single overflow-prone widget (a wide table, a fixed
        min-w flex item, etc.) should be able to push the whole page into

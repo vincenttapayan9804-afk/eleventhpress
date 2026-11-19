@@ -18,6 +18,7 @@
     "aboutUs": "About us",
     "faqs": "FAQs",
     "policies": "Policies",
+    "trust": "Trust Center",
     "dashboard": "Dashboard",
     "signIn": "Sign in",
     "signOut": "Sign out",
@@ -50,6 +51,7 @@
     "policyPci": "PCI-DSS across all payment gateways",
     "termsOfService": "Terms of Service",
     "accessibilityStatement": "Accessibility statement",
+    "trustCenter": "Trust Center",
     "copyright": "© {year} Eleventh Press International Publishing™. All articles published under CC BY 4.0 unless otherwise noted.",
     "indexedLine": "Indexed: Google Scholar · {registrar} · OAI-PMH · DOAJ"
   },

@@ -149,6 +149,8 @@ export default async function MediaStoryPage({ params }: Props) {
 
   return (
     <MediaPageShell slug={story.slug}>
+      {/* JSON-LD from our own media record, "<" escaped so it cannot close the script tag. */}
+      {/* nosemgrep: typescript.react.security.audit.react-dangerouslysetinnerhtml.react-dangerouslysetinnerhtml */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       <article className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
         <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
