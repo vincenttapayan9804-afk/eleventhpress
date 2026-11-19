@@ -7,6 +7,7 @@ import { coinsSpanProps } from "@/lib/citation-export";
 import { publisherIdentityForJournal } from "@/lib/publisher-identity";
 import { tenantBaseUrl } from "@/lib/tenant";
 import { ARTICLE_LANGUAGE } from "@/lib/site";
+import { ARTICLE_LICENSE_URL, landingPageSignposts } from "@/lib/signposting";
 import { I18nProvider } from "@/components/i18n-provider";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
@@ -155,6 +156,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ id: st
     issueNumber: article.issue?.issueNumber,
   });
   const identity = await publisherIdentityForJournal(article.journal);
+  const baseUrl = await tenantBaseUrl(identity.tenantId);
   const pdfUrl = article.galleyPdfKey ? `${articlePath(article.id, article.title)}/pdf` : null;
 
   // schema.org/ScholarlyArticle JSON-LD — rendered server-side (unlike the
@@ -193,9 +195,22 @@ export default async function ArticlePage({ params }: { params: Promise<{ id: st
       name: identity.publisher,
     },
     identifier: article.doi ? `https://doi.org/${article.doi}` : undefined,
-    url: `${await tenantBaseUrl(identity.tenantId)}${articlePath(article.id, article.title)}`,
+    url: `${baseUrl}${canonicalPath}`,
     inLanguage: ARTICLE_LANGUAGE,
+    license: ARTICLE_LICENSE_URL,
   };
+
+  // FAIR Signposting: typed <link>s (hoisted into <head> by React) that
+  // point machines at the DOI, the authors' ORCIDs, the PDF and the
+  // metadata records — see src/lib/signposting.ts.
+  const signposts = landingPageSignposts({
+    id: article.id,
+    doi: article.doi,
+    orcids: authors.map((a) => a.orcid ?? "").filter(Boolean),
+    landingUrl: `${baseUrl}${canonicalPath}`,
+    pdfUrl: pdfUrl ? `${baseUrl}${pdfUrl}` : null,
+    origin: baseUrl,
+  });
 
   const coins = coinsSpanProps({
     title: article.title,
@@ -213,6 +228,9 @@ export default async function ArticlePage({ params }: { params: Promise<{ id: st
     <I18nProvider>
       <div className="min-h-dvh flex flex-col bg-background">
         <SiteHeader />
+        {signposts.map((l, i) => (
+          <link key={`${l.rel}-${i}`} rel={l.rel} href={l.href} {...(l.type ? { type: l.type } : {})} />
+        ))}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

@@ -68,3 +68,33 @@ jobs:
         run: |
           docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest detect \
             --source=/repo --config=/repo/.gitleaks.toml --no-git -v
+
+  # Software Bill of Materials (CycloneDX 1.5 JSON): a machine-readable list
+  # of every package shipped, with versions and licences. Institutional
+  # security reviews and the US/EU software supply-chain rules (EO 14028,
+  # the EU Cyber Resilience Act) ask suppliers for one. Generated from the
+  # installed dependency tree (bun.lock) and kept as a build artifact for
+  # 90 days; the latest one is attached to every main-branch run.
+  sbom:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile --ignore-scripts
+
+      - name: Generate CycloneDX SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: cyclonedx-json
+          output-file: sbom.cdx.json
+          upload-artifact: false
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom-cyclonedx
+          path: sbom.cdx.json
+          retention-days: 90

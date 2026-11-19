@@ -56,6 +56,18 @@ function writeConsentCookie(choice: CookieConsentChoice) {
  * token yet) the choice is still saved client-side so the visitor isn't
  * asked again.
  */
+/**
+ * Global Privacy Control (https://globalprivacycontrol.org/): a browser- or
+ * extension-level "do not sell or share my data" signal, legally binding as
+ * an opt-out under the CCPA/CPRA and treated as a valid objection under the
+ * GDPR. When it's on and the visitor hasn't chosen yet, record "necessary
+ * only" for them instead of asking. The server side refuses optional
+ * cookies whenever the request carries Sec-GPC: 1.
+ */
+function gpcEnabled(): boolean {
+  return typeof navigator !== "undefined" && (navigator as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl === true;
+}
+
 async function saveChoice(choice: CookieConsentChoice) {
   try {
     await apiFetch("/api/cookie-consent", { method: "POST", body: JSON.stringify({ choice }) });
@@ -88,7 +100,15 @@ export function CookieConsentBanner() {
   const [saving, setSaving] = useState(false);
 
   // undefined = not read yet; read lazily on first client render.
-  const current = decided === undefined && mounted ? readConsentCookie() : decided ?? null;
+  const stored = decided === undefined && mounted ? readConsentCookie() : decided ?? null;
+  const gpc = mounted && gpcEnabled();
+  // A GPC signal answers the question for the visitor: necessary only.
+  const current = stored ?? (gpc ? "necessary" : null);
+
+  // Persist the GPC-implied choice once, without any state update here.
+  useEffect(() => {
+    if (gpc && !stored) void saveChoice("necessary");
+  }, [gpc, stored]);
 
   useEffect(() => {
     const open = () => {
@@ -182,6 +202,12 @@ export function CookieConsentBanner() {
               Choose which cookies {legal.orgName} may use on this device. You can change this any time from the
               &ldquo;Cookie settings&rdquo; link in the footer.
             </DialogDescription>
+            {gpc && (
+              <p className="mt-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-foreground" data-testid="gpc-notice">
+                Your browser is sending a Global Privacy Control signal, so optional cookies stay off. We honour it
+                automatically.
+              </p>
+            )}
           </DialogHeader>
 
           <ul className="space-y-2.5">
