@@ -1,6 +1,6 @@
 "use client";
 
-import { useContactEmail, useTenantBranding, isWhitelabel } from "@/lib/tenant-branding-context";
+import { useTenantBranding, isWhitelabel } from "@/lib/tenant-branding-context";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -10,6 +10,11 @@ import type { DiscoveryResult, DiscoverySource } from "@/lib/open-discovery";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { toast } from "sonner";
 import { useApp } from "@/lib/store";
 import { BLOGS, GUIDES, BOOKS, TRAININGS, WEBINARS, type Planned } from "@/lib/resources-content";
 import { OFFICIAL_FORMS, FORM_ROLE_LABEL, formPath, formPdfPath, formPlatformPath } from "@/lib/forms";
@@ -36,6 +41,8 @@ import {
   ShieldCheck,
   FileSignature,
   MonitorCheck,
+  CheckCircle2,
+  Send,
 } from "lucide-react";
 
 const SOURCE_LABEL: Record<DiscoverySource, string> = {
@@ -177,7 +184,7 @@ export function ResourcesView() {
       </div>
 
       <Tabs value={tab} onValueChange={setTab} className="mt-8">
-        <TabsList className={`grid h-auto w-full grid-cols-2 gap-0.5 sm:grid-cols-3 ${whitelabel ? "lg:grid-cols-6" : "lg:grid-cols-7"} [&>button]:h-8`}>
+        <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 p-1 [&>button]:h-9 [&>button]:flex-none [&>button]:px-3.5">
           <TabsTrigger value="trainings">
             <GraduationCap className="mr-1.5 h-3.5 w-3.5" /> {t("tabTrainings")}
           </TabsTrigger>
@@ -205,7 +212,7 @@ export function ResourcesView() {
 
         {/* Trainings & courses */}
         <TabsContent value="trainings" className="mt-6 space-y-4">
-          <ComingSoonNotice text={t("comingSoonTrainings")} />
+          <ComingSoonNotice kind="trainings" text={t("comingSoonTrainings")} />
           <div className="grid gap-3 sm:grid-cols-2">
             {TRAININGS.map((p) => (
               <PlannedCard key={p.title} icon={GraduationCap} item={p} />
@@ -215,7 +222,7 @@ export function ResourcesView() {
 
         {/* Webinars */}
         <TabsContent value="webinars" className="mt-6 space-y-4">
-          <ComingSoonNotice text={t("comingSoonWebinars")} />
+          <ComingSoonNotice kind="webinars" text={t("comingSoonWebinars")} />
           <div className="grid gap-3 sm:grid-cols-2">
             {WEBINARS.map((p) => (
               <PlannedCard key={p.title} icon={Video} item={p} />
@@ -523,19 +530,91 @@ export function ResourcesView() {
   );
 }
 
-function ComingSoonNotice({ text }: { text: string }) {
-  const contactEmail = useContactEmail();
+function ComingSoonNotice({ text, kind }: { text: string; kind: "trainings" | "webinars" }) {
+  const [open, setOpen] = useState(false);
   return (
     <Card className="paper-card border-dashed">
-      <CardContent className="flex flex-wrap items-center justify-between gap-3 p-5">
-        <p className="text-sm text-muted-foreground">{text}</p>
-        <Button variant="outline" size="sm" asChild>
-          <a href={`mailto:${contactEmail}?subject=Topic%20suggestion`}>
-            <Mail className="mr-2 h-3.5 w-3.5" /> Suggest a topic
-          </a>
+      <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm leading-relaxed text-muted-foreground">{text}</p>
+        <Button variant="outline" size="sm" className="shrink-0 self-start sm:self-auto" onClick={() => setOpen(true)}>
+          <Mail className="mr-2 h-3.5 w-3.5" /> Suggest a topic
         </Button>
+        {/* Mounted only while open, so each opening starts from a fresh form. */}
+        {open && <SuggestTopicDialog kind={kind} open onOpenChange={setOpen} />}
       </CardContent>
     </Card>
+  );
+}
+
+/** Sends a training/webinar topic suggestion to the official editorial inbox. */
+function SuggestTopicDialog({ kind, open, onOpenChange }: { kind: "trainings" | "webinars"; open: boolean; onOpenChange: (v: boolean) => void }) {
+  const { user } = useApp();
+  const [form, setForm] = useState({ name: user?.fullName ?? "", email: user?.email ?? "", topic: "", details: "", website: "" });
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const label = kind === "webinars" ? "webinar" : "training or course";
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setSending(true);
+    try {
+      await apiFetch("/api/resources/suggest-topic", { method: "POST", body: JSON.stringify({ kind, ...form }) });
+      setSent(true);
+      setForm((f) => ({ ...f, topic: "", details: "" }));
+    } catch (err: any) {
+      toast.error("Could not send your suggestion", { description: err.message });
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="font-display">Suggest a {label} topic</DialogTitle>
+          <DialogDescription>Your suggestion goes straight to the editorial office by email. We may reply to ask more.</DialogDescription>
+        </DialogHeader>
+        {sent ? (
+          <div className="flex flex-col items-center gap-3 py-6 text-center">
+            <CheckCircle2 className="h-10 w-10 text-emerald-600" />
+            <p className="font-medium">Thank you. Your suggestion has been sent.</p>
+            <p className="text-sm text-muted-foreground">A confirmation is on its way to {form.email}.</p>
+            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Close</Button>
+          </div>
+        ) : (
+          <form onSubmit={submit} className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor={`st-name-${kind}`}>Your name</Label>
+                <Input id={`st-name-${kind}`} value={form.name} onChange={set("name")} required maxLength={120} autoComplete="name" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor={`st-email-${kind}`}>Email</Label>
+                <Input id={`st-email-${kind}`} type="email" value={form.email} onChange={set("email")} required maxLength={200} autoComplete="email" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor={`st-topic-${kind}`}>Topic</Label>
+              <Input id={`st-topic-${kind}`} value={form.topic} onChange={set("topic")} required maxLength={160} placeholder={kind === "webinars" ? "e.g. Writing a strong cover letter to editors" : "e.g. Introduction to systematic reviews"} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor={`st-details-${kind}`}>Details <span className="font-normal text-muted-foreground">(optional)</span></Label>
+              <Textarea id={`st-details-${kind}`} value={form.details} onChange={set("details")} rows={4} maxLength={3000} placeholder="Who is it for, and what should it cover?" />
+            </div>
+            {/* Honeypot: hidden from people, filled in by bots. */}
+            <input type="text" name="website" value={form.website} onChange={set("website")} tabIndex={-1} autoComplete="off" aria-hidden="true" className="hidden" />
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
+              <Button type="submit" disabled={sending}>
+                {sending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />} Send suggestion
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
