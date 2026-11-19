@@ -21,11 +21,11 @@ export const DASHBOARD_TABS: DashboardTab[] = [
   "application", "distribution", "myBooks", "bookAcquisitions", "magazines", "podcasts", "media",
   "certificates", "researchLab", "researchLabActivity", "benchmarking", "boardIntelligence",
   "reputationIntelligence", "reviewerMarketplace", "researchBoard", "narration", "researchIntegrity",
-  "admin", "branding", "team", "tenants", "departments", "ethics", "ethicsReview", "grants",
+  "admin", "branding", "team", "tenants", "departments", "ethics", "officialForms", "ethicsReview", "grants",
   "myGrants", "rankings", "researchDashboard", "researchAssistant",
 ];
 
-export const RESOURCE_TABS = ["trainings", "webinars", "blogs", "guides", "books", "discover"];
+export const RESOURCE_TABS = ["trainings", "webinars", "blogs", "guides", "forms", "books", "discover"];
 
 /** The slice of app state a URL describes. */
 export interface RouteState {

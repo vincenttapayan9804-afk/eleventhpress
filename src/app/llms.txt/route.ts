@@ -1,6 +1,7 @@
 import { APP_BASE_URL, JOURNAL_IDENTITY, issnLabel } from "@/lib/site";
 import { MEDIA_STORIES, stripCitations } from "@/lib/media/stories";
 import { BLOGS, GUIDES } from "@/lib/resources-content";
+import { OFFICIAL_FORMS } from "@/lib/forms";
 import { getCurrentTenant } from "@/lib/tenant";
 import { brandCode, brandContactLine, brandText } from "@/lib/resources/tenant-brand";
 import { resourceBrandFor } from "@/lib/resources/tenant-brand-server";
@@ -36,6 +37,13 @@ export async function GET() {
           `- [${g.title} (${brandCode(g.code, brand)}, v${g.version})](${base}/resources/guides/${g.slug}): ${brandText(g.summary, brand)} Benchmarked against: ${g.benchmarks.join("; ")}. PDF: ${base}/resources/guides/${g.slug}/pdf`
       ),
       "",
+      "## Official forms",
+      "",
+      ...OFFICIAL_FORMS.map(
+        (f) =>
+          `- [${f.title} (${brandCode(f.code, brand)}, v${f.version})](${base}/resources/forms/${f.slug}): ${brandText(f.summary, brand)} Fillable PDF: ${base}/resources/forms/${f.slug}/pdf`
+      ),
+      "",
       "## Other",
       "",
       `- [Sitemap](${base}/sitemap.xml)`,
@@ -58,6 +66,13 @@ export async function GET() {
     ...GUIDES.map(
       (g) =>
         `- [${g.title} (${g.code}, v${g.version})](${APP_BASE_URL}/resources/guides/${g.slug}): ${g.summary} Benchmarked against: ${g.benchmarks.join("; ")}. PDF: ${APP_BASE_URL}/resources/guides/${g.slug}/pdf`
+    ),
+    "",
+    "## Official forms",
+    "",
+    ...OFFICIAL_FORMS.map(
+      (f) =>
+        `- [${f.title} (${f.code}, v${f.version})](${APP_BASE_URL}/resources/forms/${f.slug}): ${f.summary} Benchmarked against: ${f.benchmarks.join("; ")}. Fillable PDF: ${APP_BASE_URL}/resources/forms/${f.slug}/pdf`
     ),
     "",
     "## Resources blog",

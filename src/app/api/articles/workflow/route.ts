@@ -19,6 +19,7 @@ import { APP_BASE_URL } from "@/lib/site";
 import { APC_USD } from "@/lib/pricing";
 import { upsertArticleDocument, meilisearchLiveMode } from "@/lib/meilisearch";
 import { withRlsContext } from "@/lib/db-rls";
+import { GATED_EDITORIAL_ACTIONS, declaredConflict, editorCoiFor, missingEditorForms, requiredFormsBody } from "@/lib/forms/server";
 
 /**
  * POST /api/articles/workflow
@@ -95,6 +96,21 @@ export async function POST(req: NextRequest) {
     }
     if (!isSameEditorialTenant(session, article.journal?.tenantId)) {
       return NextResponse.json({ error: "Forbidden — not an editor of this article's tenant" }, { status: 403 });
+    }
+
+    // Official forms: the Editor Code of Conduct (EP-F-10, once) and the
+    // Editor Conflict of Interest & Recusal Declaration (EP-F-09, per
+    // manuscript) come before an editorial decision; an editor who declared
+    // a conflict on this manuscript is recused from deciding it.
+    if (GATED_EDITORIAL_ACTIONS.has(action)) {
+      if (declaredConflict(await editorCoiFor(session.userId, article.id))) {
+        return NextResponse.json(
+          { error: "You declared a competing interest on this manuscript (EP-F-09) and are recused from deciding it. Another editor must handle it." },
+          { status: 403 }
+        );
+      }
+      const missing = await missingEditorForms(session.userId, article.id);
+      if (missing.length) return NextResponse.json(requiredFormsBody(missing), { status: 428 });
     }
 
     // Compute next status from action

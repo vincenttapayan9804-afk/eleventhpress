@@ -18,7 +18,7 @@ import { Toaster } from "@/components/ui/sonner";
  * navigates back to "/" where the SPA renders it. The zustand store survives client-side navigation, so
  * the chosen view is what appears.
  */
-export function ResourcePageShell({ tab, children }: { tab: "blogs" | "guides"; children: React.ReactNode }) {
+export function ResourcePageShell({ tab, children }: { tab: "blogs" | "guides" | "forms"; children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
@@ -49,7 +49,7 @@ export function ResourcePageShell({ tab, children }: { tab: "blogs" | "guides"; 
 }
 
 /** "Back to Resources" — returns to the SPA on the tab this page belongs to. */
-export function BackToResources({ tab, label }: { tab: "blogs" | "guides"; label: string }) {
+export function BackToResources({ tab, label }: { tab: "blogs" | "guides" | "forms"; label: string }) {
   // Changing the view triggers ResourcePageShell's navigation back to "/".
   return (
     <button

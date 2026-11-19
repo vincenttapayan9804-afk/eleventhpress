@@ -42,6 +42,7 @@ import {
   Route,
   ListOrdered,
 } from "lucide-react";
+import { SubmissionDeclarations, declarationsError, type Declarations } from "@/components/forms/submission-declarations";
 import { DISCIPLINES, CREDIT_ROLES, INSIGHT_CATEGORIES, INSIGHT_CATEGORY_LABELS, KEY_TAKEAWAYS_COUNT, type InsightCategory } from "@/lib/article";
 
 interface Props {
@@ -115,6 +116,11 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
     },
   ]);
   const [funders, setFunders] = useState<Funder[]>([]);
+  // Step 4: the five Official Forms (EP-F-01 to EP-F-05), signed once.
+  const [declarations, setDeclarations] = useState<Declarations>({});
+  const [declActive, setDeclActive] = useState(0);
+  const [declSignedName, setDeclSignedName] = useState("");
+  const declAuthors = authors.map((a) => ({ name: a.name.trim() || a.email, email: a.email }));
   const [references, setReferences] = useState("");
 
   // File upload state
@@ -141,7 +147,7 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
     if (Array.isArray(data.funders)) setFunders(data.funders);
     if (typeof data.references === "string") setReferences(data.references);
     if (data.uploadedFile) setUploadedFile(data.uploadedFile);
-    setStep(Math.min(3, Math.max(1, d.step || 1)));
+    setStep(Math.min(4, Math.max(1, d.step || 1)));
     setSavedAt(d.savedAt);
     setPendingDraft(null);
     toast.success("Draft restored");
@@ -225,8 +231,10 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
       if (!form.reviewModel) return "Please select a review model.";
       if (!form.rightsRetentionConfirmed) return "Please confirm the rights-retention statement.";
       if (!form.dataAvailabilityStatement.trim()) return "Please provide a data availability statement (or state that this is not applicable).";
-      if (!form.authorConflictOfInterest.trim()) return "Please disclose any author conflicts of interest (or state that there are none).";
       return null;
+    }
+    if (step === 4) {
+      return declarationsError(declarations, declSignedName, declAuthors);
     }
     return null;
   }
@@ -339,6 +347,10 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
           method: "POST",
           body: JSON.stringify({
             ...form,
+            // The competing-interests statement printed with the article comes from EP-F-02.
+            authorConflictOfInterest: String((declarations["form-author-coi"] as any)?.statement ?? "").trim(),
+            declarations,
+            declarationSignedName: declSignedName,
             authors,
             funders,
             references: references.split("\n").map((r) => r.trim()).filter(Boolean),
@@ -385,13 +397,14 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
             <Row label="Open peer review" value={form.openReview ? "Enabled — reviews will be public" : "Disabled"} />
             <Row label="Rights-retention statement" value={form.rightsRetentionConfirmed ? "Confirmed" : "Not confirmed"} />
             <Row label="Data availability" value={form.dataAvailabilityStatement} />
-            <Row label="Conflicts of interest" value={form.authorConflictOfInterest} />
+            <Row label="Conflicts of interest" value={String((declarations["form-author-coi"] as any)?.statement ?? "")} />
+            <Row label="Official declarations" value="EP-F-01 to EP-F-05 signed" />
             {uploadedFile && (
               <Row label="Manuscript" value={<code className="font-mono text-xs">{uploadedFile.filename}</code>} />
             )}
           </div>
           <div className="mt-6 flex justify-center gap-3">
-            <Button onClick={() => { setResult(null); setStep(1); setForm({ title: "", abstract: "", keywords: "", discipline: "Physics", insightCategory: "", reviewModel: "DOUBLE_BLIND", openReview: false, apcWaiverRequested: false, apcWaiverReason: "", rightsRetentionConfirmed: false, dataAvailabilityStatement: "", authorConflictOfInterest: "" }); setUploadedFile(null); setFunders([]); setReferences(""); setKeyTakeaways(Array(KEY_TAKEAWAYS_COUNT).fill("")); }}>
+            <Button onClick={() => { setResult(null); setStep(1); setForm({ title: "", abstract: "", keywords: "", discipline: "Physics", insightCategory: "", reviewModel: "DOUBLE_BLIND", openReview: false, apcWaiverRequested: false, apcWaiverReason: "", rightsRetentionConfirmed: false, dataAvailabilityStatement: "", authorConflictOfInterest: "" }); setUploadedFile(null); setFunders([]); setReferences(""); setDeclarations({}); setDeclActive(0); setDeclSignedName(""); setKeyTakeaways(Array(KEY_TAKEAWAYS_COUNT).fill("")); }}>
               Submit another
             </Button>
             <Button variant="outline" onClick={() => { onSubmitted(); openDashboard("myArticles"); }}>
@@ -413,8 +426,8 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
           </h2>
           <p className="text-sm text-muted-foreground">
             {isExpert
-              ? "Complete the three-step form below. Every Insight opens with a Key Takeaways box, must cite at least one source, and is board-reviewed before publication — see the Publication Charter for the full standard."
-              : "Complete the three-step form below. A tracking reference is assigned upon submission (your real, permanently-resolving DOI is minted upon publication), the manuscript is uploaded to private S3-style storage via a pre-signed PUT URL, and an in-corpus similarity check runs against every other article already in the journal."}
+              ? "Complete the four-step form below. Every Insight opens with a Key Takeaways box, must cite at least one source, and is board-reviewed before publication — see the Publication Charter for the full standard."
+              : "Complete the four-step form below. A tracking reference is assigned upon submission (your real, permanently-resolving DOI is minted upon publication), the manuscript is uploaded to private S3-style storage via a pre-signed PUT URL, and an in-corpus similarity check runs against every other article already in the journal."}
           </p>
         </CardHeader>
         <CardContent>
@@ -452,6 +465,7 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
               { n: 1, label: isExpert ? "Insight details" : "Manuscript details", icon: FileText },
               { n: 2, label: "Authors & affiliations", icon: ShieldCheck },
               { n: 3, label: isExpert ? "Category & review" : "Classification & review", icon: FileCheck2 },
+              { n: 4, label: "Official declarations", icon: Scale },
             ].map((s, i) => {
               const active = step === s.n;
               const done = step > s.n;
@@ -473,7 +487,7 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
                       {s.label}
                     </span>
                   </div>
-                  {i < 2 && <div className={`mx-2 h-px flex-1 ${done ? "bg-emerald-500" : "bg-border"}`} />}
+                  {i < 3 && <div className={`mx-2 h-px flex-1 ${done ? "bg-emerald-500" : "bg-border"}`} />}
                 </div>
               );
             })}
@@ -883,18 +897,11 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
                 />
               </div>
 
-              <div className="space-y-1.5 rounded-md border border-border p-4">
-                <Label htmlFor="conflictOfInterest" className="flex items-center gap-2 font-display text-sm font-semibold">
-                  <Scale className="h-4 w-4 text-primary" /> Conflict of interest disclosure
-                </Label>
-                <Textarea
-                  id="conflictOfInterest"
-                  rows={3}
-                  placeholder="Disclose any financial, personal, or professional conflicts of interest among the authors, or state that there are none…"
-                  value={form.authorConflictOfInterest}
-                  onChange={(e) => setForm({ ...form, authorConflictOfInterest: e.target.value })}
-                />
-              </div>
+              <p className="rounded-md border border-dashed border-border p-3 text-xs text-muted-foreground">
+                <Scale className="mr-1 inline h-3.5 w-3.5 text-primary" />
+                Conflicts of interest, ethics approval, AI use, originality and the licence to publish are declared on the
+                Official Forms in the next step.
+              </p>
 
               <Separator className="my-4" />
               <div className="rounded-md border border-primary/30 bg-primary/5 p-4">
@@ -916,6 +923,19 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
             </div>
           )}
 
+          {/* Step 4: Official declarations (EP-F-01 to EP-F-05) */}
+          {step === 4 && (
+            <SubmissionDeclarations
+              value={declarations}
+              onChange={setDeclarations}
+              active={declActive}
+              onActive={setDeclActive}
+              signedName={declSignedName}
+              onSignedName={setDeclSignedName}
+              authors={declAuthors}
+            />
+          )}
+
           {/* Navigation */}
           <div className="mt-6 flex items-center justify-between border-t border-border pt-4">
             <Button
@@ -925,7 +945,7 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
             >
               <ArrowLeft className="mr-1.5 h-4 w-4" /> {step === 1 ? "Cancel" : "Back"}
             </Button>
-            {step < 3 ? (
+            {step < 4 ? (
               <Button onClick={handleContinue}>
                 Continue <ArrowRight className="ml-1.5 h-4 w-4" />
               </Button>

@@ -3,6 +3,7 @@ import { searchResources, syncResourcesIndex, meilisearchLiveMode, type Resource
 import { BLOGS, GUIDES, TRAININGS, WEBINARS, BOOKS } from "@/lib/resources-content";
 import { resolveTenantFromHeaders } from "@/lib/tenant";
 import { resourcesBlogVisible } from "@/lib/resources/tenant-brand-server";
+import { OFFICIAL_FORMS } from "@/lib/forms";
 
 // Static content rarely changes, so syncing once per server instance
 // (rather than on every request) is enough — a fresh serverless cold start
@@ -43,14 +44,21 @@ export async function GET(req: NextRequest) {
   const tenant = await resolveTenantFromHeaders(req.headers).catch(() => null);
   const showBlogs = resourcesBlogVisible(tenant);
 
+  // Official forms are matched here directly (title, summary, keywords and
+  // code), on both the live and the fallback path.
+  const needle = q.toLowerCase();
+  const formHits = OFFICIAL_FORMS.filter((f) =>
+    [f.title, f.summary, f.code, ...f.keywords].some((x) => x.toLowerCase().includes(needle))
+  ).map((f) => ({ id: f.id, kind: "form" as const, title: f.title, description: f.summary }));
+
   await ensureResourcesIndexed();
   const liveHits = await searchResources(q);
   if (liveHits) {
-    return NextResponse.json({ query: q, results: showBlogs ? liveHits : liveHits.filter((h) => h.kind !== "blog"), live: true });
+    return NextResponse.json({ query: q, results: [...formHits, ...(showBlogs ? liveHits : liveHits.filter((h) => h.kind !== "blog"))], live: true });
   }
 
-  const needle = q.toLowerCase();
-  const results: ResourceSearchDoc[] = [
+  const results: (ResourceSearchDoc | (typeof formHits)[number])[] = [
+    ...formHits,
     ...GUIDES.filter((g) => g.title.toLowerCase().includes(needle) || g.summary.toLowerCase().includes(needle))
       .map((g) => ({ id: g.id, kind: "guide" as const, title: g.title, description: g.summary })),
     ...(showBlogs ? BLOGS : []).filter((b) => b.title.toLowerCase().includes(needle) || b.excerpt.toLowerCase().includes(needle))

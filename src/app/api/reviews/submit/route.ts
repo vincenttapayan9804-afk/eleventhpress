@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { notifyMany } from "@/lib/notify";
 import { getSessionFromHeaders } from "@/lib/auth";
+import { missingReviewerForms, requiredFormsBody } from "@/lib/forms/server";
 
 /**
  * POST /api/reviews/submit
@@ -47,6 +48,15 @@ export async function POST(req: NextRequest) {
   if (review.reviewerId !== session.userId) {
     return NextResponse.json({ error: "Not your review" }, { status: 403 });
   }
+  if (review.status === "DECLINED") {
+    return NextResponse.json({ error: "This invitation was declined." }, { status: 409 });
+  }
+  // A review report needs the reviewer's signed Official Forms (EP-F-07,
+  // EP-F-08), including reviews accepted before the forms existed.
+  if (body.status !== "DECLINED") {
+    const missing = await missingReviewerForms(session.userId, review.id, review.articleId);
+    if (missing.length) return NextResponse.json(requiredFormsBody(missing), { status: 428 });
+  }
 
   const updated = await db.review.update({
     where: { id: body.reviewId },
@@ -57,7 +67,8 @@ export async function POST(req: NextRequest) {
       confidence: body.confidence ?? null,
       commentsToAuthor: body.commentsToAuthor ?? null,
       commentsToEditor: body.commentsToEditor ?? null,
-      conflictOfInterest: body.conflictOfInterest ?? false,
+      // Never clears a conflict disclosed on EP-F-07.
+      conflictOfInterest: (body.conflictOfInterest ?? false) || review.conflictOfInterest,
       completedAt: body.status === "COMPLETED" ? new Date() : null,
     },
   });

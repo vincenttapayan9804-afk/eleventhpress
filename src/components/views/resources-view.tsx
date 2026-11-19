@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/lib/store";
 import { BLOGS, GUIDES, BOOKS, TRAININGS, WEBINARS, type Planned } from "@/lib/resources-content";
+import { OFFICIAL_FORMS, FORM_ROLE_LABEL, formPath, formPdfPath, formPlatformPath } from "@/lib/forms";
 import {
   Tabs,
   TabsContent,
@@ -33,6 +34,8 @@ import {
   Loader2,
   FileDown,
   ShieldCheck,
+  FileSignature,
+  MonitorCheck,
 } from "lucide-react";
 
 const SOURCE_LABEL: Record<DiscoverySource, string> = {
@@ -53,13 +56,14 @@ interface DiscoverResponse {
 
 interface ResourceSearchHit {
   id: string;
-  kind: "guide" | "blog" | "training" | "webinar" | "book";
+  kind: "guide" | "form" | "blog" | "training" | "webinar" | "book";
   title: string;
   description: string;
 }
 
 const RESOURCE_KIND_LABEL: Record<ResourceSearchHit["kind"], string> = {
   guide: "Guide",
+  form: "Form",
   blog: "Blog",
   training: "Training",
   webinar: "Webinar",
@@ -99,7 +103,9 @@ export function ResourcesView() {
   function openResourceHit(hit: ResourceSearchHit) {
     const blog = hit.kind === "blog" ? BLOGS.find((b) => b.id === hit.id) : undefined;
     const guide = hit.kind === "guide" ? GUIDES.find((g) => g.id === hit.id) : undefined;
-    if (blog) router.push(`/resources/blog/${blog.slug}`);
+    const form = hit.kind === "form" ? OFFICIAL_FORMS.find((f) => f.id === hit.id) : undefined;
+    if (form) router.push(formPath(form));
+    else if (blog) router.push(`/resources/blog/${blog.slug}`);
     else if (guide) router.push(`/resources/guides/${guide.slug}`);
     else setTab(hit.kind === "training" ? "trainings" : hit.kind === "webinar" ? "webinars" : hit.kind === "blog" ? "blogs" : hit.kind === "guide" ? "guides" : "books");
     setResourceQuery("");
@@ -171,7 +177,7 @@ export function ResourcesView() {
       </div>
 
       <Tabs value={tab} onValueChange={setTab} className="mt-8">
-        <TabsList className={`grid h-auto w-full grid-cols-2 gap-0.5 sm:grid-cols-3 ${whitelabel ? "lg:grid-cols-5" : "lg:grid-cols-6"} [&>button]:h-8`}>
+        <TabsList className={`grid h-auto w-full grid-cols-2 gap-0.5 sm:grid-cols-3 ${whitelabel ? "lg:grid-cols-6" : "lg:grid-cols-7"} [&>button]:h-8`}>
           <TabsTrigger value="trainings">
             <GraduationCap className="mr-1.5 h-3.5 w-3.5" /> {t("tabTrainings")}
           </TabsTrigger>
@@ -185,6 +191,9 @@ export function ResourcesView() {
           )}
           <TabsTrigger value="guides">
             <FileText className="mr-1.5 h-3.5 w-3.5" /> {t("tabGuides")}
+          </TabsTrigger>
+          <TabsTrigger value="forms">
+            <FileSignature className="mr-1.5 h-3.5 w-3.5" /> Forms
           </TabsTrigger>
           <TabsTrigger value="books">
             <BookMarked className="mr-1.5 h-3.5 w-3.5" /> {t("tabBooks")}
@@ -276,6 +285,69 @@ export function ResourcesView() {
                 </div>
               </CardContent>
             </Card>
+          ))}
+        </TabsContent>
+
+        {/* Official forms */}
+        <TabsContent value="forms" className="mt-6 space-y-8">
+          <p className="text-sm text-muted-foreground">
+            Official, versioned forms for authors, peer reviewers and editors, benchmarked against the same international
+            standards as the guides. Each is completed on the platform at the right step and signed electronically; every
+            form also has a branded, fillable PDF edition.
+          </p>
+          {(["author", "reviewer", "editor"] as const).map((role) => (
+            <section key={role} aria-labelledby={`forms-${role}`}>
+              <h2 id={`forms-${role}`} className="mb-3 flex items-center gap-2 border-b border-[var(--gold-500)]/60 pb-2 font-display text-lg font-semibold">
+                {FORM_ROLE_LABEL[role]}
+                <span className="text-xs font-normal text-muted-foreground">
+                  {OFFICIAL_FORMS.filter((f) => f.role === role).length} forms
+                </span>
+              </h2>
+              <div className="space-y-3">
+                {OFFICIAL_FORMS.filter((f) => f.role === role).map((f) => (
+                  <Card key={f.id} className="paper-card">
+                    <CardContent className="p-5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[0.68rem] font-semibold uppercase tracking-wider text-muted-foreground">
+                            {whitelabel ? f.code.replace(/^EP-/, "") : f.code} · Version {f.version}
+                          </p>
+                          <Link href={formPath(f)} className="mt-1 block font-display text-base font-semibold hover:text-primary">
+                            {f.title}
+                          </Link>
+                          <p className="mt-1.5 text-sm text-muted-foreground">{f.summary}</p>
+                          <p className="mt-2 text-xs text-foreground/75">
+                            <span className="font-semibold">When:</span> {f.when}
+                          </p>
+                        </div>
+                        <FileSignature className="h-5 w-5 shrink-0 text-primary" />
+                      </div>
+                      <p className="mt-3 flex items-start gap-1.5 text-xs text-muted-foreground">
+                        <ShieldCheck className="mt-px h-3.5 w-3.5 shrink-0 text-primary" />
+                        <span className="min-w-0">Benchmarked against: {f.benchmarks.join(" · ")}</span>
+                      </p>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <Button size="sm" asChild>
+                          <Link href={formPath(f)}>
+                            <FileText className="mr-1.5 h-3.5 w-3.5" /> View form
+                          </Link>
+                        </Button>
+                        <Button size="sm" variant="outline" asChild>
+                          <a href={formPdfPath(f)} download>
+                            <FileDown className="mr-1.5 h-3.5 w-3.5" /> Fillable PDF
+                          </a>
+                        </Button>
+                        <Button size="sm" variant="ghost" asChild>
+                          <a href={formPlatformPath(f)}>
+                            <MonitorCheck className="mr-1.5 h-3.5 w-3.5" /> Complete on the platform
+                          </a>
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </section>
           ))}
         </TabsContent>
 

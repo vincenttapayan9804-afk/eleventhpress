@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { notifyMany } from "@/lib/notify";
 import { editorsForReview } from "@/lib/review-editors";
+import { missingReviewerForms, requiredFormsBody } from "@/lib/forms/server";
 
 /**
  * POST /api/reviews/[id]/respond — the invited reviewer accepts or declines.
@@ -28,6 +29,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
   if (review.status !== "INVITED") {
     return NextResponse.json({ error: "You've already responded to this invitation" }, { status: 409 });
+  }
+
+  // Official forms: the Reviewer Confidentiality & AI Undertaking (once) and
+  // the Reviewer Conflict of Interest Declaration (per invitation) are signed
+  // before accepting. A declared conflict declines the invitation itself.
+  if (body.action === "ACCEPT") {
+    const missing = await missingReviewerForms(session.userId, review.id, review.articleId);
+    if (missing.length) return NextResponse.json(requiredFormsBody(missing), { status: 428 });
   }
 
   const reason = (body.reason || "").trim().slice(0, 1000);

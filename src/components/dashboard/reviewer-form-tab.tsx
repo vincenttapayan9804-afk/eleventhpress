@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api-client";
+import { useRequiredFormsGate } from "@/components/forms/required-forms-dialog";
 import { useApp } from "@/lib/store";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -55,6 +56,8 @@ export function ReviewerFormTab({ reviewId, onRefresh }: Props) {
   const [aiCheck, setAiCheck] = useState<{ suggestions: string[]; mode: string } | null>(null);
   const [checkingAi, setCheckingAi] = useState(false);
 
+  // Reviews accepted before the Official Forms existed still need EP-F-07/08 signed.
+  const gate = useRequiredFormsGate("Before you submit, please sign the reviewer forms.");
   const [form, setForm] = useState({
     overallScore: 4,
     recommendation: "MINOR_REVISIONS",
@@ -91,14 +94,17 @@ export function ReviewerFormTab({ reviewId, onRefresh }: Props) {
   async function submit(status: "ACCEPTED" | "DECLINED" | "IN_PROGRESS" | "COMPLETED") {
     setSubmitting(status);
     try {
-      await apiFetch("/api/reviews/submit", {
-        method: "POST",
-        body: JSON.stringify({
-          reviewId,
-          status,
-          ...(status === "COMPLETED" ? form : {}),
-        }),
-      });
+      const res = await gate.run(() =>
+        apiFetch("/api/reviews/submit", {
+          method: "POST",
+          body: JSON.stringify({
+            reviewId,
+            status,
+            ...(status === "COMPLETED" ? form : {}),
+          }),
+        })
+      );
+      if (res === null) return;
       if (status === "COMPLETED") celebrate();
       toast.success(
         status === "COMPLETED" ? "Review submitted" : status === "DECLINED" ? "Invitation declined" : "Review saved as in-progress",
@@ -158,6 +164,7 @@ export function ReviewerFormTab({ reviewId, onRefresh }: Props) {
 
   return (
     <div className="space-y-4">
+      {gate.dialog}
       <Button variant="ghost" size="sm" onClick={() => openDashboard("reviewerQueue")}>
         <ArrowLeft className="mr-1.5 h-4 w-4" /> Back to my reviews
       </Button>

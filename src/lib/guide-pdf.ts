@@ -28,7 +28,7 @@ import { fmtLongDate, guideById, guideCitation, guidePath, type FullGuide } from
 import { PLATFORM_RESOURCE_BRAND, brandCode, type ResourceBrand } from "@/lib/resources/tenant-brand";
 
 /** `hex` mixed toward black by `amount` (0–1), for the deep shade of a tenant's colours. */
-function darken(hex: string, amount: number): string {
+export function darken(hex: string, amount: number): string {
   const n = parseInt(hex.slice(1), 16);
   const ch = (shift: number) => Math.round(((n >> shift) & 255) * (1 - amount));
   return `#${[16, 8, 0].map((sh) => ch(sh).toString(16).padStart(2, "0")).join("")}`;

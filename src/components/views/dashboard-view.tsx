@@ -91,6 +91,7 @@ import {
   TenantsTab,
   DepartmentsTab,
   EthicsTab,
+  OfficialFormsTab,
   EthicsReviewTab,
   GrantsTab,
   MyGrantsTab,
@@ -340,6 +341,7 @@ export function DashboardView() {
           {dashboardTab === "team" && <TeamTab />}
           {dashboardTab === "departments" && <DepartmentsTab />}
           {dashboardTab === "ethics" && <EthicsTab />}
+          {dashboardTab === "officialForms" && <OfficialFormsTab />}
           {dashboardTab === "ethicsReview" && <EthicsReviewTab />}
           {dashboardTab === "myGrants" && <MyGrantsTab />}
           {dashboardTab === "grants" && <GrantsTab />}

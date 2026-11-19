@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { requestBaseUrl, resolveTenantFromHeaders } from "@/lib/tenant";
 import { withTenantRlsContext } from "@/lib/db-rls";
 import { BLOGS, GUIDES } from "@/lib/resources-content";
+import { OFFICIAL_FORMS } from "@/lib/forms";
 import { MEDIA_STORIES, mediaStoryPath } from "@/lib/media/stories";
 import { articlePath, SITEMAP_PATHS } from "@/lib/spa-routes";
 import { authorPath } from "@/lib/author-path";
@@ -67,6 +68,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: new Date(`${g.effective}T00:00:00Z`),
       changeFrequency: "yearly" as const,
       priority: 0.7,
+    })),
+    ...OFFICIAL_FORMS.map((f) => ({
+      url: `${base}/resources/forms/${f.slug}`,
+      lastModified: new Date(`${f.effective}T00:00:00Z`),
+      changeFrequency: "yearly" as const,
+      priority: 0.6,
     })),
     // The platform newsroom's stories (server-rendered /media/<slug> pages).
     ...(tenant && !tenant.isPlatform
