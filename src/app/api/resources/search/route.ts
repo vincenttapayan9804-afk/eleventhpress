@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { searchResources, syncResourcesIndex, meilisearchLiveMode, type ResourceSearchDoc } from "@/lib/meilisearch";
 import { BLOGS, GUIDES, TRAININGS, WEBINARS, BOOKS } from "@/lib/resources-content";
+import { resolveTenantFromHeaders } from "@/lib/tenant";
+import { resourcesBlogVisible } from "@/lib/resources/tenant-brand-server";
 
 // Static content rarely changes, so syncing once per server instance
 // (rather than on every request) is enough — a fresh serverless cold start
@@ -37,17 +39,21 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ query: q, results: [], live: false });
   }
 
+  // Tenant sites don't carry Eleventh Press's own blog posts.
+  const tenant = await resolveTenantFromHeaders(req.headers).catch(() => null);
+  const showBlogs = resourcesBlogVisible(tenant);
+
   await ensureResourcesIndexed();
   const liveHits = await searchResources(q);
   if (liveHits) {
-    return NextResponse.json({ query: q, results: liveHits, live: true });
+    return NextResponse.json({ query: q, results: showBlogs ? liveHits : liveHits.filter((h) => h.kind !== "blog"), live: true });
   }
 
   const needle = q.toLowerCase();
   const results: ResourceSearchDoc[] = [
     ...GUIDES.filter((g) => g.title.toLowerCase().includes(needle) || g.summary.toLowerCase().includes(needle))
       .map((g) => ({ id: g.id, kind: "guide" as const, title: g.title, description: g.summary })),
-    ...BLOGS.filter((b) => b.title.toLowerCase().includes(needle) || b.excerpt.toLowerCase().includes(needle))
+    ...(showBlogs ? BLOGS : []).filter((b) => b.title.toLowerCase().includes(needle) || b.excerpt.toLowerCase().includes(needle))
       .map((b) => ({ id: b.id, kind: "blog" as const, title: b.title, description: b.excerpt })),
     ...TRAININGS.filter((t) => t.title.toLowerCase().includes(needle) || t.blurb.toLowerCase().includes(needle))
       .map((t) => ({ id: t.id, kind: "training" as const, title: t.title, description: t.blurb })),

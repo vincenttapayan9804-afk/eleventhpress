@@ -1,6 +1,9 @@
 import { APP_BASE_URL, JOURNAL_IDENTITY, issnLabel } from "@/lib/site";
 import { MEDIA_STORIES, stripCitations } from "@/lib/media/stories";
 import { BLOGS, GUIDES } from "@/lib/resources-content";
+import { getCurrentTenant } from "@/lib/tenant";
+import { brandCode, brandContactLine, brandText } from "@/lib/resources/tenant-brand";
+import { resourceBrandFor } from "@/lib/resources/tenant-brand-server";
 
 /**
  * GET /llms.txt — a plain-Markdown map of the site's citable reference
@@ -8,9 +11,42 @@ import { BLOGS, GUIDES } from "@/lib/resources-content";
  * Lists the official guides (with their PDF editions) and the Resources
  * blog, all of which are server-rendered pages.
  */
-export const dynamic = "force-static";
+export const dynamic = "force-dynamic";
 
-export function GET() {
+export async function GET() {
+  const tenant = await getCurrentTenant().catch(() => null);
+  const brand = await resourceBrandFor(tenant);
+  // The CDN keys on host + URL: a portal visitor or signed-in tenant member
+  // on the official host must never get a publicly cached copy.
+  const cacheControl =
+    tenant && (tenant.source === "session" || tenant.source === "portal") ? "private, no-store" : "public, max-age=3600, s-maxage=86400";
+  // A tenant's site: its own name, its guides and nothing of Eleventh
+  // Press's own (blog, newsroom).
+  if (brand.whitelabel) {
+    const base = brand.baseUrl;
+    const tenantLines = [
+      `# ${brand.publisher}`,
+      "",
+      `> ${[brand.journalName !== brand.publisher ? brand.journalName : null, brandContactLine(brand)].filter(Boolean).join(". ")}`,
+      "",
+      "## Official guides",
+      "",
+      ...GUIDES.map(
+        (g) =>
+          `- [${g.title} (${brandCode(g.code, brand)}, v${g.version})](${base}/resources/guides/${g.slug}): ${brandText(g.summary, brand)} Benchmarked against: ${g.benchmarks.join("; ")}. PDF: ${base}/resources/guides/${g.slug}/pdf`
+      ),
+      "",
+      "## Other",
+      "",
+      `- [Sitemap](${base}/sitemap.xml)`,
+      `- [Article feed (RSS)](${base}/api/feed/articles.xml)`,
+      "",
+    ];
+    return new Response(tenantLines.join("\n"), {
+      headers: { "Content-Type": "text/markdown; charset=utf-8", "Cache-Control": cacheControl },
+    });
+  }
+
   const J = JOURNAL_IDENTITY;
   const lines = [
     `# ${J.name}`,
@@ -43,6 +79,6 @@ export function GET() {
     "",
   ];
   return new Response(lines.join("\n"), {
-    headers: { "Content-Type": "text/markdown; charset=utf-8", "Cache-Control": "public, max-age=3600, s-maxage=86400" },
+    headers: { "Content-Type": "text/markdown; charset=utf-8", "Cache-Control": cacheControl },
   });
 }

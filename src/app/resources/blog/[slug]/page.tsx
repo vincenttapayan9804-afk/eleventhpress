@@ -9,8 +9,10 @@ import {
   ListOrdered,
 } from "lucide-react";
 import { APP_BASE_URL, ARTICLE_LANGUAGE, JOURNAL_IDENTITY } from "@/lib/site";
-import { BLOGS } from "@/lib/resources-content";
 import { blogPath, blogPlainText, fmtLongDate, getBlogPost, guideById, guidePath, guidePdfPath, wordCount } from "@/lib/resources";
+import { BLOGS } from "@/lib/resources-content";
+import { getCurrentTenant } from "@/lib/tenant";
+import { resourcesBlogVisible } from "@/lib/resources/tenant-brand-server";
 import { ResourcePageShell, BackToResources } from "@/components/resources/resource-page-shell";
 import { FaqBlock, NumberedList, OnThisPage, ReferenceList, SectionBlock, slugifyHeading } from "@/components/resources/content-blocks";
 
@@ -27,13 +29,19 @@ import { FaqBlock, NumberedList, OnThisPage, ReferenceList, SectionBlock, slugif
  * running JavaScript.
  */
 
-export function generateStaticParams() {
-  return BLOGS.map((b) => ({ slug: b.slug }));
+// Rendered per request: these are Eleventh Press's own editorial posts and
+// are not part of a whitelabel tenant's site (its guides are; see
+// src/lib/resources/tenant-brand.ts).
+export const dynamic = "force-dynamic";
+
+async function postFor(slug: string) {
+  const tenant = await getCurrentTenant().catch(() => null);
+  return resourcesBlogVisible(tenant) ? getBlogPost(slug) : null;
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const post = getBlogPost(slug);
+  const post = await postFor(slug);
   if (!post) return { title: "Post not found" };
   const url = `${APP_BASE_URL}${blogPath(post)}`;
   return {
@@ -59,7 +67,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function BlogPostPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const post = getBlogPost(slug);
+  const post = await postFor(slug);
   if (!post) notFound();
 
   const url = `${APP_BASE_URL}${blogPath(post)}`;

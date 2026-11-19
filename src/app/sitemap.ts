@@ -54,8 +54,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: (path === "/articles" ? "daily" : "monthly") as "daily" | "monthly",
       priority: path === "/articles" ? 0.9 : 0.5,
     })),
-    // Resources blog posts and official guides (server-rendered pages).
-    ...BLOGS.map((b) => ({
+    // Resources blog posts (platform only — they are Eleventh Press's own
+    // editorial posts) and official guides (server-rendered pages).
+    ...(tenant && !tenant.isPlatform ? [] : BLOGS).map((b) => ({
       url: `${base}/resources/blog/${b.slug}`,
       lastModified: new Date(`${b.dateModified}T00:00:00Z`),
       changeFrequency: "monthly" as const,

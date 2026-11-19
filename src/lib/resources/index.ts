@@ -1,8 +1,8 @@
-import { APP_BASE_URL, JOURNAL_IDENTITY } from "@/lib/site";
 import { BLOGS, GUIDES, type Reading, type Guide } from "@/lib/resources-content";
 import { BLOG_POSTS } from "@/lib/resources/blog-posts";
 import { GUIDE_DOCS } from "@/lib/resources/guide-docs";
 import type { BlogPost, GuideDoc, ContentSection } from "@/lib/resources/types";
+import { PLATFORM_RESOURCE_BRAND, brandCode, brandDeep, type ResourceBrand } from "@/lib/resources/tenant-brand";
 
 export type FullBlogPost = Reading & BlogPost;
 export type FullGuide = Guide & GuideDoc;
@@ -14,11 +14,18 @@ export function getBlogPost(slug: string): FullBlogPost | null {
   return meta && body ? { ...meta, ...body } : null;
 }
 
-/** Guide by URL slug, catalog fields merged with full text. */
-export function getGuideDoc(slug: string): FullGuide | null {
+/**
+ * Guide by URL slug, catalog fields merged with full text. Given a tenant's
+ * brand, the text names that tenant instead of Eleventh Press (slug, id and
+ * the standards' own links are left alone).
+ */
+export function getGuideDoc(slug: string, brand: ResourceBrand = PLATFORM_RESOURCE_BRAND): FullGuide | null {
   const meta = GUIDES.find((g) => g.slug === slug);
   const body = meta ? GUIDE_DOCS[meta.id] : undefined;
-  return meta && body ? { ...meta, ...body } : null;
+  if (!meta || !body) return null;
+  const full: FullGuide = { ...meta, ...body };
+  if (!brand.whitelabel) return full;
+  return { ...brandDeep(full, brand), id: full.id, slug: full.slug, code: brandCode(full.code, brand), relatedGuides: full.relatedGuides };
 }
 
 export function guideById(id: string): Guide | undefined {
@@ -61,6 +68,6 @@ export function fmtLongDate(iso: string): string {
 }
 
 /** APA-style citation for a guide (printed on the web page and the PDF). */
-export function guideCitation(g: Guide): string {
-  return `${JOURNAL_IDENTITY.name}. (${g.effective.slice(0, 4)}). ${g.title} (${g.code}, Version ${g.version}). ${APP_BASE_URL}${guidePath(g)}`;
+export function guideCitation(g: Guide, brand: ResourceBrand = PLATFORM_RESOURCE_BRAND): string {
+  return `${brand.publisher}. (${g.effective.slice(0, 4)}). ${g.title} (${brandCode(g.code, brand)}, Version ${g.version}). ${brand.baseUrl}${guidePath(g)}`;
 }
