@@ -6,7 +6,6 @@ import { useApp } from "@/lib/store";
 import {
   Cookie,
   Globe,
-  ShieldCheck,
   Mail,
   Phone,
   MapPin,
@@ -218,14 +217,6 @@ export function SiteFooter() {
               <p>{t("copyright", { year: new Date().getFullYear() })}</p>
             )}
             <div className="flex items-center gap-4">
-              {!whitelabel && (
-              <button
-                onClick={() => setView("adminPortal")}
-                className="flex items-center gap-1 text-muted-foreground hover:text-primary transition-colors"
-              >
-                <ShieldCheck className="h-3 w-3" /> Admin Portal
-              </button>
-              )}
               <p className="font-mono">{t("indexedLine", { registrar: DOI_REGISTRAR })}</p>
             </div>
           </div>
