@@ -119,6 +119,9 @@ export const ResearchIntegrityTab = dynamic(() => import("./research-integrity-t
 export const EthicsTab = dynamic(() => import("./ethics-tab").then((m) => m.EthicsTab), {
   loading: () => <TabLoadingFallback />,
 });
+export const OfficialFormsTab = dynamic(() => import("./official-forms-tab").then((m) => m.OfficialFormsTab), {
+  loading: () => <TabLoadingFallback />,
+});
 export const EthicsReviewTab = dynamic(() => import("./ethics-review-tab").then((m) => m.EthicsReviewTab), {
   loading: () => <TabLoadingFallback />,
 });

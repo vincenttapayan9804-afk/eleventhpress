@@ -2847,6 +2847,38 @@ model AuthorshipConfirmation {
   @@index([articleId])
 }
 
+// Official Forms (src/lib/forms): one row per signed form — the five
+// submission declarations, reviewer and editor declarations, and the
+// authorship-change and appeal requests an editor decides. `answers` is the
+// validated JSON (src/lib/forms/validate.ts); `formVersion` records the
+// version signed, so a revised form can be asked for again. No foreign keys,
+// same posture as AuthorshipConfirmation: deleting an article or user never
+// blocks on its signed records.
+model FormSubmission {
+  id           String    @id @default(cuid())
+  formId       String
+  formCode     String
+  formVersion  String
+  userId       String
+  tenantId     String?
+  articleId    String?
+  reviewId     String?
+  answers      String
+  signedName   String
+  signedAt     DateTime  @default(now())
+  // SUBMITTED (a declaration) | PENDING → APPROVED | DECLINED (a request)
+  status       String    @default("SUBMITTED")
+  decisionNote String?
+  decidedById  String?
+  decidedAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([articleId, formId])
+  @@index([userId, formId])
+  @@index([reviewId])
+  @@index([status, tenantId])
+}
+
 // Reader library: saved articles in named lists ("Saved" by default).
 // src/app/api/library. No foreign keys, so removing an article never
 // blocks; reads skip items whose article is gone.

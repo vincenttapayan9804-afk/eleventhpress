@@ -11,6 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { STATUS_LABELS, STATUS_COLORS, DISCIPLINE_COLORS } from "@/lib/article";
+import { useRequiredFormsGate } from "@/components/forms/required-forms-dialog";
 import {
   PenSquare,
   Clock,
@@ -42,14 +43,34 @@ export function ReviewerQueueTab({ reviews, onRefresh }: Props) {
   const [declining, setDeclining] = useState<any | null>(null);
   const [reason, setReason] = useState("");
   const [suggestion, setSuggestion] = useState("");
+  // Accepting needs the reviewer's Official Forms (EP-F-08 once, EP-F-07 per
+  // invitation); the server asks for them and this dialog collects them.
+  const gate = useRequiredFormsGate("Before you accept, please sign the reviewer forms. You sign the confidentiality undertaking once; the conflict-of-interest declaration is for this manuscript.");
 
   async function respond(id: string, action: "ACCEPT" | "DECLINE") {
     setBusyId(id);
     try {
-      await apiFetch(`/api/reviews/${id}/respond`, {
-        method: "POST",
-        body: JSON.stringify(action === "DECLINE" ? { action, reason, suggestedReviewer: suggestion } : { action }),
-      });
+      let stopped: string | null = null;
+      const res = await gate.run(
+        () =>
+          apiFetch(`/api/reviews/${id}/respond`, {
+            method: "POST",
+            body: JSON.stringify(action === "DECLINE" ? { action, reason, suggestedReviewer: suggestion } : { action }),
+          }),
+        (outcomes) => {
+          // A declared competing interest declines the invitation itself.
+          if (outcomes.some((o) => o.outcome === "DECLINED")) {
+            stopped = "DECLINED";
+            return false;
+          }
+        }
+      );
+      if (stopped) {
+        toast.success("Invitation declined: competing interest declared. The editor has been told.");
+        onRefresh();
+        return;
+      }
+      if (res === null) return;
       toast.success(action === "ACCEPT" ? "Invitation accepted — thank you!" : "Invitation declined. The editor has been told.");
       setDeclining(null);
       setReason("");
@@ -69,6 +90,7 @@ export function ReviewerQueueTab({ reviews, onRefresh }: Props) {
 
   return (
     <div className="space-y-5">
+      {gate.dialog}
       {/* Stats */}
       <div className="grid gap-3 sm:grid-cols-3">
         <Card className="paper-card">

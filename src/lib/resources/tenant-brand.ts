@@ -65,7 +65,7 @@ export function brandText(text: string, b: ResourceBrand): string {
     .replace(/\bEPIP\b/g, b.shortName)
     .replace(/\b[a-z0-9._-]+@eleventhpress\.com\b/gi, b.email ?? "the editorial office")
     .replace(/https?:\/\/(?:www\.)?eleventhpress\.com/gi, b.baseUrl)
-    .replace(/\bEP-G-(\d+)\b/g, "G-$1");
+    .replace(/\bEP-([GF])-(\d+)\b/g, "$1-$2");
 }
 
 /** brandText applied to every string inside a guide (or any plain data). */

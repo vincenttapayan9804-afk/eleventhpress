@@ -1,0 +1,160 @@
+/**
+ * Server side of the Official Forms: storing signed forms, the checks that
+ * hold back a review or an editorial decision until the right forms are
+ * signed, and access rules for reading a signed record.
+ */
+import { db } from "@/lib/db";
+import type { SessionPayload } from "@/lib/auth";
+import { isSameEditorialTenant } from "@/lib/tenant-auth";
+import { formById } from "./index";
+import type { FormAnswers, OfficialFormDoc } from "./types";
+
+export const EDITOR_ROLES = ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN", "TENANT_ADMIN"] as const;
+export const isEditorRole = (role: string) => (EDITOR_ROLES as readonly string[]).includes(role);
+
+/** The decisions that need EP-F-09 and EP-F-10 signed first. */
+export const GATED_EDITORIAL_ACTIONS = new Set(["SEND_TO_REVIEW", "REQUEST_REVISIONS", "ACCEPT", "REJECT"]);
+
+export interface RequiredFormRef {
+  formId: string;
+  code: string;
+  title: string;
+  articleId?: string;
+  reviewId?: string;
+}
+
+const ref = (formId: string, extra: Partial<RequiredFormRef> = {}): RequiredFormRef => {
+  const f = formById(formId)!;
+  return { formId, code: f.code, title: f.title, ...extra };
+};
+
+export async function saveFormSubmission(input: {
+  doc: OfficialFormDoc;
+  userId: string;
+  tenantId?: string | null;
+  articleId?: string | null;
+  reviewId?: string | null;
+  answers: FormAnswers;
+  signedName: string;
+  status?: "SUBMITTED" | "PENDING";
+}) {
+  return db.formSubmission.create({
+    data: {
+      formId: input.doc.id,
+      formCode: formById(input.doc.id)?.code ?? input.doc.code,
+      formVersion: input.doc.version,
+      userId: input.userId,
+      tenantId: input.tenantId ?? null,
+      articleId: input.articleId ?? null,
+      reviewId: input.reviewId ?? null,
+      answers: JSON.stringify(input.answers),
+      signedName: input.signedName,
+      status: input.status ?? "SUBMITTED",
+    },
+  });
+}
+
+/** Whether `userId` has signed the current version of a once-per-person form. */
+async function hasSignedCurrent(userId: string, formId: string): Promise<boolean> {
+  const f = formById(formId)!;
+  const row = await db.formSubmission.findFirst({ where: { userId, formId, formVersion: f.version }, select: { id: true } });
+  return !!row;
+}
+
+/** Forms a reviewer must sign before accepting (or reporting on) this review. */
+export async function missingReviewerForms(userId: string, reviewId: string, articleId: string): Promise<RequiredFormRef[]> {
+  const missing: RequiredFormRef[] = [];
+  if (!(await hasSignedCurrent(userId, "form-reviewer-confidentiality"))) missing.push(ref("form-reviewer-confidentiality"));
+  const coi = await db.formSubmission.findFirst({ where: { userId, formId: "form-reviewer-coi", reviewId }, select: { id: true } });
+  if (!coi) missing.push(ref("form-reviewer-coi", { reviewId, articleId }));
+  return missing;
+}
+
+/** The editor's latest EP-F-09 on this article, if any. */
+export async function editorCoiFor(userId: string, articleId: string) {
+  return db.formSubmission.findFirst({
+    where: { userId, formId: "form-editor-coi", articleId },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, answers: true },
+  });
+}
+
+export function declaredConflict(row: { answers: string } | null | undefined): boolean {
+  if (!row) return false;
+  try {
+    return (JSON.parse(row.answers) as { conflict?: string }).conflict === "yes";
+  } catch {
+    return false;
+  }
+}
+
+/** Forms an editor must sign before an editorial decision on this article. */
+export async function missingEditorForms(userId: string, articleId: string): Promise<RequiredFormRef[]> {
+  const missing: RequiredFormRef[] = [];
+  if (!(await hasSignedCurrent(userId, "form-editor-code"))) missing.push(ref("form-editor-code"));
+  if (!(await editorCoiFor(userId, articleId))) missing.push(ref("form-editor-coi", { articleId }));
+  return missing;
+}
+
+/** The JSON body a gated route returns while forms are outstanding (HTTP 428). */
+export function requiredFormsBody(missing: RequiredFormRef[]) {
+  return {
+    error: `Please sign ${missing.map((m) => `${m.code} (${m.title})`).join(" and ")} first.`,
+    requiredForms: missing,
+  };
+}
+
+/** Authors whose co-authors may see a manuscript's author-side records. */
+const AUTHOR_SIDE = new Set([
+  "form-author-declaration",
+  "form-author-coi",
+  "form-ethics-consent",
+  "form-ai-disclosure",
+  "form-licence-to-publish",
+  "form-authorship-change",
+  "form-appeal",
+]);
+
+/**
+ * Who may read a signed record: the signer; an editor of the article's (or
+ * record's) tenant; and, for author-side forms, the article's corresponding
+ * author. Reviewer and editor declarations are never shown to authors.
+ */
+export async function canReadFormRecord(
+  session: SessionPayload,
+  row: { userId: string; formId: string; tenantId: string | null; articleId: string | null }
+): Promise<boolean> {
+  if (row.userId === session.userId) return true;
+  let articleTenant: string | null = row.tenantId;
+  let corresponding: string | null = null;
+  if (row.articleId) {
+    const a = await db.article.findUnique({ where: { id: row.articleId }, select: { correspondingAuthorId: true, journal: { select: { tenantId: true } } } });
+    articleTenant = a?.journal?.tenantId ?? articleTenant;
+    corresponding = a?.correspondingAuthorId ?? null;
+  }
+  if (isEditorRole(session.role) && isSameEditorialTenant(session, articleTenant)) return true;
+  return AUTHOR_SIDE.has(row.formId) && corresponding === session.userId;
+}
+
+export function parseAnswers(raw: string): FormAnswers {
+  try {
+    const v = JSON.parse(raw);
+    return v && typeof v === "object" ? v : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Editors who should hear about a form on a manuscript of `tenantId` (platform super admins always). */
+export async function editorsOfTenant(tenantId: string | null | undefined, exceptUserId?: string): Promise<string[]> {
+  const rows = await db.user.findMany({
+    where: {
+      OR: [
+        { role: "SUPER_ADMIN" },
+        { role: { in: ["EDITOR", "ASSOCIATE_EDITOR", "TENANT_ADMIN"] }, ...(tenantId ? { tenantId } : {}) },
+      ],
+    },
+    select: { id: true },
+  });
+  return rows.map((r) => r.id).filter((id) => id !== exceptUserId);
+}

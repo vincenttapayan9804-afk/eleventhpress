@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiFetch } from "@/lib/api-client";
+import { useRequiredFormsGate } from "@/components/forms/required-forms-dialog";
 import { STATUS_LABELS, type ArticleStatus } from "@/lib/article";
 
 const COLUMNS: { status: ArticleStatus; action: string | null; hint: string }[] = [
@@ -40,6 +41,7 @@ export function EditorBoard({ queue, onOpen, onRefresh }: { queue: any[]; onOpen
   const [pending, setPending] = useState<{ article: any; to: (typeof COLUMNS)[number] } | null>(null);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+  const gate = useRequiredFormsGate("Before your first decision on this manuscript, please sign the editor forms.");
 
   const byStatus = (s: string) => {
     const list = queue.filter((a) => a.status === s);
@@ -57,10 +59,26 @@ export function EditorBoard({ queue, onOpen, onRefresh }: { queue: any[]; onOpen
     if (!pending) return;
     setBusy(true);
     try {
-      await apiFetch("/api/articles/workflow", {
-        method: "POST",
-        body: JSON.stringify({ articleId: pending.article.id, action: pending.to.action, note: note.trim() || undefined }),
-      });
+      let recused = false;
+      const res = await gate.run(
+        () =>
+          apiFetch("/api/articles/workflow", {
+            method: "POST",
+            body: JSON.stringify({ articleId: pending.article.id, action: pending.to.action, note: note.trim() || undefined }),
+          }),
+        (outcomes) => {
+          if (outcomes.some((o) => o.outcome === "RECUSED")) {
+            recused = true;
+            return false;
+          }
+        }
+      );
+      if (recused) {
+        toast.info("You are recused from this manuscript", { description: "The other editors have been asked to reassign it." });
+        setPending(null);
+        return;
+      }
+      if (!res) return;
       toast.success(`Moved to ${STATUS_LABELS[pending.to.status]}`);
       setPending(null);
       onRefresh();
@@ -73,6 +91,7 @@ export function EditorBoard({ queue, onOpen, onRefresh }: { queue: any[]; onOpen
 
   return (
     <>
+      {gate.dialog}
       <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-3">
         {COLUMNS.map((col) => {
           const cards = byStatus(col.status);

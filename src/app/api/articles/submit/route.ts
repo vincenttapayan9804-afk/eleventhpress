@@ -7,6 +7,10 @@ import { resolveTenantFromHeaders, getOrCreateTenantJournal } from "@/lib/tenant
 import { checkSimilarity } from "@/lib/manuscript-checks";
 import { INSIGHT_CATEGORIES, INSIGHT_CATEGORY_LABELS, KEY_TAKEAWAYS_COUNT, type InsightCategory } from "@/lib/article";
 import { safeManuscriptFilename } from "@/lib/storage";
+import { formById, SUBMISSION_FORM_IDS } from "@/lib/forms";
+import { validateFormAnswers } from "@/lib/forms/validate";
+import { saveFormSubmission } from "@/lib/forms/server";
+import type { FormAnswers, OfficialFormDoc } from "@/lib/forms/types";
 
 /**
  * POST /api/articles/submit
@@ -31,7 +35,7 @@ export async function POST(req: NextRequest) {
     const {
       title, abstract, keywords, discipline, authors, reviewModel, manuscriptKey, manuscriptName, openReview,
       funders, apcWaiverRequested, apcWaiverReason, references, insightCategory, keyTakeaways,
-      rightsRetentionConfirmed, dataAvailabilityStatement, authorConflictOfInterest,
+      rightsRetentionConfirmed, dataAvailabilityStatement, declarations, declarationSignedName,
     } = body as {
       title: string;
       abstract: string;
@@ -51,6 +55,8 @@ export async function POST(req: NextRequest) {
       rightsRetentionConfirmed?: boolean;
       dataAvailabilityStatement?: string;
       authorConflictOfInterest?: string;
+      declarations?: Record<string, unknown>;
+      declarationSignedName?: string;
     };
 
     // Experts submit Expert Insight pieces, never ordinary RESEARCH
@@ -83,12 +89,19 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-    if (!authorConflictOfInterest?.trim()) {
-      return NextResponse.json(
-        { error: "Please disclose any author conflicts of interest (or state that there are none)" },
-        { status: 400 }
-      );
+    // The five Official Forms every manuscript needs (EP-F-01 to EP-F-05),
+    // checked against their definitions before anything is created. The
+    // competing-interests statement printed with the article is EP-F-02's.
+    const signedForms: { doc: OfficialFormDoc; answers: FormAnswers; signedName: string }[] = [];
+    for (const id of SUBMISSION_FORM_IDS) {
+      const doc = formById(id)!;
+      const v = validateFormAnswers(doc, declarations?.[id], declarationSignedName, {
+        authors: (authors ?? []).map((a: any) => ({ name: String(a?.name || a?.email || "").trim(), email: a?.email })),
+      });
+      if (!v.ok) return NextResponse.json({ error: `${doc.code} ${doc.title}: ${v.error}` }, { status: 400 });
+      signedForms.push({ doc, answers: v.answers, signedName: v.signedName });
     }
+    const authorConflictOfInterest = String(signedForms.find((f) => f.doc.id === "form-author-coi")?.answers.statement ?? "").trim();
 
     if (isExpert) {
       if (!insightCategory || !INSIGHT_CATEGORIES.includes(insightCategory as InsightCategory)) {
@@ -166,6 +179,11 @@ export async function POST(req: NextRequest) {
         submittedAt: new Date(),
       },
     });
+
+    // The signed declarations, stored with the manuscript.
+    for (const f of signedForms) {
+      await saveFormSubmission({ doc: f.doc, userId: session.userId, articleId: article.id, answers: f.answers, signedName: f.signedName, tenantId: journal.tenantId });
+    }
 
     // References, if provided — validated later by an editor
     const refLines = (references ?? []).map((r) => r.trim()).filter(Boolean);

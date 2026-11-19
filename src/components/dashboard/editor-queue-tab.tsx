@@ -1,5 +1,8 @@
 "use client";
 
+import { useRequiredFormsGate } from "@/components/forms/required-forms-dialog";
+import { ArticleFormsPanel } from "@/components/forms/article-forms-panel";
+
 import { RevisionHistory } from "@/components/dashboard/revision-tools";
 import { EditorBoard } from "@/components/dashboard/editor-board";
 import { useState } from "react";
@@ -276,6 +279,9 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
   const [newCuratedRecommendation, setNewCuratedRecommendation] = useState("");
   const [savingCurated, setSavingCurated] = useState(false);
   const [deletingCuratedId, setDeletingCuratedId] = useState<string | null>(null);
+  // Editorial decisions need EP-F-10 (once) and EP-F-09 (this manuscript).
+  const gate = useRequiredFormsGate("Before your first decision on this manuscript, please sign the editor forms. You sign the code of conduct once; the conflict-of-interest declaration is for this manuscript.");
+  const [formsKey, setFormsKey] = useState(0);
 
   if (!article) return null;
 
@@ -392,14 +398,30 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
     }
     setLoading(true);
     try {
-      const res = await apiFetch<{ decisionId: string }>("/api/articles/workflow", {
-        method: "POST",
-        body: JSON.stringify({
-          articleId: article.id,
-          action,
-          note: note || undefined,
-        }),
-      });
+      let recused = false;
+      const res = await gate.run(
+        () =>
+          apiFetch<{ decisionId: string }>("/api/articles/workflow", {
+            method: "POST",
+            body: JSON.stringify({
+              articleId: article.id,
+              action,
+              note: note || undefined,
+            }),
+          }),
+        (outcomes) => {
+          setFormsKey((k) => k + 1);
+          if (outcomes.some((o) => o.outcome === "RECUSED")) {
+            recused = true;
+            return false;
+          }
+        }
+      );
+      if (recused) {
+        toast.info("You are recused from this manuscript", { description: "The other editors have been asked to reassign it." });
+        return;
+      }
+      if (!res) return;
       if (action === "ACCEPT" || action === "PUBLISH") celebrate();
       toast.success("Workflow transition applied", {
         description: `Article moved to ${ACTIONS.find(a => a.key === action)?.target.replace(/_/g, " ")}`,
@@ -450,6 +472,8 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
   });
 
   return (
+    <>
+    {gate.dialog}
     <Dialog open={!!article} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="flex max-h-[90vh] flex-col overflow-hidden sm:max-w-2xl">
         <DialogHeader>
@@ -464,6 +488,7 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
               Workflow{visibleActions.length > 0 ? ` (${visibleActions.length})` : ""}
             </TabsTrigger>
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="forms">Forms</TabsTrigger>
             <TabsTrigger value="reviewers">
               Reviewers{article.reviews.length > 0 ? ` (${article.reviews.length})` : ""}
             </TabsTrigger>
@@ -800,6 +825,13 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
           </TabsContent>
 
           {/* Overview */}
+          <TabsContent value="forms" className="mt-3 min-h-0 flex-1 overflow-y-auto pr-1">
+            <p className="mb-3 text-xs text-muted-foreground">
+              Official Forms signed for this manuscript: the authors' submission declarations, any authorship-change request
+              or appeal, and the reviewers' and editors' declarations. Each has a signed PDF.
+            </p>
+            <ArticleFormsPanel articleId={article.id} refreshKey={formsKey} />
+          </TabsContent>
           <TabsContent value="overview" className="mt-3 min-h-0 flex-1">
             <ScrollArea className="h-[48vh] pr-3 epip-scroll">
               <div className="space-y-4">
@@ -1145,6 +1177,7 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
         )}
       </DialogContent>
     </Dialog>
+    </>
   );
 }
 

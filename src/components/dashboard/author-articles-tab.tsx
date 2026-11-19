@@ -5,6 +5,7 @@ import { SubmissionTracker } from "@/components/dashboard/submission-tracker";
 import { useState } from "react";
 import { useApp } from "@/lib/store";
 import { apiFetch } from "@/lib/api-client";
+import { ArticleOfficialForms } from "@/components/forms/article-official-forms";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -208,6 +209,7 @@ export function AuthorArticlesTab({ submissions, onRefresh }: Props) {
               )}
 
               <SubmissionTracker articleId={s.id} />
+              <ArticleOfficialForms article={s} onChanged={onRefresh} />
 
               {/* Reviews summary */}
               {s.reviews?.length > 0 && (

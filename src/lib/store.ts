@@ -78,6 +78,7 @@ export type DashboardTab =
   | "tenants"
   | "departments"
   | "ethics"
+  | "officialForms"
   | "ethicsReview"
   | "grants"
   | "myGrants"
