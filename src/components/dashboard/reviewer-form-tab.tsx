@@ -57,7 +57,7 @@ export function ReviewerFormTab({ reviewId, onRefresh }: Props) {
   const [checkingAi, setCheckingAi] = useState(false);
 
   // Reviews accepted before the Official Forms existed still need EP-F-07/08 signed.
-  const gate = useRequiredFormsGate("Before you submit, please sign the reviewer forms.");
+  const gate = useRequiredFormsGate("Before you submit, please complete the reviewer forms that go with this report: your declarations and, where they apply, the reporting-guideline assessment and your open-review consent.");
   const [form, setForm] = useState({
     overallScore: 4,
     recommendation: "MINOR_REVISIONS",

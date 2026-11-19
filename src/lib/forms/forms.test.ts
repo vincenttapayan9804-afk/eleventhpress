@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { PDFDocument } from "pdf-lib";
-import { OFFICIAL_FORMS, SUBMISSION_FORM_IDS, formById, getFormDoc } from "@/lib/forms";
-import { isFieldShown, validateFormAnswers } from "@/lib/forms/validate";
+import { DECIDED_FORMS, OFFICIAL_FORMS, SUBMISSION_FORM_IDS, formById, formPlatformPath, getFormDoc } from "@/lib/forms";
+import { isAnonymous, isFieldShown, validateFormAnswers } from "@/lib/forms/validate";
 import { buildFormPdf } from "@/lib/form-pdf";
 import { guideById } from "@/lib/resources";
 import type { ResourceBrand } from "@/lib/resources/tenant-brand";
@@ -21,10 +21,10 @@ const TENANT: ResourceBrand = {
 };
 
 describe("Official Forms definitions", () => {
-  test("eleven forms with unique ids, slugs and sequential codes", () => {
-    expect(OFFICIAL_FORMS).toHaveLength(11);
-    expect(new Set(OFFICIAL_FORMS.map((f) => f.id)).size).toBe(11);
-    expect(new Set(OFFICIAL_FORMS.map((f) => f.slug)).size).toBe(11);
+  test("twenty-six forms with unique ids, slugs and sequential codes", () => {
+    expect(OFFICIAL_FORMS).toHaveLength(26);
+    expect(new Set(OFFICIAL_FORMS.map((f) => f.id)).size).toBe(26);
+    expect(new Set(OFFICIAL_FORMS.map((f) => f.slug)).size).toBe(26);
     OFFICIAL_FORMS.forEach((f, i) => expect(f.code).toBe(`EP-F-${String(i + 1).padStart(2, "0")}`));
   });
 
@@ -51,8 +51,26 @@ describe("Official Forms definitions", () => {
     }
   });
 
-  test("the five submission forms are the author forms completed at submission", () => {
+  test("the submission forms are exactly the author forms completed at submission", () => {
     for (const id of SUBMISSION_FORM_IDS) expect(formById(id)?.scope).toBe("submission");
+    expect(OFFICIAL_FORMS.filter((f) => f.scope === "submission").map((f) => f.id).sort()).toEqual([...SUBMISSION_FORM_IDS].sort());
+  });
+
+  test("every decided request and public form has outcome labels, and only those", () => {
+    for (const f of OFFICIAL_FORMS) {
+      const decided = f.scope === "public" || ["form-authorship-change", "form-appeal", "form-withdrawal"].includes(f.id);
+      expect(!!DECIDED_FORMS[f.id], f.code).toBe(decided);
+    }
+  });
+
+  test("public forms are submitted on their own page; offline forms have no platform step", () => {
+    for (const f of OFFICIAL_FORMS.filter((x) => x.scope === "public")) {
+      expect(f.role).toBe("public");
+      expect(formPlatformPath(f)).toBe(`/resources/forms/${f.slug}#submit`);
+      // The editors need a way to reply unless the form allows anonymity.
+      expect(f.sections.flatMap((s) => s.fields).some((x) => x.id === "contactEmail" && x.type === "email")).toBe(true);
+    }
+    expect(formPlatformPath(formById("form-publication-consent")!)).toBe("/resources/forms/participant-consent-for-publication");
   });
 
   test("tenant edition carries no Eleventh Press identity", () => {
@@ -95,6 +113,22 @@ describe("validateFormAnswers", () => {
     expect(validateFormAnswers(coi, { authors: [{ hasInterests: "none" }], statement: "None." }, "Ann Lee", { authors }).ok).toBe(false);
     const ok = validateFormAnswers(coi, { authors: [{ hasInterests: "none" }, { hasInterests: "some", categories: ["grants"], details: "DOST grant" }], statement: "B has a grant." }, "Ann Lee", { authors });
     expect(ok.ok).toBe(true);
+  });
+
+  test("an anonymous concern needs no signature or email; a named one needs both", () => {
+    const concern = formById("form-report-concern")!;
+    const base = { articleRef: "10.5555/ep.2026.1", concernType: ["images"], location: "Figure 2", evidence: "Panels B and D are identical.", goodFaith: true, confidential: true };
+    const anon = validateFormAnswers(concern, { ...base, anonymous: "yes", contactEmail: "dropped@example.org" }, "");
+    expect(anon.ok).toBe(true);
+    if (anon.ok) {
+      expect(anon.signedName).toBe("Anonymous");
+      expect(anon.answers.contactEmail).toBeUndefined();
+      expect(isAnonymous(concern, anon.answers)).toBe(true);
+    }
+    expect(validateFormAnswers(concern, { ...base, anonymous: "no" }, "Ana Cruz").ok).toBe(false);
+    expect(validateFormAnswers(concern, { ...base, anonymous: "no", contactEmail: "ana@example.org" }, "Ana Cruz").ok).toBe(true);
+    // Other forms never become anonymous.
+    expect(validateFormAnswers(formById("form-complaint")!, { anonymous: "yes" }, "").ok).toBe(false);
   });
 
   test("isFieldShown follows radio and checkbox answers", () => {

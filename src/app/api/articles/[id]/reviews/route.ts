@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { resolveTenantFromHeaders } from "@/lib/tenant";
 import { withTenantRlsContext } from "@/lib/db-rls";
+import { reviewsWithoutPublicationConsent } from "@/lib/forms/server";
 
 /**
  * GET /api/articles/[id]/reviews
@@ -82,6 +83,10 @@ export async function GET(
     },
     orderBy: { completedAt: "asc" },
   });
+  // Reviewer consent (EP-F-19): a withheld report is never shown, and an
+  // anonymous one is shown without the reviewer's identity.
+  const consent = await reviewsWithoutPublicationConsent(id);
+  const visible = reviews.filter((r) => !consent.withheld.includes(r.id));
 
   return NextResponse.json({
     openReview: true,
@@ -92,7 +97,7 @@ export async function GET(
       publishedAt: article.publishedAt,
       reviewModel: article.reviewModel,
     },
-    reviews: reviews.map((r) => ({
+    reviews: visible.map((r, i) => ({
       id: r.id,
       completedAt: r.completedAt,
       recommendation: r.recommendation,
@@ -101,13 +106,15 @@ export async function GET(
       conflictOfInterest: r.conflictOfInterest,
       commentsToAuthor: r.commentsToAuthor,
       // NOTE: commentsToEditor is intentionally omitted — editorial-only.
-      reviewer: {
-        fullName: r.reviewer.fullName,
-        affiliation: r.reviewer.affiliation,
-        orcid: r.reviewer.orcid,
-        expertise: r.reviewer.expertise,
-        country: r.reviewer.country,
-      },
+      reviewer: consent.anonymous.includes(r.id)
+        ? { fullName: `Reviewer ${i + 1}`, affiliation: null, orcid: null, expertise: null, country: null }
+        : {
+            fullName: r.reviewer.fullName,
+            affiliation: r.reviewer.affiliation,
+            orcid: r.reviewer.orcid,
+            expertise: r.reviewer.expertise,
+            country: r.reviewer.country,
+          },
     })),
   });
 }

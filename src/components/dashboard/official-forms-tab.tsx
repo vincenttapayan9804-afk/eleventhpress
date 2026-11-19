@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { CheckCircle2, FileSignature, Inbox, Loader2, XCircle, ExternalLink } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useApp } from "@/lib/store";
-import { OFFICIAL_FORMS, FORM_ROLE_LABEL, formPath } from "@/lib/forms";
+import { DECIDED_FORMS, OFFICIAL_FORMS, FORM_ROLE_LABEL, formPath } from "@/lib/forms";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -59,6 +59,14 @@ export function OfficialFormsTab() {
                 <span className="font-semibold">{f.code}</span> {f.title}
               </a>
             ))}
+          </div>
+          <p className="eyebrow mb-2 mt-4">Complaints, concerns and requests</p>
+          <div className="flex flex-wrap gap-2">
+            {OFFICIAL_FORMS.filter((f) => f.role === "public").map((f) => (
+              <a key={f.id} href={`${formPath(f)}#submit`} className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs hover:border-primary/50 hover:text-primary">
+                <span className="font-semibold">{f.code}</span> {f.title}
+              </a>
+            ))}
             <a href="/resources?tab=forms" className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-primary hover:underline">
               All forms <ExternalLink className="h-3 w-3" />
             </a>
@@ -74,8 +82,10 @@ export function OfficialFormsTab() {
               {pending.length > 0 && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">{pending.length}</span>}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Authorship change requests (EP-F-06) and appeals (EP-F-11). An appeal must be decided by an editor who was not
-              involved in the original decision.
+              Authorship changes (EP-F-06), appeals (EP-F-11), withdrawals (EP-F-17), complaints (EP-F-23), concerns about
+              articles (EP-F-24), correction requests (EP-F-25){user && ["SUPER_ADMIN", "TENANT_ADMIN"].includes(user.role) ? " and data privacy requests (EP-F-26)" : ""}. An appeal
+              is decided by an editor not involved in the original decision, and a complaint by someone other than the person it
+              names. Your explanation is sent to the sender.
             </p>
             {inbox === null ? (
               <Loader2 className="mt-4 h-4 w-4 animate-spin text-muted-foreground" />
@@ -127,17 +137,17 @@ export function OfficialFormsTab() {
 function PendingRequest({ r, onDecided }: { r: FormRecordRow; onDecided: () => void }) {
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState<"APPROVE" | "DECLINE" | null>(null);
-  const appeal = r.formId === "form-appeal";
+  const labels = DECIDED_FORMS[r.formId] ?? { approve: "Approve", decline: "Decline", approved: "Approved", declined: "Declined" };
 
   async function decide(decision: "APPROVE" | "DECLINE") {
     if (note.trim().length < 10) {
-      toast.error("Explain your decision to the author", { description: "At least a sentence; it is sent to them." });
+      toast.error("Explain your decision", { description: "At least a sentence; it is sent to the sender." });
       return;
     }
     setBusy(decision);
     try {
       await apiFetch(`/api/forms/records/${r.id}/decide`, { method: "POST", body: JSON.stringify({ decision, note }) });
-      toast.success(decision === "APPROVE" ? (appeal ? "Appeal granted: manuscript returned to the queue" : "Authorship change approved and applied") : appeal ? "Decision upheld" : "Request declined");
+      toast.success(decision === "APPROVE" ? labels.approved : labels.declined, { description: "The sender has been told the outcome." });
       onDecided();
     } catch (e: any) {
       toast.error(e.message);
@@ -151,15 +161,15 @@ function PendingRequest({ r, onDecided }: { r: FormRecordRow; onDecided: () => v
       <ul>
         <FormRecordItem r={r} showArticle />
       </ul>
-      <Textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Your decision and the reasons for it (sent to the author)…" />
+      <Textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Your decision and the reasons for it (sent to the sender)…" />
       <div className="flex flex-wrap justify-end gap-2">
         <Button size="sm" variant="outline" disabled={!!busy} onClick={() => decide("DECLINE")}>
           {busy === "DECLINE" ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <XCircle className="mr-1.5 h-3.5 w-3.5" />}
-          {appeal ? "Uphold the decision" : "Decline the change"}
+          {labels.decline}
         </Button>
         <Button size="sm" disabled={!!busy} onClick={() => decide("APPROVE")}>
           {busy === "APPROVE" ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />}
-          {appeal ? "Grant the appeal" : "Approve and apply"}
+          {labels.approve}
         </Button>
       </div>
     </li>

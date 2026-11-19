@@ -73,9 +73,13 @@ export type FormScope =
   /** By the editor, once per manuscript they handle. */
   | "editor-article"
   /** Once per person, before their first review or editorial decision. */
-  | "once";
+  | "once"
+  /** By anyone, signed in or not, from the form's public page (complaints, concerns, requests). */
+  | "public"
+  /** On the fillable PDF only, signed outside the platform and kept by the authors. */
+  | "offline";
 
-export type FormRole = "author" | "reviewer" | "editor";
+export type FormRole = "author" | "reviewer" | "editor" | "public";
 
 export interface OfficialFormDoc {
   id: string;
@@ -92,6 +96,8 @@ export interface OfficialFormDoc {
   /** Where in the platform it is completed, in one sentence. */
   where: string;
   scope: FormScope;
+  /** When this answer is given, the form is submitted anonymously and needs no signature. */
+  anonymousIf?: ShowIf;
   version: string;
   effective: string;
   nextReview: string;

@@ -291,11 +291,11 @@ export function ResourcesView() {
         {/* Official forms */}
         <TabsContent value="forms" className="mt-6 space-y-8">
           <p className="text-sm text-muted-foreground">
-            Official, versioned forms for authors, peer reviewers and editors, benchmarked against the same international
+            Official, versioned forms for authors, peer reviewers, editors and anyone with a complaint, concern or request, benchmarked against the same international
             standards as the guides. Each is completed on the platform at the right step and signed electronically; every
             form also has a branded, fillable PDF edition.
           </p>
-          {(["author", "reviewer", "editor"] as const).map((role) => (
+          {(["author", "reviewer", "editor", "public"] as const).map((role) => (
             <section key={role} aria-labelledby={`forms-${role}`}>
               <h2 id={`forms-${role}`} className="mb-3 flex items-center gap-2 border-b border-[var(--gold-500)]/60 pb-2 font-display text-lg font-semibold">
                 {FORM_ROLE_LABEL[role]}
@@ -337,11 +337,13 @@ export function ResourcesView() {
                             <FileDown className="mr-1.5 h-3.5 w-3.5" /> Fillable PDF
                           </a>
                         </Button>
-                        <Button size="sm" variant="ghost" asChild>
-                          <a href={formPlatformPath(f)}>
-                            <MonitorCheck className="mr-1.5 h-3.5 w-3.5" /> Complete on the platform
-                          </a>
-                        </Button>
+                        {f.scope !== "offline" && (
+                          <Button size="sm" variant="ghost" asChild>
+                            <a href={formPlatformPath(f)}>
+                              <MonitorCheck className="mr-1.5 h-3.5 w-3.5" /> {f.scope === "public" ? "Submit online" : "Complete on the platform"}
+                            </a>
+                          </Button>
+                        )}
                       </div>
                     </CardContent>
                   </Card>

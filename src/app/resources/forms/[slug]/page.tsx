@@ -7,6 +7,7 @@ import { getCurrentTenant } from "@/lib/tenant";
 import { brandCode, brandContactLine } from "@/lib/resources/tenant-brand";
 import { resourceBrandFor } from "@/lib/resources/tenant-brand-server";
 import { fmtLongDate, guideById, guidePath } from "@/lib/resources";
+import { PublicFormSubmit } from "@/components/forms/public-form-submit";
 import { FORM_ROLE_LABEL, formCitation, formPath, formPdfPath, formPlatformPath, getFormDoc } from "@/lib/forms";
 import { ResourcePageShell, BackToResources } from "@/components/resources/resource-page-shell";
 import { FaqBlock, NumberedList, OnThisPage } from "@/components/resources/content-blocks";
@@ -133,11 +134,13 @@ export default async function FormPage({ params }: { params: Promise<{ slug: str
           </dl>
 
           <div className="mt-7 flex flex-wrap gap-2.5">
-            <Button asChild className="bg-[#c9a55c] text-[#2a1458] hover:bg-[#d8b878]">
-              <a href={formPlatformPath(f)}>
-                <MonitorCheck className="mr-2 h-4 w-4" /> Complete on the platform
-              </a>
-            </Button>
+            {f.scope !== "offline" && (
+              <Button asChild className="bg-[#c9a55c] text-[#2a1458] hover:bg-[#d8b878]">
+                <a href={formPlatformPath(f)}>
+                  <MonitorCheck className="mr-2 h-4 w-4" /> {f.scope === "public" ? "Submit this form online" : "Complete on the platform"}
+                </a>
+              </Button>
+            )}
             <Button asChild variant="outline" className="border-white/40 bg-transparent text-white hover:bg-white/10 hover:text-white">
               <a href={formPdfPath(f)} download>
                 <FileDown className="mr-2 h-4 w-4" /> Download fillable PDF
@@ -175,9 +178,11 @@ export default async function FormPage({ params }: { params: Promise<{ slug: str
                 <NumberedList items={f.instructions} label="Instructions" />
               </div>
               <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
-                Completing the form on the platform is the official route: your answers are checked, signed and stored with
-                the manuscript, and you can download a signed copy at any time. The PDF is fillable in Adobe Acrobat
-                Reader, Apple Preview and modern browsers, and can also be printed and signed by hand.
+                {f.scope === "offline"
+                  ? "This form is completed on the fillable PDF and signed by hand or electronically by the person concerned. The authors keep the signed copy; it is not uploaded with the manuscript. The PDF is fillable in Adobe Acrobat Reader, Apple Preview and modern browsers."
+                  : f.scope === "public"
+                    ? "Submitting the form online below is the quickest route: your answers are checked and sent straight to the editors, and you receive a reference number. You can also email the completed PDF to the editorial office."
+                    : "Completing the form on the platform is the official route: your answers are checked, signed and stored with the manuscript, and you can download a signed copy at any time. The PDF is fillable in Adobe Acrobat Reader, Apple Preview and modern browsers, and can also be printed and signed by hand."}
               </p>
             </section>
 
@@ -196,6 +201,12 @@ export default async function FormPage({ params }: { params: Promise<{ slug: str
                 </div>
               </div>
             </section>
+
+            {f.scope === "public" && (
+              <section id="submit" className="scroll-mt-24">
+                <PublicFormSubmit formId={f.id} />
+              </section>
+            )}
 
             <section id="next" className="scroll-mt-24">
               <h2 className="flex items-center gap-2 font-display text-2xl font-semibold">

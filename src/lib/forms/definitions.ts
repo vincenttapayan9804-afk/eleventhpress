@@ -1,5 +1,5 @@
 /**
- * The Official Forms, EP-F-01 to EP-F-11: the forms every author, peer
+ * The Official Forms, EP-F-01 to EP-F-26: the forms every author, peer
  * reviewer and editor completes, benchmarked against the same standards as
  * the official guides (src/lib/resources/guide-docs.ts) and worded to match
  * their policies. See ./types.ts for how one definition becomes the web
@@ -118,6 +118,66 @@ const S = {
     issuer: "Committee on Publication Ethics",
     edition: "2011",
     url: "https://publicationethics.org/files/Code_of_conduct_for_journal_editors_Mar11.pdf",
+  },
+  equator: {
+    name: "EQUATOR Network reporting guidelines",
+    issuer: "EQUATOR Network",
+    edition: "Current library",
+    url: "https://www.equator-network.org/reporting-guidelines/",
+  },
+  consort: {
+    name: "CONSORT Statement",
+    issuer: "CONSORT Group",
+    edition: "CONSORT 2025",
+    url: "https://www.consort-spirit.org/",
+  },
+  prisma: {
+    name: "PRISMA Statement",
+    issuer: "PRISMA Group",
+    edition: "PRISMA 2020",
+    url: "https://www.prisma-statement.org/",
+  },
+  stm: {
+    name: "STM Permissions Guidelines",
+    issuer: "International Association of STM Publishers",
+    edition: "Current edition",
+    url: "https://www.stm-assoc.org/intellectual-property/permissions/permissions-guidelines/",
+  },
+  crossmark: {
+    name: "Crossmark",
+    issuer: "Crossref",
+    edition: "Current",
+    url: "https://www.crossref.org/services/crossmark/",
+  },
+  copeRetraction: {
+    name: "COPE Retraction Guidelines",
+    issuer: "Committee on Publication Ethics",
+    edition: "Version 2 (2019)",
+    url: "https://publicationethics.org/guidance/guideline/retraction-guidelines",
+  },
+  copeFlowcharts: {
+    name: "COPE Flowcharts",
+    issuer: "Committee on Publication Ethics",
+    edition: "Current",
+    url: "https://publicationethics.org/guidance/Flowcharts",
+  },
+  doaj: {
+    name: "DOAJ Guide to Applying",
+    issuer: "Directory of Open Access Journals",
+    edition: "Current",
+    url: "https://doaj.org/apply/guide/",
+  },
+  planS: {
+    name: "Plan S Principles and Implementation",
+    issuer: "cOAlition S",
+    edition: "Current",
+    url: "https://www.coalition-s.org/addendum-to-the-coalition-s-guidance-on-the-implementation-of-plan-s/principles-and-implementation/",
+  },
+  npc: {
+    name: "NPC Circulars on data subject rights",
+    issuer: "National Privacy Commission, Philippines",
+    edition: "Current",
+    url: "https://privacy.gov.ph/circulars/",
   },
 } satisfies Record<string, Omit<BenchmarkStandard, "application">>;
 
@@ -471,7 +531,7 @@ export const OFFICIAL_FORMS: OfficialFormDoc[] = [
             showIf: { field: "involves", in: ["humans", "personalData"] },
             options: opts(["no", "No"], ["yes", "Yes"]),
           },
-          attest("publicationConsent", "Written consent for publication has been obtained from every identifiable individual (or their parent, guardian or next of kin) and can be provided to the editor on request.", {
+          attest("publicationConsent", "Written consent for publication has been obtained from every identifiable individual (or their parent, guardian or next of kin), using the Participant Consent for Publication form (EP-F-12) or an equivalent, and can be provided to the editor on request.", {
             showIf: { field: "identifiable", in: ["yes"] },
           }),
           attest("privacy", "Personal data were collected, stored and processed lawfully, in line with the Data Privacy Act of 2012 or the equivalent law where the research took place.", {
@@ -1241,13 +1301,1361 @@ export const OFFICIAL_FORMS: OfficialFormDoc[] = [
     keywords: ["appeal editorial decision", "journal appeal process", "reconsideration of rejection", "COPE appeals"],
     metaDescription: "Official Eleventh Press Appeal of an Editorial Decision (EP-F-11): grounds, point-by-point case and outcome sought, considered once by an editor not involved in the decision.",
   },
+
+  // ── EP-F-12 ─────────────────────────────────────────────────────────
+  {
+    id: "form-publication-consent",
+    slug: "participant-consent-for-publication",
+    code: "EP-F-12",
+    title: "Participant Consent for Publication",
+    role: "author",
+    audience: "Research participants, patients and other identifiable individuals (completed with the authors)",
+    summary: "The consent of a person who can be identified in a manuscript (in a photograph, video, case description, quotation or other detail) to that information being published open access, under CC BY 4.0, and indexed worldwide.",
+    purpose: "To give the authors written, informed and specific consent from each identifiable individual before their information is published, as ICMJE and the Data Privacy Act of 2012 require. Research consent is not consent for publication.",
+    when: "Signed by each identifiable individual (or their parent, guardian or legal representative) before the manuscript is submitted.",
+    where: "Download the fillable PDF and complete it with the individual. The authors keep the signed form and confirm it in EP-F-03; the editor may ask to see it.",
+    scope: "offline",
+    version: VERSION,
+    effective: FORMS_EFFECTIVE,
+    nextReview: NEXT_REVIEW,
+    benchmarks: ["ICMJE Recommendations", "COPE Core Practices", "Data Privacy Act of 2012", "Declaration of Helsinki (2024)"],
+    standards: [
+      std("icmje", "Written informed consent for publication from any patient or participant who could be identified, after they have seen the manuscript."),
+      std("dpa", "Consent to the processing and publication of personal and sensitive personal information must be freely given, specific and informed."),
+      std("helsinki", "Respect for the privacy and dignity of research participants."),
+      std("cope", "Core practice on ethical oversight, including consent for publication."),
+    ],
+    instructions: [
+      "Use one form for each identifiable individual. A parent or guardian signs for a child; a legal representative signs for a person who cannot consent.",
+      "Show the individual the material that will be published (the image, the case description or the quotation) and the whole manuscript if they ask.",
+      "Explain that the article will be open access and free for anyone to read, copy and reuse, and that once published it cannot be fully withdrawn.",
+      "Keep the signed form securely for at least as long as the article is published. Do not upload it with the manuscript: confirm in EP-F-03 that you hold it.",
+      "Removing names does not make a person unidentifiable if a relative, colleague or community member could still recognise them.",
+    ],
+    sections: [
+      {
+        heading: "The manuscript",
+        fields: [
+          { id: "manuscriptTitle", type: "text", label: "Title of the manuscript", required: true },
+          { id: "authorName", type: "text", label: "Name of the author obtaining consent", required: true },
+          { id: "authorEmail", type: "email", label: "Author's email address", required: true },
+        ],
+      },
+      {
+        heading: "The person who can be identified",
+        fields: [
+          { id: "subjectName", type: "text", label: "Full name of the person who can be identified", required: true },
+          {
+            id: "signer",
+            type: "radio",
+            label: "Who is signing this form?",
+            required: true,
+            options: opts(
+              ["self", "The person themselves"],
+              ["parent", "A parent or guardian (the person is a minor)"],
+              ["representative", "A legal representative or next of kin (the person cannot consent or has died)"]
+            ),
+          },
+          { id: "relationship", type: "text", label: "Relationship to the person, and why they cannot sign", required: true, showIf: { field: "signer", in: ["parent", "representative"] } },
+          {
+            id: "material",
+            type: "checkboxes",
+            label: "Material about the person that will be published (tick all that apply)",
+            required: true,
+            options: opts(
+              ["photo", "Photographs or video"],
+              ["clinical", "Clinical images, scans or test results"],
+              ["case", "A case description or personal history"],
+              ["quotes", "Quotations or interview extracts"],
+              ["other", "Other information that could identify them"]
+            ),
+          },
+          { id: "materialDetails", type: "textarea", label: "Describe the material (figure numbers, page or section)", required: true },
+        ],
+      },
+      {
+        heading: "Consent",
+        intro: "The person (or the person signing for them) confirms each statement.",
+        fields: [
+          attest("seen", "I have seen the material about me (or the person I sign for) that will be published, and I have been offered the whole manuscript to read."),
+          attest("openAccess", "I understand that the article will be published open access under a Creative Commons Attribution licence (CC BY 4.0): anyone, anywhere, may read, copy, translate and reuse it, and it will be indexed by search engines and databases."),
+          attest("identifiable", "I understand that, although names are removed, someone who knows me may be able to recognise me."),
+          attest("permanent", "I understand that I can withdraw this consent before publication, but that once the article is published it cannot be fully removed from the record."),
+          attest("noEffect", "I understand that refusing or withdrawing consent will not affect my care, treatment or any other service I receive."),
+          attest("voluntary", "I give this consent freely, and I have had the chance to ask questions."),
+        ],
+      },
+      {
+        heading: "Signatures",
+        fields: [
+          { id: "subjectSignedDate", type: "date", label: "Date signed by the person (or their representative)", required: true },
+          { id: "witness", type: "text", label: "Name of the author or witness present (optional)" },
+        ],
+      },
+    ],
+    signatureStatement: "I, the person named above (or their parent, guardian or representative), give my consent to the publication of the material described in this form.",
+    afterSubmission: [
+      "The authors keep the signed form securely; it is not uploaded with the manuscript.",
+      "The corresponding author confirms in EP-F-03 that consent for publication has been obtained from every identifiable individual.",
+      "The editor may ask to see the form, in confidence, at any stage.",
+    ],
+    faqs: [
+      { q: "Does research consent cover publication?", a: "No. Consent to take part in research is not consent to have identifiable information published. Use this form in addition to the study's own consent forms." },
+      { q: "The person has died. Who signs?", a: "Their next of kin or legal representative. If no one can be found, contact the editorial office before you submit." },
+      { q: "Can I just blur the eyes in a photograph?", a: "No. Masking eyes does not make a person unidentifiable. Obtain consent, or remove the image." },
+    ],
+    relatedGuides: ["guide-publication-ethics", "guide-author-submission"],
+    keywords: ["consent for publication", "patient consent form", "identifiable image consent", "case report consent", "ICMJE consent"],
+    metaDescription: "Official Eleventh Press Participant Consent for Publication (EP-F-12): written consent from each identifiable person before their image, case details or quotations are published open access.",
+  },
+
+  // ── EP-F-13 ─────────────────────────────────────────────────────────
+  {
+    id: "form-reporting-guideline",
+    slug: "reporting-guideline-checklist-declaration",
+    code: "EP-F-13",
+    title: "Reporting Guideline Checklist Declaration",
+    role: "author",
+    audience: "Corresponding authors of research manuscripts",
+    summary: "The EQUATOR reporting guideline the manuscript follows (CONSORT, PRISMA, STROBE, ARRIVE, COREQ and others), confirmation that its completed checklist is uploaded, or why no guideline applies.",
+    purpose: "To make sure studies are reported completely and transparently, so that reviewers and readers can judge their methods and reproduce them.",
+    when: "Completed once for every new manuscript, at submission.",
+    where: "Dashboard → Submit a manuscript → step 4, Official declarations.",
+    scope: "submission",
+    version: VERSION,
+    effective: FORMS_EFFECTIVE,
+    nextReview: NEXT_REVIEW,
+    benchmarks: ["EQUATOR Network", "CONSORT 2025", "PRISMA 2020", "STROBE", "ARRIVE 2.0", "ICMJE Recommendations"],
+    standards: [
+      std("equator", "The library of reporting guidelines by study design, and the expectation that journals ask for the relevant checklist."),
+      std("consort", "Reporting of randomised trials, with the participant flow diagram."),
+      std("prisma", "Reporting of systematic reviews and meta-analyses, with the flow diagram and protocol registration."),
+      std("arrive", "Reporting of research involving animals."),
+      std("icmje", "Journals encourage authors to follow the reporting guideline for their study design."),
+    ],
+    instructions: [
+      "Find the guideline for your study design on the EQUATOR Network website. If several apply, choose the main design and mention the others.",
+      "Complete the guideline's checklist, giving the page or section where each item is reported, and upload it as a supplementary file.",
+      "Upload the flow diagram the guideline asks for (CONSORT, PRISMA, STARD) as a figure.",
+      "If an item is not reported, say why in the checklist.",
+    ],
+    sections: [
+      {
+        heading: "Study design and guideline",
+        fields: [
+          {
+            id: "guideline",
+            type: "radio",
+            label: "Which reporting guideline does the manuscript follow?",
+            required: true,
+            options: opts(
+              ["consort", "CONSORT: randomised trial"],
+              ["spirit", "SPIRIT: trial protocol"],
+              ["prisma", "PRISMA: systematic review or meta-analysis"],
+              ["strobe", "STROBE: observational study (cohort, case-control, cross-sectional)"],
+              ["stard", "STARD: diagnostic accuracy study"],
+              ["tripod", "TRIPOD: prediction model"],
+              ["care", "CARE: case report"],
+              ["arrive", "ARRIVE 2.0: animal research"],
+              ["coreq", "COREQ or SRQR: qualitative research"],
+              ["cheers", "CHEERS: economic evaluation"],
+              ["squire", "SQUIRE: quality improvement"],
+              ["other", "Another EQUATOR guideline"],
+              ["none", "No reporting guideline applies to this manuscript"]
+            ),
+          },
+          { id: "otherGuideline", type: "text", label: "Name of the guideline", required: true, showIf: { field: "guideline", in: ["other"] } },
+          {
+            id: "noneReason",
+            type: "radio",
+            label: "Why no guideline applies",
+            required: true,
+            showIf: { field: "guideline", in: ["none"] },
+            options: opts(
+              ["theory", "Theoretical, conceptual or mathematical work"],
+              ["humanities", "Humanities or legal scholarship without an empirical study design"],
+              ["methods", "Software, a method or a dataset description with no study of participants"],
+              ["review", "A narrative review, commentary or perspective"],
+              ["other", "Other (explain below)"]
+            ),
+          },
+          { id: "noneDetails", type: "textarea", label: "Explanation", required: true, showIf: { field: "noneReason", in: ["other"] } },
+        ],
+      },
+      {
+        heading: "Checklist and registration",
+        fields: [
+          attest("checklistUploaded", "The completed checklist, with the page or section for every item, is uploaded as a supplementary file.", {
+            showIf: { field: "guideline", in: ["consort", "spirit", "prisma", "strobe", "stard", "tripod", "care", "arrive", "coreq", "cheers", "squire", "other"] },
+          }),
+          attest("flowDiagram", "The flow diagram the guideline requires is included as a figure.", { showIf: { field: "guideline", in: ["consort", "prisma", "stard"] } }),
+          {
+            id: "registration",
+            type: "text",
+            label: "Trial or review registration number and registry (e.g. ClinicalTrials.gov, PROSPERO, OSF)",
+            help: "Trials must be registered before the first participant is enrolled (ICMJE). Write “Not registered” and explain in the manuscript if a review was not registered.",
+            required: true,
+            showIf: { field: "guideline", in: ["consort", "spirit", "prisma"] },
+          },
+          {
+            id: "dataSharing",
+            type: "textarea",
+            label: "Data-sharing plan for the trial",
+            help: "ICMJE requires a data-sharing statement for clinical trials.",
+            required: true,
+            showIf: { field: "guideline", in: ["consort"] },
+          },
+        ],
+      },
+    ],
+    signatureStatement: "I declare, on behalf of all authors, that the manuscript is reported as stated in this form.",
+    afterSubmission: [
+      "The editor checks the checklist during initial screening (EP-F-20).",
+      "Reviewers are asked to assess the manuscript against the guideline you named (EP-F-18).",
+      "A missing or incomplete checklist is returned to you before peer review.",
+    ],
+    faqs: [
+      { q: "My study design isn't on the list.", a: "Choose “Another EQUATOR guideline” and name it. The EQUATOR library holds over 600 guidelines; if none fits, choose “No reporting guideline applies” and explain." },
+      { q: "Do I have to report every checklist item?", a: "Report every item that applies. Where an item is not reported, say why in the checklist rather than leaving it blank." },
+    ],
+    relatedGuides: ["guide-author-submission", "guide-reviewer-handbook", "guide-data-code-availability"],
+    keywords: ["reporting guideline checklist", "EQUATOR network", "CONSORT checklist", "PRISMA checklist", "STROBE", "ARRIVE"],
+    metaDescription: "Official Eleventh Press Reporting Guideline Checklist Declaration (EP-F-13): the EQUATOR guideline a manuscript follows, its uploaded checklist, flow diagram and registration.",
+  },
+
+  // ── EP-F-14 ─────────────────────────────────────────────────────────
+  {
+    id: "form-third-party-permissions",
+    slug: "third-party-material-permissions-declaration",
+    code: "EP-F-14",
+    title: "Third-Party Material Permissions Declaration",
+    role: "author",
+    audience: "Corresponding authors",
+    summary: "Every figure, table, image, map, long quotation or other material in the manuscript that the authors did not create, its source, and the permission or licence that allows it to be published open access under CC BY 4.0.",
+    purpose: "To make sure the article can lawfully be published and reused under CC BY 4.0, and that material owned by others is clearly marked so that readers know it is not covered by the article's licence.",
+    when: "Completed once for every new manuscript, at submission.",
+    where: "Dashboard → Submit a manuscript → step 4, Official declarations.",
+    scope: "submission",
+    version: VERSION,
+    effective: FORMS_EFFECTIVE,
+    nextReview: NEXT_REVIEW,
+    benchmarks: ["CC BY 4.0", "STM Permissions Guidelines", "COPE Core Practices"],
+    standards: [
+      std("ccby", "What the article licence allows readers to do, and how third-party material is excluded from it."),
+      std("stm", "How publishers grant and request permission to reuse figures and text extracts."),
+      std("cope", "Core practice on intellectual property: attribution and permission for reused material."),
+    ],
+    instructions: [
+      "List every item you did not create yourselves, including figures you redrew or adapted from someone else's.",
+      "Permission must cover open-access publication and reuse under CC BY 4.0. Permission for print or subscription use only is not enough.",
+      "Material that is already under CC BY, CC0 or in the public domain needs no permission, but must still be credited.",
+      "Keep the permission letters or emails. The editor may ask to see them.",
+      "If you cannot get permission, replace the item or describe it in the text with a citation.",
+    ],
+    sections: [
+      {
+        heading: "Third-party material",
+        fields: [
+          {
+            id: "contains",
+            type: "radio",
+            label: "Does the manuscript include material the authors did not create?",
+            required: true,
+            options: opts(
+              ["none", "No. All figures, tables, images and text are the authors' own"],
+              ["open", "Yes, but all of it is under CC BY, CC0 or in the public domain"],
+              ["permission", "Yes, including material that needs the owner's permission"]
+            ),
+          },
+          {
+            id: "items",
+            type: "textarea",
+            label: "Each item, its source and its licence or permission",
+            help: "One per line, e.g. “Figure 2: reproduced from Santos et al. (2021), Journal X, © Publisher Y; permission granted 3 March 2026 for open-access reuse.”",
+            required: true,
+            maxLength: 8000,
+            showIf: { field: "contains", in: ["open", "permission"] },
+          },
+          attest("permissionHeld", "Written permission is held for every item that needs it, and it covers open-access publication under CC BY 4.0, in all formats and media, worldwide.", { showIf: { field: "contains", in: ["permission"] } }),
+          attest("credited", "Every item is credited in its legend or the text, and material not covered by CC BY 4.0 is marked as such (e.g. “© Owner, reproduced with permission; not covered by the article licence”).", {
+            showIf: { field: "contains", in: ["open", "permission"] },
+          }),
+        ],
+      },
+      {
+        heading: "Authors' own earlier work",
+        fields: [
+          {
+            id: "ownPublished",
+            type: "radio",
+            label: "Does the manuscript reuse figures or text the authors published before?",
+            required: true,
+            options: opts(["no", "No"], ["yes", "Yes"]),
+          },
+          attest("ownPermission", "Where the earlier publisher holds copyright, its permission has been obtained, and the earlier publication is cited.", { showIf: { field: "ownPublished", in: ["yes"] } }),
+        ],
+      },
+    ],
+    signatureStatement: "I declare, on behalf of all authors, that this account of third-party material is complete and true.",
+    afterSubmission: [
+      "The editor checks the list during initial screening. Missing permissions are queried before peer review.",
+      "At production, credits and licence notices for third-party items are typeset as given in the legends.",
+      "If a permission problem is found after publication, the item is removed or replaced and a correction is published.",
+    ],
+    faqs: [
+      { q: "I redrew a figure from another paper. Do I need permission?", a: "Usually, yes. An adaptation that keeps the original's creative content is still a derivative work. Cite it as “adapted from” and obtain permission unless the source is openly licensed." },
+      { q: "The publisher only allows reuse in subscription journals.", a: "That permission is not enough for an open-access article. Ask for open-access reuse, replace the figure, or cite it in the text instead." },
+    ],
+    relatedGuides: ["guide-author-submission", "guide-publication-ethics", "guide-formatting-citation"],
+    keywords: ["copyright permission figure", "third-party material", "reuse permission CC BY", "permission to reproduce figure"],
+    metaDescription: "Official Eleventh Press Third-Party Material Permissions Declaration (EP-F-14): reused figures, tables and quotations, their sources and the permissions needed for CC BY 4.0 publication.",
+  },
+
+  // ── EP-F-15 ─────────────────────────────────────────────────────────
+  {
+    id: "form-reviewer-suggestions",
+    slug: "suggested-and-opposed-reviewers",
+    code: "EP-F-15",
+    title: "Suggested & Opposed Reviewers",
+    role: "author",
+    audience: "Corresponding authors (optional suggestions)",
+    summary: "Optional suggestions of independent experts who could review the manuscript, and people the authors ask not to be invited, with reasons. The editor is not bound by either.",
+    purpose: "To help editors find qualified reviewers, and to let authors flag people with a conflict of interest, without compromising the independence of peer review.",
+    when: "Completed once for every new manuscript, at submission. Suggestions are optional; the form records that none were made.",
+    where: "Dashboard → Submit a manuscript → step 4, Official declarations.",
+    scope: "submission",
+    version: VERSION,
+    effective: FORMS_EFFECTIVE,
+    nextReview: NEXT_REVIEW,
+    benchmarks: ["COPE Core Practices", "COPE Ethical Guidelines for Peer Reviewers", "ICMJE Recommendations"],
+    standards: [
+      std("cope", "Core practice on peer review processes, including the risk of manipulated reviews from author-suggested reviewers."),
+      std("copeReviewers", "Reviewers with competing interests should not review."),
+      std("icmje", "Authors may suggest or ask to exclude reviewers; editors decide."),
+    ],
+    instructions: [
+      "Suggest only independent experts: not co-authors or collaborators from the last three years, not colleagues at your institution, and not people you supervise or who supervised you.",
+      "Give an institutional email address that the editor can check. Editors verify every suggested reviewer independently.",
+      "You may ask that up to three people are not invited, with a reason the editor can weigh.",
+      "Never suggest yourself or a co-author under another name. Fabricated reviewer identities lead to rejection or retraction.",
+    ],
+    sections: [
+      {
+        heading: "Suggested reviewers",
+        fields: [
+          {
+            id: "suggest",
+            type: "radio",
+            label: "Would you like to suggest reviewers?",
+            required: true,
+            options: opts(["no", "No, I leave the choice to the editor"], ["yes", "Yes"]),
+          },
+          {
+            id: "suggested",
+            type: "textarea",
+            label: "Suggested reviewers",
+            help: "One per line: name, position and institution, institutional email, and their relevant expertise.",
+            required: true,
+            maxLength: 4000,
+            showIf: { field: "suggest", in: ["yes"] },
+          },
+          attest("independent", "None of the suggested reviewers has co-authored, collaborated or shared an institution with any author in the last three years, or has any other conflict of interest that I know of.", { showIf: { field: "suggest", in: ["yes"] } }),
+        ],
+      },
+      {
+        heading: "Opposed reviewers",
+        fields: [
+          {
+            id: "oppose",
+            type: "radio",
+            label: "Is there anyone you ask the editor not to invite?",
+            required: true,
+            options: opts(["no", "No"], ["yes", "Yes"]),
+          },
+          {
+            id: "opposed",
+            type: "textarea",
+            label: "People not to invite, and why",
+            help: "Up to three, one per line: name, institution, email if known, and the reason (for example, a documented dispute or a directly competing project).",
+            required: true,
+            maxLength: 3000,
+            showIf: { field: "oppose", in: ["yes"] },
+          },
+        ],
+      },
+      {
+        heading: "Acknowledgement",
+        fields: [attest("editorDecides", "I understand that the editor chooses the reviewers, may or may not invite anyone suggested, and will usually respect a reasoned request not to invite someone.")],
+      },
+    ],
+    signatureStatement: "I declare that the information in this form is accurate and given in good faith.",
+    afterSubmission: [
+      "Your suggestions are seen only by the editors. They are never shown to reviewers.",
+      "The editor checks each suggested reviewer's identity and independence before inviting anyone.",
+      "When an editor invites someone you asked not to be invited, the platform warns them first.",
+    ],
+    faqs: [
+      { q: "Must I suggest reviewers?", a: "No. Suggestions are optional. Answer “No” and the editor finds reviewers independently." },
+      { q: "Will the people I oppose find out?", a: "No. The form is confidential to the editors." },
+    ],
+    relatedGuides: ["guide-author-submission", "guide-reviewer-handbook", "guide-publication-ethics"],
+    keywords: ["suggest reviewers", "opposed reviewers", "exclude reviewers", "reviewer suggestions journal"],
+    metaDescription: "Official Eleventh Press Suggested & Opposed Reviewers form (EP-F-15): optional, independent reviewer suggestions and reasoned requests not to invite someone.",
+  },
+
+  // ── EP-F-16 ─────────────────────────────────────────────────────────
+  {
+    id: "form-proof-approval",
+    slug: "proof-approval-and-sign-off",
+    code: "EP-F-16",
+    title: "Proof Approval & Sign-off",
+    role: "author",
+    audience: "Corresponding authors, on behalf of all authors",
+    summary: "The corresponding author's approval of the typeset proof for publication, or a list of corrections limited to errors introduced in typesetting and essential factual errors.",
+    purpose: "To record that the authors checked the final version before it receives its DOI and becomes the version of record, and to keep late changes to what is essential.",
+    when: "Completed when the accepted article is in production and its proof is ready, normally within 48 hours.",
+    where: "Dashboard → My Articles → the accepted article → Official forms → Approve proof.",
+    scope: "article-request",
+    version: VERSION,
+    effective: FORMS_EFFECTIVE,
+    nextReview: NEXT_REVIEW,
+    benchmarks: ["ICMJE Recommendations", "Crossref", "COPE Core Practices"],
+    standards: [
+      std("icmje", "All authors approve the final version to be published."),
+      std("crossmark", "Once published, the version of record changes only through a correction notice."),
+      std("cope", "Core practice on post-publication discussions and corrections."),
+    ],
+    instructions: [
+      "Read the whole proof, including author names, affiliations, ORCID iDs, funding, figures, tables, equations and references.",
+      "Correct only typesetting errors and essential factual errors. New results, new text or new references are not accepted at proof stage.",
+      "Give each correction with its page and line, and the exact replacement text.",
+      "Confirm that every co-author has seen the proof or agreed that you approve it for them.",
+    ],
+    sections: [
+      {
+        heading: "Your decision",
+        fields: [
+          {
+            id: "decision",
+            type: "radio",
+            label: "The proof is",
+            required: true,
+            options: opts(["approved", "Approved for publication as it stands"], ["corrections", "Approved subject to the corrections listed below"]),
+          },
+          {
+            id: "corrections",
+            type: "textarea",
+            label: "Corrections",
+            help: "One per line: page, line or figure, the error, and the exact correction.",
+            required: true,
+            maxLength: 8000,
+            showIf: { field: "decision", in: ["corrections"] },
+          },
+        ],
+      },
+      {
+        heading: "Checks",
+        fields: [
+          attest("names", "Every author's name, affiliation, ORCID iD and contributor roles are correct, and the corresponding author is right."),
+          attest("funding", "The funding, competing interests, ethics, data availability and AI-use statements are correct and complete."),
+          attest("figures", "Figures, tables, equations and their legends are complete and correct."),
+          attest("coauthors", "Every co-author has seen the proof or has authorised me to approve it on their behalf."),
+          attest("final", "I understand that after publication the article can be changed only through a published correction."),
+        ],
+      },
+    ],
+    signatureStatement: "I approve this proof for publication on behalf of all authors.",
+    afterSubmission: [
+      "Approved: the production editor schedules publication.",
+      "With corrections: the production editor makes the corrections and may send a revised proof.",
+      "The signed approval is kept with the article.",
+    ],
+    faqs: [
+      { q: "Can I add a reference I missed?", a: "Not at proof stage, unless it corrects an error of fact or attribution. Explain why in the corrections box and the editor will decide." },
+      { q: "A co-author's name is misspelled in the proof.", a: "List it as a correction. Names are always corrected." },
+    ],
+    relatedGuides: ["guide-formatting-citation", "guide-corrections-retractions"],
+    keywords: ["proof approval", "author proof sign-off", "galley proof corrections", "approve proof journal"],
+    metaDescription: "Official Eleventh Press Proof Approval & Sign-off (EP-F-16): approval of the typeset proof, or essential corrections, before the version of record is published.",
+  },
+
+  // ── EP-F-17 ─────────────────────────────────────────────────────────
+  {
+    id: "form-withdrawal",
+    slug: "manuscript-withdrawal-request",
+    code: "EP-F-17",
+    title: "Manuscript Withdrawal Request",
+    role: "author",
+    audience: "Corresponding authors, with the agreement of all authors",
+    summary: "A request to withdraw a manuscript before publication, the reason for it, and confirmation that every author agrees. A published article cannot be withdrawn; it can only be corrected or retracted.",
+    purpose: "To make sure a manuscript is withdrawn only with the agreement of all authors, for a stated reason, and that the editorial record shows why.",
+    when: "Submitted at any time before publication.",
+    where: "Dashboard → My Articles → the manuscript → Official forms → Request withdrawal.",
+    scope: "article-request",
+    version: VERSION,
+    effective: FORMS_EFFECTIVE,
+    nextReview: NEXT_REVIEW,
+    benchmarks: ["COPE Core Practices", "COPE Retraction Guidelines", "ICMJE Recommendations"],
+    standards: [
+      std("cope", "Core practice on authorship disputes and on handling allegations; withdrawal must not be used to escape an investigation."),
+      std("copeRetraction", "After publication, an article is retracted, not withdrawn, with a public notice."),
+      std("icmje", "All authors share responsibility for the submission, including a decision to withdraw it."),
+    ],
+    instructions: [
+      "Confirm with every co-author that they agree to the withdrawal.",
+      "Give the real reason. If an error has been found, say what it is; the editor may need to know for other manuscripts.",
+      "A manuscript under investigation for misconduct cannot be withdrawn until the investigation is closed.",
+      "Do not submit the manuscript elsewhere until the editor confirms the withdrawal.",
+    ],
+    sections: [
+      {
+        heading: "Reason for withdrawal",
+        fields: [
+          {
+            id: "reason",
+            type: "radio",
+            label: "Main reason",
+            required: true,
+            options: opts(
+              ["error", "We found an error that affects the results or conclusions"],
+              ["data", "Problems with the data, its ownership or its permissions"],
+              ["authorship", "A dispute or change among the authors"],
+              ["elsewhere", "We wish to submit to another journal"],
+              ["time", "The review is taking longer than we can wait"],
+              ["other", "Another reason"]
+            ),
+          },
+          { id: "explanation", type: "textarea", label: "Explanation", help: "What happened and why the manuscript should be withdrawn.", required: true, maxLength: 4000 },
+        ],
+      },
+      {
+        heading: "Declarations",
+        fields: [
+          attest("allAgree", "Every author has been told of this request and agrees to the withdrawal."),
+          attest("notPublished", "I understand that a published article cannot be withdrawn, and that this request applies only to a manuscript before publication."),
+          attest("investigation", "I understand that a manuscript subject to an integrity concern cannot be withdrawn until the concern has been resolved."),
+          attest("waitConfirmation", "We will not submit the manuscript elsewhere until the editor has confirmed the withdrawal."),
+        ],
+      },
+    ],
+    signatureStatement: "I request the withdrawal of this manuscript on behalf of all authors, and declare that the information above is true.",
+    afterSubmission: [
+      "The editors are notified and decide the request, normally within five working days.",
+      "Once approved, the manuscript is withdrawn, reviewers are released, and you are told in writing.",
+      "The withdrawal and its reason are kept in the editorial record, not published.",
+    ],
+    faqs: [
+      { q: "Can I withdraw after acceptance?", a: "Yes, until the article is published. After publication only a correction or a retraction is possible." },
+      { q: "Is there a fee for withdrawing?", a: "No. No fee is charged before acceptance, and none is charged for a withdrawal before publication." },
+    ],
+    relatedGuides: ["guide-publication-ethics", "guide-corrections-retractions", "guide-author-submission"],
+    keywords: ["withdraw manuscript", "manuscript withdrawal request", "withdraw submission journal"],
+    metaDescription: "Official Eleventh Press Manuscript Withdrawal Request (EP-F-17): withdrawal before publication, with the reason and the agreement of every author.",
+  },
+
+  // ── EP-F-18 ─────────────────────────────────────────────────────────
+  {
+    id: "form-reporting-assessment",
+    slug: "reporting-guideline-assessment-for-reviewers",
+    code: "EP-F-18",
+    title: "Reporting Guideline Assessment",
+    role: "reviewer",
+    audience: "Peer reviewers of manuscripts that follow an EQUATOR reporting guideline",
+    summary: "The reviewer's assessment of whether the manuscript reports the items its reporting guideline requires (methods, participants, outcomes, statistics, flow diagram, registration), alongside the review report.",
+    purpose: "To check, consistently, that research is reported completely enough to be assessed and reproduced, as the EQUATOR Network recommends.",
+    when: "Completed with the review report, for manuscripts whose authors declared a reporting guideline in EP-F-13.",
+    where: "Asked for automatically when the reviewer submits the report.",
+    scope: "review",
+    version: VERSION,
+    effective: FORMS_EFFECTIVE,
+    nextReview: NEXT_REVIEW,
+    benchmarks: ["EQUATOR Network", "CONSORT 2025", "PRISMA 2020", "COPE Ethical Guidelines for Peer Reviewers"],
+    standards: [
+      std("equator", "Reporting guidelines as a tool for peer review."),
+      std("consort", "Trial reporting items reviewers check, including the flow diagram and registration."),
+      std("prisma", "Review reporting items, including search, selection and risk of bias."),
+      std("copeReviewers", "Reviewers give an objective, constructive assessment of the work."),
+    ],
+    instructions: [
+      "Open the authors' completed checklist (in the supplementary files) beside the manuscript.",
+      "Check that the items are actually reported where the checklist says, not just ticked.",
+      "Rate each area, and list the items that are missing or inadequate. They are passed to the authors with your report.",
+    ],
+    sections: [
+      {
+        heading: "The guideline",
+        fields: [
+          {
+            id: "checklistPresent",
+            type: "radio",
+            label: "Is the authors' completed checklist available?",
+            required: true,
+            options: opts(["yes", "Yes, and it gives page or section references"], ["partial", "Yes, but incomplete or without references"], ["no", "No, it is missing"]),
+          },
+          {
+            id: "appropriate",
+            type: "radio",
+            label: "Is it the right guideline for the study design?",
+            required: true,
+            options: opts(["yes", "Yes"], ["no", "No (say which one applies below)"], ["unsure", "Not sure"]),
+          },
+        ],
+      },
+      {
+        heading: "Assessment",
+        intro: "Rate how completely each area is reported.",
+        fields: [
+          { id: "design", type: "radio", label: "Study design, setting and participants or sample", required: true, options: opts(["full", "Fully reported"], ["partial", "Partly reported"], ["missing", "Not reported"], ["na", "Not applicable"]) },
+          { id: "methods", type: "radio", label: "Interventions, exposures, measures and procedures, in enough detail to replicate", required: true, options: opts(["full", "Fully reported"], ["partial", "Partly reported"], ["missing", "Not reported"], ["na", "Not applicable"]) },
+          { id: "analysis", type: "radio", label: "Sample size, statistical or analytic methods, and handling of missing data", required: true, options: opts(["full", "Fully reported"], ["partial", "Partly reported"], ["missing", "Not reported"], ["na", "Not applicable"]) },
+          { id: "results", type: "radio", label: "Results for every pre-specified outcome, with effect sizes and precision", required: true, options: opts(["full", "Fully reported"], ["partial", "Partly reported"], ["missing", "Not reported"], ["na", "Not applicable"]) },
+          { id: "flow", type: "radio", label: "Flow diagram, registration and protocol", required: true, options: opts(["full", "Fully reported"], ["partial", "Partly reported"], ["missing", "Not reported"], ["na", "Not applicable"]) },
+          { id: "limitations", type: "radio", label: "Limitations, bias and generalisability", required: true, options: opts(["full", "Fully reported"], ["partial", "Partly reported"], ["missing", "Not reported"], ["na", "Not applicable"]) },
+          {
+            id: "missingItems",
+            type: "textarea",
+            label: "Missing or inadequate items",
+            help: "Name the checklist item and what is needed. Write “None” if reporting is complete.",
+            required: true,
+            maxLength: 6000,
+          },
+        ],
+      },
+    ],
+    signatureStatement: "I declare that this assessment is my own, made in confidence and in good faith.",
+    afterSubmission: [
+      "The assessment is attached to your report and seen by the editor.",
+      "Missing items are passed to the authors with the decision, so that they can be fixed in revision.",
+    ],
+    faqs: [
+      { q: "The authors chose the wrong guideline.", a: "Say so under “Is it the right guideline?” and name the right one in the missing-items box. Assess against the right one if you can." },
+      { q: "Does this replace my review report?", a: "No. It complements the report. Comment on the science, methods and conclusions in the report as usual." },
+    ],
+    relatedGuides: ["guide-reviewer-handbook", "guide-data-code-availability"],
+    keywords: ["reviewer checklist", "reporting guideline peer review", "CONSORT review", "EQUATOR reviewer"],
+    metaDescription: "Official Eleventh Press Reporting Guideline Assessment (EP-F-18): the reviewer's check that a manuscript reports what its EQUATOR guideline requires.",
+  },
+
+  // ── EP-F-19 ─────────────────────────────────────────────────────────
+  {
+    id: "form-open-review-consent",
+    slug: "open-peer-review-consent",
+    code: "EP-F-19",
+    title: "Open Peer Review Consent",
+    role: "reviewer",
+    audience: "Peer reviewers of manuscripts under the journal's open-review option",
+    summary: "The reviewer's own choice, for each review, whether their report may be published with the article and whether it is signed with their name. Without consent, the report stays confidential.",
+    purpose: "To make sure no review report or reviewer identity is published without the reviewer's specific, informed consent, as NISO's peer-review terminology and the Data Privacy Act of 2012 expect.",
+    when: "Completed with the review report, when the manuscript is under the open-review option.",
+    where: "Asked for automatically when the reviewer submits the report.",
+    scope: "review",
+    version: VERSION,
+    effective: FORMS_EFFECTIVE,
+    nextReview: NEXT_REVIEW,
+    benchmarks: ["NISO Z39.106-2023", "COPE Ethical Guidelines for Peer Reviewers", "Data Privacy Act of 2012", "CC BY 4.0"],
+    standards: [
+      std("niso", "Published reports and reviewer identity as separate, declared dimensions of a peer-review model."),
+      std("copeReviewers", "Reviewers' confidentiality, and the journal's duty to tell reviewers how their reports are used."),
+      std("dpa", "Publishing a reviewer's name is processing personal data and needs their consent."),
+      std("ccby", "The licence under which a published report may be reused."),
+    ],
+    instructions: [
+      "Your report is published only if the article is published, and only with your consent.",
+      "You may agree to publish the report anonymously, signed with your name, or not at all. Your choice does not affect how the editor weighs your report.",
+      "Write your report as you would for publication: comments to the editor are never published.",
+    ],
+    sections: [
+      {
+        heading: "Your choice",
+        fields: [
+          {
+            id: "publishReport",
+            type: "radio",
+            label: "If the article is published, may your report be published with it?",
+            required: true,
+            options: opts(["yes", "Yes"], ["no", "No, keep my report confidential"]),
+          },
+          {
+            id: "publishName",
+            type: "radio",
+            label: "Should the published report carry your name?",
+            required: true,
+            showIf: { field: "publishReport", in: ["yes"] },
+            options: opts(["signed", "Yes, sign it with my name and ORCID iD"], ["anonymous", "No, publish it anonymously (as “Reviewer 1”)"]),
+          },
+          attest("licence", "I agree that my published report is released under CC BY 4.0, and that it may receive its own DOI.", { showIf: { field: "publishReport", in: ["yes"] } }),
+          attest("editorComments", "I understand that my confidential comments to the editor are never published."),
+        ],
+      },
+    ],
+    signatureStatement: "I give the consent recorded in this form, for this review only.",
+    afterSubmission: [
+      "Your choice is stored with the review. On publication, only reports with consent are made public, and only signed ones carry your name.",
+      "You can change your mind before the article is published by contacting the editorial office.",
+    ],
+    faqs: [
+      { q: "Will declining affect the editor's view of my review?", a: "No. Consent is recorded separately from the report and has no bearing on how it is used in the decision." },
+      { q: "Can I change my mind?", a: "Yes, until the article is published. After that the published report stays on the record." },
+    ],
+    relatedGuides: ["guide-reviewer-handbook"],
+    keywords: ["open peer review consent", "publish review report", "signed peer review", "reviewer identity consent"],
+    metaDescription: "Official Eleventh Press Open Peer Review Consent (EP-F-19): each reviewer's consent to publish their report, signed or anonymous, under CC BY 4.0.",
+  },
+
+  // ── EP-F-20 ─────────────────────────────────────────────────────────
+  {
+    id: "form-desk-screening",
+    slug: "initial-editorial-screening-checklist",
+    code: "EP-F-20",
+    title: "Initial Editorial Screening Checklist",
+    role: "editor",
+    audience: "Handling editors, before peer review",
+    summary: "The editor's documented checks before a manuscript goes to peer review: scope, declarations, similarity report, anonymisation, reporting checklist, ethics and quality, and the screening outcome.",
+    purpose: "To make the desk decision consistent, fair and recorded, so that every manuscript sent to reviewers meets the same basic standard and every desk rejection has a stated reason.",
+    when: "Completed once for each manuscript, before it is first sent to peer review.",
+    where: "Asked for automatically the first time an editor sends a manuscript to review; also available in Editorial queue → the manuscript → Forms.",
+    scope: "editor-article",
+    version: VERSION,
+    effective: FORMS_EFFECTIVE,
+    nextReview: NEXT_REVIEW,
+    benchmarks: ["COPE Core Practices", "COPE Code of Conduct for Journal Editors", "EQUATOR Network", "DOAJ"],
+    standards: [
+      std("cope", "Core practices on peer review processes and on ethical oversight before review."),
+      std("copeEditors", "Editors' responsibility for fair, unbiased initial decisions with stated reasons."),
+      std("equator", "Checking the reporting checklist before review."),
+      std("doaj", "Journals describe and apply a quality-control process before publication."),
+    ],
+    instructions: [
+      "Open the manuscript, its files, the Official Forms tab and the AI & checks tab.",
+      "Answer every check from what you see, not from the authors' declarations alone.",
+      "A desk rejection must give the authors a reason. A return asks the authors to fix specific problems before review.",
+    ],
+    sections: [
+      {
+        heading: "Checks",
+        fields: [
+          { id: "scope", type: "radio", label: "Within the journal's aims and scope", required: true, options: opts(["yes", "Yes"], ["no", "No"], ["borderline", "Borderline"]) },
+          { id: "declarations", type: "radio", label: "Official declarations (EP-F-01 to EP-F-05, EP-F-13 to EP-F-15) complete and consistent with the manuscript", required: true, options: opts(["yes", "Yes"], ["no", "No, something is missing or inconsistent"]) },
+          {
+            id: "similarity",
+            type: "radio",
+            label: "Similarity (plagiarism) check",
+            required: true,
+            options: opts(["clear", "Checked: overlap is acceptable"], ["concern", "Checked: overlap needs an explanation or is unacceptable"], ["notRun", "Not run (explain below)"]),
+          },
+          { id: "similarityScore", type: "text", label: "Overall similarity and the largest single source (%)", help: "e.g. “12% overall, 3% largest source, excluding references”." },
+          { id: "anonymised", type: "radio", label: "Anonymised for the journal's review model", required: true, options: opts(["yes", "Yes"], ["no", "No"], ["na", "Not applicable (open review)"]) },
+          { id: "reporting", type: "radio", label: "Reporting checklist (EP-F-13) present and appropriate", required: true, options: opts(["yes", "Yes"], ["no", "No"], ["na", "Not applicable"]) },
+          { id: "ethics", type: "radio", label: "Ethics approval and consent (EP-F-03) adequate for the research", required: true, options: opts(["yes", "Yes"], ["no", "No"], ["na", "Not applicable"]) },
+          { id: "images", type: "radio", label: "Figures and images show no sign of inappropriate manipulation", required: true, options: opts(["yes", "Yes"], ["concern", "There is a concern"]) },
+          { id: "quality", type: "radio", label: "Language, structure and references good enough for reviewers to assess", required: true, options: opts(["yes", "Yes"], ["no", "No"]) },
+          { id: "notes", type: "textarea", label: "Notes on any check answered No or with a concern", maxLength: 4000 },
+        ],
+      },
+      {
+        heading: "Outcome",
+        fields: [
+          {
+            id: "outcome",
+            type: "radio",
+            label: "Screening outcome",
+            required: true,
+            options: opts(
+              ["review", "Send to peer review"],
+              ["return", "Return to the authors to fix the problems above before review"],
+              ["deskReject", "Reject without review (desk rejection)"],
+              ["integrity", "Hold: open a research integrity record (EP-F-22)"]
+            ),
+          },
+          { id: "reason", type: "textarea", label: "Reason, as it will be explained to the authors", required: true, showIf: { field: "outcome", in: ["return", "deskReject"] } },
+          attest("independent", "My screening is based only on the manuscript and the journal's published criteria, independent of the authors' identity, institution, country or ability to pay."),
+        ],
+      },
+    ],
+    signatureStatement: "I declare that I carried out these checks myself and that this record is accurate.",
+    afterSubmission: [
+      "Send to peer review: the manuscript can now be sent to reviewers.",
+      "Return or desk rejection: record the decision in the Workflow tab; your reason is used in the letter to the authors.",
+      "Hold: open a Research Integrity Investigation Record (EP-F-22) and follow the COPE flowchart.",
+    ],
+    faqs: [
+      { q: "Is the AI triage report enough?", a: "No. It helps you find problems, but the checks in this form are the editor's own judgement." },
+      { q: "Must every editor complete this?", a: "No. It is completed once per manuscript, by the editor who screens it." },
+    ],
+    relatedGuides: ["guide-author-submission", "guide-publication-ethics", "guide-reviewer-handbook"],
+    keywords: ["desk review checklist", "editorial screening", "initial manuscript check", "desk rejection"],
+    metaDescription: "Official Eleventh Press Initial Editorial Screening Checklist (EP-F-20): the editor's recorded checks of scope, declarations, similarity, anonymisation, ethics and reporting before peer review.",
+  },
+
+  // ── EP-F-21 ─────────────────────────────────────────────────────────
+  {
+    id: "form-waiver-assessment",
+    slug: "apc-waiver-assessment-record",
+    code: "EP-F-21",
+    title: "APC Waiver Assessment Record",
+    role: "editor",
+    audience: "Editors or staff who assess article processing charge (APC) waiver requests",
+    summary: "The documented assessment of an author's APC waiver request against the published criteria, the decision (full, partial or no waiver) and its reasons, kept separate from the editorial decision.",
+    purpose: "To decide waivers consistently and transparently, as Plan S and DOAJ require, and to keep ability to pay out of the editorial decision.",
+    when: "Completed once for each manuscript whose authors requested a waiver at submission.",
+    where: "Editorial queue → the manuscript → Forms → Assess APC waiver.",
+    scope: "editor-article",
+    version: VERSION,
+    effective: FORMS_EFFECTIVE,
+    nextReview: NEXT_REVIEW,
+    benchmarks: ["Plan S Principles", "DOAJ", "Principles of Transparency", "COPE Core Practices"],
+    standards: [
+      std("planS", "Waivers for authors who cannot pay, and fees that never influence editorial decisions."),
+      std("doaj", "A clearly stated waiver policy, applied consistently."),
+      std("transparency", "Fees and waivers stated openly, and kept separate from editorial decisions."),
+      std("cope", "Core practice on business models: editorial decisions independent of payment."),
+    ],
+    instructions: [
+      "Assess the request against the criteria in the APC Waiver Policy only: the corresponding author's country income group, lack of funding, career stage and genuine hardship.",
+      "Do not consider the quality of the manuscript. The waiver decision has no bearing on the editorial decision, and reviewers are never told of it.",
+      "Give reasons the author can understand. A partial waiver states the percentage.",
+    ],
+    sections: [
+      {
+        heading: "Assessment",
+        fields: [
+          {
+            id: "criteria",
+            type: "checkboxes",
+            label: "Criteria met (tick all that apply)",
+            required: true,
+            options: opts(
+              ["lowIncome", "Corresponding author based in a low-income country (World Bank classification)"],
+              ["lowerMiddle", "Corresponding author based in a lower-middle-income country"],
+              ["noFunding", "The research had no funding that can pay publication costs"],
+              ["earlyCareer", "Student or early-career researcher without institutional support"],
+              ["hardship", "Documented financial hardship"],
+              ["none", "None of the criteria is met"]
+            ),
+          },
+          { id: "evidence", type: "textarea", label: "Evidence considered", help: "What the author provided and what you checked.", required: true, maxLength: 3000 },
+        ],
+      },
+      {
+        heading: "Decision",
+        fields: [
+          {
+            id: "decision",
+            type: "radio",
+            label: "Decision",
+            required: true,
+            options: opts(["full", "Full waiver (100%)"], ["partial", "Partial waiver"], ["deny", "No waiver"]),
+          },
+          { id: "percentage", type: "text", label: "Percentage waived", placeholder: "e.g. 50", required: true, showIf: { field: "decision", in: ["partial"] }, maxLength: 3 },
+          { id: "reasons", type: "textarea", label: "Reasons, as they will be sent to the author", required: true, maxLength: 3000 },
+          attest("separate", "This decision was made only on the waiver criteria, and has not influenced, and will not influence, the editorial decision on the manuscript."),
+        ],
+      },
+    ],
+    signatureStatement: "I declare that this assessment was made fairly and in line with the published APC Waiver Policy.",
+    afterSubmission: [
+      "The waiver status on the manuscript is updated, and the author is told the decision and the reasons.",
+      "The record is visible to editors only. Reviewers never see it.",
+      "The fee, if any, is invoiced only after acceptance.",
+    ],
+    faqs: [
+      { q: "Can the handling editor assess the waiver?", a: "They may, but the decision must be made only on the waiver criteria. Where possible, another editor or staff member assesses it." },
+      { q: "Can a waiver be reconsidered?", a: "Yes. If the author's circumstances change, they can ask the editorial office, and a new record is completed." },
+    ],
+    relatedGuides: ["guide-apc-waiver"],
+    keywords: ["APC waiver assessment", "article processing charge waiver", "fee waiver decision", "Plan S waiver"],
+    metaDescription: "Official Eleventh Press APC Waiver Assessment Record (EP-F-21): criteria, evidence and the full, partial or no-waiver decision, kept separate from the editorial decision.",
+  },
+
+  // ── EP-F-22 ─────────────────────────────────────────────────────────
+  {
+    id: "form-integrity-record",
+    slug: "research-integrity-investigation-record",
+    code: "EP-F-22",
+    title: "Research Integrity Investigation Record",
+    role: "editor",
+    audience: "Editors handling a concern about a manuscript or published article",
+    summary: "The confidential record of a research-integrity concern: what was alleged and by whom, the COPE flowchart followed, the authors' response, any institutional referral, and the outcome.",
+    purpose: "To handle every concern about plagiarism, fabrication, falsification, image manipulation, authorship, duplicate publication, undisclosed interests or reviewer misconduct consistently, fairly to the authors, and on the record.",
+    when: "Opened when a concern is raised about a manuscript or published article, and updated (as a new record) at each stage until it is closed.",
+    where: "Editorial queue → the manuscript → Forms → Integrity record.",
+    scope: "editor-article",
+    version: VERSION,
+    effective: FORMS_EFFECTIVE,
+    nextReview: NEXT_REVIEW,
+    benchmarks: ["COPE Core Practices", "COPE Flowcharts", "COPE Retraction Guidelines", "ICMJE Recommendations"],
+    standards: [
+      std("cope", "Core practice on allegations of misconduct: a documented process, followed in every case."),
+      std("copeFlowcharts", "The step-by-step flowcharts for each type of concern."),
+      std("copeRetraction", "When a concern leads to a retraction or an expression of concern."),
+      std("icmje", "Editors' obligation to pursue concerns and to contact institutions when needed."),
+    ],
+    instructions: [
+      "Open a record as soon as a concern is raised. Do not contact the whistleblower's subject until you have looked at the evidence.",
+      "Follow the COPE flowchart for the type of concern, and record each step.",
+      "Give the authors a fair chance to respond before reaching a conclusion.",
+      "Keep the identity of anyone who raised the concern confidential unless they agree otherwise.",
+      "Each stage is a new record. The latest record shows the current status.",
+    ],
+    sections: [
+      {
+        heading: "The concern",
+        fields: [
+          {
+            id: "concernType",
+            type: "checkboxes",
+            label: "Type of concern (tick all that apply)",
+            required: true,
+            options: opts(
+              ["plagiarism", "Plagiarism or text recycling"],
+              ["fabrication", "Fabricated or falsified data"],
+              ["images", "Image manipulation"],
+              ["duplicate", "Duplicate or redundant publication"],
+              ["authorship", "Authorship dispute, gift or ghost authorship"],
+              ["coi", "Undisclosed competing interest"],
+              ["ethics", "Missing ethics approval or consent"],
+              ["review", "Peer-review manipulation or reviewer misconduct"],
+              ["papermill", "Suspected paper mill or citation manipulation"],
+              ["other", "Other"]
+            ),
+          },
+          {
+            id: "source",
+            type: "radio",
+            label: "How the concern was raised",
+            required: true,
+            options: opts(["reviewer", "By a reviewer"], ["editor", "By an editor or the screening checks"], ["reader", "By a reader (EP-F-24)"], ["author", "By an author"], ["institution", "By an institution or funder"], ["anonymous", "Anonymously"]),
+          },
+          { id: "receivedOn", type: "date", label: "Date the concern was received", required: true },
+          { id: "summary", type: "textarea", label: "Summary of the concern and the evidence", required: true, maxLength: 8000 },
+        ],
+      },
+      {
+        heading: "Steps taken",
+        fields: [
+          { id: "flowchart", type: "text", label: "COPE flowchart followed", placeholder: "e.g. “Suspected plagiarism in a submitted manuscript”", required: true },
+          {
+            id: "steps",
+            type: "checkboxes",
+            label: "Steps completed so far",
+            required: true,
+            options: opts(
+              ["evidence", "Evidence reviewed and documented"],
+              ["authorsContacted", "Authors contacted for an explanation"],
+              ["responseReceived", "Authors' response received"],
+              ["expert", "Independent expert opinion obtained"],
+              ["institution", "Referred to the authors' institution"],
+              ["paused", "Peer review or publication paused"]
+            ),
+          },
+          { id: "response", type: "textarea", label: "Summary of the authors' response", maxLength: 6000 },
+        ],
+      },
+      {
+        heading: "Status and outcome",
+        fields: [
+          {
+            id: "outcome",
+            type: "radio",
+            label: "Status",
+            required: true,
+            options: opts(
+              ["open", "Open: investigation continuing"],
+              ["noAction", "Closed: no misconduct found, no action"],
+              ["education", "Closed: minor issue, authors advised"],
+              ["correction", "Closed: correction required"],
+              ["eoc", "Closed: expression of concern"],
+              ["retraction", "Closed: retraction"],
+              ["rejected", "Closed: manuscript rejected"]
+            ),
+          },
+          { id: "rationale", type: "textarea", label: "Reasons for the outcome, or next steps", required: true, maxLength: 6000 },
+          attest("fairness", "The authors have been, or will be, given a fair opportunity to respond before any conclusion is reached, and the whistleblower's identity is protected."),
+        ],
+      },
+    ],
+    signatureStatement: "I declare that this record is accurate and complete at the date of signing.",
+    afterSubmission: [
+      "The record is confidential to the editors, and kept with the manuscript.",
+      "A correction, expression of concern or retraction is published following the Corrections & Retractions Policy.",
+      "Each later stage is recorded as a new record, so the full history is kept.",
+    ],
+    faqs: [
+      { q: "Do I tell the authors who raised the concern?", a: "No, unless the person agrees. Present the evidence, not the source." },
+      { q: "What if the authors don't reply?", a: "Follow the COPE flowchart: after reasonable reminders, contact their institution. Record each attempt." },
+    ],
+    relatedGuides: ["guide-publication-ethics", "guide-corrections-retractions"],
+    keywords: ["research integrity investigation", "misconduct allegation record", "COPE flowchart", "editor investigation"],
+    metaDescription: "Official Eleventh Press Research Integrity Investigation Record (EP-F-22): the confidential, step-by-step record of a misconduct concern, the COPE flowchart followed and the outcome.",
+  },
+
+  // ── EP-F-23 ─────────────────────────────────────────────────────────
+  {
+    id: "form-complaint",
+    slug: "complaint-form",
+    code: "EP-F-23",
+    title: "Complaint Form",
+    role: "public",
+    audience: "Anyone: authors, reviewers, editors, readers and institutions",
+    summary: "A formal complaint about how a manuscript, review or request was handled, about the conduct of an editor, reviewer or staff member, or about the journal's policies, with the outcome sought.",
+    purpose: "To give everyone a clear, published route to complain and to have the complaint handled fairly, on time and by someone not involved, as COPE and DOAJ require.",
+    when: "At any time. Appeals against a rejection use EP-F-11 instead.",
+    where: "On this page (sign in or not), or from Dashboard → Official forms.",
+    scope: "public",
+    version: VERSION,
+    effective: FORMS_EFFECTIVE,
+    nextReview: NEXT_REVIEW,
+    benchmarks: ["COPE Core Practices", "Principles of Transparency", "DOAJ"],
+    standards: [
+      std("cope", "Core practice on complaints and appeals: a clear process, handled promptly by someone not involved."),
+      std("transparency", "A published complaints process."),
+      std("doaj", "Journals have a complaints policy and act on it."),
+    ],
+    instructions: [
+      "Say what happened, when, and who was involved, and include any reference number or manuscript title.",
+      "A complaint about an editor is handled by a different editor or by the publisher.",
+      "To appeal a rejection, use the Appeal of an Editorial Decision (EP-F-11) from My Articles.",
+      "To report a concern about the integrity of a published article, use Report a Concern (EP-F-24).",
+    ],
+    sections: [
+      {
+        heading: "Your details",
+        fields: [
+          { id: "contactEmail", type: "email", label: "Your email address", help: "We reply to this address.", required: true },
+          {
+            id: "capacity",
+            type: "radio",
+            label: "You are",
+            required: true,
+            options: opts(["author", "An author"], ["reviewer", "A reviewer"], ["editor", "An editor or board member"], ["reader", "A reader"], ["institution", "Representing an institution or funder"], ["other", "Other"]),
+          },
+        ],
+      },
+      {
+        heading: "Your complaint",
+        fields: [
+          {
+            id: "about",
+            type: "radio",
+            label: "The complaint is about",
+            required: true,
+            options: opts(
+              ["handling", "How a manuscript, review or request was handled (delays, communication, process)"],
+              ["editor", "The conduct of an editor"],
+              ["reviewer", "The conduct of a reviewer"],
+              ["staff", "The editorial office or platform staff"],
+              ["policy", "A journal policy, fee or the platform"],
+              ["other", "Something else"]
+            ),
+          },
+          { id: "articleRef", type: "text", label: "Manuscript title, DOI or reference (if any)" },
+          { id: "personNamed", type: "text", label: "Person the complaint is about (if any)", showIf: { field: "about", in: ["editor", "reviewer", "staff"] } },
+          { id: "details", type: "textarea", label: "What happened", help: "Facts, dates and the people involved. Include any earlier correspondence.", required: true, maxLength: 10000 },
+          { id: "outcome", type: "textarea", label: "What outcome are you seeking?", required: true, maxLength: 3000 },
+        ],
+      },
+      {
+        heading: "Acknowledgements",
+        fields: [
+          attest("goodFaith", "The information in this complaint is accurate to the best of my knowledge, and is made in good faith."),
+          attest("process", "I understand that the complaint is acknowledged within 5 working days, handled by someone not involved, and answered in writing, normally within 30 days."),
+          attest("privacy", "I agree that the details I give are used only to handle this complaint, under the Privacy Policy."),
+        ],
+      },
+    ],
+    signatureStatement: "I declare that this complaint is made in good faith and is accurate to the best of my knowledge.",
+    afterSubmission: [
+      "You receive an acknowledgement at once, with a reference number.",
+      "The complaint is handled by an editor or publisher representative who was not involved in what you describe.",
+      "You receive a written outcome, normally within 30 days. If you remain dissatisfied, you may take the complaint to COPE.",
+    ],
+    faqs: [
+      { q: "Can I complain about an editor?", a: "Yes. The complaint is handled by a different editor or by the publisher, never by the editor named." },
+      { q: "What if I am not satisfied with the outcome?", a: "You can ask for it to be reviewed by the publisher. For members' journals, COPE also considers complaints that a journal has not followed its guidance." },
+    ],
+    relatedGuides: ["guide-publication-ethics"],
+    keywords: ["journal complaint form", "complain about editor", "publication complaint", "COPE complaints"],
+    metaDescription: "Official Eleventh Press Complaint Form (EP-F-23): complaints about manuscript handling, editors, reviewers, staff or policies, handled by someone not involved.",
+  },
+
+  // ── EP-F-24 ─────────────────────────────────────────────────────────
+  {
+    id: "form-report-concern",
+    slug: "report-a-concern-about-a-published-article",
+    code: "EP-F-24",
+    title: "Report a Concern About an Article",
+    role: "public",
+    audience: "Anyone, including anonymously",
+    summary: "A report of a possible research-integrity problem in a published article or manuscript (plagiarism, data or image problems, duplicate publication, authorship, undisclosed interests or ethics), with the evidence, and anonymously if you prefer.",
+    purpose: "To let anyone raise a concern safely and have it investigated under the COPE flowcharts, with the whistleblower protected.",
+    when: "At any time.",
+    where: "On this page (sign in or not, named or anonymous).",
+    scope: "public",
+    anonymousIf: { field: "anonymous", in: ["yes"] },
+    version: VERSION,
+    effective: FORMS_EFFECTIVE,
+    nextReview: NEXT_REVIEW,
+    benchmarks: ["COPE Core Practices", "COPE Flowcharts", "COPE Retraction Guidelines"],
+    standards: [
+      std("cope", "Core practice on allegations of misconduct, including anonymous ones, and protection of whistleblowers."),
+      std("copeFlowcharts", "How each type of concern is investigated."),
+      std("copeRetraction", "The possible outcomes: correction, expression of concern or retraction."),
+    ],
+    instructions: [
+      "Identify the article by its DOI or title, and say exactly where the problem is (page, figure, table or paragraph).",
+      "Give the evidence: links to the overlapping source, the figure panels that look duplicated, the data that don't add up.",
+      "Anonymous reports are investigated if the evidence is specific enough, but we cannot ask you questions or tell you the outcome.",
+      "Report facts, not accusations. The authors are presumed to have acted in good faith until the investigation is complete.",
+    ],
+    sections: [
+      {
+        heading: "About you",
+        fields: [
+          {
+            id: "anonymous",
+            type: "radio",
+            label: "Do you want to report anonymously?",
+            required: true,
+            options: opts(["no", "No. You may contact me, and my identity is kept confidential"], ["yes", "Yes, report anonymously (we cannot reply to you)"]),
+          },
+          { id: "contactEmail", type: "email", label: "Your email address", required: true, showIf: { field: "anonymous", in: ["no"] } },
+          { id: "interest", type: "textarea", label: "Any competing interest you have in reporting this (optional)", help: "For example, a dispute with the authors or competing research.", showIf: { field: "anonymous", in: ["no"] } },
+        ],
+      },
+      {
+        heading: "The article and the concern",
+        fields: [
+          { id: "articleRef", type: "text", label: "DOI, URL or title of the article", required: true },
+          {
+            id: "concernType",
+            type: "checkboxes",
+            label: "Type of concern (tick all that apply)",
+            required: true,
+            options: opts(
+              ["plagiarism", "Plagiarism or text recycling"],
+              ["data", "Data that appear fabricated, falsified or wrong"],
+              ["images", "Images that appear duplicated or manipulated"],
+              ["duplicate", "Duplicate publication"],
+              ["authorship", "Authorship (missing, gift or ghost authors)"],
+              ["coi", "Undisclosed competing interests or funding"],
+              ["ethics", "Missing ethics approval or consent"],
+              ["papermill", "Signs of a paper mill or citation manipulation"],
+              ["other", "Other"]
+            ),
+          },
+          { id: "location", type: "text", label: "Where in the article (page, figure, table, section)", required: true },
+          { id: "evidence", type: "textarea", label: "Your concern and the evidence", help: "Be specific. Include links to sources and describe what you compared.", required: true, maxLength: 10000 },
+        ],
+      },
+      {
+        heading: "Acknowledgements",
+        fields: [
+          attest("goodFaith", "I make this report in good faith, and the information is accurate to the best of my knowledge."),
+          attest("confidential", "I understand that the report is confidential, and that the outcome is published (as a correction, expression of concern or retraction) only if one is needed."),
+        ],
+      },
+    ],
+    signatureStatement: "I declare that this report is made in good faith.",
+    afterSubmission: [
+      "The editors open a Research Integrity Investigation Record (EP-F-22) and follow the COPE flowchart for the concern.",
+      "Named reporters receive an acknowledgement and, where possible, are told when the matter is closed.",
+      "Your identity is never shared with the authors without your consent.",
+    ],
+    faqs: [
+      { q: "Will the authors know I reported them?", a: "No. Your identity is confidential, and we present the evidence, not its source." },
+      { q: "Do you investigate anonymous reports?", a: "Yes, when the evidence is specific and verifiable. We cannot reply to you or ask you questions." },
+    ],
+    relatedGuides: ["guide-publication-ethics", "guide-corrections-retractions"],
+    keywords: ["report research misconduct", "report concern article", "whistleblower journal", "image duplication report", "anonymous misconduct report"],
+    metaDescription: "Official Eleventh Press Report a Concern About an Article (EP-F-24): report plagiarism, data or image problems, authorship or ethics concerns, named or anonymously.",
+  },
+
+  // ── EP-F-25 ─────────────────────────────────────────────────────────
+  {
+    id: "form-correction-request",
+    slug: "correction-request-form",
+    code: "EP-F-25",
+    title: "Correction Request",
+    role: "public",
+    audience: "Authors of a published article, and readers who find an error",
+    summary: "A request to correct an error in a published article: what is wrong, where, the correct text, whether it changes the results or conclusions, and, for authors, the agreement of every author.",
+    purpose: "To correct the scholarly record promptly and transparently, with a linked correction notice registered with Crossref, as the Corrections & Retractions Policy and COPE require.",
+    when: "At any time after publication.",
+    where: "On this page, or from Dashboard → Official forms.",
+    scope: "public",
+    version: VERSION,
+    effective: FORMS_EFFECTIVE,
+    nextReview: NEXT_REVIEW,
+    benchmarks: ["COPE Retraction Guidelines", "Crossref Crossmark", "ICMJE Recommendations"],
+    standards: [
+      std("copeRetraction", "When an error calls for a correction, and when for an expression of concern or retraction."),
+      std("crossmark", "Correction notices linked to the article and registered so readers are alerted."),
+      std("icmje", "Corrections published as soon as possible, on a citable page, linked to the original."),
+    ],
+    instructions: [
+      "Identify the article and quote the incorrect text exactly, with its location.",
+      "Give the correct text as it should appear in the notice.",
+      "Say honestly whether the error affects the results or conclusions. A serious error may need an expression of concern or a retraction instead.",
+      "Authors: confirm that every author agrees. Readers: the editor contacts the authors.",
+    ],
+    sections: [
+      {
+        heading: "Your details",
+        fields: [
+          { id: "contactEmail", type: "email", label: "Your email address", required: true },
+          { id: "capacity", type: "radio", label: "You are", required: true, options: opts(["author", "An author of the article"], ["reader", "A reader"]) },
+        ],
+      },
+      {
+        heading: "The error",
+        fields: [
+          { id: "articleRef", type: "text", label: "DOI, URL or title of the article", required: true },
+          {
+            id: "errorType",
+            type: "radio",
+            label: "Type of error",
+            required: true,
+            options: opts(
+              ["typo", "A typographical or formatting error"],
+              ["author", "An author's name, affiliation, ORCID iD or contribution"],
+              ["funding", "Funding, competing interests or acknowledgements"],
+              ["figure", "A figure, table or its legend"],
+              ["data", "A number, result or calculation"],
+              ["reference", "A reference or citation"],
+              ["other", "Other"]
+            ),
+          },
+          { id: "location", type: "text", label: "Where (page, section, figure or table)", required: true },
+          { id: "incorrect", type: "textarea", label: "What it says now", required: true, maxLength: 4000 },
+          { id: "correct", type: "textarea", label: "What it should say", required: true, maxLength: 4000 },
+          {
+            id: "impact",
+            type: "radio",
+            label: "Does the error change the results or conclusions?",
+            required: true,
+            options: opts(["no", "No"], ["partly", "It changes a result but not the main conclusions"], ["yes", "Yes, it changes the main conclusions"]),
+          },
+        ],
+      },
+      {
+        heading: "Declarations",
+        fields: [
+          attest("coauthors", "Every author of the article has been told of this request and agrees to it.", { showIf: { field: "capacity", in: ["author"] } }),
+          attest("accurate", "The information in this request is accurate to the best of my knowledge."),
+        ],
+      },
+    ],
+    signatureStatement: "I declare that this request is accurate and made in good faith.",
+    afterSubmission: [
+      "The editors check the request and, for a reader's request, ask the authors.",
+      "If a correction is needed, a correction notice is published, linked to the article and registered with Crossref, and the article is updated.",
+      "You are told the outcome in writing.",
+    ],
+    faqs: [
+      { q: "Will the article be changed silently?", a: "No. Every change after publication is made through a published, linked correction notice." },
+      { q: "The error invalidates our conclusions.", a: "Say so under “Does the error change the conclusions?”. The editor may recommend a retraction, which authors can also request." },
+    ],
+    relatedGuides: ["guide-corrections-retractions", "guide-publication-ethics"],
+    keywords: ["correction request", "erratum request", "corrigendum", "correct published article"],
+    metaDescription: "Official Eleventh Press Correction Request (EP-F-25): request a correction to a published article, with the error, the correct text and its effect on the conclusions.",
+  },
+
+  // ── EP-F-26 ─────────────────────────────────────────────────────────
+  {
+    id: "form-privacy-request",
+    slug: "data-privacy-request-form",
+    code: "EP-F-26",
+    title: "Data Privacy Request",
+    role: "public",
+    audience: "Anyone whose personal data Eleventh Press holds: authors, reviewers, editors, readers and research participants",
+    summary: "A request to exercise your rights as a data subject under the Data Privacy Act of 2012: to be informed, to access, correct, erase or block your data, to object, to data portability, or to withdraw consent.",
+    purpose: "To let data subjects exercise their rights simply, and to make sure every request is recorded, verified and answered within the time the law allows.",
+    when: "At any time.",
+    where: "On this page, or from Dashboard → Official forms. To delete your account immediately, use Settings → Delete account.",
+    scope: "public",
+    version: VERSION,
+    effective: FORMS_EFFECTIVE,
+    nextReview: NEXT_REVIEW,
+    benchmarks: ["Data Privacy Act of 2012", "NPC Circulars", "COPE Core Practices"],
+    standards: [
+      std("dpa", "The rights of data subjects (Sections 16 to 18) and the controller's duty to respond."),
+      std("npc", "How personal information controllers handle data subject requests."),
+      std("cope", "Core practice on data and reproducibility: published research records are kept intact."),
+    ],
+    instructions: [
+      "Use the email address registered on your account, if you have one, so that we can verify your identity.",
+      "Say which data and which right. We may ask for proof of identity before we act.",
+      "Published articles, reviews and editorial records form part of the scholarly record and are usually kept, but your account and other personal data can be erased.",
+      "We respond within 30 days.",
+    ],
+    sections: [
+      {
+        heading: "Your details",
+        fields: [
+          { id: "contactEmail", type: "email", label: "Your email address", help: "The one on your account, if you have one.", required: true },
+          {
+            id: "relationship",
+            type: "radio",
+            label: "Your relationship with the journal",
+            required: true,
+            options: opts(["account", "I have an account (author, reviewer, editor or reader)"], ["participant", "I am a participant in research published here"], ["subscriber", "I receive newsletters or alerts"], ["other", "Other"]),
+          },
+        ],
+      },
+      {
+        heading: "Your request",
+        fields: [
+          {
+            id: "rights",
+            type: "checkboxes",
+            label: "The rights you wish to exercise (tick all that apply)",
+            required: true,
+            options: opts(
+              ["informed", "To be informed about how my data are processed"],
+              ["access", "To access a copy of my personal data"],
+              ["rectify", "To correct inaccurate or incomplete data"],
+              ["erase", "To erase or block my data"],
+              ["object", "To object to processing, including for marketing"],
+              ["portability", "To receive my data in a portable format"],
+              ["withdraw", "To withdraw my consent"]
+            ),
+          },
+          { id: "details", type: "textarea", label: "Details of your request", help: "Which data, and what you would like us to do.", required: true, maxLength: 6000 },
+        ],
+      },
+      {
+        heading: "Declarations",
+        fields: [
+          attest("own", "I am the person the data relate to, or I am authorised to act for them."),
+          attest("verify", "I understand that my identity may be verified before the request is carried out."),
+          attest("record", "I understand that published scholarly records may be kept where the law allows, and that I will be told if any part of my request cannot be met, and why."),
+        ],
+      },
+    ],
+    signatureStatement: "I declare that I am entitled to make this request and that the information in it is accurate.",
+    afterSubmission: [
+      "The Data Protection Officer acknowledges the request and verifies your identity.",
+      "The request is carried out, or you are told which part cannot be met and why, within 30 days.",
+      "If you are not satisfied, you may complain to the National Privacy Commission.",
+    ],
+    faqs: [
+      { q: "Can you delete an article I published?", a: "Published articles are part of the permanent scholarly record and are not deleted. Personal data outside them, such as your account, can be." },
+      { q: "Is there a fee?", a: "No. Data privacy requests are free." },
+    ],
+    relatedGuides: ["guide-publication-ethics"],
+    keywords: ["data privacy request", "data subject access request", "right to erasure", "Data Privacy Act request"],
+    metaDescription: "Official Eleventh Press Data Privacy Request (EP-F-26): exercise your Data Privacy Act rights to access, correct, erase or port your personal data.",
+  },
 ];
 
-/** The five forms completed as part of the manuscript submission form. */
+/** The forms completed as part of the manuscript submission form, in order. */
 export const SUBMISSION_FORM_IDS = [
   "form-author-declaration",
   "form-author-coi",
   "form-ethics-consent",
   "form-ai-disclosure",
   "form-licence-to-publish",
+  "form-reporting-guideline",
+  "form-third-party-permissions",
+  "form-reviewer-suggestions",
 ] as const;

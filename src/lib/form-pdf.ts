@@ -443,7 +443,7 @@ export async function buildFormPdf(f: OfficialFormDoc, brand: ResourceBrand = PL
           ["Next scheduled review", fmtLongDate(f.nextReview)],
           ["Completed by", f.audience],
           ["When", f.when],
-          ["Where on the platform", f.where],
+          [f.scope === "offline" ? "Where" : "Where on the platform", f.where],
           ["Document owner", `Editorial Office, ${J.name}`],
         ];
     const colW = (CW - 18) / 2;
@@ -523,9 +523,16 @@ export async function buildFormPdf(f: OfficialFormDoc, brand: ResourceBrand = PL
       label("Completed by", M, doc.y, CW, GOLD_DEEP);
       doc.y += 10;
       paragraph(`${f.audience}. ${f.when}`);
-      label("On the platform", M, doc.y, CW, GOLD_DEEP);
+      label(f.scope === "offline" ? "How it is completed" : "On the platform", M, doc.y, CW, GOLD_DEEP);
       doc.y += 10;
-      paragraph(`${f.where} Completing it on the platform is the official route; this printable edition is for reference, preparation and wet-ink signature where an author needs one.`, 4);
+      paragraph(
+        f.scope === "offline"
+          ? `${f.where} This fillable PDF is the official edition of the form.`
+          : f.scope === "public"
+            ? `${f.where} Submitting it online is the quickest route; this edition can also be completed and emailed to the editorial office.`
+            : `${f.where} Completing it on the platform is the official route; this printable edition is for reference, preparation and wet-ink signature where an author needs one.`,
+        4
+      );
 
       heading("Instructions", false);
       for (let i = 0; i < f.instructions.length; i++) {
@@ -593,7 +600,11 @@ export async function buildFormPdf(f: OfficialFormDoc, brand: ResourceBrand = PL
       doc.font("Helvetica").fontSize(9).fillColor(INK).text(record!.signedAt.toISOString().replace("T", " ").slice(0, 16), M + CW / 2 + 10, y + 26, { lineBreak: false });
       label("Record ID", M + CW / 2 + 10, y + 44, 200, GOLD_DEEP);
       doc.font("Courier").fontSize(8.4).fillColor(INK).text(record!.id, M + CW / 2 + 10, y + 56, { lineBreak: false });
-      doc.font("Helvetica").fontSize(7).fillColor(MUTED).text("Signed by typing the full name above while signed in to the platform.", M + 16, y + 52, { width: CW / 2 - 20 });
+      doc
+        .font("Helvetica")
+        .fontSize(7)
+        .fillColor(MUTED)
+        .text(record!.signedName === "Anonymous" ? "Submitted anonymously; no signature was required." : "Signed by typing the full name above on the platform.", M + 16, y + 52, { width: CW / 2 - 20 });
       doc.y = y + h + 12;
     } else {
       const y = doc.y + 18;

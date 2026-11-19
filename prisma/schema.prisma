@@ -2859,7 +2859,10 @@ model FormSubmission {
   formId       String
   formCode     String
   formVersion  String
-  userId       String
+  // Null for a public form (EP-F-23 to EP-F-26) sent without signing in.
+  userId       String?
+  // Where the editors reply to a public form (null when anonymous).
+  contactEmail String?
   tenantId     String?
   articleId    String?
   reviewId     String?
@@ -2877,6 +2880,7 @@ model FormSubmission {
   @@index([userId, formId])
   @@index([reviewId])
   @@index([status, tenantId])
+  @@index([formId, status])
 }
 
 // Reader library: saved articles in named lists ("Saved" by default).

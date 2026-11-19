@@ -7,6 +7,7 @@ import { generateEmbedding } from "@/lib/embeddings";
 import { cosineSimilarity } from "@/lib/vector-math";
 import { resolveTenantFromHeaders } from "@/lib/tenant";
 import { withRlsContext, withTenantRlsContext } from "@/lib/db-rls";
+import { declaredConflict, editorCoiFor, latestArticleForm, missingEditorForms, opposedReviewerEmails, requiredFormsBody } from "@/lib/forms/server";
 
 /**
  * GET /api/articles/assign-reviewer?articleId=...
@@ -20,8 +21,11 @@ import { withRlsContext, withTenantRlsContext } from "@/lib/db-rls";
  *   informative on its own.
  *
  * POST /api/articles/assign-reviewer
- *   { articleId, reviewerId, dueDate? }
- *   Invites a reviewer to an article.
+ *   { articleId, reviewerId, dueDate?, confirmOpposed? }
+ *   Invites a reviewer to an article. The first invitation sends the
+ *   manuscript to review, so it needs the same editor forms as Send to
+ *   review (EP-F-09, EP-F-10, EP-F-20). Inviting someone the authors asked
+ *   not to be invited (EP-F-15) needs `confirmOpposed`.
  */
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -53,6 +57,7 @@ export async function GET(req: NextRequest) {
     },
     select: {
       id: true,
+      email: true,
       fullName: true,
       affiliation: true,
       expertise: true,
@@ -60,6 +65,7 @@ export async function GET(req: NextRequest) {
       orcid: true,
     },
   });
+  const opposed = new Set(session ? await opposedReviewerEmails(article.id) : []);
 
   const disciplineLower = article.discipline.toLowerCase();
   const articleKeywords = article.keywords.toLowerCase().split(/[,\s]+/).filter(Boolean);
@@ -86,7 +92,9 @@ export async function GET(req: NextRequest) {
         }
 
         const matchScore = Math.min(100, semanticScore + keywordBonus);
-        return { ...r, matchScore, semanticScore, keywordBonus };
+        const { email, ...rest } = r;
+        // Flag (never reveal) people the authors asked not to be invited (EP-F-15).
+        return { ...rest, matchScore, semanticScore, keywordBonus, opposedByAuthors: opposed.has(email.toLowerCase()) };
       })
     )
   ).sort((a, b) => b.matchScore - a.matchScore);
@@ -103,10 +111,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Editor role required" }, { status: 403 });
   }
 
-  const { articleId, reviewerId, dueDate } = (await req.json()) as {
+  const { articleId, reviewerId, dueDate, confirmOpposed } = (await req.json()) as {
     articleId: string;
     reviewerId: string;
     dueDate?: string;
+    confirmOpposed?: boolean;
   };
 
   const targetArticle = await withRlsContext(session, (tx) =>
@@ -117,6 +126,29 @@ export async function POST(req: NextRequest) {
   }
   if (!isSameEditorialTenant(session, targetArticle.journal?.tenantId)) {
     return NextResponse.json({ error: "Forbidden — not an editor of this article's tenant" }, { status: 403 });
+  }
+
+  // The first invitation sends the manuscript to review: editor forms first.
+  if (targetArticle.status === "SUBMITTED") {
+    if (declaredConflict(await editorCoiFor(session.userId, articleId))) {
+      return NextResponse.json({ error: "You declared a competing interest on this manuscript (EP-F-09) and are recused from it." }, { status: 403 });
+    }
+    const missing = await missingEditorForms(session.userId, articleId, "SEND_TO_REVIEW");
+    if (missing.length) return NextResponse.json(requiredFormsBody(missing), { status: 428 });
+    const screening = await latestArticleForm(articleId, "form-desk-screening");
+    if (screening && screening.outcome !== "review") {
+      return NextResponse.json({ error: "The Initial Editorial Screening Checklist (EP-F-20) does not clear this manuscript for peer review." }, { status: 409 });
+    }
+  }
+  if (!confirmOpposed) {
+    const reviewer = await db.user.findUnique({ where: { id: reviewerId }, select: { email: true } });
+    const opposed = await opposedReviewerEmails(articleId);
+    if (reviewer && opposed.includes(reviewer.email.toLowerCase())) {
+      return NextResponse.json(
+        { error: "The authors asked that this person not be invited (EP-F-15). Read their reason in the Forms tab before going ahead.", opposed: true },
+        { status: 409 }
+      );
+    }
   }
 
   const existing = await db.review.findFirst({

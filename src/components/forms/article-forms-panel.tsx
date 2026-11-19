@@ -23,6 +23,10 @@ export interface FormRecordRow {
   decidedAt: string | null;
   answers: Record<string, unknown>;
   pdfUrl: string;
+  /** Quoted to the sender of a public form, e.g. "EP-F-23-8K2D9QXA". */
+  reference?: string;
+  /** The sender's reply address (editors only, public forms). */
+  contactEmail?: string | null;
 }
 
 export const STATUS_TONE: Record<string, string> = {
@@ -46,8 +50,17 @@ export function FormRecordItem({ r, showArticle }: { r: FormRecordRow; showArtic
           <p className="font-display text-sm font-semibold">{r.title}</p>
           {showArticle && r.article && <p className="mt-0.5 truncate text-xs text-muted-foreground">“{r.article.title}”</p>}
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Signed by {r.signedName} · {new Date(r.signedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+            {r.signedName === "Anonymous" ? "Sent anonymously" : `Signed by ${r.signedName}`} · {new Date(r.signedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+            {doc?.scope === "public" && r.reference ? ` · Ref. ${r.reference}` : ""}
           </p>
+          {r.contactEmail && (
+            <p className="mt-0.5 text-xs">
+              Reply to:{" "}
+              <a href={`mailto:${r.contactEmail}?subject=${encodeURIComponent(`${r.title} (${r.reference ?? r.code})`)}`} className="font-medium text-primary hover:underline">
+                {r.contactEmail}
+              </a>
+            </p>
+          )}
           {r.decisionNote && <p className="mt-1.5 rounded bg-muted/50 px-2 py-1 text-xs">Editor: {r.decisionNote}</p>}
         </div>
         <div className="flex shrink-0 items-center gap-2">
