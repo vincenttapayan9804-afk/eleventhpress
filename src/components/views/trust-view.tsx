@@ -1,8 +1,9 @@
 "use client";
 
+import { openContact } from "@/lib/contact-store";
 import type { ComponentType } from "react";
 import { useApp } from "@/lib/store";
-import { useContactEmail, useLegalIdentity } from "@/lib/tenant-branding-context";
+import { useLegalIdentity } from "@/lib/tenant-branding-context";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -201,7 +202,6 @@ const NAV = [
 
 export function TrustView() {
   const legal = useLegalIdentity();
-  const contactEmail = useContactEmail();
   const { setView } = useApp();
 
   return (
@@ -351,10 +351,8 @@ export function TrustView() {
           vulnerability reports within 3 working days.
         </p>
         <div className="mt-5 flex flex-wrap justify-center gap-3">
-          <Button asChild>
-            <a href={`mailto:${contactEmail}?subject=Security%20report`}>
-              <KeyRound className="mr-2 h-4 w-4" /> Report a vulnerability
-            </a>
+          <Button onClick={() => openContact("security")} data-testid="cta-contact-security">
+            <KeyRound className="mr-2 h-4 w-4" /> Report a vulnerability
           </Button>
           <Button variant="outline" asChild>
             <a href="/.well-known/security.txt">

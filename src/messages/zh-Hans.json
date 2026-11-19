@@ -23,7 +23,8 @@
     "signIn": "登录",
     "signOut": "退出登录",
     "menu": "菜单",
-    "notifications": "通知"
+    "notifications": "通知",
+    "contact": "联系"
   },
   "header": {
     "brandName": "ELEVENTH PRESS",
@@ -53,7 +54,8 @@
     "accessibilityStatement": "无障碍声明",
     "trustCenter": "信任中心",
     "copyright": "© {year} Eleventh Press International Publishing™。除另有说明外，所有文章均以 CC BY 4.0 协议发布。",
-    "indexedLine": "收录于：Google Scholar · {registrar} · OAI-PMH · DOAJ"
+    "indexedLine": "收录于：Google Scholar · {registrar} · OAI-PMH · DOAJ",
+    "contactUs": "联系我们"
   },
   "home": {
     "issueLine": "开放获取 · 同行评审 · ISSN：申请中",

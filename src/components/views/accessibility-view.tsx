@@ -1,6 +1,6 @@
 "use client";
 
-import { useContactEmail } from "@/lib/tenant-branding-context";
+import { openContact } from "@/lib/contact-store";
 import { useApp } from "@/lib/store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,7 +29,6 @@ import {
  * standard to conform to, not an org to join).
  */
 export function AccessibilityView() {
-  const contactEmail = useContactEmail();
   const { setView } = useApp();
 
   return (
@@ -125,10 +124,8 @@ export function AccessibilityView() {
           Tell us what you ran into and we'll look into it.
         </p>
         <div className="mt-5 flex flex-wrap justify-center gap-3">
-          <Button variant="outline" asChild>
-            <a href={`mailto:${contactEmail}?subject=Accessibility%20issue`}>
-              <Mail className="mr-2 h-4 w-4" /> Report an issue
-            </a>
+          <Button onClick={() => openContact("accessibility")} data-testid="cta-contact-accessibility">
+            <Mail className="mr-2 h-4 w-4" /> Report an issue
           </Button>
           <Button variant="outline" onClick={() => setView("policies")}>
             View policies

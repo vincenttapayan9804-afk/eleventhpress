@@ -1,5 +1,6 @@
 "use client";
 
+import { openContact } from "@/lib/contact-store";
 import { useEffect, useState } from "react";
 import { useTenantBranding, isWhitelabel } from "@/lib/tenant-branding-context";
 import { useTranslations } from "next-intl";
@@ -660,10 +661,8 @@ export function AboutView() {
               />
             </div>
             <div className="mt-4">
-              <Button variant="outline" size="sm" asChild>
-                <a href="mailto:editorial@eleventhpress.com?subject=Research%20integrity%20concern">
-                  <Mail className="mr-2 h-3.5 w-3.5" /> Report a concern
-                </a>
+              <Button variant="outline" size="sm" onClick={() => openContact("integrity")} data-testid="cta-contact-integrity">
+                <Mail className="mr-2 h-3.5 w-3.5" /> Report a concern
               </Button>
             </div>
           </CardContent>

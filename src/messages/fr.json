@@ -23,7 +23,8 @@
     "signIn": "Connexion",
     "signOut": "Déconnexion",
     "menu": "Menu",
-    "notifications": "Notifications"
+    "notifications": "Notifications",
+    "contact": "Contact"
   },
   "header": {
     "brandName": "ELEVENTH PRESS",
@@ -53,7 +54,8 @@
     "accessibilityStatement": "Déclaration d'accessibilité",
     "trustCenter": "Centre de confiance",
     "copyright": "© {year} Eleventh Press International Publishing™. Tous les articles sont publiés sous licence CC BY 4.0 sauf indication contraire.",
-    "indexedLine": "Indexé dans : Google Scholar · {registrar} · OAI-PMH · DOAJ"
+    "indexedLine": "Indexé dans : Google Scholar · {registrar} · OAI-PMH · DOAJ",
+    "contactUs": "Nous contacter"
   },
   "home": {
     "issueLine": "Libre accès · Évalué par les pairs · ISSN : demande en cours",

@@ -23,7 +23,8 @@
     "signIn": "Mag-sign in",
     "signOut": "Mag-sign out",
     "menu": "Menu",
-    "notifications": "Mga Abiso"
+    "notifications": "Mga Abiso",
+    "contact": "Makipag-ugnayan"
   },
   "header": {
     "brandName": "ELEVENTH PRESS",
@@ -53,7 +54,8 @@
     "accessibilityStatement": "Pahayag sa accessibility",
     "trustCenter": "Trust Center",
     "copyright": "© {year} Eleventh Press International Publishing™. Ang lahat ng artikulo ay nailathala sa ilalim ng CC BY 4.0 maliban na lang kung nakasaad.",
-    "indexedLine": "Naka-index sa: Google Scholar · {registrar} · OAI-PMH · DOAJ"
+    "indexedLine": "Naka-index sa: Google Scholar · {registrar} · OAI-PMH · DOAJ",
+    "contactUs": "Makipag-ugnayan sa amin"
   },
   "home": {
     "issueLine": "Open access · Peer reviewed · ISSN: inaplay na",

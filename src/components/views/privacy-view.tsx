@@ -1,5 +1,6 @@
 "use client";
 
+import { openContact } from "@/lib/contact-store";
 import { useLegalIdentity } from "@/lib/tenant-branding-context";
 import { useApp } from "@/lib/store";
 import { Card, CardContent } from "@/components/ui/card";
@@ -285,10 +286,8 @@ export function PrivacyView() {
             <Button onClick={() => (user ? openDashboard("profile") : setView("login"))}>
               <ShieldCheck className="mr-2 h-4 w-4" /> Manage my data
             </Button>
-            <Button variant="outline" asChild>
-              <a href={`mailto:${contactEmail}?subject=Data%20rights%20request`}>
-                <Mail className="mr-2 h-4 w-4" /> Anything else — email us
-              </a>
+            <Button variant="outline" onClick={() => openContact("privacy")} data-testid="cta-contact-privacy">
+              <Mail className="mr-2 h-4 w-4" /> Make a data rights request
             </Button>
           </CardContent>
         </Card>
