@@ -17,6 +17,11 @@ export function isFieldShown(field: Pick<FormField, "showIf">, answers: Record<s
   return typeof v === "string" && field.showIf.in.includes(v);
 }
 
+/** Whether these answers make the submission anonymous (e.g. EP-F-24 "report anonymously"). */
+export function isAnonymous(doc: Pick<OfficialFormDoc, "anonymousIf">, answers: Record<string, unknown>): boolean {
+  return !!doc.anonymousIf && isFieldShown({ showIf: doc.anonymousIf }, answers);
+}
+
 export interface FormContext {
   /** Authors on the manuscript, for sections repeated per author. */
   authors?: { name: string; email?: string }[];
@@ -116,6 +121,7 @@ export function validateFormAnswers(doc: OfficialFormDoc, input: unknown, signed
     if (r.error) return { ok: false, error: r.error };
     Object.assign(out, r.values);
   }
+  if (isAnonymous(doc, out)) return { ok: true, answers: out, signedName: "Anonymous" };
   const signedName = typeof signedNameInput === "string" ? signedNameInput.trim().replace(/\s+/g, " ").slice(0, 200) : "";
   if (signedName.length < 3) return { ok: false, error: `Sign ${doc.code} by typing your full name.` };
   return { ok: true, answers: out, signedName };

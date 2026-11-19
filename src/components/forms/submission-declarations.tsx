@@ -11,7 +11,7 @@ export type Declarations = Record<string, FormAnswers>;
 
 const DOCS = SUBMISSION_FORM_IDS.map((id) => formById(id)!) as OfficialFormDoc[];
 
-/** The first problem with the five submission declarations, or null when all are complete. */
+/** The first problem with the submission declarations, or null when all are complete. */
 export function declarationsError(decl: Declarations, signedName: string, authors: { name: string; email?: string }[]): string | null {
   for (const doc of DOCS) {
     const v = validateFormAnswers(doc, decl[doc.id], signedName || "x".repeat(3), { authors });
@@ -26,9 +26,9 @@ function isComplete(doc: OfficialFormDoc, answers: FormAnswers | undefined, auth
 }
 
 /**
- * Step 4 of the submission form: the five Official Forms every manuscript
- * needs (EP-F-01 to EP-F-05), one after another with a progress list, and
- * a single signature that signs all five.
+ * Step 4 of the submission form: the Official Forms every manuscript needs
+ * (EP-F-01 to EP-F-05 and EP-F-13 to EP-F-15), one after another with a
+ * progress list, and a single signature that signs them all.
  */
 export function SubmissionDeclarations({
   value,
@@ -58,7 +58,7 @@ export function SubmissionDeclarations({
           <ShieldCheck className="h-4 w-4 text-primary" /> Official declarations ({completed} of {DOCS.length} complete)
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Every manuscript needs these five Official Forms, benchmarked against COPE, ICMJE and the other standards in our
+          Every manuscript needs these {DOCS.length} Official Forms, benchmarked against COPE, ICMJE and the other standards in our
           guides. Complete each one, then sign once at the bottom. Signed copies are kept with your manuscript.
         </p>
       </div>

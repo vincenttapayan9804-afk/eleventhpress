@@ -19,7 +19,7 @@ import { APP_BASE_URL } from "@/lib/site";
 import { APC_USD } from "@/lib/pricing";
 import { upsertArticleDocument, meilisearchLiveMode } from "@/lib/meilisearch";
 import { withRlsContext } from "@/lib/db-rls";
-import { GATED_EDITORIAL_ACTIONS, declaredConflict, editorCoiFor, missingEditorForms, requiredFormsBody } from "@/lib/forms/server";
+import { GATED_EDITORIAL_ACTIONS, declaredConflict, editorCoiFor, latestArticleForm, missingEditorForms, requiredFormsBody, reviewsWithoutPublicationConsent } from "@/lib/forms/server";
 
 /**
  * POST /api/articles/workflow
@@ -109,8 +109,18 @@ export async function POST(req: NextRequest) {
           { status: 403 }
         );
       }
-      const missing = await missingEditorForms(session.userId, article.id);
+      const missing = await missingEditorForms(session.userId, article.id, action);
       if (missing.length) return NextResponse.json(requiredFormsBody(missing), { status: 428 });
+      // The screening checklist (EP-F-20) must have cleared the manuscript for review.
+      if (action === "SEND_TO_REVIEW") {
+        const screening = await latestArticleForm(article.id, "form-desk-screening");
+        if (screening && screening.outcome !== "review") {
+          return NextResponse.json(
+            { error: "The Initial Editorial Screening Checklist (EP-F-20) for this manuscript does not clear it for peer review. Complete a new checklist from the Forms tab if the problems have been fixed." },
+            { status: 409 }
+          );
+        }
+      }
     }
 
     // Compute next status from action
@@ -410,11 +420,13 @@ export async function POST(req: NextRequest) {
 
       // 3. Open peer review: mark all completed reviews as publicly visible.
       if (article.openReview) {
+        // Only reports whose reviewers consented (EP-F-19) are published.
+        const { withheld } = await reviewsWithoutPublicationConsent(articleId);
         const result = await db.review.updateMany({
-          where: { articleId, status: "COMPLETED" },
+          where: { articleId, status: "COMPLETED", ...(withheld.length ? { id: { notIn: withheld } } : {}) },
           data: { madePublic: true },
         });
-        publishEvents.push(`Open review: ${result.count} review(s) marked public.`);
+        publishEvents.push(`Open review: ${result.count} review(s) marked public${withheld.length ? `; ${withheld.length} kept confidential at the reviewer's request` : ""}.`);
       }
 
       // 4. OAI-PMH feed implicitly includes the new record on next harvest.

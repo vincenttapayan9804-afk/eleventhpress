@@ -13,7 +13,25 @@ export const FORM_ROLE_LABEL: Record<FormRole, string> = {
   author: "Authors",
   reviewer: "Peer reviewers",
   editor: "Editors",
+  public: "Anyone: authors, reviewers and readers",
 };
+
+/**
+ * Requests an editor decides (status PENDING → APPROVED | DECLINED), with
+ * the words used for each outcome.
+ */
+export const DECIDED_FORMS: Record<string, { approve: string; decline: string; approved: string; declined: string; pending?: string }> = {
+  "form-authorship-change": { approve: "Approve and apply", decline: "Decline the change", approved: "Approved", declined: "Declined" },
+  "form-appeal": { approve: "Grant the appeal", decline: "Uphold the decision", approved: "Appeal granted: reconsidered", declined: "Decision upheld" },
+  "form-withdrawal": { approve: "Withdraw the manuscript", decline: "Decline the withdrawal", approved: "Withdrawn", declined: "Withdrawal declined" },
+  "form-complaint": { approve: "Uphold the complaint", decline: "Do not uphold", approved: "Complaint upheld", declined: "Not upheld", pending: "Received" },
+  "form-report-concern": { approve: "Close: action taken", decline: "Close: no action needed", approved: "Closed: action taken", declined: "Closed: no action needed", pending: "Under investigation" },
+  "form-correction-request": { approve: "Correction will be published", decline: "No correction needed", approved: "Correction accepted", declined: "No correction", pending: "Received" },
+  "form-privacy-request": { approve: "Request completed", decline: "Refuse (give reasons)", approved: "Completed", declined: "Refused", pending: "Received" },
+};
+
+/** Forms only the platform or tenant administrators (the data controller) may read and decide. */
+export const ADMIN_ONLY_FORMS = new Set(["form-privacy-request"]);
 
 export function formById(id: string): OfficialFormDoc | undefined {
   return OFFICIAL_FORMS.find((f) => f.id === id);
@@ -52,16 +70,18 @@ export function formPlainText(f: OfficialFormDoc): string {
   ].join(" ");
 }
 
-/** Short label for a request's status. */
+/** Short label for a record's status. */
 export function formStatusLabel(formId: string, status: string): string {
+  const d = DECIDED_FORMS[formId];
   if (status === "SUBMITTED") return "Signed";
-  if (status === "PENDING") return "Awaiting editor";
-  if (formId === "form-appeal") return status === "APPROVED" ? "Appeal granted: reconsidered" : "Decision upheld";
+  if (status === "PENDING") return d?.pending ?? "Awaiting editor";
+  if (d) return status === "APPROVED" ? d.approved : d.declined;
   return status === "APPROVED" ? "Approved" : "Declined";
 }
 
 /** Where on the platform a form is completed (an in-app path). */
-export function formPlatformPath(f: Pick<OfficialFormDoc, "scope" | "role" | "id">): string {
+export function formPlatformPath(f: Pick<OfficialFormDoc, "scope" | "role" | "id" | "slug">): string {
+  if (f.scope === "public" || f.scope === "offline") return `/resources/forms/${f.slug}${f.scope === "public" ? "#submit" : ""}`;
   if (f.scope === "submission") return "/dashboard/submit";
   if (f.scope === "article-request") return "/dashboard/my-articles";
   if (f.role === "reviewer") return "/dashboard/reviewer-queue";

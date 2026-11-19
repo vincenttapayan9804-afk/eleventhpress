@@ -5,6 +5,7 @@ import { notifyMany } from "@/lib/notify";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { resolveTenantFromHeaders } from "@/lib/tenant";
 import { withRlsContext, withTenantRlsContext } from "@/lib/db-rls";
+import { reviewsWithoutPublicationConsent } from "@/lib/forms/server";
 
 /**
  * POST /api/articles/open-review
@@ -47,6 +48,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Article not found" }, { status: 404 });
   }
 
+  // Reports whose reviewers declined publication (EP-F-19) stay confidential.
+  const { withheld } = openReview ? await reviewsWithoutPublicationConsent(articleId) : { withheld: [] as string[] };
   // Update article + reviews atomically
   const [, reviews] = await db.$transaction([
     db.article.update({
@@ -54,7 +57,7 @@ export async function POST(req: NextRequest) {
       data: { openReview },
     }),
     db.review.updateMany({
-      where: { articleId, status: "COMPLETED" },
+      where: { articleId, status: "COMPLETED", ...(withheld.length ? { id: { notIn: withheld } } : {}) },
       data: { madePublic: openReview },
     }),
   ]);
@@ -73,7 +76,7 @@ export async function POST(req: NextRequest) {
 
   // Notify reviewers whose reviews are now public
   if (openReview) {
-    const completedReviews = article.reviews.filter((r) => r.status === "COMPLETED");
+    const completedReviews = article.reviews.filter((r) => r.status === "COMPLETED" && !withheld.includes(r.id));
     await notifyMany(
       completedReviews.map((r) => ({
         userId: r.reviewerId,
@@ -134,23 +137,26 @@ export async function GET(req: NextRequest) {
     },
     orderBy: { completedAt: "asc" },
   });
+  const consent = await reviewsWithoutPublicationConsent(articleId);
 
   return NextResponse.json({
     openReview: true,
     articleTitle: article.title,
-    reviews: reviews.map((r) => ({
+    reviews: reviews.filter((r) => !consent.withheld.includes(r.id)).map((r, i) => ({
       id: r.id,
       completedAt: r.completedAt,
       overallScore: r.overallScore,
       recommendation: r.recommendation,
       confidence: r.confidence,
       commentsToAuthor: r.commentsToAuthor,
-      reviewer: {
-        fullName: r.reviewer.fullName,
-        affiliation: r.reviewer.affiliation,
-        orcid: r.reviewer.orcid,
-        country: r.reviewer.country,
-      },
+      reviewer: consent.anonymous.includes(r.id)
+        ? { fullName: `Reviewer ${i + 1}`, affiliation: null, orcid: null, country: null }
+        : {
+            fullName: r.reviewer.fullName,
+            affiliation: r.reviewer.affiliation,
+            orcid: r.reviewer.orcid,
+            country: r.reviewer.country,
+          },
     })),
   });
 }

@@ -2,6 +2,7 @@
 
 import { useRequiredFormsGate } from "@/components/forms/required-forms-dialog";
 import { ArticleFormsPanel } from "@/components/forms/article-forms-panel";
+import { EditorArticleForms } from "@/components/forms/editor-article-forms";
 
 import { RevisionHistory } from "@/components/dashboard/revision-tools";
 import { EditorBoard } from "@/components/dashboard/editor-board";
@@ -280,7 +281,7 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
   const [savingCurated, setSavingCurated] = useState(false);
   const [deletingCuratedId, setDeletingCuratedId] = useState<string | null>(null);
   // Editorial decisions need EP-F-10 (once) and EP-F-09 (this manuscript).
-  const gate = useRequiredFormsGate("Before your first decision on this manuscript, please sign the editor forms. You sign the code of conduct once; the conflict-of-interest declaration is for this manuscript.");
+  const gate = useRequiredFormsGate("Before this decision, please complete the editor forms. You sign the code of conduct once; the conflict-of-interest declaration is for this manuscript; the screening checklist is completed once per manuscript before peer review.");
   const [formsKey, setFormsKey] = useState(0);
 
   if (!article) return null;
@@ -359,10 +360,28 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
   async function assignReviewer(reviewerId: string) {
     setAssigningReviewer(reviewerId);
     try {
-      await apiFetch("/api/articles/assign-reviewer", {
-        method: "POST",
-        body: JSON.stringify({ articleId: article.id, reviewerId }),
-      });
+      const invite = (confirmOpposed = false) =>
+        apiFetch("/api/articles/assign-reviewer", {
+          method: "POST",
+          body: JSON.stringify({ articleId: article.id, reviewerId, confirmOpposed }),
+        });
+      // The first invitation sends the manuscript to review, so it can ask
+      // for the editor forms; an opposed reviewer (EP-F-15) needs a confirm.
+      let res: unknown;
+      try {
+        res = await gate.run(
+          () => invite(),
+          (outcomes) => {
+            setFormsKey((k) => k + 1);
+            if (outcomes.some((o) => o.outcome === "RECUSED")) return false;
+          }
+        );
+      } catch (e: any) {
+        if (!e?.body?.opposed) throw e;
+        if (!window.confirm(`${e.message}\n\nInvite them anyway?`)) return;
+        res = await gate.run(() => invite(true));
+      }
+      if (res === null) return;
       toast.success("Reviewer invited", {
         description: "An in-app + email notification has been sent.",
       });
@@ -827,9 +846,16 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
           {/* Overview */}
           <TabsContent value="forms" className="mt-3 min-h-0 flex-1 overflow-y-auto pr-1">
             <p className="mb-3 text-xs text-muted-foreground">
-              Official Forms signed for this manuscript: the authors' submission declarations, any authorship-change request
-              or appeal, and the reviewers' and editors' declarations. Each has a signed PDF.
+              Official Forms signed for this manuscript: the authors' declarations and requests, the reviewers' and editors'
+              declarations, and the editors' records (screening, APC waiver, research integrity). Each has a signed PDF.
             </p>
+            <EditorArticleForms
+              article={article}
+              onSigned={() => {
+                setFormsKey((k) => k + 1);
+                onRefresh();
+              }}
+            />
             <ArticleFormsPanel articleId={article.id} refreshKey={formsKey} />
           </TabsContent>
           <TabsContent value="overview" className="mt-3 min-h-0 flex-1">
@@ -936,7 +962,12 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
                       {reviewers.slice(0, 6).map((r) => (
                         <div key={r.id} className="flex items-center justify-between rounded border border-border bg-card p-2 text-xs">
                           <div>
-                            <p className="font-medium">{r.fullName}</p>
+                            <p className="font-medium">
+                              {r.fullName}
+                              {r.opposedByAuthors && (
+                                <span className="ml-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-[0.6rem] font-semibold text-amber-900">Opposed by authors</span>
+                              )}
+                            </p>
                             <p className="text-[0.65rem] text-muted-foreground">
                               {r.affiliation} · Expertise: {r.expertise || "—"}
                             </p>

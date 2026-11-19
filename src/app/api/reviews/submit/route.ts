@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
   // A review report needs the reviewer's signed Official Forms (EP-F-07,
   // EP-F-08), including reviews accepted before the forms existed.
   if (body.status !== "DECLINED") {
-    const missing = await missingReviewerForms(session.userId, review.id, review.articleId);
+    const missing = await missingReviewerForms(session.userId, review.id, review.articleId, { report: body.status === "COMPLETED" });
     if (missing.length) return NextResponse.json(requiredFormsBody(missing), { status: 428 });
   }
 

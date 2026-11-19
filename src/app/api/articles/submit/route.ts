@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-    // The five Official Forms every manuscript needs (EP-F-01 to EP-F-05),
+    // The Official Forms every manuscript needs (SUBMISSION_FORM_IDS),
     // checked against their definitions before anything is created. The
     // competing-interests statement printed with the article is EP-F-02's.
     const signedForms: { doc: OfficialFormDoc; answers: FormAnswers; signedName: string }[] = [];

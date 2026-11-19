@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { isSameEditorialTenant } from "@/lib/tenant-auth";
-import { formById, formStatusLabel } from "@/lib/forms";
+import { ADMIN_ONLY_FORMS, DECIDED_FORMS, formById, formStatusLabel } from "@/lib/forms";
+import { formReference } from "@/lib/forms/mail";
 import { canReadFormRecord, isEditorRole, parseAnswers } from "@/lib/forms/server";
 
 /**
@@ -10,8 +11,10 @@ import { canReadFormRecord, isEditorRole, parseAnswers } from "@/lib/forms/serve
  *
  * - `?articleId=` every record on that manuscript the caller may see
  *   (editors: all; the corresponding author: the author-side forms).
- * - `?inbox=1` (editors) authorship-change requests and appeals for the
- *   editor's journal, pending first.
+ * - `?inbox=1` (editors) the requests to decide for the editor's journal
+ *   (authorship changes, appeals, withdrawals, complaints, concerns,
+ *   correction requests; data-privacy requests for administrators),
+ *   pending first.
  * - otherwise the caller's own signed forms.
  */
 export async function GET(req: NextRequest) {
@@ -25,7 +28,7 @@ export async function GET(req: NextRequest) {
     if (!isEditorRole(session.role)) return NextResponse.json({ error: "Editor role required" }, { status: 403 });
     rows = await db.formSubmission.findMany({
       where: {
-        formId: { in: ["form-authorship-change", "form-appeal"] },
+        formId: { in: Object.keys(DECIDED_FORMS).filter((f) => !ADMIN_ONLY_FORMS.has(f) || ["SUPER_ADMIN", "TENANT_ADMIN"].includes(session.role)) },
         ...(session.role === "SUPER_ADMIN" || !session.tenantId ? {} : { OR: [{ tenantId: session.tenantId }, { tenantId: null }] }),
       },
       orderBy: { createdAt: "desc" },
@@ -45,7 +48,7 @@ export async function GET(req: NextRequest) {
   const articles = articleIds.length
     ? await db.article.findMany({ where: { id: { in: articleIds } }, select: { id: true, title: true, status: true } })
     : [];
-  const signerIds = [...new Set(rows.map((r) => r.userId))];
+  const signerIds = [...new Set(rows.map((r) => r.userId).filter((x): x is string => !!x))];
   const signers = await db.user.findMany({ where: { id: { in: signerIds } }, select: { id: true, fullName: true } });
 
   return NextResponse.json({
@@ -67,6 +70,9 @@ export async function GET(req: NextRequest) {
         decisionNote: r.decisionNote,
         decidedAt: r.decidedAt,
         answers: parseAnswers(r.answers),
+        reference: formReference(r),
+        // The sender's reply address, for the editors handling a public form.
+        contactEmail: isEditorRole(session.role) && r.userId !== session.userId ? r.contactEmail : null,
         pdfUrl: `/api/forms/records/${r.id}/pdf`,
       };
     }),

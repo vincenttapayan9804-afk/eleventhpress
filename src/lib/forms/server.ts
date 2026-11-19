@@ -6,7 +6,7 @@
 import { db } from "@/lib/db";
 import type { SessionPayload } from "@/lib/auth";
 import { isSameEditorialTenant } from "@/lib/tenant-auth";
-import { formById } from "./index";
+import { ADMIN_ONLY_FORMS, formById } from "./index";
 import type { FormAnswers, OfficialFormDoc } from "./types";
 
 export const EDITOR_ROLES = ["EDITOR", "ASSOCIATE_EDITOR", "SUPER_ADMIN", "TENANT_ADMIN"] as const;
@@ -30,7 +30,8 @@ const ref = (formId: string, extra: Partial<RequiredFormRef> = {}): RequiredForm
 
 export async function saveFormSubmission(input: {
   doc: OfficialFormDoc;
-  userId: string;
+  userId: string | null;
+  contactEmail?: string | null;
   tenantId?: string | null;
   articleId?: string | null;
   reviewId?: string | null;
@@ -44,6 +45,7 @@ export async function saveFormSubmission(input: {
       formCode: formById(input.doc.id)?.code ?? input.doc.code,
       formVersion: input.doc.version,
       userId: input.userId,
+      contactEmail: input.contactEmail ?? null,
       tenantId: input.tenantId ?? null,
       articleId: input.articleId ?? null,
       reviewId: input.reviewId ?? null,
@@ -61,13 +63,53 @@ async function hasSignedCurrent(userId: string, formId: string): Promise<boolean
   return !!row;
 }
 
-/** Forms a reviewer must sign before accepting (or reporting on) this review. */
-export async function missingReviewerForms(userId: string, reviewId: string, articleId: string): Promise<RequiredFormRef[]> {
+/** The latest answers to one form on a manuscript (any signer). */
+export async function latestArticleForm(articleId: string, formId: string): Promise<FormAnswers | null> {
+  const row = await db.formSubmission.findFirst({ where: { articleId, formId }, orderBy: { createdAt: "desc" }, select: { answers: true } });
+  return row ? parseAnswers(row.answers) : null;
+}
+
+/**
+ * Forms a reviewer must sign before accepting (or reporting on) this review.
+ * With `report`, also the forms that go with the report itself: the
+ * reporting-guideline assessment (EP-F-18) when the authors declared a
+ * guideline in EP-F-13, and open-review consent (EP-F-19) when the
+ * manuscript is under the open-review option.
+ */
+export async function missingReviewerForms(userId: string, reviewId: string, articleId: string, opts: { report?: boolean } = {}): Promise<RequiredFormRef[]> {
   const missing: RequiredFormRef[] = [];
   if (!(await hasSignedCurrent(userId, "form-reviewer-confidentiality"))) missing.push(ref("form-reviewer-confidentiality"));
-  const coi = await db.formSubmission.findFirst({ where: { userId, formId: "form-reviewer-coi", reviewId }, select: { id: true } });
-  if (!coi) missing.push(ref("form-reviewer-coi", { reviewId, articleId }));
+  const signedHere = await db.formSubmission.findMany({ where: { userId, reviewId }, select: { formId: true } });
+  const has = (id: string) => signedHere.some((r) => r.formId === id);
+  if (!has("form-reviewer-coi")) missing.push(ref("form-reviewer-coi", { reviewId, articleId }));
+  if (opts.report) {
+    const guideline = await latestArticleForm(articleId, "form-reporting-guideline");
+    if (guideline && guideline.guideline && guideline.guideline !== "none" && !has("form-reporting-assessment")) missing.push(ref("form-reporting-assessment", { reviewId, articleId }));
+    const article = await db.article.findUnique({ where: { id: articleId }, select: { openReview: true } });
+    if (article?.openReview && !has("form-open-review-consent")) missing.push(ref("form-open-review-consent", { reviewId, articleId }));
+  }
   return missing;
+}
+
+/** Reviewers who did not consent (EP-F-19) to their report being published. */
+export async function reviewsWithoutPublicationConsent(articleId: string): Promise<{ withheld: string[]; anonymous: string[] }> {
+  const rows = await db.formSubmission.findMany({ where: { articleId, formId: "form-open-review-consent" }, orderBy: { createdAt: "asc" }, select: { reviewId: true, answers: true } });
+  const latest = new Map<string, FormAnswers>();
+  for (const r of rows) if (r.reviewId) latest.set(r.reviewId, parseAnswers(r.answers));
+  const withheld: string[] = [];
+  const anonymous: string[] = [];
+  for (const [reviewId, a] of latest) {
+    if (a.publishReport !== "yes") withheld.push(reviewId);
+    else if (a.publishName === "anonymous") anonymous.push(reviewId);
+  }
+  return { withheld, anonymous };
+}
+
+/** Email addresses the authors asked not to be invited as reviewers (EP-F-15). */
+export async function opposedReviewerEmails(articleId: string): Promise<string[]> {
+  const a = await latestArticleForm(articleId, "form-reviewer-suggestions");
+  if (!a || a.oppose !== "yes" || typeof a.opposed !== "string") return [];
+  return [...new Set((a.opposed.match(/[^\s@<>(),;]+@[^\s@<>(),;]+\.[a-z]{2,}/gi) ?? []).map((e) => e.toLowerCase()))];
 }
 
 /** The editor's latest EP-F-09 on this article, if any. */
@@ -88,11 +130,16 @@ export function declaredConflict(row: { answers: string } | null | undefined): b
   }
 }
 
-/** Forms an editor must sign before an editorial decision on this article. */
-export async function missingEditorForms(userId: string, articleId: string): Promise<RequiredFormRef[]> {
+/**
+ * Forms an editor must sign before an editorial decision on this article.
+ * Sending a manuscript to review also needs the Initial Editorial
+ * Screening Checklist (EP-F-20), completed once per manuscript by any editor.
+ */
+export async function missingEditorForms(userId: string, articleId: string, action?: string): Promise<RequiredFormRef[]> {
   const missing: RequiredFormRef[] = [];
   if (!(await hasSignedCurrent(userId, "form-editor-code"))) missing.push(ref("form-editor-code"));
   if (!(await editorCoiFor(userId, articleId))) missing.push(ref("form-editor-coi", { articleId }));
+  if (action === "SEND_TO_REVIEW" && !(await latestArticleForm(articleId, "form-desk-screening"))) missing.push(ref("form-desk-screening", { articleId }));
   return missing;
 }
 
@@ -113,7 +160,14 @@ const AUTHOR_SIDE = new Set([
   "form-licence-to-publish",
   "form-authorship-change",
   "form-appeal",
+  "form-reporting-guideline",
+  "form-third-party-permissions",
+  "form-reviewer-suggestions",
+  "form-proof-approval",
+  "form-withdrawal",
 ]);
+
+const ADMIN_ROLES = new Set(["SUPER_ADMIN", "TENANT_ADMIN"]);
 
 /**
  * Who may read a signed record: the signer; an editor of the article's (or
@@ -122,9 +176,10 @@ const AUTHOR_SIDE = new Set([
  */
 export async function canReadFormRecord(
   session: SessionPayload,
-  row: { userId: string; formId: string; tenantId: string | null; articleId: string | null }
+  row: { userId: string | null; formId: string; tenantId: string | null; articleId: string | null }
 ): Promise<boolean> {
-  if (row.userId === session.userId) return true;
+  if (row.userId && row.userId === session.userId) return true;
+  if (ADMIN_ONLY_FORMS.has(row.formId)) return ADMIN_ROLES.has(session.role) && isSameEditorialTenant(session, row.tenantId);
   let articleTenant: string | null = row.tenantId;
   let corresponding: string | null = null;
   if (row.articleId) {
