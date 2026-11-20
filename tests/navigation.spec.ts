@@ -79,8 +79,8 @@ test("the status page renders", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Platform status" })).toBeVisible();
 });
 
-test("the About menu groups About, Governance and Legal pages", async ({ page }) => {
-  test.setTimeout(90_000);
+test("the About menu opens each Governance and Legal page", async ({ page }) => {
+  test.setTimeout(120_000);
   await page.goto("/", { waitUntil: "networkidle" });
   const pages: [string, RegExp][] = [
     ["nav-charter", /\/charter$/],
@@ -93,16 +93,25 @@ test("the About menu groups About, Governance and Legal pages", async ({ page })
       if (!(await page.getByTestId(id).isVisible())) await page.getByTestId("nav-group-about").click();
       await page.getByTestId(id).click({ timeout: 2000 });
       await expect(page).toHaveURL(url, { timeout: 2000 });
-    }).toPass({ timeout: 20000 });
+    }).toPass({ timeout: 25_000 });
   }
+});
+
+test("the About menu shows labelled sections and links the Cookie Policy", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.goto("/", { waitUntil: "networkidle" });
   const menu = page.getByRole("menu");
+  const cookie = page.getByTestId("nav-cookie-policy");
   await expect(async () => {
     if (!(await menu.isVisible())) await page.getByTestId("nav-group-about").click();
     for (const heading of ["About", "Governance", "Legal"]) await expect(menu.getByText(heading, { exact: true })).toBeVisible({ timeout: 2000 });
-  }).toPass({ timeout: 20000 });
+    await expect(cookie).toHaveAttribute("href", "/cookie-policy", { timeout: 2000 });
+  }).toPass({ timeout: 25_000 });
+  // The Cookie Policy is a server-rendered page, so the click starts a full
+  // page load (slow on first compile under `next dev`): click, then wait.
   await expect(async () => {
-    if (!(await page.getByTestId("nav-cookie-policy").isVisible())) await page.getByTestId("nav-group-about").click();
-    await page.getByTestId("nav-cookie-policy").click({ timeout: 2000 });
-    await expect(page).toHaveURL(/\/cookie-policy$/, { timeout: 5000 });
-  }).toPass({ timeout: 30000 });
+    if (!(await cookie.isVisible())) await page.getByTestId("nav-group-about").click();
+    await cookie.click({ timeout: 3000, noWaitAfter: true });
+  }).toPass({ timeout: 25_000 });
+  await expect(page).toHaveURL(/\/cookie-policy$/, { timeout: 60_000 });
 });
