@@ -63,7 +63,8 @@
     "trustCenter": "Trust Center",
     "copyright": "© {year} Eleventh Press International Publishing™. All articles published under CC BY 4.0 unless otherwise noted.",
     "indexedLine": "Indexed: Google Scholar · {registrar} · OAI-PMH · DOAJ",
-    "contactUs": "Contact us"
+    "contactUs": "Contact us",
+    "archiveByDate": "Archive by date"
   },
   "home": {
     "issueLine": "Open access · Peer reviewed · ISSN: applied for",

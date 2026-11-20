@@ -14,14 +14,18 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
   // A tenant's own domain points crawlers at its own sitemap.
   const tenant = await resolveTenantFromHeaders(await headers()).catch(() => null);
   const base = await requestBaseUrl(tenant);
+  // Google renders pages with JavaScript and obeys robots.txt for the data
+  // a page loads while rendering. The article page and the article lists
+  // load their (public) content from /api/articles, so blocking all of
+  // /api/ left Googlebot's rendered article page without its abstract.
+  // /api/articles is allowed (the longer, more specific rule wins); the
+  // rest of /api/ stays blocked, and every /api/ response carries
+  // X-Robots-Tag: noindex (next.config.ts) so the JSON itself is never
+  // listed as a page.
+  const allow = ["/", "/api/articles"];
+  const disallow = ["/dashboard", "/admin", "/api/"];
   return {
-    rules: [
-      { userAgent: "Googlebot", allow: "/", disallow: ["/dashboard", "/admin", "/api/"] },
-      { userAgent: "Bingbot", allow: "/", disallow: ["/dashboard", "/admin", "/api/"] },
-      { userAgent: "Twitterbot", allow: "/", disallow: ["/dashboard", "/admin", "/api/"] },
-      { userAgent: "facebookexternalhit", allow: "/", disallow: ["/dashboard", "/admin", "/api/"] },
-      { userAgent: "*", allow: "/", disallow: ["/dashboard", "/admin", "/api/"] },
-    ],
+    rules: ["Googlebot", "Bingbot", "Twitterbot", "facebookexternalhit", "*"].map((userAgent) => ({ userAgent, allow, disallow })),
     sitemap: `${base}/sitemap.xml`,
   };
 }

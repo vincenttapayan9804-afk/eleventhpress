@@ -137,6 +137,13 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // API responses are data, not pages: never list them in search
+        // results (crawlers may still fetch /api/articles to render pages —
+        // see src/app/robots.ts).
+        source: "/api/:path*",
+        headers: [{ key: "X-Robots-Tag", value: "noindex" }],
+      },
+      {
         // Unauthenticated, GET-only metadata harvester feeds meant for
         // arbitrary third-party consumption — the only two routes that
         // legitimately need a wildcard CORS allowance. COUNTER5

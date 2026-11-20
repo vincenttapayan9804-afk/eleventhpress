@@ -9,6 +9,7 @@ import { authorPath } from "@/lib/author-path";
 import { useEffect, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import { useApp } from "@/lib/store";
+import { articlePdfPath, scholarDate } from "@/lib/scholar-meta";
 import { apiFetch } from "@/lib/api-client";
 import { ArticleDetail } from "@/lib/types";
 import { DISCIPLINE_COLORS, parseAuthors, parseFunders, CORRECTION_TYPE_LABELS, CorrectionType } from "@/lib/article";
@@ -1624,19 +1625,23 @@ function HeadMetas({ article, authors }: { article: ArticleDetail; authors: any[
   const branding = useTenantBranding();
   const siteJournal = isWhitelabel(branding) ? branding.siteName || branding.tenantName || "" : "Eleventh Press International Journal";
   useEffect(() => {
+    // On the real /article/... page load the server already rendered the
+    // authoritative tags; adding a second set (with a different PDF URL)
+    // would only give crawlers conflicting data.
+    if (document.head.querySelector('meta[name="citation_title"]:not([data-client-meta])')) return;
     const tags: HTMLMetaElement[] = [];
     const push = (name: string, content: string) => {
       const t = document.createElement("meta");
       t.name = name;
       t.content = content;
+      t.dataset.clientMeta = "";
       document.head.appendChild(t);
       tags.push(t);
     };
     push("citation_title", article.title);
     authors.forEach((a, i) => push(`citation_author`, a.name));
-    if (article.publishedAt) {
-      push("citation_publication_date", new Date(article.publishedAt).toISOString().split("T")[0]);
-    }
+    const pubDate = scholarDate(article.publishedAt);
+    if (pubDate) push("citation_publication_date", pubDate);
     push("citation_journal_title", article.journalName || siteJournal);
     if (article.journalIssn) push("citation_issn", article.journalIssn);
     if (article.volume) push("citation_volume", String(article.volume));
@@ -1646,21 +1651,13 @@ function HeadMetas({ article, authors }: { article: ArticleDetail; authors: any[
     // correct for whatever host is actually serving the page.
     push("citation_abstract_html_url", `${window.location.origin}${articlePath(article.id, article.title)}`);
 
-    // Published-article galleys are now genuinely public (no auth wall —
-    // see the updated /api/articles/[id]/galley route), so this can safely
-    // resolve and publish the real download URL Google Scholar requires.
-    let cancelled = false;
+    // The full-text PDF on this site, under the article's own path (the
+    // same URL the server-rendered page publishes).
     if (article.galleyPdfKey) {
-      apiFetch<{ url: string }>(`/api/articles/${article.id}/galley?format=pdf`)
-        .then((r) => {
-          if (cancelled) return;
-          push("citation_pdf_url", r.url);
-        })
-        .catch(() => {});
+      push("citation_pdf_url", `${window.location.origin}${articlePdfPath(articlePath(article.id, article.title))}`);
     }
 
     return () => {
-      cancelled = true;
       tags.forEach((t) => t.remove());
     };
   }, [article, authors, siteJournal]);
