@@ -1487,6 +1487,7 @@ export function CorpusChatPanel({ open, onOpenChange }: { open: boolean; onOpenC
                                 exporting={exporting === m.id || exporting === `cite-${m.id}`}
                                 isLatest={busy?.kind === "regenerate" && busy.id === m.id}
                                 reveal={revealId === m.id}
+                                question={questionFor(m)?.content}
                               />
                             </div>
                           )

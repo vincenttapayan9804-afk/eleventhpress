@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { correctionWarnings, loadCorrections } from "@/lib/source-signals";
 import { extractRequestIp } from "@/lib/institutions";
 import { checkRateLimit } from "@/lib/ratelimit";
 import { chatJSON, anyLLMAvailable } from "@/lib/llm";
@@ -283,6 +284,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       verified.check.warnings.unshift(
         `Removed ${cited.droppedMarkers === 1 ? "a citation" : `${cited.droppedMarkers} citations`} that pointed at evidence the assistant wasn't given.`
       );
+      if (verified.check.status === "verified") verified.check.status = "review";
+    }
+    // A cited article the journal has since retracted, or flagged with an
+    // expression of concern, is called out with the answer.
+    const correctionNotes = correctionWarnings(sources, await loadCorrections(sources.map((s) => s.id)).catch(() => new Map()));
+    if (correctionNotes.length > 0) {
+      verified.check.warnings.unshift(...correctionNotes);
       if (verified.check.status === "verified") verified.check.status = "review";
     }
 

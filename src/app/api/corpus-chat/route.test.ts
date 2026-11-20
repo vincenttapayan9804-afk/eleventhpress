@@ -46,6 +46,8 @@ let rateLimitOverride: Record<string, unknown> | null = null;
 let rateLimitKeys: string[] = [];
 let settingsRow: Record<string, unknown> | null = null;
 let platformTenant = true;
+/** Correction notices on the cited articles. */
+let corrections: { articleId: string; type: string; title: string; doi: string | null; issuedAt: Date }[] = [];
 
 const RECORD = {
   id: "art_1",
@@ -153,6 +155,9 @@ mock.module("@/lib/db", () => ({
         return { findUnique: async () => settingsRow };
       }
       if (active && prop === "researchQueryLog") return { create: async () => ({}) };
+      if (active && prop === "correction") {
+        return { findMany: async ({ where }: any) => corrections.filter((c) => where.articleId.in.includes(c.articleId)) };
+      }
       return Reflect.get(target, prop, receiver);
     },
   }),
@@ -201,6 +206,7 @@ beforeEach(() => {
   rateLimitKeys = [];
   settingsRow = null;
   platformTenant = true;
+  corrections = [];
   clearAssistantSettingsCache();
   console.info = () => {};
   console.error = () => {};
@@ -251,6 +257,20 @@ describe("POST /api/corpus-chat error handling", () => {
     expect(body.citations).toHaveLength(1);
     expect(body.sources).toHaveLength(1);
     expect(body.sources[0].title).toBe(PASSAGE.articleTitle);
+  });
+
+  test("a cited article that has been retracted is called out with the answer", async () => {
+    corrections = [{ articleId: "art_1", type: "RETRACTION", title: "Retraction notice", doi: null, issuedAt: new Date("2026-06-01T00:00:00Z") }];
+    const body = await (await ask()).json();
+    expect(body.mode).toBe("answered");
+    expect(body.evidence.status).toBe("review");
+    expect(body.evidence.warnings[0]).toMatch(/Source 1 has been retracted/);
+  });
+
+  test("a corrigendum alone doesn't add a warning", async () => {
+    corrections = [{ articleId: "art_1", type: "CORRIGENDUM", title: "Corrected table", doi: null, issuedAt: new Date("2026-06-01T00:00:00Z") }];
+    const body = await (await ask()).json();
+    expect(body.evidence.warnings.join(" ")).not.toMatch(/retracted|concern/);
   });
 
   test("reader-facing validation errors are unchanged", async () => {

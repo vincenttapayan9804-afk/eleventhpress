@@ -1,15 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  searchCrossref,
-  searchOpenAlex,
-  searchSemanticScholar,
-  searchEric,
-  searchPubMedCentral,
-  searchZenodo,
-  searchCore,
-  type DiscoveryResult,
-  type DiscoverySource,
-} from "@/lib/open-discovery";
+import { discoverAcrossSources } from "@/lib/open-discovery";
 
 /**
  * GET /api/discover?q=...
@@ -30,41 +20,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ query: q, results: [], sources: {} });
   }
 
-  const [crossref, openalex, semanticScholar, eric, pubmedCentral, zenodo, core] = await Promise.all([
-    searchCrossref(q, RESULTS_PER_SOURCE),
-    searchOpenAlex(q, RESULTS_PER_SOURCE),
-    searchSemanticScholar(q, RESULTS_PER_SOURCE),
-    searchEric(q, RESULTS_PER_SOURCE),
-    searchPubMedCentral(q, RESULTS_PER_SOURCE),
-    searchZenodo(q, RESULTS_PER_SOURCE),
-    searchCore(q, RESULTS_PER_SOURCE),
-  ]);
-
-  const grouped: Record<DiscoverySource, DiscoveryResult[]> = {
-    crossref,
-    openalex,
-    semantic_scholar: semanticScholar,
-    eric,
-    pubmed_central: pubmedCentral,
-    zenodo,
-    core,
-  };
-
-  const seen = new Set<string>();
-  const results: DiscoveryResult[] = [];
-  for (const list of Object.values(grouped)) {
-    for (const r of list) {
-      const key = r.doi ? `doi:${r.doi.toLowerCase()}` : `${r.source}:${r.title.toLowerCase()}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      results.push(r);
-    }
-  }
-
-  const sources = Object.fromEntries(Object.entries(grouped).map(([source, list]) => [source, list.length])) as Record<
-    DiscoverySource,
-    number
-  >;
+  const { results, sources } = await discoverAcrossSources(q, RESULTS_PER_SOURCE);
 
   return NextResponse.json(
     { query: q, results, sources },

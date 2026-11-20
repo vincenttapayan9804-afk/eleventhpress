@@ -7,6 +7,7 @@ import { sectionsForQuestion } from "@/lib/section-chunker";
 import { passageLocation } from "@/lib/answer-integrity";
 import { loadCorpusChunksByIds, retrieveChunksAcrossCorpus, type CorpusRetrievedChunk } from "@/lib/chunk-embeddings";
 import { db } from "@/lib/db";
+import { correctionWarnings, loadCorrections } from "@/lib/source-signals";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { resolveTenantFromHeaders, tenantCacheControl, type TenantContext } from "@/lib/tenant";
 import { APP_BASE_URL } from "@/lib/site";
@@ -686,6 +687,13 @@ async function answerQuestion(input: AskInput, emit: Emit, signal: AbortSignal, 
       verified.check.warnings.unshift(
         `Removed ${cited.droppedMarkers === 1 ? "a citation" : `${cited.droppedMarkers} citations`} that pointed at evidence the assistant wasn't given.`
       );
+      if (verified.check.status === "verified") verified.check.status = "review";
+    }
+    // A cited article the journal has since retracted, or flagged with an
+    // expression of concern, is called out with the answer.
+    const correctionNotes = correctionWarnings(sources, await loadCorrections(sources.map((s) => s.id)).catch(() => new Map()));
+    if (correctionNotes.length > 0) {
+      verified.check.warnings.unshift(...correctionNotes);
       if (verified.check.status === "verified") verified.check.status = "review";
     }
 

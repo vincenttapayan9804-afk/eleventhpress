@@ -313,3 +313,13 @@ export const CITATION_STYLES: CitationStyleDef[] = [
 export function formatCitationStyle(article: ExportableArticle, style: CitationStyleId): string {
   return (CITATION_STYLES.find((s) => s.id === style) ?? CITATION_STYLES[0]).format(article);
 }
+
+/**
+ * A reference for a list of several sources: the title's stray whitespace
+ * tidied, and without the "[1]" a numbered style puts on a single citation
+ * (the list supplies its own order).
+ */
+export function formatReferenceListEntry(article: ExportableArticle, style: CitationStyleId): string {
+  const tidy = { ...article, title: article.title.replace(/\s+/g, " ").trim() };
+  return formatCitationStyle(tidy, style).replace(/^\[\d+\]\s+/, "");
+}

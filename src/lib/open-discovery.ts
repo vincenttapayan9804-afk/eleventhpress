@@ -323,3 +323,44 @@ export async function searchCore(query: string, limit = 5): Promise<DiscoveryRes
     clearTimeout(timer);
   }
 }
+
+export interface DiscoveryFanOut {
+  /** Deduplicated by DOI (first source to surface a DOI wins), in source order. */
+  results: DiscoveryResult[];
+  /** How many results each source returned. */
+  sources: Record<DiscoverySource, number>;
+}
+
+/** One search across every source at once, deduplicated. */
+export async function discoverAcrossSources(query: string, perSource = 5): Promise<DiscoveryFanOut> {
+  const [crossref, openalex, semanticScholar, eric, pubmedCentral, zenodo, core] = await Promise.all([
+    searchCrossref(query, perSource),
+    searchOpenAlex(query, perSource),
+    searchSemanticScholar(query, perSource),
+    searchEric(query, perSource),
+    searchPubMedCentral(query, perSource),
+    searchZenodo(query, perSource),
+    searchCore(query, perSource),
+  ]);
+  const grouped: Record<DiscoverySource, DiscoveryResult[]> = {
+    crossref,
+    openalex,
+    semantic_scholar: semanticScholar,
+    eric,
+    pubmed_central: pubmedCentral,
+    zenodo,
+    core,
+  };
+  const seen = new Set<string>();
+  const results: DiscoveryResult[] = [];
+  for (const list of Object.values(grouped)) {
+    for (const r of list) {
+      const key = r.doi ? `doi:${r.doi.toLowerCase()}` : `${r.source}:${r.title.toLowerCase()}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      results.push(r);
+    }
+  }
+  const sources = Object.fromEntries(Object.entries(grouped).map(([s, list]) => [s, list.length])) as Record<DiscoverySource, number>;
+  return { results, sources };
+}
