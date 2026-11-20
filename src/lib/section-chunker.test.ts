@@ -117,4 +117,24 @@ describe("galleyToPassages", () => {
     const out = galleyToPassages(`<h1>Title</h1><div class="authors">A. Author</div><h2>Discussion</h2><p>We discuss.</p>`);
     expect(out).toEqual([{ text: "We discuss.", headingPath: ["Discussion"], section: "discussion", kind: "text" }]);
   });
+
+  test("equations are kept as $$TeX$$, from the TeX annotation, alttext or MathML text", () => {
+    const html =
+      '<div class="article-body"><h2>Methods</h2><p>The score is <math><semantics><mrow><mi>x</mi><mo>=</mo><mn>2</mn></mrow>' +
+      '<annotation encoding="application/x-tex">x = \\frac{a}{b}</annotation></semantics></math> per item.</p>' +
+      '<math display="block" alttext="y=mx+c"><mi>y</mi></math><p>Then <math><mi>n</mi><mo>&gt;</mo><mn>30</mn></math>.</p></div>';
+    const [p] = galleyToPassages(html);
+    expect(p.text).toContain("The score is $$x = \\frac{a}{b}$$ per item.");
+    expect(p.text).toContain("\n$$y=mx+c$$\n");
+    expect(p.text).toContain("Then $$n>30$$");
+    expect(p.text).not.toContain("x=2");
+  });
+
+  test("a long section is never split inside an equation", () => {
+    const eq = "$$" + "a + b ".repeat(30) + "$$";
+    const text = Array.from({ length: 12 }, (_, i) => `Sentence ${i} is here and talks a little. ${eq}`).join(" ");
+    const out = galleyToPassages(`<div class="article-body"><p>${text}</p></div>`);
+    expect(out.length).toBeGreaterThan(1);
+    for (const x of out) expect((x.text.match(/\$\$/g) ?? []).length % 2).toBe(0);
+  });
 });

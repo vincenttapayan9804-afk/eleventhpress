@@ -75,7 +75,7 @@ export interface SourceSignal {
   corrections: { type: string; label: string; title: string; issuedAt: string; doi: string | null }[];
   status: "retracted" | "concern" | "corrected" | null;
   retractedReferences: { doi: string; title: string | null; retractionDate: string | null }[] | null;
-  citations: { count: number; url: string | null } | null;
+  citations: { count: number; url: string | null; source?: "openalex" | "opencitations" } | null;
   communityReviews: { count: number; items: { channel: string; url: string; reviewer: string | null; postedAt: string | null }[] };
   reference: string | null;
 }
@@ -227,7 +227,7 @@ export function SourceSignalDetails({ signal, loading }: { signal: SourceSignal 
           ) : (
             <span className="text-muted-foreground">Not yet indexed</span>
           )}
-          <span className="text-muted-foreground"> · OpenAlex</span>
+          <span className="text-muted-foreground"> · {signal.citations?.source === "opencitations" ? "OpenCitations" : "OpenAlex"}</span>
         </dd>
         <dt className="flex items-center gap-1 text-muted-foreground">
           <MessagesSquare className="h-3 w-3" aria-hidden="true" /> Community reviews

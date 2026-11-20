@@ -1,6 +1,6 @@
 "use client";
 import ReactMarkdown, { type Components } from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { REHYPE_PLUGINS, REMARK_PLUGINS } from "./markdown-extras";
 
 // Pieces shared by both AI Research Assistant chats: Ask the Corpus
 // (corpus-chat-panel.tsx) and Ask this paper (article-chat-panel.tsx).
@@ -308,6 +308,8 @@ const LIVE_COMPONENTS: Components = {
   td: ({ children }) => <td className="border-b border-border/50 px-3 py-2 align-top leading-relaxed">{children}</td>,
   // Links aren't shown until the answer has been checked.
   a: ({ children }) => <span>{children}</span>,
+  // A diagram is drawn once the answer is finished; while it is written, its code shows.
+  pre: ({ children }) => <pre className="my-3 overflow-x-auto rounded-lg bg-muted px-3 py-2.5 font-mono text-[0.8rem] leading-relaxed epip-scroll">{children}</pre>,
 };
 
 /** The answer as the model writes it, before it has been checked. */
@@ -315,7 +317,7 @@ export function LiveAnswer({ text }: { text: string }) {
   return (
     <div className="rounded-2xl border border-border/70 bg-card/60 px-4 py-3.5 shadow-sm" aria-live="off">
       <div className="text-[0.95rem] text-foreground/90">
-        <ReactMarkdown remarkPlugins={[remarkGfm]} components={LIVE_COMPONENTS}>
+        <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS} components={LIVE_COMPONENTS}>
           {provisionalCitations(text)}
         </ReactMarkdown>
         <span className="ml-0.5 inline-block h-4 w-[2px] translate-y-0.5 animate-pulse bg-primary align-baseline" aria-hidden="true" />

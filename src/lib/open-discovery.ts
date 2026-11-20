@@ -324,6 +324,50 @@ export async function searchCore(query: string, limit = 5): Promise<DiscoveryRes
   }
 }
 
+// ---------------------------------------------------------------------------
+// Unpaywall: a legal open-access copy for a DOI. Free and keyless; asks for
+// a contact email on every request (the same polite-pool contact as above).
+// Cached per DOI on this server instance.
+// ---------------------------------------------------------------------------
+
+const UNPAYWALL_EMAIL = process.env.UNPAYWALL_EMAIL?.trim() || "editorial@eleventhpress.com";
+const OA_TTL_MS = 24 * 60 * 60 * 1000;
+const OA_CACHE_MAX = 2000;
+const oaCache = new Map<string, { at: number; url: string | null }>();
+
+export function __resetOpenAccessCacheForTests() {
+  oaCache.clear();
+}
+
+/** The best open-access URL Unpaywall knows for a DOI, or null. */
+export async function unpaywallUrl(doi: string): Promise<string | null> {
+  const key = doi.toLowerCase();
+  const hit = oaCache.get(key);
+  if (hit && Date.now() - hit.at < OA_TTL_MS) return hit.url;
+  const data = await fetchJson(`https://api.unpaywall.org/v2/${encodeURIComponent(key)}?email=${encodeURIComponent(UNPAYWALL_EMAIL)}`);
+  if (data === null) return null; // a failed lookup isn't cached
+  const best = data?.is_oa ? data.best_oa_location : null;
+  const raw = best?.url_for_landing_page || best?.url || best?.url_for_pdf || null;
+  // A DOI link (Unpaywall's landing page is often one) is shown as https://doi.org/….
+  const url =
+    typeof raw === "string" && /^https?:\/\//i.test(raw)
+      ? raw.replace(/^https?:\/\/(dx\.)?doi\.org\//i, "https://doi.org/")
+      : null;
+  if (oaCache.size >= OA_CACHE_MAX) {
+    const oldest = oaCache.keys().next().value;
+    if (oldest !== undefined) oaCache.delete(oldest);
+  }
+  oaCache.set(key, { at: Date.now(), url });
+  return url;
+}
+
+/** Fills openAccessUrl from Unpaywall for results that have a DOI but no open-access link yet. */
+export async function withOpenAccessLinks(results: DiscoveryResult[]): Promise<DiscoveryResult[]> {
+  return Promise.all(
+    results.map(async (r) => (r.openAccessUrl || !r.doi ? r : { ...r, openAccessUrl: await unpaywallUrl(r.doi).catch(() => null) }))
+  );
+}
+
 export interface DiscoveryFanOut {
   /** Deduplicated by DOI (first source to surface a DOI wins), in source order. */
   results: DiscoveryResult[];

@@ -7,7 +7,8 @@
  *   - corrections: the journal's own Correction notices
  *   - retracted references: the local Retraction Watch mirror
  *     (src/lib/retraction-watch.ts), matched against Reference.doi
- *   - citation counts: OpenAlex (src/lib/citation-metrics.ts), cached
+ *   - citation counts: OpenAlex (src/lib/citation-metrics.ts), or the
+ *     open COCI index of OpenCitations (CC0) when OpenAlex has no record; cached
  *   - community reviews: stored Hypothesis / PREreview / curated rows
  *     (src/lib/independent-reviews.ts), only for articles with a public
  *     Review History, as on the article page
@@ -37,8 +38,8 @@ export interface SourceSignals {
   status: "retracted" | "concern" | "corrected" | null;
   /** null: the Retraction Watch mirror has never been synced, so nothing can be said. */
   retractedReferences: { doi: string; title: string | null; retractionDate: string | null }[] | null;
-  /** null: no DOI, or OpenAlex has no record (yet). */
-  citations: { count: number; url: string | null } | null;
+  /** null: no DOI, or neither OpenAlex nor OpenCitations has a record (yet). */
+  citations: { count: number; url: string | null; source: "openalex" | "opencitations" } | null;
   communityReviews: { count: number; items: { channel: string; url: string; reviewer: string | null; postedAt: string | null }[] };
 }
 
@@ -68,7 +69,8 @@ export function correctionStatus(types: string[]): SourceSignals["status"] {
 const CITATION_TTL_MS = 24 * 60 * 60 * 1000;
 const CITATION_MISS_TTL_MS = 60 * 60 * 1000;
 const CITATION_CACHE_MAX = 2000;
-const citationCache = new Map<string, { at: number; value: { count: number; openAlexId: string | null } | null }>();
+type CitationCount = { count: number; openAlexId: string | null; source: "openalex" | "opencitations" };
+const citationCache = new Map<string, { at: number; value: CitationCount | null }>();
 
 export function __resetSourceSignalCacheForTests() {
   citationCache.clear();
@@ -78,12 +80,37 @@ function normalizeDoi(doi: string): string {
   return doi.replace(/^https?:\/\/(dx\.)?doi\.org\//i, "").trim().toLowerCase();
 }
 
-async function citationCount(doi: string): Promise<{ count: number; openAlexId: string | null } | null> {
+/** OpenCitations' count of citing works for a DOI (COCI, CC0 data), or null. */
+export async function openCitationsCount(doi: string): Promise<number | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 6000);
+  try {
+    const res = await fetch(`https://api.opencitations.net/index/v2/citation-count/doi:${encodeURI(doi)}`, {
+      headers: { Accept: "application/json", "User-Agent": "EPIP-Research-Assistant/1.0 (mailto:editorial@eleventhpress.com)" },
+      signal: controller.signal,
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { count?: string | number }[];
+    const n = Number(Array.isArray(data) ? data[0]?.count : NaN);
+    // 0 is OpenCitations' answer for a DOI it doesn't know as well, so it says nothing.
+    return Number.isFinite(n) && n > 0 ? n : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function citationCount(doi: string): Promise<CitationCount | null> {
   const key = normalizeDoi(doi);
   const hit = citationCache.get(key);
   if (hit && Date.now() - hit.at < (hit.value === null ? CITATION_MISS_TTL_MS : CITATION_TTL_MS)) return hit.value;
   const metrics = await fetchWorkCitationMetrics(key).catch(() => null);
-  const value = metrics ? { count: metrics.citedByCount, openAlexId: metrics.openAlexId } : null;
+  let value: CitationCount | null = metrics ? { count: metrics.citedByCount, openAlexId: metrics.openAlexId, source: "openalex" } : null;
+  if (!value) {
+    const count = await openCitationsCount(key);
+    if (count !== null) value = { count, openAlexId: null, source: "opencitations" };
+  }
   if (citationCache.size >= CITATION_CACHE_MAX) {
     const oldest = citationCache.keys().next().value;
     if (oldest !== undefined) citationCache.delete(oldest);
@@ -185,7 +212,8 @@ export async function loadSourceSignals(
       citations: count
         ? {
             count: count.count,
-            // The citing works on OpenAlex.
+            source: count.source,
+            // The citing works on OpenAlex (OpenCitations has no browsable list).
             url: count.openAlexId ? `https://openalex.org/works?filter=cites:${count.openAlexId}` : null,
           }
         : null,

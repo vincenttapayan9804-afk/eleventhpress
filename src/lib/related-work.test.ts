@@ -57,4 +57,15 @@ describe("ranking by the question", () => {
       "Students' Engagement in Ultimate Frisbee",
     ]);
   });
+
+  test("a rare topic word outweighs words every title shares", () => {
+    const list = [
+      r("Students' Motivation in Online Classes"),
+      r("Students and Motivation: A Survey of Schools"),
+      r("Student Attendance and Motivation"),
+      r("Motivation in TLE Laboratory Classes"),
+    ];
+    const out = outsideJournal(list, [], 12, "TLE students motivation");
+    expect(out[0].title).toBe("Motivation in TLE Laboratory Classes");
+  });
 });

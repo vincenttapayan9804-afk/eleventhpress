@@ -5,7 +5,7 @@ import { checkRateLimit } from "@/lib/ratelimit";
 import { resolveTenantFromHeaders } from "@/lib/tenant";
 import { corpusArticleWhere } from "@/lib/research-assistant-settings";
 import { cleanSourceIds } from "@/lib/research-query";
-import { discoverAcrossSources } from "@/lib/open-discovery";
+import { discoverAcrossSources, withOpenAccessLinks } from "@/lib/open-discovery";
 import { outsideJournal, relatedWorkQuery } from "@/lib/related-work";
 
 /**
@@ -13,7 +13,8 @@ import { outsideJournal, relatedWorkQuery } from "@/lib/related-work";
  * this journal for a Research Assistant answer, from open scholarly
  * indexes (Crossref, OpenAlex, Semantic Scholar, ERIC, PubMed Central,
  * Zenodo, and CORE when configured), via the same fan-out as
- * /api/discover.
+ * /api/discover. Results with a DOI but no open-access link get one from
+ * Unpaywall when it knows a legal free copy.
  *
  * Shown only when the reader asks for it, labelled as outside the journal,
  * and never given to the model: answers stay grounded in the journal's
@@ -53,8 +54,9 @@ export async function GET(req: NextRequest) {
       })
     : [];
 
+  const listed = await withOpenAccessLinks(outsideJournal(results, own.map((a) => a.doi!).filter(Boolean), MAX_RESULTS, query));
   return NextResponse.json(
-    { query, results: outsideJournal(results, own.map((a) => a.doi!).filter(Boolean), MAX_RESULTS, query) },
+    { query, results: listed },
     // Per reader and per question: the browser may reuse a repeat briefly.
     { headers: { "Cache-Control": "private, max-age=300" } }
   );

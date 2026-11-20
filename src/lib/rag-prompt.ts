@@ -74,3 +74,13 @@ export function normalizeUsedPassages(raw: unknown): number[] {
   if (!Array.isArray(raw)) return [];
   return [...new Set(raw.map(Number).filter((n) => Number.isInteger(n) && n > 0))];
 }
+
+/**
+ * Formatting rules for equations and diagrams, shared by both assistants.
+ * Answers are rendered with KaTeX (`$$…$$`) and Mermaid (```mermaid), see
+ * src/components/research-assistant/markdown-extras.tsx.
+ */
+export const EQUATION_AND_DIAGRAM_RULES = [
+  "- Equations: when the evidence contains one (written $$…$$ in the passages), copy it exactly as $$…$$ and cite it. Never write a single $ for maths, and never invent or rework an equation the evidence doesn't show.",
+  "- Diagrams: only when the question is about a process, procedure or study design that the evidence describes step by step, you may add one small Mermaid flowchart (```mermaid, \"flowchart TD\", at most 10 short plain-text nodes, no styling or links), then cite the steps in the text. Never use a diagram for findings or numbers.",
+].join("\n");

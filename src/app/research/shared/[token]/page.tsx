@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import ReactMarkdown, { defaultUrlTransform, type Components } from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { CODE_COMPONENTS, REHYPE_PLUGINS, REMARK_PLUGINS, outsideMathAndCode } from "@/components/research-assistant/markdown-extras";
 import { BookOpenText, MessageSquareText, ShieldCheck } from "lucide-react";
 import { getCurrentTenant } from "@/lib/tenant";
 import { loadSharedConversation } from "@/lib/research-share";
@@ -46,7 +46,7 @@ interface StoredAnswer {
 }
 
 function linkCitations(md: string, messageId: string): string {
-  return md.replace(/\[(\d{1,3})\](?!\()/g, (_m, n: string) => `[${n}](#${messageId}-c${n})`);
+  return outsideMathAndCode(md, (t) => t.replace(/\[(\d{1,3})\](?!\()/g, (_m, n: string) => `[${n}](#${messageId}-c${n})`));
 }
 
 function components(messageId: string, citations: AnswerCitation[]): Components {
@@ -86,6 +86,7 @@ function components(messageId: string, citations: AnswerCitation[]): Components 
     th: ({ children }) => <th className="border-b border-border/80 px-3 py-2 font-semibold">{children}</th>,
     td: ({ children }) => <td className="border-b border-border/50 px-3 py-2 align-top">{children}</td>,
     blockquote: ({ children }) => <blockquote className="my-3 border-l-2 border-[var(--gold-400)] pl-3.5 text-muted-foreground">{children}</blockquote>,
+    ...CODE_COMPONENTS,
   };
 }
 
@@ -138,7 +139,7 @@ export default async function SharedConversationPage({ params }: Props) {
                   <p className="mb-3 rounded-lg bg-muted/50 px-3 py-2 text-sm text-muted-foreground">The journal&apos;s published articles don&apos;t cover this question.</p>
                 )}
                 <div className="text-[0.95rem] text-foreground/90">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]} urlTransform={urlTransform} components={components(m.id, citations)}>
+                  <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS} urlTransform={urlTransform} components={components(m.id, citations)}>
                     {linkCitations(m.content, m.id)}
                   </ReactMarkdown>
                 </div>

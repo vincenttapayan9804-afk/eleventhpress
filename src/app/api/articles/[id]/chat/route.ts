@@ -10,7 +10,7 @@ import { retrieveChunks, indexArticleChunks, loadCorpusChunksByIds, type Retriev
 import { resolveTenantFromHeaders } from "@/lib/tenant";
 import { withTenantRlsContext } from "@/lib/db-rls";
 import { APP_BASE_URL } from "@/lib/site";
-import { ARTICLE_RECORD_SELECT, formatArticleRecord, formatHistory, normalizeUsedPassages } from "@/lib/rag-prompt";
+import { ARTICLE_RECORD_SELECT, EQUATION_AND_DIAGRAM_RULES, formatArticleRecord, formatHistory, normalizeUsedPassages } from "@/lib/rag-prompt";
 import { analyzeQuestion, cleanSourceIds, type QuestionIntent } from "@/lib/research-query";
 import {
   finalizeSuggestions,
@@ -127,6 +127,7 @@ const SYSTEM_PROMPT = (journalName: string, title: string) =>
     "Response structure (Markdown in \"answer\"), adapted to the question — never pad a simple answer:",
     "- Simple factual or bibliographic question: one to three sentences with citations, no headings.",
     "- Substantive question: open with the direct answer in 2–4 sentences (no heading). Then add only the sections that add value, in this order: \"### Supporting evidence\" (bullet points, each cited), \"### Research interpretation\", \"### Limitations\" (of the study, and of the evidence available here).",
+    EQUATION_AND_DIAGRAM_RULES,
     "",
     "Conversation: earlier turns are only for understanding references such as \"those findings\" or \"the second instrument\". Never treat an earlier answer as evidence: verify every claim against the evidence in this message.",
     "",
