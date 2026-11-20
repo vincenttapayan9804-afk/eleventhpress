@@ -3,7 +3,7 @@
  * "INT" edition (WCAG 2.2 + US Section 508 + EU EN 301 549, which all map to
  * the same WCAG Level A/AA success criteria for web content).
  *
- * Self-assessed against this codebase, not audited by a third party. Keep
+ * Internally assessed against this codebase, not audited by a third party. Keep
  * remarks factual: "Partially supports" means at least one part of the
  * platform does not yet meet the criterion, and the remark says where.
  * Update ACR_REVIEWED when re-assessing.

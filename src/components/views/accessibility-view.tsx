@@ -166,7 +166,7 @@ function AcrSection() {
       </div>
       <p className="mt-2 max-w-3xl text-sm text-muted-foreground text-justify">
         Prepared in the format of the ITI VPAT&reg; 2.5 International Edition, which covers WCAG 2.2, US Section 508
-        and EU EN 301 549 (whose web requirements are the same WCAG Level A and AA criteria). Self-assessed; last
+        and EU EN 301 549 (whose web requirements are the same WCAG Level A and AA criteria). Internally assessed; last
         reviewed {ACR_REVIEWED}.
       </p>
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
