@@ -124,7 +124,10 @@ export default async function SpaRoutePage({ params, searchParams }: Props) {
   const jsonLd = slug.length === 1 ? await sectionJsonLd(path, route.view).catch(() => null) : null;
   return (
     <>
-      {jsonLd ? <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd }} /> : null}
+      {/* A plain text child, not dangerouslySetInnerHTML: React writes <script>
+          text verbatim (escaping any "</script"), and the JSON already has
+          every "<" escaped as \u003c. */}
+      {jsonLd ? <script type="application/ld+json">{jsonLd}</script> : null}
       <SpaShell initialRoute={route} />
     </>
   );
