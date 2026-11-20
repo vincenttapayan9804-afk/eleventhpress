@@ -84,6 +84,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           changeFrequency: (s.type === "NEWS" ? "weekly" : "monthly") as "weekly" | "monthly",
           priority: 0.7,
         }))),
+    // Browse-by-date archive (src/app/archive): plain links to every article.
+    { url: `${base}/archive`, changeFrequency: "daily" as const, priority: 0.8 },
+    ...[...new Set(articles.filter((a) => a.publishedAt).map((a) => (a.publishedAt as Date).getUTCFullYear()))].map((y) => ({
+      url: `${base}/archive/${y}`,
+      changeFrequency: "weekly" as const,
+      priority: 0.6,
+    })),
     ...articles.map((a) => ({
       url: `${base}${articlePath(a.id, a.title)}`,
       lastModified: a.publishedAt ?? undefined,

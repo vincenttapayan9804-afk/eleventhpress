@@ -63,7 +63,8 @@
     "trustCenter": "信任中心",
     "copyright": "© {year} Eleventh Press International Publishing™。除另有说明外，所有文章均以 CC BY 4.0 协议发布。",
     "indexedLine": "收录于：Google Scholar · {registrar} · OAI-PMH · DOAJ",
-    "contactUs": "联系我们"
+    "contactUs": "联系我们",
+    "archiveByDate": "按日期浏览存档"
   },
   "home": {
     "issueLine": "开放获取 · 同行评审 · ISSN：申请中",

@@ -63,7 +63,8 @@
     "trustCenter": "Trust Center",
     "copyright": "© {year} Eleventh Press International Publishing™. Ang lahat ng artikulo ay nailathala sa ilalim ng CC BY 4.0 maliban na lang kung nakasaad.",
     "indexedLine": "Naka-index sa: Google Scholar · {registrar} · OAI-PMH · DOAJ",
-    "contactUs": "Makipag-ugnayan sa amin"
+    "contactUs": "Makipag-ugnayan sa amin",
+    "archiveByDate": "Archive ayon sa petsa"
   },
   "home": {
     "issueLine": "Open access · Peer reviewed · ISSN: inaplay na",

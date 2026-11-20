@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
+import { articlePdfPath, scholarDate } from "@/lib/scholar-meta";
 import { articleIdFromSegment, articlePath } from "@/lib/spa-routes";
 import { db } from "@/lib/db";
 import { parseAuthors, formatCitation } from "@/lib/article";
@@ -74,13 +75,18 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
   const other: Record<string, string | string[]> = {
     citation_title: article.title,
-    citation_author: authorNames.length ? authorNames : ["the authors"],
     citation_journal_title: article.journal?.name || identity.journalName,
     citation_publisher: identity.publisher,
     citation_abstract_html_url: canonicalUrl,
     citation_language: ARTICLE_LANGUAGE,
   };
-  if (article.publishedAt) other.citation_publication_date = article.publishedAt.toISOString().split("T")[0];
+  // Each author in its own tag, names only (no affiliations), and the
+  // date as YYYY/MM/DD — Google Scholar's inclusion guidelines.
+  if (authorNames.length) other.citation_author = authorNames;
+  const pubDate = scholarDate(article.publishedAt);
+  if (pubDate) other.citation_publication_date = pubDate;
+  const keywords = article.keywords.split(",").map((k) => k.trim()).filter(Boolean);
+  if (keywords.length) other.citation_keywords = keywords.join("; ");
   const issn = identity.whitelabel ? identity.issn : article.journal?.issn;
   if (issn) other.citation_issn = issn;
   if (article.issue?.volume) other.citation_volume = String(article.issue.volume);
@@ -93,7 +99,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     // requirement that indexed full text not sit behind an auth gate.
     // Served from the article's own URL (./pdf/route.ts): Google Scholar
     // expects the PDF on the same site as the article page.
-    other.citation_pdf_url = `${canonicalUrl}/pdf`;
+    other.citation_pdf_url = `${await tenantBaseUrl(identity.tenantId)}${articlePdfPath(articlePath(article.id, article.title))}`;
   }
 
   return {
@@ -157,7 +163,18 @@ export default async function ArticlePage({ params }: { params: Promise<{ id: st
   });
   const identity = await publisherIdentityForJournal(article.journal);
   const baseUrl = await tenantBaseUrl(identity.tenantId);
-  const pdfUrl = article.galleyPdfKey ? `${articlePath(article.id, article.title)}/pdf` : null;
+  const pdfUrl = article.galleyPdfKey ? articlePdfPath(articlePath(article.id, article.title)) : null;
+  const references = await db.reference.findMany({ where: { articleId: article.id }, orderBy: { createdAt: "asc" }, select: { id: true, rawText: true } });
+  const keywords = article.keywords.split(",").map((k) => k.trim()).filter(Boolean);
+  const published = article.publishedAt
+    ? article.publishedAt.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })
+    : null;
+  const journalLine = [
+    article.journal?.name || identity.journalName,
+    article.issue?.volume ? `Vol. ${article.issue.volume}` : null,
+    article.issue?.issueNumber ? `No. ${article.issue.issueNumber}` : null,
+    published,
+  ].filter(Boolean).join(" · ");
 
   // schema.org/ScholarlyArticle JSON-LD — rendered server-side (unlike the
   // equivalent block in article-view.tsx, which only ever reaches
@@ -168,6 +185,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ id: st
     "@context": "https://schema.org",
     "@type": "ScholarlyArticle",
     headline: article.title,
+    abstract: article.abstract,
     description: summary,
     author: authors.map((a) => ({
       "@type": "Person",
@@ -242,17 +260,35 @@ export default async function ArticlePage({ params }: { params: Promise<{ id: st
               hydrates, for real visitors. */}
           <ArticleRouteBootstrap articleId={article.id}>
             <article className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
+              {/* Laid out the way Google Scholar's inclusion guidelines ask:
+                  title in the <h1>, authors right under it, the citation
+                  next to them, then the complete author-written abstract —
+                  readable without scripts, clicks or scrolling — and the
+                  references as an ordered list under a "References" heading. */}
               <p className="eyebrow">{article.discipline}</p>
               <h1 className="mt-2 font-display text-3xl font-semibold">{article.title}</h1>
               <p className="mt-2 text-sm text-muted-foreground">By {authorNames}</p>
+              {journalLine && <p className="mt-1 text-sm text-muted-foreground">{journalLine}</p>}
               {article.doi && <p className="mt-1 text-sm text-muted-foreground">DOI: {article.doi}</p>}
-              <p className="mt-6 leading-relaxed">{summary}</p>
+              <section className="mt-6" aria-labelledby="abstract-heading">
+                <h2 id="abstract-heading" className="font-display text-xl font-semibold">Abstract</h2>
+                <p className="mt-2 whitespace-pre-line leading-relaxed">{article.abstract}</p>
+              </section>
+              {keywords.length > 0 && <p className="mt-4 text-sm"><strong>Keywords:</strong> {keywords.join("; ")}</p>}
               {pdfUrl && (
                 <p className="mt-6">
-                  <a href={pdfUrl} className="font-medium text-primary underline">Download PDF</a>
+                  <a href={pdfUrl} className="font-medium text-primary underline">Download full text (PDF)</a>
                 </p>
               )}
               <p className="mt-8 text-sm text-muted-foreground">{citation}</p>
+              {references.length > 0 && (
+                <section className="mt-10" aria-labelledby="references-heading">
+                  <h2 id="references-heading" className="font-display text-xl font-semibold">References</h2>
+                  <ol className="mt-3 list-decimal space-y-2 pl-6 text-sm">
+                    {references.map((r) => <li key={r.id}>{r.rawText}</li>)}
+                  </ol>
+                </section>
+              )}
               {/* OpenURL/COinS marker — lets Zotero's and Mendeley's browser
                   connectors auto-detect this article's metadata on the page. */}
               <span {...coins} />

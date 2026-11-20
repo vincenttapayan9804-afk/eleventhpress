@@ -131,6 +131,7 @@ export function SiteFooter() {
               <ul className="space-y-2.5 text-sm">
                 <li><button onClick={() => setView("home")} className="text-muted-foreground hover:text-primary transition-colors">{t("home")}</button></li>
                 <li><button onClick={() => setView("browse")} className="text-muted-foreground hover:text-primary transition-colors">{t("allArticles")}</button></li>
+                <li><a href="/archive" data-testid="footer-archive" className="text-muted-foreground hover:text-primary transition-colors">{t("archiveByDate")}</a></li>
                 <li><button onClick={() => setView("authors")} className="text-muted-foreground hover:text-primary transition-colors">{t("authorsDirectory")}</button></li>
                 <li><button onClick={() => setView("experts")} className="text-muted-foreground hover:text-primary transition-colors">{t("expertsDirectory")}</button></li>
                 <li><button onClick={() => setView("resources")} className="text-muted-foreground hover:text-primary transition-colors">{t("resources")}</button></li>
