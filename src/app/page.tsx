@@ -26,11 +26,21 @@ async function homeJsonLd(): Promise<string | null> {
   if (!base) return null;
   const id = await publisherIdentityForTenantId(tenant?.id).catch(() => null);
   if (!id) return null;
+  // Every form of the name people search for — with and without the ™,
+  // and the short name — so search and AI answer engines tie them all to
+  // this organization.
+  const plain = id.publisher.replace(/[\u2122\u00ae]/g, "").trim();
+  const alternateNames = [...new Set([plain, id.shortName].filter((n) => n && n !== id.publisher))];
+  // Official profiles elsewhere (Branding → social links): the strongest
+  // signal that this site *is* the organization of that name.
+  const sameAs = Object.values(tenant?.socialLinks ?? {}).filter((u): u is string => typeof u === "string" && /^https:\/\//.test(u));
   const org: Record<string, unknown> = {
     "@type": "Organization",
     "@id": `${base}/#organization`,
     name: id.publisher,
-    alternateName: id.shortName !== id.publisher ? id.shortName : undefined,
+    alternateName: alternateNames.length > 1 ? alternateNames : alternateNames[0],
+    ...(tenant?.tagline ? { slogan: tenant.tagline, description: `${plain}: ${tenant.tagline}.` } : {}),
+    ...(sameAs.length ? { sameAs } : {}),
     url: `${base}/`,
     logo: id.logoUrl ? { "@type": "ImageObject", url: new URL(id.logoUrl, base).toString() } : `${base}/logo.svg`,
     email: id.email || undefined,
@@ -44,6 +54,7 @@ async function homeJsonLd(): Promise<string | null> {
       "@id": `${base}/#website`,
       url: `${base}/`,
       name: id.publisher,
+      ...(alternateNames.length ? { alternateName: alternateNames.length > 1 ? alternateNames : alternateNames[0] } : {}),
       inLanguage: "en",
       publisher: { "@id": `${base}/#organization` },
     },
