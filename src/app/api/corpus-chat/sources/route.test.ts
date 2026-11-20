@@ -84,6 +84,14 @@ describe("GET /api/corpus-chat/sources", () => {
     expect(articleWheres[0].status).toBe("PUBLISHED");
   });
 
+  test("a numbered style drops its single-citation number, and titles are tidied", async () => {
+    ARTICLE.title = "  Coastal   Adaptation in Practice   ";
+    const body = await (await get("ids=art_1&style=ieee")).json();
+    ARTICLE.title = "Coastal Adaptation in Practice";
+    expect(body.sources[0].reference.startsWith("[1]")).toBe(false);
+    expect(body.sources[0].reference).toContain('"Coastal Adaptation in Practice,"');
+  });
+
   test("APA comes with the answer, so no reference is rebuilt; unknown styles fall back to APA", async () => {
     const body = await (await get("ids=art_1&style=nonsense")).json();
     expect(body.style).toBe("apa");

@@ -6,7 +6,7 @@ import { resolveTenantFromHeaders, tenantCacheControl } from "@/lib/tenant";
 import { corpusArticleWhere } from "@/lib/research-assistant-settings";
 import { loadJournalInfo } from "@/lib/research-assistant";
 import { cleanSourceIds } from "@/lib/research-query";
-import { CITATION_STYLES, formatCitationStyle, type CitationStyleId } from "@/lib/citation-styles";
+import { CITATION_STYLES, formatReferenceListEntry, type CitationStyleId } from "@/lib/citation-styles";
 import { loadSourceSignals } from "@/lib/source-signals";
 
 /**
@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
     const reference =
       style === "apa"
         ? null
-        : formatCitationStyle(
+        : formatReferenceListEntry(
             {
               title: a.title,
               authors: a.authors,

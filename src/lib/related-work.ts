@@ -51,8 +51,40 @@ export function relatedWorkQuery(question: string, keywords: string[] = []): str
   return terms.join(" ").slice(0, 200);
 }
 
-/** Drops the journal's own articles (by DOI) and caps the list. */
-export function outsideJournal(results: DiscoveryResult[], journalDois: Iterable<string>, limit = 12): DiscoveryResult[] {
+/** Roughly the same word: equal, or the same first five letters ("motivation" ~ "motivated"). */
+function sameWord(a: string, b: string): boolean {
+  if (a === b) return true;
+  return a.length >= 5 && b.length >= 5 && a.slice(0, 5) === b.slice(0, 5);
+}
+
+function words(s: string): string[] {
+  return s
+    .normalize("NFKC")
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((w) => w.length >= 3);
+}
+
+/** How many of the query's words a title contains. */
+export function titleMatches(title: string, query: string): number {
+  const t = words(title);
+  return [...new Set(words(query))].filter((q) => t.some((w) => sameWord(w, q))).length;
+}
+
+/**
+ * Drops the journal's own articles (by DOI), puts the titles that share
+ * most words with the query first (sources otherwise come grouped by
+ * index), drops titles sharing none when enough others do, and caps the list.
+ */
+export function outsideJournal(results: DiscoveryResult[], journalDois: Iterable<string>, limit = 12, query = ""): DiscoveryResult[] {
   const own = new Set([...journalDois].map((d) => d.toLowerCase()));
-  return results.filter((r) => !(r.doi && own.has(r.doi.toLowerCase()))).slice(0, limit);
+  const kept = results.filter((r) => !(r.doi && own.has(r.doi.toLowerCase())));
+  if (!query) return kept.slice(0, limit);
+  const scored = kept.map((r, i) => ({ r, i, score: titleMatches(r.title, query) }));
+  const relevant = scored.filter((x) => x.score > 0);
+  const pool = relevant.length >= 3 ? relevant : scored;
+  return pool
+    .sort((a, b) => b.score - a.score || a.i - b.i)
+    .slice(0, limit)
+    .map((x) => x.r);
 }

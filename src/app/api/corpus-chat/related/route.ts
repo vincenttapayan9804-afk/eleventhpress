@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
     : [];
 
   return NextResponse.json(
-    { query, results: outsideJournal(results, own.map((a) => a.doi!).filter(Boolean), MAX_RESULTS) },
+    { query, results: outsideJournal(results, own.map((a) => a.doi!).filter(Boolean), MAX_RESULTS, query) },
     // Per reader and per question: the browser may reuse a repeat briefly.
     { headers: { "Cache-Control": "private, max-age=300" } }
   );

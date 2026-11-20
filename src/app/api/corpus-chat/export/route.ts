@@ -7,7 +7,7 @@ import { APP_BASE_URL } from "@/lib/site";
 import { loadJournalInfo } from "@/lib/research-assistant";
 import { apaReference, toSource } from "@/lib/answer-integrity";
 import { cleanSourceIds } from "@/lib/research-query";
-import { CITATION_STYLES, formatCitationStyle, type CitationStyleId } from "@/lib/citation-styles";
+import { CITATION_STYLES, formatReferenceListEntry, type CitationStyleId } from "@/lib/citation-styles";
 import {
   buildResearchDocx,
   buildResearchPdf,
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
           reference:
             style === "apa"
               ? apaReference(s, { name: journal.name, volume: r.issue?.volume, issueNumber: r.issue?.issueNumber })
-              : formatCitationStyle(
+              : formatReferenceListEntry(
                   { title: r.title, authors: r.authors, publishedAt: r.publishedAt, doi: r.doi, journalName: journal.name, journalIssn: journal.issn, volume: r.issue?.volume, issueNumber: r.issue?.issueNumber },
                   style
                 ),

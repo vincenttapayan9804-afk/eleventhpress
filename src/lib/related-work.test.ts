@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { outsideJournal, relatedWorkQuery } from "./related-work";
+import { outsideJournal, relatedWorkQuery, titleMatches } from "./related-work";
 import type { DiscoveryResult } from "./open-discovery";
 
 describe("relatedWorkQuery", () => {
@@ -26,5 +26,35 @@ describe("outsideJournal", () => {
     const out = outsideJournal([r("10.5555/OWN.1"), r("10.1/other"), r(null, "No DOI")], ["10.5555/own.1"]);
     expect(out.map((x) => x.doi)).toEqual(["10.1/other", null]);
     expect(outsideJournal([r("a"), r("b"), r("c")], [], 2)).toHaveLength(2);
+  });
+});
+
+describe("ranking by the question", () => {
+  const r = (title: string, source: DiscoveryResult["source"] = "crossref"): DiscoveryResult => ({ source, title, authors: "", year: 2024, venue: null, doi: null, url: `https://x/${title}`, openAccessUrl: null });
+  const query = "institutional support affect students motivation TLE";
+
+  test("counts shared words, allowing word endings to differ", () => {
+    expect(titleMatches("Student Engagement and Teaching Motivation among TLE Students", query)).toBe(3);
+    expect(titleMatches("Motivated learners", "motivation")).toBe(1);
+    expect(titleMatches("Deja Vu in Temporal-Lobe Epilepsy", query)).toBe(0);
+  });
+
+  test("the closest titles come first, and unrelated ones drop out", () => {
+    const out = outsideJournal(
+      [
+        r("Students' Engagement in Ultimate Frisbee"),
+        r("Deja Vu in Temporal-Lobe Epilepsy", "eric"),
+        r("Institutional Support and Student Motivation in TLE", "openalex"),
+        r("Motivation of Students in TLE", "openalex"),
+      ],
+      [],
+      12,
+      query
+    );
+    expect(out.map((x) => x.title)).toEqual([
+      "Institutional Support and Student Motivation in TLE",
+      "Motivation of Students in TLE",
+      "Students' Engagement in Ultimate Frisbee",
+    ]);
   });
 });
