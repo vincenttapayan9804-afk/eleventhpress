@@ -12,7 +12,7 @@ import { outsideJournal, relatedWorkQuery } from "@/lib/related-work";
  * GET /api/corpus-chat/related?q=question&ids=a,b — related work beyond
  * this journal for a Research Assistant answer, from open scholarly
  * indexes (Crossref, OpenAlex, Semantic Scholar, ERIC, PubMed Central,
- * Europe PMC, Zenodo, and CORE when configured), via the same fan-out as
+ * Zenodo, and CORE when configured), via the same fan-out as
  * /api/discover. Results with a DOI but no open-access link get one from
  * Unpaywall when it knows a legal free copy.
  *

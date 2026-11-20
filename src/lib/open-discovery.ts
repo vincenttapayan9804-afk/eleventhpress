@@ -49,8 +49,7 @@ export type DiscoverySource =
   | "eric"
   | "pubmed_central"
   | "zenodo"
-  | "core"
-  | "europe_pmc";
+  | "core";
 
 export interface DiscoveryResult {
   source: DiscoverySource;
@@ -325,37 +324,6 @@ export async function searchCore(query: string, limit = 5): Promise<DiscoveryRes
   }
 }
 
-/** Europe PMC — EMBL-EBI's free, keyless index of life-sciences
- *  literature (PubMed, PMC, preprints, patents and more). An article with
- *  an open-access full text in Europe PMC gets an openAccessUrl. */
-export async function searchEuropePmc(query: string, limit = 5): Promise<DiscoveryResult[]> {
-  const data = await fetchJson(
-    `https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=${encodeURIComponent(query)}&format=json&resultType=lite&pageSize=${limit}`
-  );
-  const items: any[] = Array.isArray(data?.resultList?.result) ? data.resultList.result : [];
-  return items
-    .map((doc: any): DiscoveryResult | null => {
-      const title = typeof doc?.title === "string" ? doc.title.replace(/<[^>]+>/g, "").replace(/\.$/, "").trim() : "";
-      const src = typeof doc?.source === "string" ? doc.source : null;
-      const id = typeof doc?.id === "string" ? doc.id : null;
-      if (!title || !src || !id) return null;
-      const pmcid = typeof doc.pmcid === "string" && /^PMC\d+$/.test(doc.pmcid) ? doc.pmcid : null;
-      const year = Number.parseInt(String(doc.pubYear ?? ""), 10);
-      return {
-        source: "europe_pmc",
-        title,
-        authors: typeof doc.authorString === "string" ? doc.authorString.replace(/\.$/, "") : "",
-        year: Number.isFinite(year) ? year : null,
-        venue: typeof doc.journalTitle === "string" ? doc.journalTitle : null,
-        doi: cleanDoi(doc.doi),
-        url: `https://europepmc.org/article/${encodeURIComponent(src)}/${encodeURIComponent(id)}`,
-        openAccessUrl: doc.isOpenAccess === "Y" && pmcid ? `https://europepmc.org/articles/${pmcid}` : null,
-      };
-    })
-    .filter((r): r is DiscoveryResult => r !== null)
-    .slice(0, limit);
-}
-
 // ---------------------------------------------------------------------------
 // Unpaywall: a legal open-access copy for a DOI. Free and keyless; asks for
 // a contact email on every request (the same polite-pool contact as above).
@@ -380,7 +348,11 @@ export async function unpaywallUrl(doi: string): Promise<string | null> {
   if (data === null) return null; // a failed lookup isn't cached
   const best = data?.is_oa ? data.best_oa_location : null;
   const raw = best?.url_for_landing_page || best?.url || best?.url_for_pdf || null;
-  const url = typeof raw === "string" && /^https?:\/\//i.test(raw) ? raw : null;
+  // A DOI link (Unpaywall's landing page is often one) is shown as https://doi.org/….
+  const url =
+    typeof raw === "string" && /^https?:\/\//i.test(raw)
+      ? raw.replace(/^https?:\/\/(dx\.)?doi\.org\//i, "https://doi.org/")
+      : null;
   if (oaCache.size >= OA_CACHE_MAX) {
     const oldest = oaCache.keys().next().value;
     if (oldest !== undefined) oaCache.delete(oldest);
@@ -405,13 +377,12 @@ export interface DiscoveryFanOut {
 
 /** One search across every source at once, deduplicated. */
 export async function discoverAcrossSources(query: string, perSource = 5): Promise<DiscoveryFanOut> {
-  const [crossref, openalex, semanticScholar, eric, pubmedCentral, europePmc, zenodo, core] = await Promise.all([
+  const [crossref, openalex, semanticScholar, eric, pubmedCentral, zenodo, core] = await Promise.all([
     searchCrossref(query, perSource),
     searchOpenAlex(query, perSource),
     searchSemanticScholar(query, perSource),
     searchEric(query, perSource),
     searchPubMedCentral(query, perSource),
-    searchEuropePmc(query, perSource),
     searchZenodo(query, perSource),
     searchCore(query, perSource),
   ]);
@@ -421,7 +392,6 @@ export async function discoverAcrossSources(query: string, perSource = 5): Promi
     semantic_scholar: semanticScholar,
     eric,
     pubmed_central: pubmedCentral,
-    europe_pmc: europePmc,
     zenodo,
     core,
   };

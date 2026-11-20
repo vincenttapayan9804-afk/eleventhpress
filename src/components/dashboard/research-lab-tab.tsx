@@ -286,7 +286,6 @@ const SOURCE_LABELS: Record<string, string> = {
   semantic_scholar: "Semantic Scholar",
   eric: "ERIC",
   pubmed_central: "PubMed Central",
-  europe_pmc: "Europe PMC",
   zenodo: "Zenodo",
   core: "CORE",
 };

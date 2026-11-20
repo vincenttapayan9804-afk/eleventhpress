@@ -51,7 +51,6 @@ const SOURCE_LABEL: Record<DiscoverySource, string> = {
   semantic_scholar: "Semantic Scholar",
   eric: "ERIC",
   pubmed_central: "PubMed Central",
-  europe_pmc: "Europe PMC",
   zenodo: "Zenodo",
   core: "CORE",
 };
