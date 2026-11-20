@@ -27,6 +27,35 @@ export interface EvidencePassage {
   articleTitle: string;
   chunkIndex: number;
   text: string;
+  /** Where the passage sits in the paper (see passageLocation()). */
+  section?: string | null;
+  headingPath?: string | null;
+  kind?: string | null;
+}
+
+const SECTION_LABELS: Record<string, string> = {
+  abstract: "Abstract",
+  introduction: "Introduction",
+  methods: "Methods",
+  results: "Results",
+  discussion: "Discussion",
+  conclusion: "Conclusion",
+  limitations: "Limitations",
+  references: "References",
+};
+const KIND_LABELS: Record<string, string> = { table: "Table", figure: "Figure caption", references: "Reference list" };
+
+/**
+ * A short reader-facing label for where a passage sits: its heading trail
+ * ("Methods › Sampling"), or the canonical section when the headings
+ * aren't known, plus "Table" / "Figure caption" for those passages. Empty
+ * for passages indexed before section-aware splitting.
+ */
+export function passageLocation(p: { section?: string | null; headingPath?: string | null; kind?: string | null }): string {
+  const where = p.headingPath?.trim() || (p.section ? SECTION_LABELS[p.section] ?? "" : "");
+  const kind = p.kind ? KIND_LABELS[p.kind] : undefined;
+  const label = [where, kind && !(kind === "Reference list" && /reference|bibliograph/i.test(where)) ? kind : ""].filter(Boolean).join(" · ");
+  return label.length > 120 ? `${label.slice(0, 117)}…` : label;
 }
 
 export interface EvidenceArticle {
@@ -53,6 +82,8 @@ export interface AnswerCitation {
   sourceN: number;
   chunkId?: string;
   chunkIndex?: number;
+  /** Where a passage sits in the paper, e.g. "Results › Table 2 · Table" (passages only, when known). */
+  location?: string;
   /** The supporting text: the passage, or the start of the abstract. */
   text: string;
   /** Link to the article, scrolled to the passage where browsers support it. */
@@ -97,7 +128,14 @@ function articleUrl(baseUrl: string, id: string): string {
 }
 
 /** A text-fragment link (#:~:text=) to the passage on the article page. */
-export function passageUrl(baseUrl: string, articleId: string, text: string, chunkIndex: number): string {
+export function passageUrl(baseUrl: string, articleId: string, text: string, chunkIndex: number, kind?: string | null): string {
+  // A table or figure passage starts with a label that isn't on the page;
+  // link to its caption instead (a table's rows can't be matched as text).
+  if (kind === "table" || kind === "figure") {
+    const caption = text.split("\n")[0].replace(/^(Table|Figure):\s*/, "");
+    if (kind === "figure" || !caption.startsWith("|")) return passageUrl(baseUrl, articleId, caption, 0);
+    return articleUrl(baseUrl, articleId);
+  }
   const words = text.replace(/\s+/g, " ").trim().split(" ");
   // A passage after the first can start mid-word (chunks overlap), and a
   // text fragment only matches whole words.
@@ -149,8 +187,9 @@ export function resolveCitations(
         articleId: p.articleId,
         chunkId: p.chunkId,
         chunkIndex: p.chunkIndex,
+        ...(passageLocation(p) ? { location: passageLocation(p) } : {}),
         text: p.text,
-        url: passageUrl(baseUrl, p.articleId, p.text, p.chunkIndex),
+        url: passageUrl(baseUrl, p.articleId, p.text, p.chunkIndex, p.kind),
       };
     });
   const citeRecord = (label: string) =>

@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { apaReference, passageUrl, resolveCitations, stripModelReferenceList, verifyAnswer, type EvidenceArticle } from "./answer-integrity";
+import { apaReference, passageLocation, passageUrl, resolveCitations, stripModelReferenceList, verifyAnswer, type EvidenceArticle } from "./answer-integrity";
 
 const BASE = "https://journal.example";
 const ARTICLES: EvidenceArticle[] = [
@@ -122,4 +122,34 @@ test("text between two quoted titles is not treated as a quotation", () => {
   const r = verifyAnswer('"Mangroves and Storm Surge" is compared here with the other study from the region, "Sepsis Detection in Rural Clinics".', ["Mangroves and Storm Surge", "Sepsis Detection in Rural Clinics"], [], true, 1);
   expect(r.answer).toBe('"Mangroves and Storm Surge" is compared here with the other study from the region, "Sepsis Detection in Rural Clinics".');
   expect(r.check.warnings).toHaveLength(0);
+});
+
+describe("passage locations", () => {
+  test("labels a passage by its headings, or its section, plus tables and figures", () => {
+    expect(passageLocation({ headingPath: "Methods › Sampling", section: "methods", kind: "text" })).toBe("Methods › Sampling");
+    expect(passageLocation({ section: "results", kind: "table" })).toBe("Results · Table");
+    expect(passageLocation({ headingPath: "Findings", kind: "figure" })).toBe("Findings · Figure caption");
+    expect(passageLocation({ headingPath: "References", kind: "references" })).toBe("References");
+    expect(passageLocation({})).toBe("");
+  });
+
+  test("a cited passage carries its location; older passages don't", () => {
+    const r = resolveCitations(
+      "Damage fell [P1]. Villages were sampled [P2].",
+      [
+        { chunkId: "c1", articleId: "a1", articleTitle: "T", chunkIndex: 3, text: "Table: Table 2. Damage by district\n| District | Damage |", section: "results", headingPath: "Results", kind: "table" },
+        { chunkId: "c2", articleId: "a1", articleTitle: "T", chunkIndex: 1, text: "We sampled forty two villages across districts." },
+      ],
+      [],
+      [],
+      "https://example.org"
+    );
+    expect(r.citations[0].location).toBe("Results · Table");
+    expect(r.citations[0].url).toContain(`#:~:text=${encodeURIComponent("Table 2. Damage by district")}`);
+    expect(r.citations[1].location).toBeUndefined();
+  });
+
+  test("a table without a caption links to the article", () => {
+    expect(passageUrl("https://example.org", "a1", "| A | B |\n| --- | --- |", 2, "table")).not.toContain("#:~:text");
+  });
 });

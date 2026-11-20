@@ -257,3 +257,92 @@ export async function chunkVectorSearchCorpus(
 export function __resetChunkVectorCacheForTests(): void {
   chunkVectorReadyPromise = null;
 }
+
+// ---------------------------------------------------------------------------
+// Full-text index over passages, for "Ask the Corpus" at scale: candidate
+// passages come from Postgres (GIN + ts_rank_cd) instead of loading every
+// passage into memory. Lives in the `vec` schema beside the vector table,
+// outside Prisma's schema, for the same reason: `prisma db push` would drop
+// an index it doesn't know about. Same cached, fail-open contract.
+// ---------------------------------------------------------------------------
+
+let chunkTextReadyPromise: Promise<boolean> | null = null;
+
+/** Ensures `vec.article_chunk_text` (passage tsvectors + GIN index) exists, filled from existing passages. */
+export function ensureChunkTextIndex(): Promise<boolean> {
+  if (!chunkTextReadyPromise) {
+    chunkTextReadyPromise = bootstrapChunkText().catch((e) => {
+      console.error("[pgvector] passage full-text index bootstrap failed, falling back to in-memory search:", e);
+      return false;
+    });
+  }
+  return chunkTextReadyPromise;
+}
+
+/** The text a passage is searched by: its article's title and keywords, its headings, then the passage (as the in-memory BM25 index does). */
+const CHUNK_TSV_SQL = `to_tsvector('simple', coalesce(a.title, '') || ' ' || coalesce(a.keywords, '') || ' ' || coalesce(c."headingPath", '') || ' ' || c.text)`;
+
+async function bootstrapChunkText(): Promise<boolean> {
+  await db.$executeRawUnsafe(`CREATE SCHEMA IF NOT EXISTS vec`);
+  await db.$executeRawUnsafe(
+    `CREATE TABLE IF NOT EXISTS vec.article_chunk_text (
+       chunk_id   TEXT PRIMARY KEY,
+       article_id TEXT NOT NULL,
+       tsv        tsvector NOT NULL
+     )`
+  );
+  await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS article_chunk_text_article_idx ON vec.article_chunk_text (article_id)`);
+  await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS article_chunk_text_tsv_idx ON vec.article_chunk_text USING gin (tsv)`);
+  // Passages indexed before this table existed.
+  await db.$executeRawUnsafe(
+    `INSERT INTO vec.article_chunk_text (chunk_id, article_id, tsv)
+     SELECT c.id, c."articleId", ${CHUNK_TSV_SQL}
+     FROM public."ArticleChunk" c JOIN public."Article" a ON a.id = c."articleId"
+     ON CONFLICT (chunk_id) DO NOTHING`
+  );
+  return true;
+}
+
+/** (Re)builds the full-text rows of one article's passages, after they are re-indexed. */
+export async function refreshChunkText(articleId: string): Promise<void> {
+  await db.$executeRaw`DELETE FROM vec.article_chunk_text WHERE article_id = ${articleId}`;
+  await db.$executeRawUnsafe(
+    `INSERT INTO vec.article_chunk_text (chunk_id, article_id, tsv)
+     SELECT c.id, c."articleId", ${CHUNK_TSV_SQL}
+     FROM public."ArticleChunk" c JOIN public."Article" a ON a.id = c."articleId"
+     WHERE c."articleId" = $1
+     ON CONFLICT (chunk_id) DO UPDATE SET tsv = EXCLUDED.tsv`,
+    articleId
+  );
+}
+
+/**
+ * A prefix-matching OR query from already-stemmed search tokens
+ * ("mangrov:* | restor:*"), or null when no token is usable. Tokens are
+ * restricted to [a-z0-9] (what tokenize() produces), so nothing the reader
+ * typed reaches tsquery syntax.
+ */
+export function prefixTsQuery(tokens: string[]): string | null {
+  const safe = [...new Set(tokens.filter((t) => /^[a-z0-9]{2,40}$/.test(t)))].slice(0, 32);
+  return safe.length ? safe.map((t) => `${t}:*`).join(" | ") : null;
+}
+
+/** Passage ids best matching the tokens by full text, best first (published articles only). */
+export async function chunkTextSearch(tokens: string[], limit: number): Promise<string[]> {
+  const q = prefixTsQuery(tokens);
+  if (!q) return [];
+  const rows = await db.$queryRaw<{ chunkId: string }[]>`
+    SELECT t.chunk_id AS "chunkId"
+    FROM vec.article_chunk_text t
+    JOIN public."Article" a ON a.id = t.article_id
+    WHERE a.status = 'PUBLISHED' AND t.tsv @@ to_tsquery('simple', ${q})
+    ORDER BY ts_rank_cd(t.tsv, to_tsquery('simple', ${q})) DESC
+    LIMIT ${limit}
+  `;
+  return rows.map((r) => r.chunkId);
+}
+
+/** Test-only. */
+export function __resetChunkTextCacheForTests(): void {
+  chunkTextReadyPromise = null;
+}

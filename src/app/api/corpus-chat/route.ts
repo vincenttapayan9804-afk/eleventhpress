@@ -3,6 +3,8 @@ import { extractRequestIp } from "@/lib/institutions";
 import { checkRateLimit } from "@/lib/ratelimit";
 import { anyStreamProvider, streamChat, StreamInterruptedError, type StreamChatResult } from "@/lib/llm-stream";
 import { isGrounded, NOT_COVERED_OPENING, splitAnswer, usedPassagesFromMarkers, visibleLength, FOLLOW_UPS_MARKER } from "@/lib/answer-format";
+import { sectionsForQuestion } from "@/lib/section-chunker";
+import { passageLocation } from "@/lib/answer-integrity";
 import { loadCorpusChunksByIds, retrieveChunksAcrossCorpus, type CorpusRetrievedChunk } from "@/lib/chunk-embeddings";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
@@ -501,7 +503,9 @@ async function answerQuestion(input: AskInput, emit: Emit, signal: AbortSignal, 
         contextArticleIds: contextIds,
         maxFocused: plan.maxFocused,
         maxPerArticle: plan.maxPerArticle,
+        sections: sectionsForQuestion(question),
         articleWhere: where,
+        signal,
       });
       // "Continue analysis": keep the earlier answer's evidence in view
       // alongside what the new question finds.
@@ -561,7 +565,10 @@ async function answerQuestion(input: AskInput, emit: Emit, signal: AbortSignal, 
         .join("\n\n")}`
     : "";
   const passageBlock = `PASSAGES (excerpts from the articles' full text):\n\n${chunks
-    .map((c, i) => `[P${i + 1} | ${labelOf.get(c.articleId)} "${c.articleTitle}"]\n${c.text}`)
+    .map((c, i) => {
+      const where = passageLocation(c);
+      return `[P${i + 1} | ${labelOf.get(c.articleId)} "${c.articleTitle}"${where ? ` | ${where}` : ""}]\n${c.text}`;
+    })
     .join("\n\n")}`;
   const referenced = contextIds.filter((id) => labelOf.has(id));
   const resolvedBlock =
@@ -654,7 +661,7 @@ async function answerQuestion(input: AskInput, emit: Emit, signal: AbortSignal, 
     }));
     const cited = resolveCitations(
       stripModelReferenceList(reply.answer),
-      chunks.map((c) => ({ chunkId: c.chunkId, articleId: c.articleId, articleTitle: c.articleTitle, chunkIndex: c.chunkIndex, text: c.text })),
+      chunks.map((c) => ({ chunkId: c.chunkId, articleId: c.articleId, articleTitle: c.articleTitle, chunkIndex: c.chunkIndex, text: c.text, section: c.section, headingPath: c.headingPath, kind: c.kind })),
       evidenceArticles,
       usedPassages,
       APP_BASE_URL

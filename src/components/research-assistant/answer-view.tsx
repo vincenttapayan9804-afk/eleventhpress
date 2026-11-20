@@ -69,6 +69,7 @@ function CitationChip({ citation, data, onCite }: { citation: AnswerCitation; da
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--gold-600)]">
             Source {citation.sourceN} · {citation.kind === "record" ? "Article record" : "Full-text passage"}
           </p>
+          {citation.location && <p className="mt-0.5 line-clamp-1 text-xs font-medium text-muted-foreground">{citation.location}</p>}
           <p className="mt-1 line-clamp-2 font-display text-sm font-semibold leading-snug text-foreground">{source?.title}</p>
           {source && (source.authors.length > 0 || source.year) && (
             <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">

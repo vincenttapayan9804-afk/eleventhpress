@@ -61,7 +61,7 @@ const QUESTION_SECTIONS: [RegExp, string[]][] = [
   [/recommend|implication|suggest|future (research|work)/, ["conclusion", "discussion"]],
   [/conclu/, ["conclusion", "discussion"]],
   [/discussion|interpret|explain the results/, ["discussion"]],
-  [/results?\b|findings?|\bfound\b|outcomes?/, ["results", "discussion"]],
+  [/results?\b|findings?|\bfound\b|\b(did|do|does) (they|the (study|studies|authors?|researchers?|paper)) find\b|outcomes?/, ["results", "discussion"]],
   [/analy[sz]|statistic|thematic|coding/, ["methods", "results"]],
   [/\bdesign\b|\bmethods?\b|methodology|\bapproach\b|respondent|participant|sample|population|subjects|instrument|questionnaire|survey|interview guide|\bscale\b|procedure/, ["methods"]],
   [/background|context|introduction|literature|\bgaps?\b|research questions?|objectives?|problem statement|statement of the problem|hypothes|framework|theor|significance/, ["introduction"]],
@@ -185,13 +185,18 @@ export function galleyToPassages(html: string): SectionPassage[] {
           flushSection();
           heading = { level: Number(name[1]), text: "" };
         } else if (name === "table") {
+          // Text before the table becomes its own passage(s) first, so passages stay in reading order.
+          flushSection();
           table = { caption: "", rows: [], row: null, cell: null, captionOpen: false };
         } else if (table && name === "caption") table.captionOpen = true;
         else if (table && name === "tr") table.row = { cells: [], header: false };
         else if (table && (name === "td" || name === "th")) {
           table.cell = "";
           if (name === "th" && table.row) table.row.header = true;
-        } else if (name === "figure") figure = { caption: "", alt: [], captionOpen: false };
+        } else if (name === "figure") {
+          flushSection();
+          figure = { caption: "", alt: [], captionOpen: false };
+        }
         else if (figure && name === "figcaption") figure.captionOpen = true;
         else if (figure && name === "img" && attrs.alt) figure.alt.push(attrs.alt);
         else if (BLOCKS.has(name)) addText("\n");

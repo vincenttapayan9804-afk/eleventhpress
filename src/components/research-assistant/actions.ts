@@ -123,7 +123,7 @@ export function citationsText(data?: AnswerData): string {
     .map((c) => {
       const s = data.sources.find((x) => x.id === c.articleId);
       const excerpt = c.text.replace(/\s+/g, " ").trim();
-      return `[${c.n}] ${s?.title ?? "Article"}. ${c.kind === "record" ? "Article record" : "Passage"}: “${excerpt.length > 300 ? `${excerpt.slice(0, 300)}…` : excerpt}” ${c.url}`;
+      return `[${c.n}] ${s?.title ?? "Article"}. ${c.kind === "record" ? "Article record" : c.location ? `Passage (${c.location})` : "Passage"}: “${excerpt.length > 300 ? `${excerpt.slice(0, 300)}…` : excerpt}” ${c.url}`;
     })
     .join("\n");
   return `Evidence\n${evidence}\n\nReferences\n${referencesText(data)}`;
