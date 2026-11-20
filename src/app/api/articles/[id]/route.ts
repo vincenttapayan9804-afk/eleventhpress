@@ -201,6 +201,10 @@ export async function DELETE(
   }
 
   await deleteArticleCascade(article, { deleteFiles: true });
+  // A deleted published article's page now returns 404: tell Bing/IndexNow.
+  if (article.status === "PUBLISHED") {
+    import("@/lib/indexnow").then(({ pingArticleChange }) => pingArticleChange(article)).catch(() => {});
+  }
 
   await db.auditLog.create({
     data: {

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { pingArticleChange } from "@/lib/indexnow";
 import { canActOnArticle, OTHER_INSTITUTION_ERROR } from "@/lib/tenant-auth";
 import { db } from "@/lib/db";
 import { notify } from "@/lib/notify";
@@ -143,6 +144,9 @@ export async function POST(
       articleId: article.id,
     });
   }
+
+  // The article page now shows the notice: tell Bing/IndexNow straight away.
+  pingArticleChange(article);
 
   return NextResponse.json({ correction, noticeDeposit, crossmarkDeposit });
 }
