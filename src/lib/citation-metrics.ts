@@ -43,6 +43,8 @@ export interface WorkCitationMetrics {
    *  very recently indexed ones) don't have this yet. */
   percentileYearMin: number | null;
   percentileYearMax: number | null;
+  /** OpenAlex work id ("W123…"), for linking to the works that cite it. */
+  openAlexId: string | null;
   fetchedAt: string;
 }
 
@@ -56,6 +58,7 @@ export async function fetchWorkCitationMetrics(doi: string): Promise<WorkCitatio
     publicationYear: typeof work.publication_year === "number" ? work.publication_year : null,
     percentileYearMin: pct && typeof pct.min === "number" ? pct.min : null,
     percentileYearMax: pct && typeof pct.max === "number" ? pct.max : null,
+    openAlexId: typeof work.id === "string" && /\/(W\d+)$/.test(work.id) ? work.id.match(/\/(W\d+)$/)![1] : null,
     fetchedAt: new Date().toISOString(),
   };
 }

@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowUpRight, BookOpen, Check, ChevronLeft, ClipboardCopy, Crosshair, ExternalLink, FileSearch, Quote, X } from "lucide-react";
+import { ArrowUpRight, BookOpen, ChevronLeft, Crosshair, ExternalLink, FileSearch, Quote, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { copyText } from "./actions";
 import type { AnswerData, AnswerSource } from "./types";
+import { SourceFlag, SourceSignalDetails, StyledReference, useSourceSignals, type SourceSignal } from "./source-signals";
 
 export interface EvidenceSelection {
   messageId: string;
@@ -12,25 +12,6 @@ export interface EvidenceSelection {
   citation: number | null;
   /** A source id to preview without a specific citation. */
   sourceId?: string | null;
-}
-
-function CopyReference({ reference }: { reference: string }) {
-  const [done, setDone] = useState(false);
-  return (
-    <button
-      type="button"
-      onClick={async () => {
-        if (await copyText(reference)) {
-          setDone(true);
-          setTimeout(() => setDone(false), 1600);
-        }
-      }}
-      className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:border-primary/40 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-    >
-      {done ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <ClipboardCopy className="h-3.5 w-3.5" />}
-      {done ? "Copied" : "Copy reference"}
-    </button>
-  );
 }
 
 function Authors({ source }: { source: AnswerSource }) {
@@ -54,10 +35,14 @@ function ArticlePreview({
   onBack,
   onOpenArticle,
   onScopeToArticle,
+  signal,
+  signalsLoading,
 }: {
   data: AnswerData;
   source: AnswerSource;
   citation: number | null;
+  signal?: SourceSignal;
+  signalsLoading?: boolean;
   onBack: () => void;
   /** Omit to hide "Open article" (e.g. inside the article itself). */
   onOpenArticle?: (id: string) => void;
@@ -87,6 +72,7 @@ function ArticlePreview({
       <div>
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--gold-600)]">Source {source.n} · Article preview</p>
         <h3 className="mt-1.5 font-display text-[1.05rem] font-semibold leading-snug text-foreground">{source.title}</h3>
+        <SourceFlag signal={signal} className="mt-1.5" />
         <Authors source={source} />
         <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
           {source.publishedAt && (
@@ -186,10 +172,9 @@ function ArticlePreview({
         </section>
       )}
 
-      <section aria-label="Reference" className="rounded-lg border border-border/80 bg-muted/30 p-3">
-        <p className="mb-1 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Reference (APA 7)</p>
-        <p className="text-[0.76rem] leading-relaxed text-foreground">{source.reference}</p>
-      </section>
+      <SourceSignalDetails signal={signal} loading={!!signalsLoading} />
+
+      <StyledReference source={source} signal={signal} loading={!!signalsLoading} />
 
       <div className="flex flex-wrap gap-2">
         {onOpenArticle && (
@@ -209,7 +194,6 @@ function ArticlePreview({
         >
           <ExternalLink className="h-3.5 w-3.5" /> New tab
         </a>
-        <CopyReference reference={source.reference} />
         {onScopeToArticle && (
           <button
             type="button"
@@ -253,6 +237,9 @@ export function EvidencePanel({
       e.key === "Home" ? 0 : e.key === "End" ? items.length - 1 : e.key === "ArrowDown" ? Math.min(items.length - 1, i + 1) : Math.max(0, i - 1);
     items[next]?.focus();
   };
+  const signals = useSourceSignals(data?.sources ?? []);
+  const signalOf = (id: string) => (signals.state?.status === "ready" ? signals.state.byId.get(id) : undefined);
+  const signalsLoading = signals.state?.status === "loading";
   const citation = selection?.citation ?? null;
   const selectedSource =
     data && selection
@@ -297,6 +284,8 @@ export function EvidencePanel({
             onBack={() => onSelect({ messageId: selection.messageId, citation: null })}
             onOpenArticle={onOpenArticle}
             onScopeToArticle={onScopeToArticle}
+            signal={signalOf(selectedSource.id)}
+            signalsLoading={signalsLoading}
           />
         ) : (
           <div ref={listRef} className="space-y-3" role="group" aria-label="Sources — use the arrow keys to move between them" onKeyDown={onListKeyDown}>
@@ -314,6 +303,7 @@ export function EvidencePanel({
                     <span className="mt-0.5 flex h-6 min-w-6 items-center justify-center rounded-md bg-[var(--royal-50)] text-[0.7rem] font-bold text-primary">{s.n}</span>
                     <div className="min-w-0">
                       <p className="line-clamp-2 font-display text-[0.86rem] font-semibold leading-snug text-foreground">{s.title}</p>
+                      <SourceFlag signal={signalOf(s.id)} className="mt-1" />
                       <p className="mt-0.5 line-clamp-1 text-[0.7rem] text-muted-foreground">
                         {s.authors.map((a) => a.name).join(", ") || "Authors not listed"}
                         {s.year ? ` · ${s.year}` : ""}

@@ -4,6 +4,7 @@ import { getCsrfToken } from "@/lib/csrf-client";
 import { withWorkspaceTag } from "@/lib/api-client";
 import { CSRF_HEADER_NAME } from "@/lib/csrf";
 import type { AnswerData, ChatMessage, SavedResponse } from "./types";
+import { citationStyle, referenceFor } from "./source-signals";
 
 export interface ExportItem {
   question: string;
@@ -89,7 +90,7 @@ export async function downloadReport(
     method: "POST",
     headers,
     credentials: "same-origin",
-    body: JSON.stringify({ format, scope, title, items }),
+    body: JSON.stringify({ format, scope, title, items, style: citationStyle() }),
   });
   if (!res.ok) {
     let msg = "The report couldn't be generated.";
@@ -116,7 +117,7 @@ export function answerAsText(answer: string, data?: AnswerData): string {
   return refs ? `${text}\n\nReferences\n${refs}` : text;
 }
 
-/** Numbered evidence and APA references, for "Copy citations". */
+/** Numbered evidence and references, for "Copy citations". */
 export function citationsText(data?: AnswerData): string {
   if (!data?.citations.length) return "";
   const evidence = data.citations
@@ -129,9 +130,11 @@ export function citationsText(data?: AnswerData): string {
   return `Evidence\n${evidence}\n\nReferences\n${referencesText(data)}`;
 }
 
+/** References in the reader's citation style (APA 7 until another style has loaded). */
 function referencesText(data?: AnswerData): string {
+  const ids = (data?.sources ?? []).map((s) => s.id);
   return (data?.sources ?? [])
-    .map((s) => s.reference)
+    .map((s) => referenceFor(s, ids))
     .filter(Boolean)
     .sort((a, b) => a.localeCompare(b))
     .join("\n");

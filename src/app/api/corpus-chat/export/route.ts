@@ -7,6 +7,7 @@ import { APP_BASE_URL } from "@/lib/site";
 import { loadJournalInfo } from "@/lib/research-assistant";
 import { apaReference, toSource } from "@/lib/answer-integrity";
 import { cleanSourceIds } from "@/lib/research-query";
+import { CITATION_STYLES, formatCitationStyle, type CitationStyleId } from "@/lib/citation-styles";
 import {
   buildResearchDocx,
   buildResearchPdf,
@@ -45,7 +46,7 @@ export async function POST(req: NextRequest) {
   const rl = await checkRateLimit(`corpus-chat-export:${ip}`, 20, 600);
   if (!rl.ok) return NextResponse.json({ error: rl.message }, { status: 429 });
 
-  let body: { format?: unknown; title?: unknown; scope?: unknown; items?: unknown };
+  let body: { format?: unknown; title?: unknown; scope?: unknown; items?: unknown; style?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -53,6 +54,9 @@ export async function POST(req: NextRequest) {
   }
   const format = typeof body.format === "string" && FORMATS.has(body.format) ? (body.format as "pdf" | "docx" | "md") : null;
   if (!format) return NextResponse.json({ error: "format must be pdf, docx or md" }, { status: 400 });
+  // Reference style for the source list (APA 7 unless another is chosen).
+  const style: CitationStyleId =
+    typeof body.style === "string" && CITATION_STYLES.some((s) => s.id === body.style) ? (body.style as CitationStyleId) : "apa";
   const rawItems = Array.isArray(body.items) ? body.items.slice(0, MAX_ITEMS) : [];
   const items = rawItems.filter(
     (i: any) => i && typeof i.question === "string" && i.question.trim() && typeof i.answer === "string" && i.answer.trim()
@@ -95,7 +99,18 @@ export async function POST(req: NextRequest) {
       const s = toSource({ ...r, label: "", volume: r.issue?.volume, issueNumber: r.issue?.issueNumber }, 0, APP_BASE_URL);
       return [
         r.id,
-        { id: r.id, title: r.title, url: s.url, reference: apaReference(s, { name: journal.name, volume: r.issue?.volume, issueNumber: r.issue?.issueNumber }) },
+        {
+          id: r.id,
+          title: r.title,
+          url: s.url,
+          reference:
+            style === "apa"
+              ? apaReference(s, { name: journal.name, volume: r.issue?.volume, issueNumber: r.issue?.issueNumber })
+              : formatCitationStyle(
+                  { title: r.title, authors: r.authors, publishedAt: r.publishedAt, doi: r.doi, journalName: journal.name, journalIssn: journal.issn, volume: r.issue?.volume, issueNumber: r.issue?.issueNumber },
+                  style
+                ),
+        },
       ];
     })
   );

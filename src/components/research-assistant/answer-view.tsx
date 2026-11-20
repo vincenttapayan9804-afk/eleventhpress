@@ -40,6 +40,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils";
 import { INTENT_LABEL, type AnswerCitation, type AnswerData, type ChatMessage } from "./types";
 import { ResearchMascot } from "./mascot";
+import { RelatedWork, SourceFlag, useSourceSignals } from "./source-signals";
 
 /** "[1][3]" → markdown links the renderer turns into citation chips. */
 function linkCitations(md: string): string {
@@ -238,8 +239,11 @@ export const AnswerView = memo(function AnswerView({
   isLatest,
   scope = "journal",
   reveal = false,
+  question,
 }: {
   message: ChatMessage;
+  /** The question this answers; enables "Related work beyond this journal". */
+  question?: string;
   actions: AnswerActions;
   busy: boolean;
   exporting: boolean;
@@ -255,6 +259,8 @@ export const AnswerView = memo(function AnswerView({
   const badge = evidenceBadge(data, scope);
   const BadgeIcon = badge.icon;
   const primary = data.sources[0];
+  const signals = useSourceSignals(revealing ? [] : data.sources);
+  const signalOf = (id: string) => (signals.state?.status === "ready" ? signals.state.byId.get(id) : undefined);
 
   const components = useMemo<Components>(
     () => ({
@@ -394,9 +400,16 @@ export const AnswerView = memo(function AnswerView({
                 <span className="flex h-5 min-w-5 items-center justify-center rounded-md bg-[var(--royal-50)] px-1 text-xs font-bold text-primary">{s.n}</span>
                 <span className="line-clamp-1 max-w-[18rem] font-medium text-foreground">{s.title}</span>
                 {s.year && <span className="shrink-0 text-muted-foreground">{s.year}</span>}
+                <SourceFlag signal={signalOf(s.id)} />
               </button>
             ))}
           </div>
+        </div>
+      )}
+
+      {!revealing && question && data.grounded && data.sources.length > 0 && (
+        <div className="mt-3">
+          <RelatedWork question={question} sourceIds={data.sources.map((s) => s.id)} />
         </div>
       )}
 
