@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 
 /**
  * Core public flows, database-free so they run in CI (ci.yml's Playwright
@@ -79,6 +79,14 @@ test("the status page renders", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Platform status" })).toBeVisible();
 });
 
+// Opens the header's About menu unless it's already open. Checking the
+// trigger's aria-expanded (not item visibility) avoids clicking it again
+// mid-animation, which would close the menu.
+async function openAboutMenu(page: Page) {
+  const trigger = page.getByTestId("nav-group-about");
+  if ((await trigger.getAttribute("aria-expanded")) !== "true") await trigger.click();
+}
+
 test("the About menu opens each Governance and Legal page", async ({ page }) => {
   test.setTimeout(120_000);
   await page.goto("/", { waitUntil: "networkidle" });
@@ -90,10 +98,10 @@ test("the About menu opens each Governance and Legal page", async ({ page }) => 
   ];
   for (const [id, url] of pages) {
     await expect(async () => {
-      if (!(await page.getByTestId(id).isVisible())) await page.getByTestId("nav-group-about").click();
-      await page.getByTestId(id).click({ timeout: 2000 });
-      await expect(page).toHaveURL(url, { timeout: 2000 });
-    }).toPass({ timeout: 25_000 });
+      await openAboutMenu(page);
+      await page.getByTestId(id).click({ timeout: 5000 });
+      await expect(page).toHaveURL(url, { timeout: 3000 });
+    }).toPass({ timeout: 30_000 });
   }
 });
 
@@ -103,15 +111,15 @@ test("the About menu shows labelled sections and links the Cookie Policy", async
   const menu = page.getByRole("menu");
   const cookie = page.getByTestId("nav-cookie-policy");
   await expect(async () => {
-    if (!(await menu.isVisible())) await page.getByTestId("nav-group-about").click();
-    for (const heading of ["About", "Governance", "Legal"]) await expect(menu.getByText(heading, { exact: true })).toBeVisible({ timeout: 2000 });
-    await expect(cookie).toHaveAttribute("href", "/cookie-policy", { timeout: 2000 });
-  }).toPass({ timeout: 25_000 });
+    await openAboutMenu(page);
+    for (const heading of ["About", "Governance", "Legal"]) await expect(menu.getByText(heading, { exact: true })).toBeVisible({ timeout: 3000 });
+    await expect(cookie).toHaveAttribute("href", "/cookie-policy", { timeout: 3000 });
+  }).toPass({ timeout: 30_000 });
   // The Cookie Policy is a server-rendered page, so the click starts a full
   // page load (slow on first compile under `next dev`): click, then wait.
   await expect(async () => {
-    if (!(await cookie.isVisible())) await page.getByTestId("nav-group-about").click();
-    await cookie.click({ timeout: 3000, noWaitAfter: true });
-  }).toPass({ timeout: 25_000 });
+    await openAboutMenu(page);
+    await cookie.click({ timeout: 5000, noWaitAfter: true });
+  }).toPass({ timeout: 30_000 });
   await expect(page).toHaveURL(/\/cookie-policy$/, { timeout: 60_000 });
 });
