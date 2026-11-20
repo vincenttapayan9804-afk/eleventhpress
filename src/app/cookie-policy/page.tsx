@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { CookiePolicyContent } from "@/components/legal/cookie-policy-content";
 import { getCurrentTenant } from "@/lib/tenant";
+import { searchDescription } from "@/lib/seo-text";
 
 /** The visiting site's name — a whitelabel tenant's own, never Eleventh Press's. */
 async function siteName(): Promise<string> {
@@ -14,7 +15,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const name = await siteName();
   return {
     title: `Cookie Policy — ${name}`,
-    description: `Every cookie and browser-storage item ${name} uses, why, for how long, and how to change your cookie preferences.`,
+    description: searchDescription(`Every cookie and browser-storage item ${name} uses, why, for how long, and how to change your cookie preferences.`),
+    alternates: { canonical: "/cookie-policy" },
   };
 }
 

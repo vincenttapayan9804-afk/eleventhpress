@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { POWERED_BY_CREDIT, POWERED_BY_URL } from "@/lib/powered-by";
 import { useApp } from "@/lib/store";
+import { SpaLink } from "@/components/spa-link";
 import {
   Cookie,
   Globe,
@@ -129,15 +130,15 @@ export function SiteFooter() {
             <div>
               <p className="eyebrow mb-3">{t("exploreLabel")}</p>
               <ul className="space-y-2.5 text-sm">
-                <li><button onClick={() => setView("home")} className="text-muted-foreground hover:text-primary transition-colors">{t("home")}</button></li>
-                <li><button onClick={() => setView("browse")} className="text-muted-foreground hover:text-primary transition-colors">{t("allArticles")}</button></li>
+                <li><SpaLink to={{ view: "home" }} onNavigate={() => setView("home")} className="text-muted-foreground hover:text-primary transition-colors">{t("home")}</SpaLink></li>
+                <li><SpaLink to={{ view: "browse" }} onNavigate={() => setView("browse")} className="text-muted-foreground hover:text-primary transition-colors">{t("allArticles")}</SpaLink></li>
                 <li><a href="/archive" data-testid="footer-archive" className="text-muted-foreground hover:text-primary transition-colors">{t("archiveByDate")}</a></li>
-                <li><button onClick={() => setView("authors")} className="text-muted-foreground hover:text-primary transition-colors">{t("authorsDirectory")}</button></li>
-                <li><button onClick={() => setView("experts")} className="text-muted-foreground hover:text-primary transition-colors">{t("expertsDirectory")}</button></li>
-                <li><button onClick={() => setView("resources")} className="text-muted-foreground hover:text-primary transition-colors">{t("resources")}</button></li>
-                <li><button onClick={() => setView("about")} className="text-muted-foreground hover:text-primary transition-colors">{t("aboutJournal")}</button></li>
-                <li><button onClick={() => setView("faqs")} className="text-muted-foreground hover:text-primary transition-colors">{t("faqs")}</button></li>
-                <li><button onClick={() => setView("pricing")} className="text-muted-foreground hover:text-primary transition-colors">Pricing</button></li>
+                <li><SpaLink to={{ view: "authors" }} onNavigate={() => setView("authors")} className="text-muted-foreground hover:text-primary transition-colors">{t("authorsDirectory")}</SpaLink></li>
+                <li><SpaLink to={{ view: "experts" }} onNavigate={() => setView("experts")} className="text-muted-foreground hover:text-primary transition-colors">{t("expertsDirectory")}</SpaLink></li>
+                <li><SpaLink to={{ view: "resources" }} onNavigate={() => setView("resources")} className="text-muted-foreground hover:text-primary transition-colors">{t("resources")}</SpaLink></li>
+                <li><SpaLink to={{ view: "about" }} onNavigate={() => setView("about")} className="text-muted-foreground hover:text-primary transition-colors">{t("aboutJournal")}</SpaLink></li>
+                <li><SpaLink to={{ view: "faqs" }} onNavigate={() => setView("faqs")} className="text-muted-foreground hover:text-primary transition-colors">{t("faqs")}</SpaLink></li>
+                <li><SpaLink to={{ view: "pricing" }} onNavigate={() => setView("pricing")} className="text-muted-foreground hover:text-primary transition-colors">Pricing</SpaLink></li>
                 <li><a href="/api/oai-pmh?verb=Identify" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-muted-foreground hover:text-primary transition-colors"><Globe className="h-3 w-3" /> {t("oaiEndpoint")}</a></li>
                 <li><a href="/openapi.json" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-muted-foreground hover:text-primary transition-colors"><Globe className="h-3 w-3" /> {t("apiSpec")}</a></li>
               </ul>
@@ -150,23 +151,25 @@ export function SiteFooter() {
                 <li>{t("policyPeerReview")}</li>
                 <li>{t("policyCrossref", { registrar: DOI_REGISTRAR })}</li>
                 <li>
-                  <button
-                    onClick={() => setView("privacy")}
+                  <SpaLink
+                    to={{ view: "privacy" }}
+                    onNavigate={() => setView("privacy")}
                     data-testid="footer-nav-privacy"
                     className="text-left underline-offset-2 hover:text-primary hover:underline transition-colors"
                   >
                     {t("policyGdpr")}
-                  </button>
+                  </SpaLink>
                 </li>
                 <li>{t("policyPci")}</li>
                 <li>
-                  <button
-                    onClick={() => setView("terms")}
+                  <SpaLink
+                    to={{ view: "terms" }}
+                    onNavigate={() => setView("terms")}
                     data-testid="footer-nav-terms"
                     className="text-left underline-offset-2 hover:text-primary hover:underline transition-colors"
                   >
                     {t("termsOfService")}
-                  </button>
+                  </SpaLink>
                 </li>
                 <li>
                   <a href="/cookie-policy" className="underline-offset-2 hover:text-primary hover:underline transition-colors">
@@ -183,31 +186,34 @@ export function SiteFooter() {
                   </button>
                 </li>
                 <li>
-                  <button
-                    onClick={() => setView("accessibility")}
+                  <SpaLink
+                    to={{ view: "accessibility" }}
+                    onNavigate={() => setView("accessibility")}
                     data-testid="footer-nav-accessibility"
                     className="text-left underline-offset-2 hover:text-primary hover:underline transition-colors"
                   >
                     {t("accessibilityStatement")}
-                  </button>
+                  </SpaLink>
                 </li>
                 <li>
-                  <button
-                    onClick={() => setView("contact")}
+                  <SpaLink
+                    to={{ view: "contact" }}
+                    onNavigate={() => setView("contact")}
                     data-testid="footer-nav-contact"
                     className="text-left underline-offset-2 hover:text-primary hover:underline transition-colors"
                   >
                     {t("contactUs")}
-                  </button>
+                  </SpaLink>
                 </li>
                 <li>
-                  <button
-                    onClick={() => setView("trust")}
+                  <SpaLink
+                    to={{ view: "trust" }}
+                    onNavigate={() => setView("trust")}
                     data-testid="footer-nav-trust"
                     className="text-left underline-offset-2 hover:text-primary hover:underline transition-colors"
                   >
                     {t("trustCenter")}
-                  </button>
+                  </SpaLink>
                 </li>
                 <li>
                   <a href="/status" className="text-left underline-offset-2 hover:text-primary hover:underline transition-colors">

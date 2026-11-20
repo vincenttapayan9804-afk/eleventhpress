@@ -35,7 +35,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const articles = await withTenantRlsContext(tenant?.id ?? null, (tx) =>
     tx.article.findMany({
       where: { status: "PUBLISHED" },
-      select: { id: true, title: true, authors: true, publishedAt: true },
+      select: {
+        id: true,
+        title: true,
+        authors: true,
+        publishedAt: true,
+        // Latest correction/retraction notice: the article page changes when
+        // one is issued, so it counts as the page's last modification.
+        corrections: { select: { issuedAt: true }, orderBy: { issuedAt: "desc" }, take: 1 },
+      },
       orderBy: { publishedAt: "desc" },
     })
   );
@@ -47,7 +55,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = await requestBaseUrl(tenant);
 
   return [
-    { url: base, changeFrequency: "daily", priority: 1 },
+    // Same form as the home page's canonical URL (with the trailing slash).
+    { url: `${base}/`, changeFrequency: "daily", priority: 1 },
     ...authorPaths.map((path) => ({ url: `${base}${path}`, changeFrequency: "weekly" as const, priority: 0.6 })),
     { url: `${base}/cookie-policy`, changeFrequency: "yearly", priority: 0.2 },
     ...SITEMAP_PATHS.map((path) => ({
@@ -93,9 +102,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })),
     ...articles.map((a) => ({
       url: `${base}${articlePath(a.id, a.title)}`,
-      lastModified: a.publishedAt ?? undefined,
+      lastModified: lastChanged(a.publishedAt, a.corrections[0]?.issuedAt),
       changeFrequency: "monthly" as const,
       priority: 0.8,
     })),
   ];
+}
+
+/** The later of two dates (either may be missing). */
+function lastChanged(...dates: Array<Date | null | undefined>): Date | undefined {
+  const times = dates.filter((d): d is Date => d instanceof Date).map((d) => d.getTime());
+  return times.length ? new Date(Math.max(...times)) : undefined;
 }

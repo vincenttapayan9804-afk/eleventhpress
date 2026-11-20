@@ -57,11 +57,39 @@ export async function submitToIndexNow(urls: string[]): Promise<{ submitted: num
   return { submitted, failed };
 }
 
-/** Re-announces every URL in the platform sitemap (daily cron). */
-export async function submitSitemapToIndexNow(base: string = APP_BASE_URL) {
+/**
+ * Daily cron safety net: announces only the sitemap URLs whose <lastmod>
+ * falls inside the last `withinHours` (default two days, so a missed run is
+ * covered). Bing's guidelines ask for IndexNow pings when a URL is added,
+ * updated or removed, not blanket re-submission of unchanged pages; the
+ * real-time pings happen where content changes (publish, corrections,
+ * withdrawal, deletion).
+ */
+export async function submitSitemapToIndexNow(base: string = APP_BASE_URL, withinHours = 48) {
   const res = await fetch(`${base}/sitemap.xml`, { signal: AbortSignal.timeout(20_000), cache: "no-store" });
   if (!res.ok) throw new Error(`sitemap HTTP ${res.status}`);
-  const xml = await res.text();
-  const urls = Array.from(xml.matchAll(/<loc>([^<]+)<\/loc>/g), (m) => m[1].trim());
+  const urls = recentlyChangedSitemapUrls(await res.text(), Date.now() - withinHours * 3_600_000);
+  if (!urls.length) return { found: 0, submitted: 0, failed: 0 };
   return { found: urls.length, ...(await submitToIndexNow(urls)) };
+}
+
+/** Sitemap <loc>s whose <lastmod> is at or after `sinceMs`. */
+export function recentlyChangedSitemapUrls(xml: string, sinceMs: number): string[] {
+  const out: string[] = [];
+  for (const [, entry] of xml.matchAll(/<url>([\s\S]*?)<\/url>/g)) {
+    const loc = entry.match(/<loc>([^<]+)<\/loc>/)?.[1]?.trim();
+    const lastmod = entry.match(/<lastmod>([^<]+)<\/lastmod>/)?.[1]?.trim();
+    if (loc && lastmod && Date.parse(lastmod) >= sinceMs) out.push(loc);
+  }
+  return out;
+}
+
+/** Fire-and-forget IndexNow ping for one article's page after it changes. */
+export function pingArticleChange(article: { id: string; title?: string | null; journal?: { tenantId?: string | null } | null }) {
+  Promise.all([import("@/lib/tenant"), import("@/lib/spa-routes")])
+    .then(async ([{ tenantBaseUrl }, { articlePath }]) => {
+      const base = await tenantBaseUrl(article.journal?.tenantId ?? null);
+      return submitToIndexNow([`${base}${articlePath(article.id, article.title)}`, `${base}/articles`, `${base}/archive`]);
+    })
+    .catch((e) => console.error(`[indexnow] ping failed for ${article.id}:`, e));
 }

@@ -26,3 +26,16 @@ describe("search snippet lengths", () => {
     expect(clipText("abc", 10)).toBe("abc");
   });
 });
+
+import { recentlyChangedSitemapUrls } from "./indexnow";
+
+describe("IndexNow daily sweep", () => {
+  test("only URLs whose lastmod is recent are re-announced", () => {
+    const xml = `<urlset>
+<url><loc>https://x.test/</loc><changefreq>daily</changefreq></url>
+<url><loc>https://x.test/old</loc><lastmod>2024-01-01T00:00:00.000Z</lastmod></url>
+<url><loc>https://x.test/new</loc><lastmod>2026-11-20T00:00:00.000Z</lastmod></url>
+</urlset>`;
+    expect(recentlyChangedSitemapUrls(xml, Date.parse("2026-11-19T00:00:00Z"))).toEqual(["https://x.test/new"]);
+  });
+});

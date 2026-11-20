@@ -181,6 +181,12 @@ export async function POST(req: NextRequest) {
     });
 
     // ----- On PUBLISH: fire the full production + indexing fan-out -----
+    // A published article leaving the public record (withdrawn, unpublished)
+    // now returns 404: tell Bing/IndexNow so it drops the URL promptly.
+    if (article.status === "PUBLISHED" && next !== "PUBLISHED") {
+      import("@/lib/indexnow").then(({ pingArticleChange }) => pingArticleChange(article)).catch(() => {});
+    }
+
     if (next === "PUBLISHED") {
       const publishEvents: string[] = [];
       // Followers of the corresponding author hear about it (reading alerts).
