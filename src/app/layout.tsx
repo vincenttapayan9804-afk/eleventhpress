@@ -36,6 +36,17 @@ const jetbrains = JetBrains_Mono({
 
 const DEFAULT_TITLE = "Eleventh Press International Publishing™ — Full-Stack Peer Reviewed Press & Syndication Network";
 const DEFAULT_DESCRIPTION = `A Full-Stack Peer Reviewed Press & Multidisciplinary Syndication Network: rigorous peer review, real ${DOI_REGISTRAR} DOIs, genuine open access, and automatic syndication across eight platforms plus a full book-publishing division — one submission, global reach. Indexed via ${DOI_REGISTRAR}, OAI-PMH 2.0, and Google Scholar.`;
+// Search engines cut titles past ~70 characters and want a meta description
+// of 25–160 (Bing flags anything outside that). The long copy above stays on
+// the social cards (og/twitter), which have room for it.
+const SEARCH_DESCRIPTION = `Peer-reviewed open-access research with real ${DOI_REGISTRAR} DOIs, indexed in Google Scholar and syndicated across eight platforms.`;
+const MAX_TITLE = 70;
+const MAX_DESCRIPTION = 160;
+function clip(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max - 1);
+  return `${cut.slice(0, cut.lastIndexOf(" ")).replace(/[\s,;:.—-]+$/, "")}…`;
+}
 
 /**
  * Dynamic per-tenant metadata (Phase 2). Falls back to the platform's
@@ -57,6 +68,13 @@ export async function generateMetadata(): Promise<Metadata> {
     : tenant.isPlatform && tenant.tagline.length < 80
       ? `${tenant.tagline.replace(/[.\s]+$/, "")}. ${DEFAULT_DESCRIPTION}`
       : tenant.tagline;
+  // Short forms for the <title> and meta description search engines show.
+  const searchTitle = title.length <= MAX_TITLE ? title : tenant?.siteName || clip(title, MAX_TITLE);
+  const searchDescription = !tenant?.tagline
+    ? SEARCH_DESCRIPTION
+    : tenant.isPlatform && tenant.tagline.length < 80
+      ? clip(`${tenant.tagline.replace(/[.\s]+$/, "")}. ${SEARCH_DESCRIPTION}`, MAX_DESCRIPTION)
+      : clip(tenant.tagline, MAX_DESCRIPTION);
   // Home-screen icon: a whitelabel tenant's own logo/initials (src/app/pwa-icon).
   const appleIcon = tenant && !tenant.isPlatform ? `/pwa-icon/180?t=${encodeURIComponent(tenant.slug)}` : "/pwa-icon/180";
 
@@ -67,8 +85,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
   return {
     metadataBase: new URL(APP_BASE_URL),
-    title,
-    description,
+    title: searchTitle,
+    description: searchDescription,
     applicationName: siteName,
     robots: {
       index: true,

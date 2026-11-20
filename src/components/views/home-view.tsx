@@ -129,7 +129,7 @@ export function HomeView() {
         <div className="absolute inset-0 -z-10 bg-[oklch(0.13_0.03_290)] lg:bg-transparent">
           <img
             src="/hero/hero-bg.png"
-            alt=""
+            alt="Glowing globe of connected research networks"
             className="absolute inset-x-0 top-0 h-[480px] w-full object-cover object-center sm:h-[560px] lg:inset-0 lg:h-full lg:object-[right_center]"
             fetchPriority="high"
             decoding="async"
@@ -292,7 +292,7 @@ export function HomeView() {
                     {/* Studio-grade 4D image background */}
                     <img
                       src={`/disciplines/${DISCIPLINE_SLUGS[d] || "physics"}.png`}
-                      alt=""
+                      alt={`${d} research`}
                       loading="lazy"
                       decoding="async"
                       className="absolute inset-0 h-full w-full object-cover opacity-60 transition-opacity duration-500 group-hover:opacity-85 group-hover:scale-105"
