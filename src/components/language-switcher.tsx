@@ -18,7 +18,8 @@ const LOCALES: { code: Locale; label: string; nativeLabel: string }[] = [
   { code: "zh-Hans", label: "Chinese (Simplified)", nativeLabel: "简体中文" },
 ];
 
-export function LanguageSwitcher() {
+/** `showLabel` always shows the current language name (used in the phone menu). */
+export function LanguageSwitcher({ className = "", showLabel = false }: { className?: string; showLabel?: boolean }) {
   const locale = useApp((s) => s.locale);
   const setLocale = useApp((s) => s.setLocale);
   const current = LOCALES.find((l) => l.code === locale) ?? LOCALES[0];
@@ -26,9 +27,9 @@ export function LanguageSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="gap-1.5 px-2.5" aria-label="Change language">
+        <Button variant="ghost" size="sm" className={`gap-1.5 px-2.5 ${className}`} aria-label="Change language">
           <Languages className="h-4 w-4" />
-          <span className="hidden text-xs font-medium sm:inline">{current.nativeLabel}</span>
+          <span className={`${showLabel ? "inline" : "hidden sm:inline"} text-xs font-medium`}>{current.nativeLabel}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="glass-strong w-48">

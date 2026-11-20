@@ -126,11 +126,14 @@ export function SiteHeader() {
                 <span className="wax-mark-text">EP</span>
               </span>
             )}
+            {/* Phones: the full name and tagline wrap (up to two lines each)
+                rather than truncating, so the whole brand reads. sm+ has room
+                for one line each. */}
             <span className="flex min-w-0 flex-col leading-tight">
-              <span className="truncate font-display text-sm font-semibold text-foreground sm:text-base">
+              <span className="line-clamp-2 text-balance font-display text-[0.8rem] font-semibold leading-[1.15] text-foreground sm:line-clamp-none sm:truncate sm:text-base sm:leading-tight">
                 {branding.siteName || tHeader("brandName")}
               </span>
-              <span className="truncate text-[0.55rem] font-sans font-medium uppercase tracking-[0.14em] text-muted-foreground sm:text-[0.62rem] sm:tracking-[0.22em]">
+              <span className="mt-0.5 line-clamp-2 text-balance text-[0.5rem] font-sans font-medium uppercase leading-[1.3] tracking-[0.1em] text-muted-foreground sm:mt-0 sm:line-clamp-none sm:truncate sm:text-[0.62rem] sm:leading-tight sm:tracking-[0.22em]">
                 {branding.tagline || (branding.isPlatform ? tHeader("brandTagline") : "Research Platform")}
               </span>
             </span>
@@ -209,7 +212,7 @@ export function SiteHeader() {
           </nav>
 
           {/* Right side */}
-          <div className="flex flex-shrink-0 items-center gap-2">
+          <div className="flex flex-shrink-0 items-center gap-1 sm:gap-2">
             <SearchButton />
             <CommandPalette />
             {user ? (
@@ -259,10 +262,11 @@ export function SiteHeader() {
             )}
 
             {/* On phones these live in the menu sheet, so the header row
-                keeps room for search, notifications and the account menu. */}
+                keeps room for the full brand name, search, notifications and
+                the account menu. */}
             <ThemeToggle className="hidden size-9 sm:inline-flex" />
             <SoundToggle className="hidden size-9 sm:inline-flex" />
-            <LanguageSwitcher />
+            <LanguageSwitcher className="hidden sm:inline-flex" />
 
             {/* Mobile nav */}
             <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
@@ -283,7 +287,7 @@ export function SiteHeader() {
                 <div className="flex items-center gap-2 border-b border-border px-3 pb-3 sm:hidden">
                   <ThemeToggle className="size-11" />
                   <SoundToggle className="size-11" />
-                  <span className="text-xs text-muted-foreground">Light/dark &amp; sounds</span>
+                  <LanguageSwitcher className="h-11" showLabel />
                 </div>
                 <nav className="mt-3 flex flex-col gap-1">
                   <SpaLink

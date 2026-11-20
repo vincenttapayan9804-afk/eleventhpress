@@ -111,22 +111,30 @@ export function HomeView() {
           HERO — studio-grade 4D image background
           ════════════════════════════════════════════════════════════════ */}
       <section className="relative overflow-hidden" data-testid="hero-gradient-section">
-        {/* Studio-grade 4D hero image background */}
-        <div className="absolute inset-0 -z-10">
+        {/* Studio-grade 4D hero image background.
+            Desktop (lg+): the image fills the whole hero, anchored right so
+            the globe sits beside the text, with a left vignette for contrast.
+            Phones/tablets: the hero stacks text over the stats card and gets
+            very tall, so a full-height cover image showed only a dark sliver
+            of its right edge. There the image is a band at the top, centred
+            so the whole globe sits behind the headline, under an even tint,
+            then fades into the same deep tone for the rest of the hero. */}
+        <div className="absolute inset-0 -z-10 bg-[oklch(0.13_0.03_290)] lg:bg-transparent">
           <img
             src="/hero/hero-bg.png"
             alt=""
-            className="h-full w-full object-cover"
-            style={{ objectPosition: "center right" }}
+            className="absolute inset-x-0 top-0 h-[480px] w-full object-cover object-center sm:h-[560px] lg:inset-0 lg:h-full lg:object-[right_center]"
             fetchPriority="high"
             decoding="async"
           />
-          {/* Dark vignette on the left for text contrast */}
-          <div className="absolute inset-0 bg-gradient-to-r from-[oklch(0.14_0.02_285/0.88)] via-[oklch(0.14_0.02_285/0.45)] to-transparent" />
+          {/* Phones/tablets: even tint for text contrast, fading into the base tone */}
+          <div className="absolute inset-x-0 top-0 h-[480px] bg-gradient-to-b from-[oklch(0.14_0.02_285/0.62)] via-[oklch(0.14_0.02_285/0.42)] to-[oklch(0.13_0.03_290)] sm:h-[560px] lg:hidden" />
+          {/* Desktop: dark vignette on the left for text contrast */}
+          <div className="absolute inset-0 hidden bg-gradient-to-r from-[oklch(0.14_0.02_285/0.88)] via-[oklch(0.14_0.02_285/0.45)] to-transparent lg:block" />
           {/* Bottom fade to pearlescent */}
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />
-          {/* Top subtle darkening */}
-          <div className="absolute inset-0 bg-gradient-to-b from-[oklch(0.14_0.02_285/0.5)] via-transparent to-transparent" />
+          {/* Desktop: top subtle darkening */}
+          <div className="absolute inset-0 hidden bg-gradient-to-b from-[oklch(0.14_0.02_285/0.5)] via-transparent to-transparent lg:block" />
         </div>
 
         <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8 lg:py-32">
