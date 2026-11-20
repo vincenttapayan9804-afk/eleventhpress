@@ -13,6 +13,7 @@ import { blogPath, blogPlainText, fmtLongDate, getBlogPost, guideById, guidePath
 import { BLOGS } from "@/lib/resources-content";
 import { getCurrentTenant } from "@/lib/tenant";
 import { resourcesBlogVisible } from "@/lib/resources/tenant-brand-server";
+import { searchDescription, searchTitle } from "@/lib/seo-text";
 import { ResourcePageShell, BackToResources } from "@/components/resources/resource-page-shell";
 import { FaqBlock, NumberedList, OnThisPage, ReferenceList, SectionBlock, slugifyHeading } from "@/components/resources/content-blocks";
 
@@ -45,8 +46,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!post) return { title: "Post not found" };
   const url = `${APP_BASE_URL}${blogPath(post)}`;
   return {
-    title: `${post.title} | ${JOURNAL_IDENTITY.name}`,
-    description: post.metaDescription,
+    title: searchTitle(post.title, [JOURNAL_IDENTITY.name, JOURNAL_IDENTITY.shortName]),
+    description: searchDescription(post.metaDescription),
     keywords: post.keywords,
     authors: [{ name: `Editorial Office, ${JOURNAL_IDENTITY.name}` }],
     alternates: { canonical: url },

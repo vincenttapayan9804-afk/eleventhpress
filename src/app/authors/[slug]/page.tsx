@@ -31,6 +31,7 @@ import {
 import { resolveTenantFromHeaders, tenantBaseUrl } from "@/lib/tenant";
 import { getAuthorProfile, IDENTITY_LABEL, type AuthorProfile } from "@/lib/author-profile";
 import { displayCase } from "@/lib/author-path";
+import { searchDescription, searchTitle } from "@/lib/seo-text";
 import { articlePath } from "@/lib/spa-routes";
 import { AuthorProfileShell } from "@/components/authors/author-profile-shell";
 import { FollowAuthorButton } from "@/components/authors/follow-author-button";
@@ -68,8 +69,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       : `${name}${role ? `, ${role}` : ""}. ${p.articles.length} publication${p.articles.length === 1 ? "" : "s"} in ${p.disciplines.join(", ")} with ${site}, each verifiable.`;
   const url = profileUrl(base, p);
   return {
-    title: `${name} — Author profile`,
-    description,
+    title: searchTitle(`${name} — Author profile`),
+    description: searchDescription(description),
     alternates: { canonical: url },
     openGraph: { title: `${name} — Author profile`, description, url, type: "profile", siteName: site },
     twitter: { card: "summary_large_image", title: `${name} — Author profile`, description },

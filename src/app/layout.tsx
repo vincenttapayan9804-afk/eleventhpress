@@ -1,4 +1,5 @@
 import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register";
+import { clipText, MAX_DESCRIPTION, MAX_TITLE } from "@/lib/seo-text";
 import type { Metadata } from "next";
 import { Inter, Fraunces, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
@@ -40,13 +41,6 @@ const DEFAULT_DESCRIPTION = `A Full-Stack Peer Reviewed Press & Multidisciplinar
 // of 25–160 (Bing flags anything outside that). The long copy above stays on
 // the social cards (og/twitter), which have room for it.
 const SEARCH_DESCRIPTION = `Peer-reviewed open-access research with real ${DOI_REGISTRAR} DOIs, indexed in Google Scholar and syndicated across eight platforms.`;
-const MAX_TITLE = 70;
-const MAX_DESCRIPTION = 160;
-function clip(text: string, max: number): string {
-  if (text.length <= max) return text;
-  const cut = text.slice(0, max - 1);
-  return `${cut.slice(0, cut.lastIndexOf(" ")).replace(/[\s,;:.—-]+$/, "")}…`;
-}
 
 /**
  * Dynamic per-tenant metadata (Phase 2). Falls back to the platform's
@@ -69,12 +63,12 @@ export async function generateMetadata(): Promise<Metadata> {
       ? `${tenant.tagline.replace(/[.\s]+$/, "")}. ${DEFAULT_DESCRIPTION}`
       : tenant.tagline;
   // Short forms for the <title> and meta description search engines show.
-  const searchTitle = title.length <= MAX_TITLE ? title : tenant?.siteName || clip(title, MAX_TITLE);
+  const searchTitle = title.length <= MAX_TITLE ? title : tenant?.siteName || clipText(title, MAX_TITLE);
   const searchDescription = !tenant?.tagline
     ? SEARCH_DESCRIPTION
     : tenant.isPlatform && tenant.tagline.length < 80
-      ? clip(`${tenant.tagline.replace(/[.\s]+$/, "")}. ${SEARCH_DESCRIPTION}`, MAX_DESCRIPTION)
-      : clip(tenant.tagline, MAX_DESCRIPTION);
+      ? clipText(`${tenant.tagline.replace(/[.\s]+$/, "")}. ${SEARCH_DESCRIPTION}`, MAX_DESCRIPTION)
+      : clipText(tenant.tagline, MAX_DESCRIPTION);
   // Home-screen icon: a whitelabel tenant's own logo/initials (src/app/pwa-icon).
   const appleIcon = tenant && !tenant.isPlatform ? `/pwa-icon/180?t=${encodeURIComponent(tenant.slug)}` : "/pwa-icon/180";
 
