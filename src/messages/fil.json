@@ -24,7 +24,15 @@
     "signOut": "Mag-sign out",
     "menu": "Menu",
     "notifications": "Mga Abiso",
-    "contact": "Makipag-ugnayan"
+    "contact": "Makipag-ugnayan",
+    "charter": "Charter ng Paglalathala",
+    "accessibility": "Accessibility",
+    "terms": "Mga Tuntunin ng Serbisyo",
+    "privacy": "Patakaran sa Privacy",
+    "cookies": "Patakaran sa Cookie",
+    "sectionAbout": "Tungkol",
+    "sectionGovernance": "Pamamahala",
+    "sectionLegal": "Legal"
   },
   "header": {
     "brandName": "ELEVENTH PRESS",

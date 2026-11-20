@@ -29,6 +29,7 @@ const PAGES: { name: string; trigger?: string; group?: string }[] = [
   { name: "accessibility", trigger: "footer-nav-accessibility" },
   { name: "trust", group: "nav-group-about", trigger: "nav-trust" },
   { name: "contact", group: "nav-group-about", trigger: "nav-contact" },
+  { name: "charter", group: "nav-group-about", trigger: "nav-charter" },
 ];
 
 async function gotoView(page: Page, trigger?: string, group?: string) {
@@ -38,6 +39,19 @@ async function gotoView(page: Page, trigger?: string, group?: string) {
     await page.getByTestId(trigger).first().click();
     await page.waitForLoadState("networkidle");
   }
+  // Views fade in. Checked mid-fade, every colour reads as washed out and
+  // axe reports contrast failures that aren't real, so wait until no
+  // finite animation or transition is still running.
+  await page
+    .waitForFunction(
+      () =>
+        document
+          .getAnimations()
+          .every((a) => a.playState !== "running" || a.effect?.getTiming().iterations === Infinity),
+      null,
+      { timeout: 10_000 },
+    )
+    .catch(() => undefined);
 }
 
 for (const { name, trigger, group } of PAGES) {

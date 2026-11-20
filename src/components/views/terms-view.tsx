@@ -29,7 +29,7 @@ export function TermsView() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
       <div className="border-b border-border pb-8">
-        <p className="eyebrow">Governance</p>
+        <p className="eyebrow">Legal</p>
         <h1 className="mt-2 font-display text-4xl font-semibold sm:text-5xl">Terms of Service</h1>
         <p className="mt-3 max-w-2xl text-sm text-muted-foreground text-justify">
           The rules for using {/^[aeiou]/i.test(org) ? "an" : "a"} {org} account and this platform. For how manuscripts are

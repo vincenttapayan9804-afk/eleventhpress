@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import { CommandPalette, SearchButton } from "@/components/command-palette";
 import { NotificationBell } from "@/components/notification-bell";
 import { SpaLink } from "@/components/spa-link";
@@ -38,7 +39,10 @@ export function SiteHeader() {
   // The desktop bar holds five slots: Home, three dropdowns and Resources.
   // The same groups drive the mobile menu, with each group as a heading.
   type NavView = Parameters<typeof setView>[0];
-  type NavGroup = { key: string; label: string; items: { label: string; view: NavView }[]; active: boolean };
+  // An item is an SPA view, or a plain link (`href`) for server-rendered pages
+  // such as the Cookie Policy. `section` starts a labelled block in the menu.
+  type NavItem = { label: string; view: NavView; href?: string; section?: string };
+  type NavGroup = { key: string; label: string; items: NavItem[]; active: boolean };
   const GROUPS: NavGroup[] = [
     {
       key: "publications",
@@ -72,13 +76,18 @@ export function SiteHeader() {
       key: "about",
       label: t("about"),
       items: [
-        { label: t("aboutUs"), view: "about" },
+        { label: t("aboutUs"), view: "about", section: t("sectionAbout") },
         { label: t("faqs"), view: "faqs" },
+        { label: t("contact"), view: "contact" },
+        { label: t("charter"), view: "charter", section: t("sectionGovernance") },
         { label: t("policies"), view: "policies" },
         { label: t("trust"), view: "trust" },
-        { label: t("contact"), view: "contact" },
+        { label: t("accessibility"), view: "accessibility" },
+        { label: t("terms"), view: "terms", section: t("sectionLegal") },
+        { label: t("privacy"), view: "privacy" },
+        { label: t("cookies"), view: "home", href: "/cookie-policy" },
       ],
-      active: ["about", "faqs", "policies", "trust", "contact"].includes(view),
+      active: ["about", "faqs", "contact", "charter", "policies", "trust", "accessibility", "terms", "privacy"].includes(view),
     },
   ];
 
@@ -159,13 +168,29 @@ export function SiteHeader() {
                   >
                     {group.label} <ChevronDown className="h-3 w-3" />
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="glass-strong min-w-44">
-                    {group.items.map((item) => (
-                      <DropdownMenuItem key={item.view} asChild>
-                        <SpaLink to={{ view: item.view }} onNavigate={() => setView(item.view)} data-testid={`nav-${item.view}`}>
-                          {item.label}
-                        </SpaLink>
-                      </DropdownMenuItem>
+                  <DropdownMenuContent align="start" className="min-w-52 border-border/60 bg-popover/[0.97] shadow-lg backdrop-blur-xl">
+                    {group.items.map((item, i) => (
+                      <Fragment key={item.href ?? item.view}>
+                        {item.section && (
+                          <>
+                            {i > 0 && <DropdownMenuSeparator />}
+                            <DropdownMenuLabel className="text-[0.65rem] font-semibold uppercase tracking-wider text-muted-foreground">
+                              {item.section}
+                            </DropdownMenuLabel>
+                          </>
+                        )}
+                        <DropdownMenuItem asChild>
+                          {item.href ? (
+                            <a href={item.href} data-testid={`nav-${item.href.slice(1)}`}>
+                              {item.label}
+                            </a>
+                          ) : (
+                            <SpaLink to={{ view: item.view }} onNavigate={() => setView(item.view)} data-testid={`nav-${item.view}`}>
+                              {item.label}
+                            </SpaLink>
+                          )}
+                        </DropdownMenuItem>
+                      </Fragment>
                     ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -284,15 +309,31 @@ export function SiteHeader() {
                         <p className="mt-2 px-3 text-[0.65rem] font-semibold uppercase tracking-wider text-muted-foreground">
                           {group.label}
                         </p>
-                        {group.items.map((item) => (
-                          <SpaLink
-                            key={item.view}
-                            to={{ view: item.view }}
-                            onNavigate={() => { setView(item.view); setMobileNavOpen(false); }}
-                            className="rounded-md px-3 py-2 pl-5 text-left font-sans text-sm font-medium hover:bg-[var(--royal-100)] transition-colors"
-                          >
-                            {item.label}
-                          </SpaLink>
+                        {group.items.map((item, i) => (
+                          <Fragment key={item.href ?? item.view}>
+                            {item.section && i > 0 && (
+                              <p className="mt-1 px-3 pl-5 text-[0.6rem] font-semibold uppercase tracking-wider text-muted-foreground/80">
+                                {item.section}
+                              </p>
+                            )}
+                            {item.href ? (
+                              <a
+                                href={item.href}
+                                onClick={() => setMobileNavOpen(false)}
+                                className="rounded-md px-3 py-2 pl-5 text-left font-sans text-sm font-medium hover:bg-[var(--royal-100)] transition-colors"
+                              >
+                                {item.label}
+                              </a>
+                            ) : (
+                              <SpaLink
+                                to={{ view: item.view }}
+                                onNavigate={() => { setView(item.view); setMobileNavOpen(false); }}
+                                className="rounded-md px-3 py-2 pl-5 text-left font-sans text-sm font-medium hover:bg-[var(--royal-100)] transition-colors"
+                              >
+                                {item.label}
+                              </SpaLink>
+                            )}
+                          </Fragment>
                         ))}
                       </div>
                     ),
