@@ -66,6 +66,7 @@
         "embla-carousel-react": "^8.6.0",
         "foliate-js": "^1.0.1",
         "framer-motion": "^12.23.2",
+        "htmlparser2": "10.1.0",
         "input-otp": "^1.4.2",
         "jsonwebtoken": "^9.0.3",
         "jstat": "^1.9.6",

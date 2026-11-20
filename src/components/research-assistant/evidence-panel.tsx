@@ -128,9 +128,17 @@ function ArticlePreview({
           <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
             <Quote className="h-3 w-3" /> Supporting {focus.kind === "record" ? "record" : "passage"} [{focus.n}]
           </p>
-          <blockquote className="rounded-r-lg border-l-[3px] border-[var(--gold-500)] bg-[var(--gold-200)]/25 px-3.5 py-3 font-serif text-[0.84rem] leading-relaxed text-foreground dark:bg-[var(--gold-500)]/10">
-            {focus.text.replace(/\s+/g, " ").trim()}
-          </blockquote>
+          {focus.location && <p className="mb-1.5 text-xs font-medium text-foreground/80">{focus.location}</p>}
+          {/\n\|/.test(focus.text) ? (
+            // A table passage (Markdown rows): keep its line breaks and columns readable.
+            <blockquote className="overflow-x-auto whitespace-pre rounded-r-lg border-l-[3px] border-[var(--gold-500)] bg-[var(--gold-200)]/25 px-3.5 py-3 font-mono text-[0.72rem] leading-relaxed text-foreground dark:bg-[var(--gold-500)]/10">
+              {focus.text.trim()}
+            </blockquote>
+          ) : (
+            <blockquote className="rounded-r-lg border-l-[3px] border-[var(--gold-500)] bg-[var(--gold-200)]/25 px-3.5 py-3 font-serif text-[0.84rem] leading-relaxed text-foreground dark:bg-[var(--gold-500)]/10">
+              {focus.text.replace(/\s+/g, " ").trim()}
+            </blockquote>
+          )}
           <a
             href={focus.url}
             target="_blank"

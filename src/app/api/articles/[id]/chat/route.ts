@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { extractRequestIp } from "@/lib/institutions";
 import { checkRateLimit } from "@/lib/ratelimit";
 import { chatJSON, anyLLMAvailable } from "@/lib/llm";
+import { sectionsForQuestion } from "@/lib/section-chunker";
+import { passageLocation } from "@/lib/answer-integrity";
 import { retrieveChunks, indexArticleChunks, loadCorpusChunksByIds, type RetrievedChunk } from "@/lib/chunk-embeddings";
 import { resolveTenantFromHeaders } from "@/lib/tenant";
 import { withTenantRlsContext } from "@/lib/db-rls";
@@ -189,11 +191,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       const retrievalQuery = [question, previousQuestion.slice(0, MAX_QUESTION_LENGTH), sectionRetrievalHints(question)]
         .filter((part) => part.trim())
         .join("\n");
-      chunks = await retrieveChunks(articleId, retrievalQuery, PASSAGE_LIMIT);
+      chunks = await retrieveChunks(articleId, retrievalQuery, PASSAGE_LIMIT, sectionsForQuestion(question));
       if (chunks.length === 0) {
         try {
           const indexResult = await indexArticleChunks(articleId);
-          if (indexResult.chunkCount > 0) chunks = await retrieveChunks(articleId, retrievalQuery, PASSAGE_LIMIT);
+          if (indexResult.chunkCount > 0) chunks = await retrieveChunks(articleId, retrievalQuery, PASSAGE_LIMIT, sectionsForQuestion(question));
         } catch (e) {
           console.error(`[article-chat] on-demand indexing failed for article ${articleId}:`, e);
         }
@@ -212,7 +214,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const journal = await loadJournalInfo(tenant && !tenant.isPlatform ? tenant.id : null);
   const passageBlock = `PASSAGES (excerpts from the article's full text):\n\n${chunks
-    .map((c, i) => `[P${i + 1}]\n${c.text}`)
+    .map((c, i) => {
+      const where = passageLocation(c);
+      return `[P${i + 1}${where ? ` | ${where}` : ""}]\n${c.text}`;
+    })
     .join("\n\n")}`;
   const regenerateNote = regenerate
     ? "\n\nThis is a regenerated answer: write a fresh response from the same evidence, organised and worded independently of any earlier answer."
@@ -258,7 +263,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     };
     const cited = resolveCitations(
       stripModelReferenceList(result.data.answer),
-      chunks.map((c) => ({ chunkId: c.chunkId, articleId, articleTitle: article.title, chunkIndex: c.chunkIndex, text: c.text })),
+      chunks.map((c) => ({ chunkId: c.chunkId, articleId, articleTitle: article.title, chunkIndex: c.chunkIndex, text: c.text, section: c.section, headingPath: c.headingPath, kind: c.kind })),
       [evidenceArticle],
       usedPassages,
       APP_BASE_URL

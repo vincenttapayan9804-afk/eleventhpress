@@ -2296,6 +2296,16 @@ model ArticleChunk {
   // — so this is never silently presented as higher-quality than it is.
   embeddingMode String
 
+  // Where the passage sits in the paper, from the galley's headings
+  // (src/lib/section-chunker.ts): the canonical part ("methods",
+  // "results", "references", …), the heading trail ("Methods › Sampling")
+  // and what it is ("text", "table", "figure", "references"). Null/"text"
+  // for passages indexed before section-aware splitting, or from a galley
+  // without headings.
+  section     String?
+  headingPath String?
+  kind        String  @default("text")
+
   createdAt DateTime @default(now())
 
   article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)

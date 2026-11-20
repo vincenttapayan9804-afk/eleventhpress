@@ -13,7 +13,7 @@ import { hashEmbedding } from "./embeddings";
  */
 type ChunkModule = typeof import("./chunk-embeddings");
 const REAL_CHUNKS = "./chunk-embeddings.ts?real=corpus-retrieval-test";
-const { rankCorpusChunks } = (await import(REAL_CHUNKS)) as ChunkModule;
+const { rankCorpusChunks, articlePassages } = (await import(REAL_CHUNKS)) as ChunkModule;
 type Row = Parameters<ChunkModule["rankCorpusChunks"]>[0][number];
 
 const DIMS = 384;
@@ -209,5 +209,83 @@ describe("conversation context and comparisons", () => {
   test("unknown context ids are ignored", () => {
     const results = rankWith("Give me an overview of what is being published", { contextArticleIds: ["not-an-article"] });
     expect(results.map((r) => r.articleId)).toEqual(["teachers", "sepsis", "mangrove"]);
+  });
+});
+
+describe("section-aware passages", () => {
+  /** One article whose passages carry their section, as section-aware indexing stores them. */
+  function sectioned(id: string, title: string, parts: { text: string; section: string | null; headingPath?: string; kind?: string }[]): Row[] {
+    const meta = { title, authors: "[]", keywords: "", publishedAt: new Date("2026-05-01") };
+    return parts.map((p, i) => ({
+      id: `${id}-s${i}`,
+      articleId: id,
+      chunkIndex: i,
+      text: p.text,
+      section: p.section,
+      headingPath: p.headingPath ?? null,
+      kind: p.kind ?? "text",
+      embedding: JSON.stringify(hashEmbedding(p.text, DIMS)),
+      embeddingDims: DIMS,
+      embeddingMode: "hash-fallback",
+      article: meta,
+    }));
+  }
+  const FLOOD = sectioned("flood", "Flood Warnings and Household Preparedness", [
+    { text: "Flood Warnings and Household Preparedness. Abstract: households that received SMS flood warnings prepared earlier.", section: "abstract" },
+    { text: "The survey of households measured preparedness before the flood season using a household survey instrument.", section: "introduction", headingPath: "Introduction" },
+    { text: "We surveyed 310 households selected by stratified random sampling; the survey instrument had 24 items.", section: "methods", headingPath: "Methods › Sampling" },
+    { text: "Table: Table 1. Preparedness by group\n| Group | Prepared (%) |\n| --- | --- |\n| SMS | 64 |", section: "results", headingPath: "Results", kind: "table" },
+    { text: "Ahmed, R. (2019). Household survey methods for flood preparedness. Disasters, 43(2).", section: "references", headingPath: "References", kind: "references" },
+  ]);
+  const rank = (q: string, sections: string[]) =>
+    rankCorpusChunks([...FLOOD, ...CORPUS], q, hashEmbedding(q, DIMS), "hash-fallback", 4, { sections });
+
+  test("a question about the method favours the Methods passage over others that share its words", () => {
+    const without = rank("How was the household survey done in the flood warnings study?", []);
+    const withSections = rank("How was the household survey done in the flood warnings study?", ["methods"]);
+    const methodsAt = (r: ReturnType<typeof rank>) => r.findIndex((c) => c.section === "methods");
+    expect(methodsAt(withSections)).toBeGreaterThanOrEqual(0);
+    expect(methodsAt(withSections)).toBeLessThanOrEqual(Math.max(methodsAt(without), 1));
+    expect(withSections.find((c) => c.section === "methods")).toMatchObject({ headingPath: "Methods › Sampling" });
+  });
+
+  test("reference lists are only evidence when the question is about the references", () => {
+    expect(rank("household survey methods flood preparedness", []).some((c) => c.kind === "references")).toBe(false);
+    expect(rank("household survey methods flood preparedness", ["references"]).some((c) => c.kind === "references")).toBe(true);
+  });
+
+  test("tables are found and labelled as tables", () => {
+    const r = rank("What share of the SMS group was prepared?", ["results"]);
+    expect(r.find((c) => c.kind === "table")).toMatchObject({ articleId: "flood", section: "results" });
+  });
+
+  test("passages indexed before section-aware splitting rank as before", () => {
+    const r = rankCorpusChunks(CORPUS, "mangrove storm surge damage", hashEmbedding("mangrove storm surge damage", DIMS), "hash-fallback", 3, {
+      sections: ["results"],
+    });
+    expect(r[0].articleId).toBe("mangrove");
+    expect(r.every((c) => c.section === undefined && c.kind === undefined)).toBe(true);
+  });
+});
+
+describe("articlePassages", () => {
+  test("title and abstract first, then the body by section, without repeating the abstract", () => {
+    const html = `<div class="article-body"><h2>Abstract</h2><p>Repeat.</p><h2>Methods</h2><p>We sampled villages.</p>
+      <table><tr><th>A</th></tr><tr><td>1</td></tr></table></div>`;
+    expect(articlePassages("A Title", "The abstract.", html)).toEqual([
+      { text: "A Title The abstract.", section: "abstract", headingPath: null, kind: "text" },
+      { text: "We sampled villages.", section: "methods", headingPath: "Methods", kind: "text" },
+      { text: "| A |\n| --- |\n| 1 |", section: "methods", headingPath: "Methods", kind: "table" },
+    ]);
+  });
+
+  test("a galley without an article body or headings falls back to plain passages", () => {
+    const out = articlePassages("T", null, "<p>Just some text in a paragraph.</p>");
+    expect(out.map((p) => p.text)).toEqual(["T", "Just some text in a paragraph."]);
+    expect(out.every((p) => p.headingPath === null)).toBe(true);
+  });
+
+  test("no galley: only the title and abstract", () => {
+    expect(articlePassages("T", "Abs.", null)).toHaveLength(1);
   });
 });

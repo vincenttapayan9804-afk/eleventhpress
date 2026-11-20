@@ -28,7 +28,17 @@ import sanitizeHtml from "sanitize-html";
 import { getObject } from "@/lib/storage";
 import { hashEmbedding } from "@/lib/embeddings";
 import { cosineSimilarity } from "@/lib/vector-math";
-import { ensureChunkVectorTable, upsertChunkVector, deleteChunkVectors } from "@/lib/pgvector";
+import {
+  ensureChunkVectorTable,
+  upsertChunkVector,
+  deleteChunkVectors,
+  ensureChunkTextIndex,
+  refreshChunkText,
+  chunkTextSearch,
+  chunkVectorSearchCorpus,
+} from "@/lib/pgvector";
+import { galleyToPassages } from "@/lib/section-chunker";
+import { rerank, rerankConfigured } from "@/lib/reranker";
 import { Bm25Index, tokenize, titleMatch, isFocusedMatch, titleDocumentFrequency } from "@/lib/lexical-search";
 
 export const CHUNK_EMBEDDING_DIMS = 384;
@@ -135,13 +145,57 @@ export interface IndexArticleChunksResult {
   mode: EmbeddingMode | "empty";
 }
 
+/** A passage ready to be embedded and stored. */
+export interface PassageToIndex {
+  text: string;
+  /** Canonical part of the paper ("methods", "results", …), or null. */
+  section: string | null;
+  /** Heading trail, e.g. "Methods › Sampling", or null. */
+  headingPath: string | null;
+  kind: "text" | "table" | "figure" | "references";
+}
+
+/** Separator of a stored heading trail. */
+export const HEADING_SEPARATOR = " › ";
+
+/**
+ * The passages of an article, in reading order: title and abstract first
+ * (so a question about the paper's overall claim is answerable from the
+ * opening passage), then the galley body split section by section, with
+ * tables and figure captions as passages of their own. A galley without
+ * the usual structure falls back to plain ~800-character passages.
+ */
+export function articlePassages(title: string, abstract: string | null, galleyHtml: string | null): PassageToIndex[] {
+  const out: PassageToIndex[] = chunkText([title, abstract].filter(Boolean).join("\n\n")).map((text) => ({
+    text,
+    section: abstract ? "abstract" : null,
+    headingPath: null,
+    kind: "text" as const,
+  }));
+  if (!galleyHtml) return out;
+  const sectioned = galleyToPassages(galleyHtml).filter((p) => !(abstract && p.section === "abstract"));
+  if (sectioned.length > 0) {
+    for (const p of sectioned) {
+      out.push({
+        text: p.text,
+        section: p.section,
+        headingPath: p.headingPath.length ? p.headingPath.join(HEADING_SEPARATOR).slice(0, 300) : null,
+        kind: p.kind,
+      });
+    }
+  } else {
+    for (const text of chunkText(htmlToPlainText(galleyHtml))) out.push({ text, section: null, headingPath: null, kind: "text" });
+  }
+  return out;
+}
+
 /**
  * (Re)chunks and (re)embeds an article's title + abstract + full galley
  * text. Deletes any previously-indexed chunks first, so this is safe to
  * call again after a galley regeneration. Called from the publish
  * workflow (fire-and-forget, same pattern as indexArticle() in
- * embeddings.ts) and from scripts/backfill-galleys.ts for already-
- * published articles.
+ * embeddings.ts) and from scripts/backfill-galleys.ts and
+ * scripts/reindex-chunks.ts for already-published articles.
  */
 export async function indexArticleChunks(articleId: string): Promise<IndexArticleChunksResult> {
   const article = await db.article.findUnique({
@@ -150,32 +204,37 @@ export async function indexArticleChunks(articleId: string): Promise<IndexArticl
   });
   if (!article) return { chunkCount: 0, mode: "empty" };
 
-  let bodyText = "";
+  let galleyHtml: string | null = null;
   if (article.galleyHtmlKey) {
     const bytes = await getObject(article.galleyHtmlKey);
-    if (bytes) bodyText = htmlToPlainText(bytes.toString("utf-8"));
+    if (bytes) galleyHtml = bytes.toString("utf-8");
   }
-  // Lead with title + abstract so a question about the paper's overall
-  // claim/contribution is answerable even from the very first chunk.
-  const fullText = [article.title, article.abstract, bodyText].filter(Boolean).join("\n\n");
-  const passages = chunkText(fullText);
+  const passages = articlePassages(article.title, article.abstract, galleyHtml);
 
   await db.articleChunk.deleteMany({ where: { articleId } });
   if (await ensureChunkVectorTable()) {
     await deleteChunkVectors(articleId).catch(() => {});
   }
 
-  if (passages.length === 0) return { chunkCount: 0, mode: "empty" };
+  if (passages.length === 0) {
+    if (await ensureChunkTextIndex()) await refreshChunkText(articleId).catch(() => {});
+    return { chunkCount: 0, mode: "empty" };
+  }
 
   let mode: EmbeddingMode = "hash-fallback";
   for (let i = 0; i < passages.length; i++) {
-    const embedded = await generateChunkEmbedding(passages[i]);
+    const p = passages[i];
+    // Headings are embedded with the passage, so "sampling" finds the passage under "Methods › Sampling".
+    const embedded = await generateChunkEmbedding(p.headingPath ? `${p.headingPath}\n${p.text}` : p.text);
     mode = embedded.mode;
     const row = await db.articleChunk.create({
       data: {
         articleId,
         chunkIndex: i,
-        text: passages[i],
+        text: p.text,
+        section: p.section,
+        headingPath: p.headingPath,
+        kind: p.kind,
         embedding: JSON.stringify(embedded.vector),
         embeddingDims: embedded.vector.length,
         embeddingMode: embedded.mode,
@@ -192,6 +251,9 @@ export async function indexArticleChunks(articleId: string): Promise<IndexArticl
       }
     }
   }
+  if (await ensureChunkTextIndex()) {
+    await refreshChunkText(articleId).catch((e) => console.error(`[chunk-embeddings] full-text refresh failed for ${articleId}:`, e));
+  }
   return { chunkCount: passages.length, mode };
 }
 
@@ -201,6 +263,29 @@ export interface RetrievedChunk {
   chunkIndex: number;
   score: number;
   matchType: "vector" | "lexical";
+  /** Canonical part of the paper, heading trail and passage kind (null/absent for passages indexed before section-aware splitting). */
+  section?: string | null;
+  headingPath?: string | null;
+  kind?: string;
+}
+
+/** Score bonus for a passage in the part of the paper the question is about
+ * (its methods, its limitations, …): about two-thirds of a first-place RRF
+ * contribution, so it lifts the right section without overriding relevance. */
+const SECTION_BONUS = 0.01;
+
+/** Location fields of a stored passage, for results. */
+function locationOf(c: { section?: string | null; headingPath?: string | null; kind?: string | null }) {
+  return {
+    ...(c.section ? { section: c.section } : {}),
+    ...(c.headingPath ? { headingPath: c.headingPath } : {}),
+    ...(c.kind && c.kind !== "text" ? { kind: c.kind } : {}),
+  };
+}
+
+/** Whether a passage may be offered as evidence: reference-list passages only when the question is about the references. */
+function admissible(c: { kind?: string | null }, sections: string[]): boolean {
+  return c.kind !== "references" || sections.includes("references");
 }
 
 /** Reciprocal-rank-fusion constant (the usual value from the RRF paper). */
@@ -270,7 +355,8 @@ function sameModeVector(
 export async function retrieveChunks(
   articleId: string,
   query: string,
-  limit = 6
+  limit = 6,
+  sections: string[] = []
 ): Promise<RetrievedChunk[]> {
   const allChunks = await db.articleChunk.findMany({
     where: { articleId },
@@ -280,26 +366,29 @@ export async function retrieveChunks(
 
   const { vector: queryVector, mode: queryMode } = await generateChunkEmbedding(query);
   const queryTokens = tokenize(query);
-  const index = new Bm25Index(allChunks.map((c) => tokenize(c.text)));
+  const index = new Bm25Index(allChunks.map((c) => tokenize(`${c.headingPath ?? ""} ${c.text}`)));
 
   const scored: Scored[] = allChunks.map((c, i) => ({
     lexical: index.score(queryTokens, i),
     vector: sameModeVector(c, queryVector, queryMode),
   }));
   const { fused, lexRanks, vecRanks } = fuse(scored, queryMode);
+  const total = allChunks.map((c, i) => fused[i] + (c.section && sections.includes(c.section) ? SECTION_BONUS : 0));
 
   const eligible = allChunks
     .map((c, i) => ({ c, i }))
+    .filter(({ c }) => admissible(c, sections))
     .filter(({ i }) => (lexRanks[i] ?? 0) > 0 || (queryMode === "local-model" && (vecRanks[i] ?? Infinity) <= limit * 2))
-    .sort((a, b) => fused[b.i] - fused[a.i])
+    .sort((a, b) => total[b.i] - total[a.i])
     .slice(0, limit);
 
   const results: RetrievedChunk[] = eligible.map(({ c, i }) => ({
     chunkId: c.id,
     text: c.text,
     chunkIndex: c.chunkIndex,
-    score: fused[i],
+    score: total[i],
     matchType: (lexRanks[i] ?? Infinity) <= (vecRanks[i] ?? Infinity) ? "lexical" : "vector",
+    ...locationOf(c),
   }));
 
   // Broad question with no keyword match: ground it in the opening passages.
@@ -307,8 +396,8 @@ export async function retrieveChunks(
     const have = new Set(results.map((r) => r.chunkId));
     for (const c of allChunks) {
       if (results.length >= Math.min(3, limit)) break;
-      if (have.has(c.id)) continue;
-      results.push({ chunkId: c.id, text: c.text, chunkIndex: c.chunkIndex, score: 0, matchType: "lexical" });
+      if (have.has(c.id) || !admissible(c, sections)) continue;
+      results.push({ chunkId: c.id, text: c.text, chunkIndex: c.chunkIndex, score: 0, matchType: "lexical", ...locationOf(c) });
     }
   }
 
@@ -364,16 +453,99 @@ const FOCUS_BONUS = 0.05;
 export async function retrieveChunksAcrossCorpus(
   query: string,
   limit = 8,
-  options: CorpusRankOptions & { articleWhere?: Record<string, unknown> } = {}
+  options: CorpusRankOptions & { articleWhere?: Record<string, unknown>; signal?: AbortSignal } = {}
 ): Promise<CorpusRetrievedChunk[]> {
-  const rows = await db.articleChunk.findMany({
-    where: { article: (options.articleWhere as any) ?? { status: "PUBLISHED" } },
-    include: { article: { select: { title: true, authors: true, keywords: true, publishedAt: true } } },
-    orderBy: [{ articleId: "asc" }, { chunkIndex: "asc" }],
-  });
-  if (rows.length === 0) return [];
+  const where = { article: (options.articleWhere as any) ?? { status: "PUBLISHED" } };
   const { vector, mode } = await generateChunkEmbedding(query);
-  return rankCorpusChunks(rows, query, vector, mode, limit, options);
+  const rows = await loadCandidateRows(query, vector, where, options.contextArticleIds ?? []);
+  if (rows.length === 0) return [];
+  // Ranked a little deeper than needed, so a re-ranker has a choice to make.
+  const pool = rankCorpusChunks(rows, query, vector, mode, limit + RERANK_EXTRA, options);
+  return rerankPool(query, pool, limit, options.signal);
+}
+
+const ROW_INCLUDE = { article: { select: { title: true, authors: true, keywords: true, publishedAt: true } } } as const;
+
+/**
+ * Up to this many passages in scope are ranked in memory, all of them
+ * (exact BM25 over the whole journal). Beyond it, candidates come from the
+ * database first. Override with CORPUS_IN_MEMORY_MAX_PASSAGES.
+ */
+const DEFAULT_IN_MEMORY_MAX = 6000;
+const LEXICAL_CANDIDATES = 300;
+const VECTOR_CANDIDATES = 150;
+
+function inMemoryMax(): number {
+  const n = Number(process.env.CORPUS_IN_MEMORY_MAX_PASSAGES);
+  return Number.isFinite(n) && n >= 0 ? n : DEFAULT_IN_MEMORY_MAX;
+}
+
+/**
+ * The passages to rank. A small journal: every passage in scope. A large
+ * one: the database's best full-text and vector matches, plus the opening
+ * passage of every article in scope (for title and author matching, and
+ * for broad questions) and every passage of the articles the conversation
+ * is about. Falls back to loading everything when the database indexes
+ * aren't available. Ordered by article, then position, as ranking expects.
+ */
+async function loadCandidateRows(
+  query: string,
+  queryVector: number[],
+  where: Record<string, unknown>,
+  contextArticleIds: string[]
+): Promise<CorpusChunkRow[]> {
+  const order = [{ articleId: "asc" as const }, { chunkIndex: "asc" as const }];
+  const total = await db.articleChunk.count({ where: where as any });
+  if (total <= inMemoryMax()) {
+    return db.articleChunk.findMany({ where: where as any, include: ROW_INCLUDE, orderBy: order }) as Promise<CorpusChunkRow[]>;
+  }
+  const [lexIds, vecIds] = await Promise.all([
+    ensureChunkTextIndex().then((ok) => (ok ? chunkTextSearch(tokenize(query), LEXICAL_CANDIDATES) : null)).catch((e) => {
+      console.error("[chunk-embeddings] full-text candidates failed:", e);
+      return null;
+    }),
+    ensureChunkVectorTable()
+      .then((ok) => (ok ? chunkVectorSearchCorpus(queryVector, VECTOR_CANDIDATES) : null))
+      .then((r) => r?.map((x) => x.chunkId) ?? null)
+      .catch((e) => {
+        console.error("[chunk-embeddings] vector candidates failed:", e);
+        return null;
+      }),
+  ]);
+  if (lexIds === null) {
+    console.warn(`[chunk-embeddings] ${total} passages in scope but no full-text index; ranking all of them in memory`);
+    return db.articleChunk.findMany({ where: where as any, include: ROW_INCLUDE, orderBy: order }) as Promise<CorpusChunkRow[]>;
+  }
+  const ids = [...new Set([...lexIds, ...(vecIds ?? [])])];
+  return db.articleChunk.findMany({
+    where: {
+      AND: [
+        where as any,
+        { OR: [{ id: { in: ids } }, { chunkIndex: 0 }, ...(contextArticleIds.length ? [{ articleId: { in: contextArticleIds } }] : [])] },
+      ],
+    },
+    include: ROW_INCLUDE,
+    orderBy: order,
+  }) as Promise<CorpusChunkRow[]>;
+}
+
+/** Extra passages ranked for the re-ranker to choose from. */
+const RERANK_EXTRA = 8;
+
+/**
+ * Re-orders the ranked passages with the optional cross-encoder
+ * (src/lib/reranker.ts) and keeps `limit`. The opening passages of the
+ * articles the question names stay first and are never dropped. Without a
+ * re-ranker the ranking's own order is kept.
+ */
+async function rerankPool(query: string, pool: CorpusRetrievedChunk[], limit: number, signal?: AbortSignal): Promise<CorpusRetrievedChunk[]> {
+  if (!rerankConfigured() || pool.length < 2) return pool.slice(0, limit);
+  const pinned = pool.filter((c) => c.focused && c.chunkIndex === 0);
+  const rest = pool.filter((c) => !pinned.includes(c));
+  const scores = rest.length > 1 ? await rerank(query, rest.map((c) => (c.headingPath ? `${c.headingPath}\n${c.text}` : c.text)), signal) : null;
+  if (!scores) return pool.slice(0, limit);
+  const reordered = rest.map((c, i) => ({ c, s: scores[i] })).sort((a, b) => b.s - a.s).map((x) => x.c);
+  return [...pinned, ...reordered].slice(0, limit);
 }
 
 /**
@@ -399,6 +571,7 @@ export async function loadCorpusChunksByIds(ids: string[], articleWhere?: Record
       matchType: "lexical" as const,
       articleId: r.articleId,
       articleTitle: r.article.title,
+      ...locationOf(r),
     }));
 }
 
@@ -413,6 +586,10 @@ export interface CorpusRankOptions {
   /** Passage cap per article (default 3). With several focused articles
    * (a comparison) it applies to them too, so each gets a fair share. */
   maxPerArticle?: number;
+  /** Canonical parts of a paper the question is about (sectionsForQuestion()):
+   * their passages get a bonus, and reference lists are only offered when
+   * this includes "references". */
+  sections?: string[];
 }
 
 /** A stored passage plus the fields of its article that ranking uses. */
@@ -424,6 +601,9 @@ export interface CorpusChunkRow {
   embedding: string;
   embeddingDims: number;
   embeddingMode: string;
+  section?: string | null;
+  headingPath?: string | null;
+  kind?: string | null;
   article: { title: string; authors: string; keywords: string | null; publishedAt: Date | null };
 }
 
@@ -443,6 +623,7 @@ export function rankCorpusChunks(
   if (rows.length === 0) return [];
   const maxFocused = options.maxFocused ?? 2;
   const maxPerArticle = options.maxPerArticle ?? MAX_PASSAGES_PER_ARTICLE;
+  const sections = options.sections ?? [];
   const queryTokens = tokenize(query);
   const querySet = new Set(queryTokens);
 
@@ -472,14 +653,19 @@ export function rankCorpusChunks(
   }
 
   const index = new Bm25Index(
-    rows.map((r) => tokenize(`${r.article.title} ${r.article.keywords ?? ""} ${r.text}`))
+    rows.map((r) => tokenize(`${r.article.title} ${r.article.keywords ?? ""} ${r.headingPath ?? ""} ${r.text}`))
   );
   const scored: Scored[] = rows.map((r, i) => ({
     lexical: index.score(queryTokens, i),
     vector: sameModeVector(r, queryVector, queryMode),
   }));
   const { fused, lexRanks, vecRanks } = fuse(scored, queryMode);
-  const total = rows.map((r, i) => fused[i] + (focus.has(r.articleId) ? FOCUS_BONUS * (focus.get(r.articleId) ?? 1) : 0));
+  const total = rows.map(
+    (r, i) =>
+      fused[i] +
+      (focus.has(r.articleId) ? FOCUS_BONUS * (focus.get(r.articleId) ?? 1) : 0) +
+      (r.section && sections.includes(r.section) ? SECTION_BONUS : 0)
+  );
 
   const toResult = (i: number, matchType?: "vector" | "lexical"): CorpusRetrievedChunk => {
     const r = rows[i];
@@ -491,6 +677,7 @@ export function rankCorpusChunks(
       matchType: matchType ?? ((lexRanks[i] ?? Infinity) <= (vecRanks[i] ?? Infinity) ? "lexical" : "vector"),
       articleId: r.articleId,
       articleTitle: r.article.title,
+      ...locationOf(r),
       ...(focus.has(r.articleId) ? { focused: true } : {}),
     };
   };
@@ -516,6 +703,7 @@ export function rankCorpusChunks(
   // 2. The best-ranked relevant passages.
   const eligible = rows
     .map((_, i) => i)
+    .filter((i) => admissible(rows[i], sections))
     .filter(
       (i) =>
         (lexRanks[i] ?? 0) > 0 ||
