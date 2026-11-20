@@ -78,3 +78,31 @@ test("the status page renders", async ({ page }) => {
   await page.goto("/status");
   await expect(page.getByRole("heading", { name: "Platform status" })).toBeVisible();
 });
+
+test("the About menu groups About, Governance and Legal pages", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.goto("/", { waitUntil: "networkidle" });
+  const pages: [string, RegExp][] = [
+    ["nav-charter", /\/charter$/],
+    ["nav-accessibility", /\/accessibility$/],
+    ["nav-terms", /\/terms$/],
+    ["nav-privacy", /\/privacy$/],
+  ];
+  for (const [id, url] of pages) {
+    await expect(async () => {
+      if (!(await page.getByTestId(id).isVisible())) await page.getByTestId("nav-group-about").click();
+      await page.getByTestId(id).click({ timeout: 2000 });
+      await expect(page).toHaveURL(url, { timeout: 2000 });
+    }).toPass({ timeout: 20000 });
+  }
+  const menu = page.getByRole("menu");
+  await expect(async () => {
+    if (!(await menu.isVisible())) await page.getByTestId("nav-group-about").click();
+    for (const heading of ["About", "Governance", "Legal"]) await expect(menu.getByText(heading, { exact: true })).toBeVisible({ timeout: 2000 });
+  }).toPass({ timeout: 20000 });
+  await expect(async () => {
+    if (!(await page.getByTestId("nav-cookie-policy").isVisible())) await page.getByTestId("nav-group-about").click();
+    await page.getByTestId("nav-cookie-policy").click({ timeout: 2000 });
+    await expect(page).toHaveURL(/\/cookie-policy$/, { timeout: 5000 });
+  }).toPass({ timeout: 30000 });
+});

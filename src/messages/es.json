@@ -24,7 +24,15 @@
     "signOut": "Cerrar sesión",
     "menu": "Menú",
     "notifications": "Notificaciones",
-    "contact": "Contacto"
+    "contact": "Contacto",
+    "charter": "Carta de publicación",
+    "accessibility": "Accesibilidad",
+    "terms": "Términos de servicio",
+    "privacy": "Política de privacidad",
+    "cookies": "Política de cookies",
+    "sectionAbout": "Acerca de",
+    "sectionGovernance": "Gobernanza",
+    "sectionLegal": "Legal"
   },
   "header": {
     "brandName": "ELEVENTH PRESS",

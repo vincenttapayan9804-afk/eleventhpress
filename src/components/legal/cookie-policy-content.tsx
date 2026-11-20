@@ -51,7 +51,7 @@ export function CookiePolicyContent() {
   return (
     <article className="mx-auto max-w-4xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
       <header className="border-b border-[var(--royal-300)]/15 pb-8">
-        <p className="eyebrow">Legal · Privacy</p>
+        <p className="eyebrow">Legal</p>
         <h1 className="mt-2 font-display text-3xl font-semibold sm:text-4xl">Cookie Policy</h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
           How {legal.legalName} uses cookies and similar browser storage, why, for how long, and how

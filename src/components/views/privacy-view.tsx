@@ -39,7 +39,7 @@ export function PrivacyView() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
       <div className="border-b border-border pb-8">
-        <p className="eyebrow">Governance</p>
+        <p className="eyebrow">Legal</p>
         <h1 className="mt-2 font-display text-4xl font-semibold sm:text-5xl">Privacy &amp; data rights</h1>
         <p className="mt-3 max-w-2xl text-sm text-muted-foreground text-justify">
           What we collect, why, how long we keep it, and how to export or erase your own account
