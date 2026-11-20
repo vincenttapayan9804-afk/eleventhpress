@@ -123,3 +123,24 @@ test("the About menu shows labelled sections and links the Cookie Policy", async
   }).toPass({ timeout: 30_000 });
   await expect(page).toHaveURL(/\/cookie-policy$/, { timeout: 60_000 });
 });
+
+test("the homepage search carries the typed query to the Articles page", async ({ page }) => {
+  test.setTimeout(90_000);
+  for (const submit of ["button", "enter"] as const) {
+    await page.goto("/", { waitUntil: "networkidle" });
+    const input = page.getByTestId("hero-search-input");
+    await input.fill("peer review ethics");
+    if (submit === "button") await page.getByTestId("hero-search-submit").click();
+    else await input.press("Enter");
+    await expect(page).toHaveURL(/\/articles$/, { timeout: 15_000 });
+    await expect(page.getByRole("textbox", { name: "Search articles" })).toHaveValue("peer review ethics", { timeout: 15_000 });
+  }
+});
+
+test("a homepage discipline card opens Articles filtered to that discipline", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.getByTestId("home-discipline-Computer Science").click();
+  await expect(page).toHaveURL(/\/articles$/, { timeout: 15_000 });
+  await expect(page.getByTestId("browse-discipline")).toContainText("Computer Science", { timeout: 15_000 });
+});
