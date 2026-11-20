@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useTenantBranding, isWhitelabel } from "@/lib/tenant-branding-context";
 import { useTranslations } from "next-intl";
 import { useApp } from "@/lib/store";
+import { setBrowsePrefill } from "@/lib/browse-prefill";
 import { apiFetch } from "@/lib/api-client";
 import { ArticleListItem } from "@/lib/types";
 import { DISCIPLINES, parseAuthors } from "@/lib/article";
@@ -103,7 +104,13 @@ export function HomeView() {
       .catch(() => {});
   }, []);
 
-  function doSearch() { setView("browse"); }
+  // Hands the typed query to the Articles page, which applies it on mount.
+  function doSearch(e?: FormEvent) {
+    e?.preventDefault();
+    const q = searchQ.trim();
+    if (q) setBrowsePrefill({ q });
+    setView("browse");
+  }
 
   return (
     <div className="page-enter">
@@ -111,22 +118,30 @@ export function HomeView() {
           HERO — studio-grade 4D image background
           ════════════════════════════════════════════════════════════════ */}
       <section className="relative overflow-hidden" data-testid="hero-gradient-section">
-        {/* Studio-grade 4D hero image background */}
-        <div className="absolute inset-0 -z-10">
+        {/* Studio-grade 4D hero image background.
+            Desktop (lg+): the image fills the whole hero, anchored right so
+            the globe sits beside the text, with a left vignette for contrast.
+            Phones/tablets: the hero stacks text over the stats card and gets
+            very tall, so a full-height cover image showed only a dark sliver
+            of its right edge. There the image is a band at the top, centred
+            so the whole globe sits behind the headline, under an even tint,
+            then fades into the same deep tone for the rest of the hero. */}
+        <div className="absolute inset-0 -z-10 bg-[oklch(0.13_0.03_290)] lg:bg-transparent">
           <img
             src="/hero/hero-bg.png"
             alt=""
-            className="h-full w-full object-cover"
-            style={{ objectPosition: "center right" }}
+            className="absolute inset-x-0 top-0 h-[480px] w-full object-cover object-center sm:h-[560px] lg:inset-0 lg:h-full lg:object-[right_center]"
             fetchPriority="high"
             decoding="async"
           />
-          {/* Dark vignette on the left for text contrast */}
-          <div className="absolute inset-0 bg-gradient-to-r from-[oklch(0.14_0.02_285/0.88)] via-[oklch(0.14_0.02_285/0.45)] to-transparent" />
+          {/* Phones/tablets: even tint for text contrast, fading into the base tone */}
+          <div className="absolute inset-x-0 top-0 h-[480px] bg-gradient-to-b from-[oklch(0.14_0.02_285/0.62)] via-[oklch(0.14_0.02_285/0.42)] to-[oklch(0.13_0.03_290)] sm:h-[560px] lg:hidden" />
+          {/* Desktop: dark vignette on the left for text contrast */}
+          <div className="absolute inset-0 hidden bg-gradient-to-r from-[oklch(0.14_0.02_285/0.88)] via-[oklch(0.14_0.02_285/0.45)] to-transparent lg:block" />
           {/* Bottom fade to pearlescent */}
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />
-          {/* Top subtle darkening */}
-          <div className="absolute inset-0 bg-gradient-to-b from-[oklch(0.14_0.02_285/0.5)] via-transparent to-transparent" />
+          {/* Desktop: top subtle darkening */}
+          <div className="absolute inset-0 hidden bg-gradient-to-b from-[oklch(0.14_0.02_285/0.5)] via-transparent to-transparent lg:block" />
         </div>
 
         <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8 lg:py-32">
@@ -144,21 +159,24 @@ export function HomeView() {
               </p>
 
               {/* Search */}
-              <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+              <form role="search" onSubmit={doSearch} className="mt-9 flex flex-col gap-3 sm:flex-row" data-testid="hero-search">
                 <div className="relative flex-1">
-                  <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/60" />
+                  <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/60" aria-hidden="true" />
                   <Input
+                    type="search"
+                    enterKeyHint="search"
+                    aria-label={t("searchPlaceholder")}
                     placeholder={t("searchPlaceholder")}
                     className="h-12 border-white/20 bg-white/10 pl-11 font-sans text-white placeholder:text-white/50 backdrop-blur-xl"
                     value={searchQ}
                     onChange={(e) => setSearchQ(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && doSearch()}
+                    data-testid="hero-search-input"
                   />
                 </div>
-                <Button size="lg" onClick={doSearch} className="btn-royal-glow h-12 border-white/20 bg-white/15 px-8 text-white backdrop-blur-xl hover:bg-white/25">
+                <Button type="submit" size="lg" className="btn-royal-glow h-12 border-white/20 bg-white/15 px-8 text-white backdrop-blur-xl hover:bg-white/25" data-testid="hero-search-submit">
                   {t("searchButton")} <ArrowRight className="ml-1 h-4 w-4" />
                 </Button>
-              </div>
+              </form>
 
               <div className="mt-7 flex flex-wrap gap-3 text-sm">
                 <Button variant="outline" size="sm" onClick={() => setView("browse")} className="border-white/25 bg-white/10 text-white backdrop-blur-xl hover:bg-white/20 hover:text-white btn-royal-glow">
@@ -266,7 +284,8 @@ export function HomeView() {
                 return (
                   <button
                     key={d}
-                    onClick={() => { window.location.hash = `discipline=${encodeURIComponent(d)}`; setView("browse"); }}
+                    onClick={() => { setBrowsePrefill({ discipline: d }); setView("browse"); }}
+                    data-testid={`home-discipline-${d}`}
                     className="group relative h-44 overflow-hidden rounded-2xl glass-panel p-0 text-left transition-all duration-500 hover:scale-[1.03] hover:shadow-[0_24px_64px_oklch(0.38_0.18_295/0.18)]"
                     style={{ transitionTimingFunction: "var(--ease-luxury)" }}
                   >

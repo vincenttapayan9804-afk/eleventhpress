@@ -4,6 +4,7 @@ import { AlertMeButton } from "@/components/alert-me-button";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useApp } from "@/lib/store";
+import { takeBrowsePrefill } from "@/lib/browse-prefill";
 import { apiFetch } from "@/lib/api-client";
 import { DISCIPLINES, parseAuthors } from "@/lib/article";
 import { Badge } from "@/components/ui/badge";
@@ -84,14 +85,16 @@ export function BrowseView() {
       .catch(() => setPublicationYears([]));
   }, []);
 
+  // A query or discipline handed over by the homepage (hero search,
+  // discipline chips), or a `#q=…&discipline=…` link.
   useEffect(() => {
-    const hash = window.location.hash;
-    const params = new URLSearchParams(hash.replace(/^#/, ""));
-    const qParam = params.get("q");
-    const discParam = params.get("discipline");
+    const prefill = takeBrowsePrefill();
+    const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const qParam = prefill?.q ?? params.get("q");
+    const discParam = prefill?.discipline ?? params.get("discipline");
     if (qParam) setQ(qParam);
     if (discParam && DISCIPLINES.includes(discParam as any)) setDiscipline(discParam);
-    window.location.hash = "";
+    if (window.location.hash) history.replaceState(null, "", window.location.pathname + window.location.search);
   }, []);
 
   const fetchArticles = useCallback(async () => {
@@ -231,7 +234,7 @@ export function BrowseView() {
             title={semanticMode ? "Filters apply to keyword search; semantic search ranks the whole corpus." : undefined}
           >
             <Select value={discipline} onValueChange={setDiscipline} disabled={semanticMode}>
-              <SelectTrigger aria-label="Discipline" className="glass-panel h-11 w-full min-w-0 border-[var(--royal-300)]/20">
+              <SelectTrigger aria-label="Discipline" data-testid="browse-discipline" className="glass-panel h-11 w-full min-w-0 border-[var(--royal-300)]/20">
                 <SlidersHorizontal className="mr-1 hidden h-3.5 w-3.5 shrink-0 min-[400px]:block" />
                 <SelectValue />
               </SelectTrigger>
