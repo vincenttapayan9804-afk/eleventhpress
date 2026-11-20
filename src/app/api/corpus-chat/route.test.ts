@@ -10,19 +10,19 @@ import { NextRequest } from "next/server";
  * delegates to the real module unless this file has switched it on, and is
  * switched off again in afterAll. Later files see the real behaviour.
  */
-type LlmModule = typeof import("@/lib/llm");
+type LlmStreamModule = typeof import("@/lib/llm-stream");
 type ChunksModule = typeof import("@/lib/chunk-embeddings");
 type RateLimitModule = typeof import("@/lib/ratelimit");
 type DbModule = typeof import("@/lib/db");
 // Query-string specifiers bypass any mock another file registered. They are
 // held in variables so the type checker doesn't try to resolve them.
 const REAL = {
-  llm: "../../../lib/llm.ts?real=corpus-chat-route-test",
+  llmStream: "../../../lib/llm-stream.ts?real=corpus-chat-route-test",
   chunks: "../../../lib/chunk-embeddings.ts?real=corpus-chat-route-test",
   ratelimit: "../../../lib/ratelimit.ts?real=corpus-chat-route-test",
   db: "../../../lib/db.ts?real=corpus-chat-route-test",
 };
-const realLlm = (await import(REAL.llm)) as LlmModule;
+const realLlmStream = (await import(REAL.llmStream)) as LlmStreamModule;
 const realChunks = (await import(REAL.chunks)) as ChunksModule;
 const realRateLimit = (await import(REAL.ratelimit)) as RateLimitModule;
 const realDb = (await import(REAL.db)) as DbModule;
@@ -30,8 +30,12 @@ const realDb = (await import(REAL.db)) as DbModule;
 let active = false;
 let llmConfigured = true;
 let chatFailure: Error | null = null;
+/** The model never answers: the mock waits until the call is aborted. */
+let hang = false;
 let retrievalFailure: Error | null = null;
-/** Replies handed out by the chatJSON mock in order; the last repeats. */
+/** Replies handed out by the streamChat mock in order; the last repeats. Each is
+ * either an Error or { answer, grounded?, suggestedQuestions? }, written out
+ * in the model's text format (answer, then a FOLLOW-UPS: section). */
 let chatReplies: unknown[] = [];
 let chatCalls: { system: string; user: string; opts: any }[] = [];
 let retrievalQueries: string[] = [];
@@ -65,17 +69,37 @@ const PASSAGE = {
   articleTitle: "Coastal Adaptation in Practice",
 };
 
-mock.module("@/lib/llm", () => ({
-  ...realLlm,
-  anyLLMAvailable: () => (active ? llmConfigured : realLlm.anyLLMAvailable()),
-  chatJSON: (async (...args: Parameters<LlmModule["chatJSON"]>) => {
-    if (!active) return realLlm.chatJSON(...args);
+/** A reply object as the model would write it. */
+function replyText(reply: any): string {
+  const answer = reply.grounded === false ? `The journal's records don't cover this. ${reply.answer}` : String(reply.answer);
+  const followUps = Array.isArray(reply.suggestedQuestions) ? reply.suggestedQuestions.filter((q: unknown) => typeof q === "string") : [];
+  return followUps.length ? `${answer}\n\nFOLLOW-UPS:\n${followUps.map((q: string) => `- ${q}`).join("\n")}` : answer;
+}
+
+mock.module("@/lib/llm-stream", () => ({
+  ...realLlmStream,
+  anyStreamProvider: () => (active ? llmConfigured : realLlmStream.anyStreamProvider()),
+  streamChat: (async (...args: Parameters<LlmStreamModule["streamChat"]>) => {
+    if (!active) return realLlmStream.streamChat(...args);
     chatCalls.push({ system: args[0], user: args[1], opts: args[2] });
     if (chatFailure) throw chatFailure;
+    if (hang) {
+      await new Promise((_, reject) => {
+        const signal = args[2].signal;
+        if (signal?.aborted) reject(new Error("aborted"));
+        signal?.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
+      });
+    }
     const reply = chatReplies.length > 1 ? chatReplies.shift() : chatReplies[0];
     if (reply instanceof Error) throw reply;
-    return { data: reply ?? { answer: "Restoration cut damage by 30%.", usedPassages: [1], grounded: true }, rawResponse: "", model: "test-model", provider: "oss-free" };
-  }) as LlmModule["chatJSON"],
+    if (reply instanceof realLlmStream.StreamInterruptedError) throw reply;
+    const text = replyText(reply ?? { answer: "Restoration cut damage by 30%." });
+    // Delivered in two pieces, as a stream would be.
+    const mid = Math.floor(text.length / 2);
+    args[2].onDelta?.(text.slice(0, mid));
+    args[2].onDelta?.(text.slice(mid));
+    return { text, provider: "oss-free", model: "test-model", firstTokenMs: 5, attempts: 1 };
+  }) as LlmStreamModule["streamChat"],
 }));
 
 mock.module("@/lib/chunk-embeddings", () => ({
@@ -165,6 +189,7 @@ beforeEach(() => {
   active = true;
   llmConfigured = true;
   chatFailure = null;
+  hang = false;
   retrievalFailure = null;
   chatReplies = [];
   chatCalls = [];
@@ -270,8 +295,8 @@ describe("POST /api/corpus-chat grounding", () => {
     expect(body.sources[0].title).toBe(PASSAGE.articleTitle);
   });
 
-  test("a malformed first reply is retried once", async () => {
-    chatReplies = [new Error("LLM response did not contain a JSON object"), { answer: "Second try.", usedPassages: [1], grounded: true }];
+  test("a failed first attempt is retried once", async () => {
+    chatReplies = [new Error("Every model provider failed: oss-free:test: 502"), { answer: "Second try.", usedPassages: [1], grounded: true }];
     const body = await (await ask()).json();
     expect(chatCalls).toHaveLength(2);
     expect(body.mode).toBe("answered");
@@ -401,7 +426,7 @@ describe("suggested questions", () => {
 
   test("the model is asked for content-specific follow-ups across the paper's sections", async () => {
     await ask();
-    expect(chatCalls[0].system).toContain('"suggestedQuestions"');
+    expect(chatCalls[0].system).toContain("FOLLOW-UPS:");
     expect(chatCalls[0].system).toMatch(/Research gap, Research questions, Hypotheses/);
     expect(chatCalls[0].system).toMatch(/answerable from these records/);
   });
@@ -532,3 +557,56 @@ describe("streamed answers", () => {
     expect(JSON.parse(text.trim().split("\n").at(-1)!).mode).toBe("unavailable");
   });
 });
+
+describe("POST /api/corpus-chat streamed answers and the time budget", () => {
+  test("the answer is streamed as it is written, without the follow-ups section", async () => {
+    chatReplies = [{ answer: "Damage fell by 30% [P1].", suggestedQuestions: ["How was damage measured in Coastal Adaptation in Practice?"] }];
+    const res = await ask(undefined, undefined, {}, { accept: "application/x-ndjson" });
+    const lines = (await res.text()).trim().split("\n").map((l) => JSON.parse(l));
+    const streamed = lines.filter((l) => l.type === "delta").map((l) => l.text).join("");
+    expect(streamed).toContain("Damage fell by 30% [P1].");
+    expect(streamed).not.toContain("FOLLOW-UPS");
+    expect(streamed).not.toContain("How was damage measured");
+    const result = lines.at(-1);
+    expect(result.answer).toBe("Damage fell by 30% [1].");
+    expect(result.suggestedQuestions).toEqual(["How was damage measured in Coastal Adaptation in Practice?"]);
+    expect(result.incomplete).toBe(false);
+  });
+
+  test("a provider that stops part-way keeps the text written so far, marked incomplete", async () => {
+    const { StreamInterruptedError } = realLlmStream;
+    chatReplies = [
+      new StreamInterruptedError("stalled", { text: "Restoration reduced damage by 30% [P1]. The authors also", provider: "oss-free", model: "m", firstTokenMs: 10, attempts: 1 }),
+    ];
+    const body = await (await ask()).json();
+    expect(body.mode).toBe("answered");
+    expect(body.incomplete).toBe(true);
+    expect(body.answer).toContain("Restoration reduced damage by 30% [1].");
+    expect(body.evidence.status).toBe("review");
+    expect(body.evidence.warnings[0]).toMatch(/cut short to stay within the time limit/);
+  });
+
+  test("no text before the time budget runs out: a clear time-limit message, not a cut-off request", async () => {
+    process.env.CORPUS_CHAT_DEADLINE_MS = "60";
+    hang = true;
+    try {
+      const res = await ask(undefined, undefined, {}, { accept: "application/x-ndjson" });
+      const lines = (await res.text()).trim().split("\n").map((l) => JSON.parse(l));
+      const result = lines.at(-1);
+      expect(result.type).toBe("result");
+      expect(result.mode).toBe("unavailable");
+      expect(result.message).toMatch(/time limit/);
+    } finally {
+      delete process.env.CORPUS_CHAT_DEADLINE_MS;
+    }
+  });
+
+  test("“The journal's records don't cover this.” marks the answer as not grounded", async () => {
+    chatReplies = [{ answer: "The closest articles are about coastal adaptation.", grounded: false }];
+    const body = await (await ask("What does the journal say about quantum gravity?")).json();
+    expect(body.mode).toBe("answered");
+    expect(body.grounded).toBe(false);
+    expect(body.evidence.status).toBe("unsupported");
+  });
+});
+

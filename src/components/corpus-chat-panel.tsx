@@ -90,6 +90,7 @@ import {
   SectionPills,
   SuggestionList,
   Thinking,
+  LiveAnswer,
   toAnswerData,
   type ApiAnswer,
   type StageState,
@@ -200,6 +201,8 @@ export function CorpusChatPanel({ open, onOpenChange }: { open: boolean; onOpenC
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState<null | { kind: "ask" } | { kind: "regenerate"; id: string }>(null);
   const [stage, setStage] = useState<StageState | null>(null);
+  /** The answer text streamed so far, shown while it is being written. */
+  const [liveText, setLiveText] = useState("");
   const abortRef = useRef<AbortController | null>(null);
   const [revealId, setRevealId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -419,6 +422,8 @@ export function CorpusChatPanel({ open, onOpenChange }: { open: boolean; onOpenC
     setEditing(null);
     setBusy({ kind: "ask" });
     setStage({ stage: "sending" });
+    setLiveText("");
+    let streamed = false;
     setNotice(null);
     setAnnouncement("Preparing an answer…");
     const controller = new AbortController();
@@ -435,14 +440,22 @@ export function CorpusChatPanel({ open, onOpenChange }: { open: boolean; onOpenC
           ...(sendScope ? { scope: sendScope } : {}),
           ...(continuing ? { continueOf: continuing } : {}),
         },
-        { signal: controller.signal, onStage: setStage }
+        {
+          signal: controller.signal,
+          onStage: setStage,
+          onDelta: (t) => {
+            streamed = true;
+            setLiveText((prev) => prev + t);
+          },
+        }
       );
       if (res.quota) setQuota(res.quota);
       if (res.mode === "answered" && res.answer) {
         const data: AnswerData = { ...toAnswerData(res), scope: sendScope, continued: continuing?.question ?? null };
         const answerMsg: ChatMessage = { id: localId(), role: "assistant", content: res.answer, createdAt: new Date().toISOString(), data };
         setMessages((prev) => [...prev, answerMsg]);
-        setRevealId(answerMsg.id);
+        // Already watched being written: no second, simulated reveal.
+        if (!streamed) setRevealId(answerMsg.id);
         setSelection({ messageId: answerMsg.id, citation: null });
         setAnnouncement(
           data.grounded
@@ -493,6 +506,7 @@ export function CorpusChatPanel({ open, onOpenChange }: { open: boolean; onOpenC
       if (abortRef.current === controller) abortRef.current = null;
       setBusy(null);
       setStage(null);
+      setLiveText("");
     }
   }
 
@@ -1477,7 +1491,12 @@ export function CorpusChatPanel({ open, onOpenChange }: { open: boolean; onOpenC
                             </div>
                           )
                         )}
-                        {busy?.kind === "ask" && <Thinking stage={stage} onStop={stop} />}
+                        {busy?.kind === "ask" && (
+                          <div className="space-y-3">
+                            <Thinking stage={stage} onStop={stop} />
+                            {liveText.trim() && <LiveAnswer text={liveText} />}
+                          </div>
+                        )}
                         {!busy && lastAssistant?.data && ((lastAssistant.data.suggestedQuestions?.length ?? 0) > 0 || (lastAssistant.data.sectionQuestions?.length ?? 0) > 0) && (
                           <div className="space-y-5 rounded-2xl border border-dashed border-border/90 p-4">
                             <SuggestionList label="Ask next" questions={lastAssistant.data.suggestedQuestions ?? []} onPick={(q) => void ask(q)} disabled={!!busy} />
@@ -1674,7 +1693,7 @@ export function CorpusChatPanel({ open, onOpenChange }: { open: boolean; onOpenC
           </Sheet>
 
           <ReportIssueDialog
-            key={reportFor?.id ?? "closed"}
+            key={reportFor?.id ?? "report-closed"}
             open={!!reportFor}
             onOpenChange={(o) => !o && setReportFor(null)}
             onSubmit={async (issueType, comment) => {
@@ -1690,7 +1709,7 @@ export function CorpusChatPanel({ open, onOpenChange }: { open: boolean; onOpenC
           />
 
           <CollectionDialog
-            key={collectionFor?.messageId ?? "closed"}
+            key={collectionFor?.messageId ?? "collection-closed"}
             open={!!collectionFor}
             onOpenChange={(o) => !o && setCollectionFor(null)}
             current={collectionFor?.current ?? null}

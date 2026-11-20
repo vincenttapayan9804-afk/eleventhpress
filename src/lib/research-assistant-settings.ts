@@ -239,7 +239,7 @@ export function queryLogRetentionDays(): number {
 export interface QueryLogEntry {
   tenantId: string | null;
   signedIn: boolean;
-  outcome: "answered" | "not-covered" | "not-indexed" | "unavailable" | "stopped";
+  outcome: "answered" | "not-covered" | "not-indexed" | "unavailable" | "stopped" | "timeout";
   intent?: string;
   evidenceStatus?: string;
   articles?: number;
@@ -248,6 +248,13 @@ export interface QueryLogEntry {
   scoped: boolean;
   question: string;
   logQuestion: boolean;
+  /** Which provider and model wrote the answer (src/lib/llm-stream.ts). */
+  provider?: string | null;
+  model?: string | null;
+  /** Milliseconds until the first answer text arrived. */
+  firstTokenMs?: number | null;
+  /** The answer was cut short at the time budget. */
+  timedOut?: boolean;
 }
 
 /** Records one question for the analytics. Never throws and never delays the reader. */
@@ -266,6 +273,10 @@ export function logResearchQuery(e: QueryLogEntry): void {
         latencyMs: Math.max(0, Math.round(e.latencyMs)),
         scoped: e.scoped,
         question: e.logQuestion ? e.question.slice(0, 400) : null,
+        provider: e.provider ? e.provider.slice(0, 40) : null,
+        model: e.model ? e.model.slice(0, 120) : null,
+        firstTokenMs: typeof e.firstTokenMs === "number" ? Math.max(0, Math.round(e.firstTokenMs)) : null,
+        timedOut: !!e.timedOut,
       },
     }))
     .catch(() => {});

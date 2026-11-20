@@ -36,7 +36,7 @@ import type { AssistantAnalytics } from "@/lib/research-assistant-admin";
 const chartConfig = {
   answered: { label: "Answered", color: "var(--chart-1)" },
   notCovered: { label: "Not covered by the journal", color: "var(--chart-4)" },
-  other: { label: "Unavailable or stopped", color: "var(--muted-foreground)" },
+  other: { label: "Unavailable, timed out or stopped", color: "var(--muted-foreground)" },
 } satisfies ChartConfig;
 
 const INTENT_LABELS: Record<string, string> = {
@@ -45,6 +45,13 @@ const INTENT_LABELS: Record<string, string> = {
   comparison: "Comparisons across papers",
   overview: "Journal overviews",
   general: "Research questions",
+};
+
+const PROVIDER_LABELS: Record<string, string> = {
+  "self-hosted": "Self-hosted",
+  "oss-free": "Free (OpenRouter)",
+  anthropic: "Anthropic",
+  "local-airgapped": "Local (airgapped)",
 };
 
 const ISSUE_LABELS: Record<string, string> = {
@@ -213,7 +220,13 @@ function Overview({ tenantParam, showByTenant }: { tenantParam: string; showByTe
       },
       { label: "Evidence fully verified", value: pct(t.verifiedShare), icon: ShieldCheck, hint: "Citations, DOIs, quotes and figures checked" },
       { label: "Rated helpful", value: pct(data.feedback.helpfulRate), icon: ThumbsUp, hint: `${data.feedback.helpful} 👍 · ${data.feedback.notHelpful} 👎` },
-      { label: "Typical response time", value: fmtMs(t.medianLatencyMs), icon: Clock, hint: `90% within ${fmtMs(t.p90LatencyMs)}` },
+      {
+        label: "Typical response time",
+        value: fmtMs(t.medianLatencyMs),
+        icon: Clock,
+        hint: `First words after ${fmtMs(t.medianFirstTokenMs ?? null)} · 90% within ${fmtMs(t.p90LatencyMs)}${t.timeouts ? ` · ${t.timeouts} hit the time limit` : ""}`,
+        alert: t.timeouts > 0,
+      },
       {
         label: "Open issue reports",
         value: data.feedback.openIssues.toLocaleString(),
@@ -356,6 +369,21 @@ function Overview({ tenantParam, showByTenant }: { tenantParam: string; showByTe
                   })
                 )}
                 <p className="pt-1 text-xs text-muted-foreground">{pct(data.totals.scopedShare)} of questions were narrowed to part of the journal.</p>
+                {data.models?.length ? (
+                  <div className="border-t border-border pt-2.5">
+                    <p className="text-xs font-medium text-foreground">Models that answered</p>
+                    <ul className="mt-1.5 space-y-1">
+                      {data.models.map((m) => (
+                        <li key={`${m.provider}|${m.model}`} className="flex items-center justify-between gap-2 text-xs">
+                          <span className="min-w-0 truncate text-muted-foreground" title={m.model}>
+                            {PROVIDER_LABELS[m.provider] ?? m.provider} · {m.model}
+                          </span>
+                          <span className="tabular-nums text-muted-foreground">{m.count}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
               </CardContent>
             </Card>
           </div>

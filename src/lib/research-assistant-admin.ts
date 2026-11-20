@@ -68,7 +68,13 @@ export interface AssistantAnalytics {
     verifiedShare: number | null;
     medianLatencyMs: number | null;
     p90LatencyMs: number | null;
+    /** Questions that hit the time budget (no answer, or one cut short). */
+    timeouts: number;
+    /** Median time until the reader saw the first words of the answer. */
+    medianFirstTokenMs: number | null;
   };
+  /** Which provider and model wrote the answers. */
+  models: { provider: string; model: string; count: number }[];
   feedback: { helpful: number; notHelpful: number; issues: number; openIssues: number; helpfulRate: number | null };
   daily: { date: string; answered: number; notCovered: number; other: number }[];
   intents: { intent: string; count: number }[];
@@ -100,7 +106,7 @@ export async function assistantAnalytics(
         where: { ...filter, createdAt: { gte: since } } as any,
         orderBy: { createdAt: "desc" },
         take: MAX_LOG_ROWS,
-        select: { tenantId: true, outcome: true, intent: true, evidenceStatus: true, latencyMs: true, signedIn: true, scoped: true, question: true, createdAt: true },
+        select: { tenantId: true, outcome: true, intent: true, evidenceStatus: true, latencyMs: true, signedIn: true, scoped: true, question: true, createdAt: true, provider: true, model: true, firstTokenMs: true, timedOut: true },
       })
       .catch(() => [] as any[]),
     db.researchFeedback
@@ -119,6 +125,16 @@ export async function assistantAnalytics(
   const stopped = count((l) => l.outcome === "stopped");
   const finished = logs.filter((l) => l.outcome === "answered" || l.outcome === "not-covered");
   const latencies = finished.map((l) => l.latencyMs).sort((a, b) => a - b);
+  const firstTokens = finished.map((l) => l.firstTokenMs).filter((n): n is number => typeof n === "number").sort((a, b) => a - b);
+  const timeouts = count((l) => l.outcome === "timeout" || l.timedOut === true);
+  const modelCounts = new Map<string, { provider: string; model: string; count: number }>();
+  for (const l of finished) {
+    if (!l.model) continue;
+    const key = `${l.provider ?? ""}|${l.model}`;
+    const m = modelCounts.get(key) ?? { provider: l.provider ?? "unknown", model: l.model, count: 0 };
+    m.count++;
+    modelCounts.set(key, m);
+  }
   const share = (n: number, d: number) => (d > 0 ? Math.round((n / d) * 1000) / 10 : null);
 
   const helpful = feedback.filter((f) => f.rating === "HELPFUL").length;
@@ -172,7 +188,10 @@ export async function assistantAnalytics(
       verifiedShare: share(finished.filter((l) => l.evidenceStatus === "verified").length, finished.length),
       medianLatencyMs: percentile(latencies, 50),
       p90LatencyMs: percentile(latencies, 90),
+      timeouts,
+      medianFirstTokenMs: percentile(firstTokens, 50),
     },
+    models: [...modelCounts.values()].sort((a, b) => b.count - a.count).slice(0, 8),
     feedback: {
       helpful,
       notHelpful,
