@@ -2769,7 +2769,7 @@ model ResearchQueryLog {
   id             String   @id @default(cuid())
   tenantId       String?
   signedIn       Boolean  @default(false)
-  // "answered" | "not-covered" | "not-indexed" | "unavailable" | "stopped"
+  // "answered" | "not-covered" | "not-indexed" | "unavailable" | "stopped" | "timeout"
   outcome        String
   intent         String?
   evidenceStatus String?
@@ -2779,6 +2779,13 @@ model ResearchQueryLog {
   // A reader-chosen scope (discipline, years, issue or articles) was set.
   scoped         Boolean  @default(false)
   question       String?
+  // Which provider ("self-hosted", "oss-free", "anthropic") and model wrote
+  // the answer, how long until its first text, and whether it was cut short
+  // at the time budget (src/lib/llm-stream.ts, src/app/api/corpus-chat).
+  provider       String?
+  model          String?
+  firstTokenMs   Int?
+  timedOut       Boolean  @default(false)
   createdAt      DateTime @default(now())
 
   @@index([tenantId, createdAt])

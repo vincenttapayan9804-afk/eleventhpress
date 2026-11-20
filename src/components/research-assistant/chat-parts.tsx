@@ -1,4 +1,6 @@
 "use client";
+import ReactMarkdown, { type Components } from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 // Pieces shared by both AI Research Assistant chats: Ask the Corpus
 // (corpus-chat-panel.tsx) and Ask this paper (article-chat-panel.tsx).
@@ -118,6 +120,11 @@ export function Thinking({
           </div>
           {elapsed >= 3 && <span className="text-xs tabular-nums text-muted-foreground">{elapsed}s</span>}
         </div>
+        {elapsed >= 20 && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            Taking longer than usual. The answer appears here as it&rsquo;s written; you can stop at any time.
+          </p>
+        )}
       </div>
       {onStop && (
         <button
@@ -253,6 +260,67 @@ export function SectionPills({ article, sections, onPick, disabled }: { article?
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+/** "[P3]", "[A1]", "[P2, P5]" → provisional citation numbers in order of first use (the verified answer replaces them). */
+export function provisionalCitations(text: string): string {
+  const numbers = new Map<string, number>();
+  const withNumbers = text.replace(/\[((?:\s*(?:P(?:ASSAGE)?\s*\d{1,3}|A\d{1,3})\s*[,;]?)+)\]/gi, (_m, inner: string) => {
+    const ns: number[] = [];
+    for (const raw of inner.split(/[,;]/)) {
+      const key = raw.trim().toUpperCase().replace(/\s+/g, "").replace(/^PASSAGE/, "P");
+      if (!key) continue;
+      if (!numbers.has(key)) numbers.set(key, numbers.size + 1);
+      const n = numbers.get(key)!;
+      if (!ns.includes(n)) ns.push(n);
+    }
+    return ns.map((n) => `[${n}]`).join("");
+  });
+  // Hide a marker that is still being written ("… [P").
+  return withNumbers.replace(/\[[^\]\n]{0,12}$/, "");
+}
+
+/** Same typography as the finished answer (answer-view.tsx), so nothing jumps when it is replaced. */
+const LIVE_COMPONENTS: Components = {
+  h1: ({ children }) => <h3 className="mb-2 mt-5 font-display text-[1.02rem] font-semibold text-foreground first:mt-0">{children}</h3>,
+  h2: ({ children }) => <h3 className="mb-2 mt-5 font-display text-[1.02rem] font-semibold text-foreground first:mt-0">{children}</h3>,
+  h3: ({ children }) => (
+    <h3 className="mb-2 mt-5 flex items-center gap-2 font-display text-[0.98rem] font-semibold text-foreground first:mt-0">
+      <span className="h-3.5 w-[3px] rounded-full bg-[var(--gold-500)]" aria-hidden="true" />
+      {children}
+    </h3>
+  ),
+  h4: ({ children }) => <h4 className="mb-1.5 mt-4 text-sm font-semibold text-foreground">{children}</h4>,
+  p: ({ children }) => <p className="my-2.5 leading-[1.75] first:mt-0 last:mb-0">{children}</p>,
+  ul: ({ children }) => <ul className="my-2.5 list-disc space-y-1.5 pl-5 marker:text-[var(--royal-400)]">{children}</ul>,
+  ol: ({ children }) => <ol className="my-2.5 list-decimal space-y-1.5 pl-5 marker:font-semibold marker:text-[var(--gold-600)]">{children}</ol>,
+  li: ({ children }) => <li className="leading-[1.7]">{children}</li>,
+  strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+  table: ({ children }) => (
+    <div className="my-3.5 overflow-x-auto rounded-lg border border-border/80 epip-scroll">
+      <table className="w-full min-w-[560px] border-collapse text-left text-[0.8rem]">{children}</table>
+    </div>
+  ),
+  thead: ({ children }) => <thead className="bg-[var(--royal-50)] text-xs uppercase tracking-[0.08em] text-[var(--royal-800)]">{children}</thead>,
+  th: ({ children }) => <th className="border-b border-border/80 px-3 py-2 font-semibold">{children}</th>,
+  td: ({ children }) => <td className="border-b border-border/50 px-3 py-2 align-top leading-relaxed">{children}</td>,
+  // Links aren't shown until the answer has been checked.
+  a: ({ children }) => <span>{children}</span>,
+};
+
+/** The answer as the model writes it, before it has been checked. */
+export function LiveAnswer({ text }: { text: string }) {
+  return (
+    <div className="rounded-2xl border border-border/70 bg-card/60 px-4 py-3.5 shadow-sm" aria-live="off">
+      <div className="text-[0.95rem] text-foreground/90">
+        <ReactMarkdown remarkPlugins={[remarkGfm]} components={LIVE_COMPONENTS}>
+          {provisionalCitations(text)}
+        </ReactMarkdown>
+        <span className="ml-0.5 inline-block h-4 w-[2px] translate-y-0.5 animate-pulse bg-primary align-baseline" aria-hidden="true" />
+      </div>
+      <p className="mt-2 text-[11px] text-muted-foreground">Being written. Citations are checked against the sources when it finishes.</p>
     </div>
   );
 }

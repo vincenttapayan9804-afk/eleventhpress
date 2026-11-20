@@ -3,7 +3,8 @@
 /**
  * Asks /api/corpus-chat with a streamed reply: the server sends each step
  * of its work as it starts (understanding, searching, reading N passages,
- * writing, checking), then the answer. Aborting the signal (Stop) closes
+ * writing, checking), the answer text as the model writes it (onDelta),
+ * then the verified answer. Aborting the signal (Stop) closes
  * the connection, which also cancels the model request on the server.
  */
 import { getCsrfToken } from "@/lib/csrf-client";
@@ -23,7 +24,7 @@ export class AskError extends Error {
 
 export async function askStream(
   body: Record<string, unknown>,
-  opts: { signal?: AbortSignal; onStage?: (s: StageState) => void } = {}
+  opts: { signal?: AbortSignal; onStage?: (s: StageState) => void; onDelta?: (text: string) => void } = {}
 ): Promise<ApiAnswer> {
   const headers: Record<string, string> = { "Content-Type": "application/json", Accept: "application/x-ndjson, application/json" };
   const csrf = getCsrfToken();
@@ -61,6 +62,7 @@ export async function askStream(
       return;
     }
     if (msg?.type === "stage") opts.onStage?.({ stage: msg.stage, passages: msg.passages, articles: msg.articles, scope: msg.scope });
+    else if (msg?.type === "delta" && typeof msg.text === "string") opts.onDelta?.(msg.text);
     else if (msg?.type === "result") {
       const { type: _t, ...rest } = msg;
       result = rest as ApiAnswer;

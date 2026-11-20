@@ -33,7 +33,7 @@
  */
 import Anthropic from "@anthropic-ai/sdk";
 
-const ANTHROPIC_MODEL = "claude-sonnet-5";
+export const ANTHROPIC_MODEL = "claude-sonnet-5";
 
 // ── The OpenAI-compatible tier ("oss-free") ─────────────────────────────
 //
@@ -64,10 +64,10 @@ const ANTHROPIC_MODEL = "claude-sonnet-5";
 // available and supports the request ($0, documented at
 // openrouter.ai/docs/guides/routing/routers/free-router). Set
 // OPENROUTER_MODEL (or LLM_MODEL) to pin one specific ":free" model instead.
-const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
-const DEFAULT_OSS_MODEL = "openrouter/free";
+export const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+export const DEFAULT_OSS_MODEL = "openrouter/free";
 
-function envValue(name: string): string | undefined {
+export function envValue(name: string): string | undefined {
   const v = process.env[name]?.trim();
   return v ? v : undefined;
 }
@@ -194,7 +194,7 @@ export function anyLLMAvailable(): boolean {
   return isAirgappedMode() || isLLMAvailable() || ossLLMAvailable();
 }
 
-function getClient(): Anthropic {
+export function getClient(): Anthropic {
   if (!client) {
     client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   }
@@ -338,11 +338,8 @@ async function chatJSONOss<T>(
   return { data: extractJSON<T>(text), rawResponse: text, model: servedModel, provider: "oss-free" };
 }
 
-async function chatJSONLocal<T>(
-  systemPrompt: string,
-  userPrompt: string,
-  maxTokens: number
-): Promise<ChatJSONResult<T>> {
+/** Plain-text generation on the airgapped local model (see LOCAL_LLM_MODEL). */
+export async function generateLocalText(systemPrompt: string, userPrompt: string, maxTokens: number): Promise<{ text: string; model: string }> {
   const generator = await getLocalGenerator();
   if (!generator) {
     throw new Error(`Local airgapped model (${LOCAL_LLM_MODEL}) is not available in this deployment`);
@@ -368,7 +365,15 @@ async function chatJSONLocal<T>(
   if (!text) {
     throw new Error("Local airgapped model produced no text output");
   }
+  return { text, model: LOCAL_LLM_MODEL };
+}
 
+async function chatJSONLocal<T>(
+  systemPrompt: string,
+  userPrompt: string,
+  maxTokens: number
+): Promise<ChatJSONResult<T>> {
+  const { text } = await generateLocalText(systemPrompt, userPrompt, maxTokens);
   return { data: extractJSON<T>(text), rawResponse: text, model: LOCAL_LLM_MODEL, provider: "local-airgapped" };
 }
 

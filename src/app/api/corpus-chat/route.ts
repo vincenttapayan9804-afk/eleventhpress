@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { extractRequestIp } from "@/lib/institutions";
 import { checkRateLimit } from "@/lib/ratelimit";
-import { anyLLMAvailable, chatJSON } from "@/lib/llm";
+import { anyStreamProvider, streamChat, StreamInterruptedError, type StreamChatResult } from "@/lib/llm-stream";
+import { isGrounded, NOT_COVERED_OPENING, splitAnswer, usedPassagesFromMarkers, visibleLength, FOLLOW_UPS_MARKER } from "@/lib/answer-format";
 import { loadCorpusChunksByIds, retrieveChunksAcrossCorpus, type CorpusRetrievedChunk } from "@/lib/chunk-embeddings";
 import { db } from "@/lib/db";
 import { getSessionFromHeaders } from "@/lib/auth";
@@ -17,7 +18,7 @@ import {
   MAX_SUGGESTIONS,
   SECTION_NAMES,
 } from "@/lib/suggested-questions";
-import { ARTICLE_RECORD_SELECT, formatArticleRecord, formatHistory, normalizeUsedPassages } from "@/lib/rag-prompt";
+import { ARTICLE_RECORD_SELECT, formatArticleRecord, formatHistory } from "@/lib/rag-prompt";
 import { analyzeQuestion, cleanSourceIds, resolveContextArticles, retrievalPlan, type ContextTurn, type QuestionIntent } from "@/lib/research-query";
 import {
   apaReference,
@@ -69,9 +70,17 @@ import {
  * (ResearchAssistantSettings).
  *
  * With `Accept: application/x-ndjson` the reply is streamed as one JSON
- * object per line: {"type":"stage",...} as each step starts, then
- * {"type":"result",...} with the same body the JSON reply has. Closing the
+ * object per line: {"type":"stage",...} as each step starts,
+ * {"type":"delta","text":...} for each piece of the answer as the model
+ * writes it, then {"type":"result",...} with the same body the JSON reply
+ * has (the verified answer, which replaces the streamed text). Closing the
  * connection (the reader pressed Stop) cancels the model request.
+ *
+ * Models come from src/lib/llm-stream.ts: a self-hosted open model, pinned
+ * free OpenRouter models, then Anthropic, whichever are configured. Every
+ * question has a time budget (50 s, CORPUS_CHAT_DEADLINE_MS) inside the function's
+ * maxDuration: when it runs out, the text written so far is verified and
+ * returned marked incomplete instead of the request being cut off.
  */
 export const maxDuration = 60;
 
@@ -82,11 +91,20 @@ const MAX_QUESTION_LENGTH = 800;
  * API key, a retrieval error). The real cause is logged server-side only. */
 const UNAVAILABLE_MESSAGE =
   "The Research Assistant is temporarily unavailable. Please try again in a few minutes, or browse and search the published articles directly.";
+/** No text at all within the time budget. */
+const TIMEOUT_MESSAGE =
+  "This question took longer than the Research Assistant's time limit. Try narrowing it (fewer articles, one discipline or one aspect), or ask again in a moment.";
 const MAX_HISTORY_TURNS = 6;
-/** Ask the model again once if the first reply fails (the free router can
- * pick a model that returns a malformed reply), as long as there's time
- * left within maxDuration. */
+/** Ask again once if every provider failed before writing anything, as long
+ * as there's time left within maxDuration. */
 const RETRY_IF_FAILED_WITHIN_MS = 25_000;
+/** The whole answer must be ready this long after the request arrives, so
+ * the reader gets a result (complete or marked incomplete) before the
+ * platform's maxDuration cuts the function off. Capped below maxDuration. */
+function answerDeadlineMs(): number {
+  const n = Number(process.env.CORPUS_CHAT_DEADLINE_MS);
+  return Number.isFinite(n) && n > 0 ? Math.min(n, 55_000) : 50_000;
+}
 const MAX_EVIDENCE_IDS = 16;
 
 const RECORD_SELECT = {
@@ -154,7 +172,7 @@ const SYSTEM_PROMPT = (journalName: string) =>
     "- Every factual statement about an article must be supported by the records. Never use outside knowledge to fill a gap, and never present general knowledge as something the journal published.",
     "- Never fabricate research findings, authors, article titles, publication dates, DOIs, statistical results, methods, quotations, page numbers, citations or references.",
     "- Reproduce numbers, statistics, sample sizes, dates and names exactly as written; never round, convert or estimate them. Quote only words that appear verbatim in a passage.",
-    "- If the records only partly answer the question, answer that part and say plainly what they don't establish (\"The journal's records don't state …\"). If they don't answer it at all, say so and set grounded to false.",
+    "- If the records only partly answer the question, answer that part and say plainly what they don't establish (\"The journal's records don't state …\"). If they don't answer it at all, say so using the opening given under Output format.",
     "",
     "Citations:",
     "- Put a citation right after every major factual claim: [P4] for a passage, [A2] for an article record, several as [P4][P7]. Cite only passage and article numbers that exist in the message.",
@@ -171,12 +189,13 @@ const SYSTEM_PROMPT = (journalName: string) =>
     "- Substantive question: open with the direct answer in 2–4 sentences (no heading). Then add only the sections that add value, in this order: \"### Supporting evidence\" (bullet points, each cited), \"### Comparative analysis\" (only if more than one article is relevant), \"### Research interpretation\", \"### Limitations\" (of the studies, and of the evidence available here).",
     "- Comparison or synthesis: open with the direct answer, then \"### Articles compared\" as a Markdown table with columns Article | Objective | Design & methods | Population & context | Key findings (cite in the cells), then \"### Similarities and differences\", \"### Conflicting findings\" (say if none were found), \"### Methodological limitations\" and \"### Evidence-supported synthesis\". Do not claim a consensus the evidence doesn't show. If only one relevant article is in the records, say a comparison isn't possible from the journal's records.",
     "- Refer to articles by a short form of their title in italics or quotation marks.",
+    "- Be concise: most answers fit in 150–400 words and a comparison in about 600. Prefer a tight table and bullet points to long paragraphs.",
     "",
     "Conversation: earlier turns are only for understanding references such as \"this article\", \"the previous study\", \"those findings\", \"the second methodology\" or \"the same author\" (see RESOLVED REFERENCES when present). Never treat an earlier answer as evidence: verify every claim against the records in this message.",
     "",
-    `Also give "suggestedQuestions": up to ${MAX_SUGGESTIONS} short, specific follow-up questions about the article(s) your answer is about, each on a different part of the paper (${SECTION_NAMES.join(", ")}) or a comparison with another article in the records, naming the article by a short form of its title, using its actual content (topic, variables, setting, instruments, findings) rather than generic wording, and answerable from these records. Do not repeat the reader's question.`,
+    `After the answer, write a line containing only ${FOLLOW_UPS_MARKER} and then up to ${MAX_SUGGESTIONS} short, specific follow-up questions, one per line starting with "- ", about the article(s) your answer is about, each on a different part of the paper (${SECTION_NAMES.join(", ")}) or a comparison with another article in the records, naming the article by a short form of its title, using its actual content (topic, variables, setting, instruments, findings) rather than generic wording, and answerable from these records. Do not repeat the reader's question.`,
     "",
-    'Reply with only a JSON object: {"answer": string (Markdown), "usedPassages": number[] (every passage you drew on), "grounded": boolean (false only when the records do not answer the question), "suggestedQuestions": string[]}.',
+    `Output format: the answer in Markdown (no JSON, no preamble, no reference list), citing with the [P…]/[A…] markers; then the ${FOLLOW_UPS_MARKER} section. If the records don't answer the question at all, begin the answer with exactly "${NOT_COVERED_OPENING}" and then say briefly what the journal's records do cover that is closest.`,
   ].join("\n");
 
 /**
@@ -392,7 +411,12 @@ export async function POST(req: NextRequest) {
         }
       };
       try {
-        const result = await answerQuestion(input, (stage, detail) => send({ type: "stage", stage, ...(detail ?? {}) }), abort.signal);
+        const result = await answerQuestion(
+          input,
+          (stage, detail) => send({ type: "stage", stage, ...(detail ?? {}) }),
+          abort.signal,
+          (text) => send({ type: "delta", text })
+        );
         send({ type: "result", ...result });
       } finally {
         try {
@@ -416,8 +440,11 @@ export async function POST(req: NextRequest) {
 }
 
 /** The whole question → cited answer pipeline. Never throws: every failure is a reader-facing result. */
-async function answerQuestion(input: AskInput, emit: Emit, signal: AbortSignal): Promise<Record<string, unknown>> {
+async function answerQuestion(input: AskInput, emit: Emit, signal: AbortSignal, onDelta?: (text: string) => void): Promise<Record<string, unknown>> {
   const started = Date.now();
+  // Stops the model at the time budget as well as when the reader presses Stop.
+  const deadline = AbortSignal.timeout(answerDeadlineMs());
+  const modelSignal = AbortSignal.any([signal, deadline]);
   const { question, history, regenerate, evidenceIds, scope, continueOf, tenant, settings, quota } = input;
   const tenantId = tenantScopeId(tenant);
   const brandTenantId = tenant && !tenant.isPlatform ? tenant.id : null;
@@ -435,7 +462,7 @@ async function answerQuestion(input: AskInput, emit: Emit, signal: AbortSignal):
     });
   const withQuota = (r: Record<string, unknown>) => (quota ? { ...r, quota } : r);
 
-  if (!anyLLMAvailable()) {
+  if (!anyStreamProvider()) {
     console.warn("[corpus-chat] no LLM provider configured (set ANTHROPIC_API_KEY, OPENROUTER_API_KEY, or LLM_BASE_URL/LLM_API_KEY)");
     log("unavailable");
     return withQuota({ mode: "unavailable", message: UNAVAILABLE_MESSAGE });
@@ -560,34 +587,58 @@ async function answerQuestion(input: AskInput, emit: Emit, signal: AbortSignal):
   const systemPrompt = SYSTEM_PROMPT(journal.name);
   const userPrompt = `${recordsBlock}\n\n${passageBlock}${historyBlock}${resolvedBlock}${focusNote}${scopeNote}${continueNote}\n\n${INTENT_NOTES[analysis.intent]}${regenerateNote}\n\nReader's question: ${question}`;
 
+  let modelInfo: { provider: string; model: string; firstTokenMs: number | null } | null = null;
   try {
     emit("writing");
-    const ask = () =>
-      chatJSON<{ answer: string; usedPassages?: number[]; grounded?: boolean; suggestedQuestions?: unknown }>(systemPrompt, userPrompt, {
+    // Streams the answer to the reader, holding back the follow-ups section.
+    let shown = 0;
+    let written = "";
+    const ask = () => {
+      shown = 0;
+      written = "";
+      return streamChat(systemPrompt, userPrompt, {
         maxTokens: analysis.intent === "comparison" ? 2600 : 2000,
-        priority: "cost-first",
         temperature: regenerate ? 0.5 : 0.1,
-        signal,
+        signal: modelSignal,
+        onDelta: (text) => {
+          written += text;
+          const end = visibleLength(written);
+          if (end > shown) {
+            onDelta?.(written.slice(shown, end));
+            shown = end;
+          }
+        },
       });
+    };
     const llmStarted = Date.now();
-    let result: Awaited<ReturnType<typeof ask>>;
+    let result: StreamChatResult;
+    let incomplete = false;
     try {
-      result = await ask();
-      if (typeof result.data?.answer !== "string" || !result.data.answer.trim()) {
-        throw new Error("model reply had no answer text");
+      try {
+        result = await ask();
+      } catch (first) {
+        if (first instanceof StreamInterruptedError || modelSignal.aborted || Date.now() - llmStarted > RETRY_IF_FAILED_WITHIN_MS) throw first;
+        console.warn("[corpus-chat] first attempt failed, retrying once:", first);
+        result = await ask();
       }
-    } catch (first) {
-      if (signal.aborted || Date.now() - llmStarted > RETRY_IF_FAILED_WITHIN_MS) throw first;
-      console.warn("[corpus-chat] first attempt failed, retrying once:", first);
-      result = await ask();
-      if (typeof result.data?.answer !== "string" || !result.data.answer.trim()) {
-        throw new Error("model reply had no answer text");
+    } catch (e) {
+      // Text had started arriving: keep it, marked incomplete, unless the reader pressed Stop.
+      if (e instanceof StreamInterruptedError && !signal.aborted && splitAnswer(e.partial.text).answer.trim()) {
+        result = e.partial;
+        incomplete = true;
+      } else if (deadline.aborted && !signal.aborted) {
+        log("timeout");
+        return withQuota({ mode: "unavailable", message: TIMEOUT_MESSAGE });
+      } else {
+        throw e;
       }
     }
+    modelInfo = { provider: result.provider, model: result.model, firstTokenMs: result.firstTokenMs };
     emit("checking");
 
-    const grounded = result.data.grounded !== false;
-    let usedPassages = normalizeUsedPassages(result.data.usedPassages);
+    const reply = splitAnswer(result.text);
+    const grounded = isGrounded(reply.answer);
+    let usedPassages = usedPassagesFromMarkers(reply.answer);
     // An answer drawn only from the article records (e.g. "who wrote X?")
     // still cites its source: the named article's opening passage.
     if (usedPassages.length === 0 && grounded) {
@@ -602,7 +653,7 @@ async function answerQuestion(input: AskInput, emit: Emit, signal: AbortSignal):
       issueNumber: r.issue?.issueNumber ?? null,
     }));
     const cited = resolveCitations(
-      stripModelReferenceList(result.data.answer),
+      stripModelReferenceList(reply.answer),
       chunks.map((c) => ({ chunkId: c.chunkId, articleId: c.articleId, articleTitle: c.articleTitle, chunkIndex: c.chunkIndex, text: c.text })),
       evidenceArticles,
       usedPassages,
@@ -620,6 +671,10 @@ async function answerQuestion(input: AskInput, emit: Emit, signal: AbortSignal):
       grounded,
       cited.citations.length
     );
+    if (incomplete) {
+      verified.check.warnings.unshift("This answer was cut short to stay within the time limit. Use “Continue analysis” to carry on from here.");
+      if (verified.check.status === "verified") verified.check.status = "review";
+    }
     if (cited.droppedMarkers > 0) {
       verified.check.warnings.unshift(
         `Removed ${cited.droppedMarkers === 1 ? "a citation" : `${cited.droppedMarkers} citations`} that pointed at evidence the assistant wasn't given.`
@@ -628,7 +683,7 @@ async function answerQuestion(input: AskInput, emit: Emit, signal: AbortSignal):
     }
 
     console.info(
-      `[corpus-chat] answered by ${result.provider}/${result.model}; intent=${analysis.intent}, context=${contextIds.length}, ${chunks.length} passages, ${cited.citations.length} citations, evidence=${verified.check.status}${scope ? ", scoped" : ""}${continueOf ? ", continued" : ""}`
+      `[corpus-chat] answered by ${result.provider}/${result.model} (first text ${result.firstTokenMs ?? "–"}ms${incomplete ? ", incomplete" : ""}); intent=${analysis.intent}, context=${contextIds.length}, ${chunks.length} passages, ${cited.citations.length} citations, evidence=${verified.check.status}${scope ? ", scoped" : ""}${continueOf ? ", continued" : ""}`
     );
 
     // Follow-up questions about the paper the answer is about: the article
@@ -636,7 +691,7 @@ async function answerQuestion(input: AskInput, emit: Emit, signal: AbortSignal):
     const primaryTitle = focusedTitles[0] ?? sources[0]?.title ?? chunks[0]?.articleTitle ?? null;
     const asked = [question, ...history.filter((t) => t.role === "user").map((t) => t.content)];
     const sectionQuestions = primaryTitle ? remainingSectionQuestions(primaryTitle, asked) : [];
-    const suggestedQuestions = finalizeSuggestions(result.data.suggestedQuestions, asked, sectionQuestions);
+    const suggestedQuestions = finalizeSuggestions(reply.followUps, asked, sectionQuestions);
 
     const coverage = {
       level: coverageOf({ grounded, citedArticles: sources.length, citations: cited.citations.length, evidenceStatus: verified.check.status }),
@@ -650,12 +705,15 @@ async function answerQuestion(input: AskInput, emit: Emit, signal: AbortSignal):
       evidenceStatus: verified.check.status,
       articles: sources.length,
       citations: cited.citations.length,
+      ...modelInfo,
+      timedOut: incomplete,
     });
 
     return withQuota({
       mode: "answered",
       answer: verified.answer,
       grounded,
+      incomplete,
       intent: analysis.intent,
       citations: cited.citations,
       sources,
@@ -675,8 +733,12 @@ async function answerQuestion(input: AskInput, emit: Emit, signal: AbortSignal):
     });
   } catch (e) {
     if (signal.aborted) {
-      log("stopped");
+      log("stopped", { ...modelInfo });
       return { mode: "stopped" };
+    }
+    if (deadline.aborted) {
+      log("timeout", { ...modelInfo });
+      return withQuota({ mode: "unavailable", message: TIMEOUT_MESSAGE });
     }
     // e.g. a 401 from a provider, an exhausted credit balance, a rate limit
     // or a malformed reply. Logged in full here; the reader gets the same
