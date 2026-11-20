@@ -13,9 +13,11 @@ for (const c of CTAS) {
   test(`${c.path} CTA opens the contact form`, async ({ page }) => {
     await page.goto(c.path, { waitUntil: "networkidle" });
     const btn = page.getByTestId(c.testId).first();
-    await btn.scrollIntoViewIfNeeded();
+    // The page can still re-render just after load, detaching the button
+    // mid-scroll, so scroll and click together inside the retry.
     await expect(async () => {
-      await btn.click();
+      await btn.scrollIntoViewIfNeeded({ timeout: 3000 });
+      await btn.click({ timeout: 3000 });
       await expect(page.getByTestId("contact-dialog")).toBeVisible({ timeout: 2000 });
     }).toPass({ timeout: 20000 });
     await expect(page.getByTestId("contact-dialog").getByRole("heading", { name: c.title })).toBeVisible();
