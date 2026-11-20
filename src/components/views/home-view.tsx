@@ -13,7 +13,6 @@ import { DISCIPLINE_ICONS } from "@/components/discipline-icons";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { HeroGlobe, ImpactSphere } from "@/components/three-d/lazy";
 import { useReveal } from "@/hooks/use-scroll-reveal";
 import { Tilt3D } from "@/components/tilt-3d";
 import {
@@ -117,7 +116,11 @@ export function HomeView() {
       {/* ════════════════════════════════════════════════════════════════
           HERO — studio-grade 4D image background
           ════════════════════════════════════════════════════════════════ */}
-      <section className="relative overflow-hidden" data-testid="hero-gradient-section">
+      {/* `isolate` + a solid dark base on the section itself: the hero's
+          white text is drawn over an image, and without a dark colour on an
+          ancestor, contrast checkers (Lighthouse/axe) measured it against the
+          light page background behind it and failed every hero element. */}
+      <section className="relative isolate overflow-hidden bg-[oklch(0.13_0.03_290)]" data-testid="hero-gradient-section">
         {/* Studio-grade 4D hero image background.
             Desktop (lg+): the image fills the whole hero, anchored right so
             the globe sits beside the text, with a left vignette for contrast.
@@ -126,7 +129,7 @@ export function HomeView() {
             of its right edge. There the image is a band at the top, centred
             so the whole globe sits behind the headline, under an even tint,
             then fades into the same deep tone for the rest of the hero. */}
-        <div className="absolute inset-0 -z-10 bg-[oklch(0.13_0.03_290)] lg:bg-transparent">
+        <div className="absolute inset-0 -z-10 bg-[oklch(0.13_0.03_290)]">
           <img
             src="/hero/hero-bg.png"
             alt="Glowing globe of connected research networks"
@@ -200,7 +203,7 @@ export function HomeView() {
                       <p className="eyebrow">{t("journalAtGlance")}</p>
                       <p className="mt-1 font-display text-xl text-royal-gradient">{t("liveMetrics")}</p>
                     </div>
-                    <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full"><ImpactSphere /></div>
+                    <DecorativeOrb className="h-12 w-12 shrink-0" />
                   </div>
                   <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-border">
                     <StatTile label={t("publishedArticles")} value={stats.articles} icon={FileText} />
@@ -290,8 +293,14 @@ export function HomeView() {
                     style={{ transitionTimingFunction: "var(--ease-luxury)" }}
                   >
                     {/* Studio-grade 4D image background */}
+                    {/* WebP at 320px and 640px (the cards are ~290px wide):
+                        the original 1024px PNGs cost ~1.2 MB on this page. */}
                     <img
-                      src={`/disciplines/${DISCIPLINE_SLUGS[d] || "physics"}.png`}
+                      src={`/disciplines/${DISCIPLINE_SLUGS[d] || "physics"}.webp`}
+                      srcSet={`/disciplines/${DISCIPLINE_SLUGS[d] || "physics"}-320.webp 320w, /disciplines/${DISCIPLINE_SLUGS[d] || "physics"}.webp 640w`}
+                      sizes="(min-width: 1024px) 290px, (min-width: 640px) 33vw, 50vw"
+                      width={320}
+                      height={320}
                       alt={`${d} research`}
                       loading="lazy"
                       decoding="async"
@@ -476,9 +485,7 @@ export function HomeView() {
       <section>
         <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
           <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[oklch(0.36_0.16_294)] via-[oklch(0.42_0.18_295)] to-[oklch(0.30_0.13_293)] p-12 lg:p-16">
-            <div className="absolute inset-0 opacity-20">
-              <ImpactSphere />
-            </div>
+            <DecorativeOrb className="pointer-events-none absolute -right-16 -top-16 h-72 w-72 opacity-25" />
             <div className="relative flex flex-col items-start justify-between gap-8 lg:flex-row lg:items-center">
               <div className="max-w-2xl">
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[oklch(0.86_0.07_292)]">Submit your research</p>
@@ -560,5 +567,21 @@ function MiniStat({ label, value, icon: Icon, className }: { label: string; valu
         <p className="mt-1 text-[0.65rem] leading-tight text-muted-foreground">{label}</p>
       </div>
     </div>
+  );
+}
+
+/**
+ * Static stand-in for the old WebGL "ImpactSphere": a lit purple sphere drawn
+ * with CSS gradients. The two spheres on this page were purely decorative, yet
+ * each kept a Three.js canvas rendering every frame (transmission material and
+ * a contact-shadow pass) — on its own the 900 KB Three.js chunk accounted for
+ * ~38 s of main-thread work and ~8 s of Total Blocking Time in Lighthouse.
+ */
+function DecorativeOrb({ className = "" }: { className?: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={`rounded-full bg-[radial-gradient(circle_at_32%_28%,oklch(0.86_0.07_292)_0%,oklch(0.62_0.19_295)_38%,oklch(0.36_0.16_294)_78%,oklch(0.24_0.1_292)_100%)] shadow-[inset_-6px_-8px_18px_oklch(0.2_0.08_292/0.55),0_8px_24px_oklch(0.38_0.18_295/0.3)] ${className}`}
+    />
   );
 }

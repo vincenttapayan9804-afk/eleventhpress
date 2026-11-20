@@ -14,6 +14,7 @@ import { ResourcePageShell, BackToResources } from "@/components/resources/resou
 import { FaqBlock, NumberedList, OnThisPage } from "@/components/resources/content-blocks";
 import { OfficialFormFields, FormSignature } from "@/components/forms/official-form-fields";
 import { Button } from "@/components/ui/button";
+import { SHARE_IMAGES } from "@/lib/share-image";
 
 /**
  * GET /resources/forms/[slug] — the online edition of an Official Form:
@@ -38,8 +39,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     description: searchDescription(f.metaDescription),
     keywords: [...f.keywords, ...f.benchmarks],
     alternates: { canonical: url, types: { "application/pdf": `${brand.baseUrl}${formPdfPath(f)}` } },
-    openGraph: { title: `${f.title} — Official form`, description: f.metaDescription, url, type: "article", siteName: brand.publisher, modifiedTime: f.effective },
-    twitter: { card: "summary_large_image", title: f.title, description: f.metaDescription },
+    openGraph: { title: `${f.title} — Official form`, description: f.metaDescription, url, type: "article", siteName: brand.publisher, modifiedTime: f.effective, images: SHARE_IMAGES },
+    twitter: { card: "summary_large_image", title: f.title, description: f.metaDescription, images: SHARE_IMAGES },
   };
 }
 

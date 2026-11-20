@@ -66,7 +66,14 @@ export function MagazinesView() {
   if (loading) {
     return (
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <div className="h-96 shimmer rounded-2xl" />
+        {/* The masthead renders while the list loads: this is also what the
+            server sends, so crawlers get the page's heading and intro. */}
+        <div className="border-b-2 border-foreground/90 pb-6">
+          <p className="eyebrow">{t("eyebrow")}</p>
+          <h1 className="mt-2 font-display text-5xl font-bold tracking-tight sm:text-6xl">{t("title")}</h1>
+          <p className="mt-3 max-w-xl text-sm text-muted-foreground">{t("description")}</p>
+        </div>
+        <div className="mt-8 h-96 shimmer rounded-2xl" />
       </div>
     );
   }
