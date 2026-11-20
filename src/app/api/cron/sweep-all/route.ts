@@ -13,6 +13,7 @@ import { sendReadingAlerts } from "@/lib/reading-alerts";
 import { sendInvoiceReminders } from "@/lib/invoice-reminders";
 import { sweepStudyGuides } from "@/lib/study-guide/server";
 import { submitSitemapToIndexNow } from "@/lib/indexnow";
+import { reindexStaleChunks } from "@/lib/chunk-reindex";
 
 /**
  * GET /api/cron/sweep-all
@@ -53,6 +54,9 @@ const SWEEPS = [
   // Not a stuck-job sweep: re-announce every sitemap URL to IndexNow
   // search engines so changed pages are recrawled promptly.
   { name: "indexNow", run: () => submitSitemapToIndexNow() },
+  // Not a stuck-job sweep: re-index Research Assistant passages written
+  // before the current splitter (sections, tables, equations), a batch a day.
+  { name: "chunkReindex", run: () => reindexStaleChunks({ budgetMs: 150_000 }) },
   // Daily notification digest for people who chose one email a day.
   // Review invitation nudges, due-soon and overdue reminders, then the
   // daily notification digest — in that order, so a daily-summary user gets
