@@ -3,7 +3,7 @@
 /**
  * A ```mermaid block in a Research Assistant answer, drawn with Mermaid.
  * Mermaid is loaded only when an answer has a diagram, with securityLevel
- * "strict" (no HTML labels, no click handlers). If it can't be drawn, its
+ * "strict" (labels sanitised, no click handlers or scripts). If it can't be drawn, its
  * code is shown instead.
  */
 import { useEffect, useId, useState } from "react";
@@ -19,7 +19,6 @@ function loadMermaid(): Promise<MermaidApi> {
       securityLevel: "strict",
       theme: dark ? "dark" : "neutral",
       fontFamily: "inherit",
-      flowchart: { htmlLabels: false },
     });
     return m.default;
   });
@@ -57,7 +56,7 @@ export function MermaidDiagram({ code }: { code: string }) {
   if (state?.svg) {
     return (
       <figure className="my-3.5 overflow-x-auto rounded-lg border border-border/80 bg-card p-3 epip-scroll" aria-label="Diagram">
-        {/* Mermaid's SVG, rendered with securityLevel "strict" (sanitised, no scripts or HTML labels). */}
+        {/* Mermaid's SVG, rendered with securityLevel "strict" (labels sanitised, no scripts or click handlers). */}
         <div className="[&_svg]:mx-auto [&_svg]:h-auto [&_svg]:max-w-full" dangerouslySetInnerHTML={{ __html: state.svg }} />
       </figure>
     );
