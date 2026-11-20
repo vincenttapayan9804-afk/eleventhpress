@@ -35,6 +35,7 @@ const { __resetSourceSignalCacheForTests, correctionStatus, correctionWarnings, 
 const realFetch = globalThis.fetch;
 const consoleError = console.error;
 let openAlexCalls = 0;
+let openCitationsCalls = 0;
 
 beforeEach(() => {
   active = true;
@@ -44,9 +45,14 @@ beforeEach(() => {
   retractions = [];
   reviews = [];
   openAlexCalls = 0;
+  openCitationsCalls = 0;
   __resetSourceSignalCacheForTests();
   console.error = () => {};
   globalThis.fetch = (async (url: any) => {
+    if (String(url).includes("api.opencitations.net")) {
+      openCitationsCalls++;
+      return Response.json([{ count: String(url).includes("10.5555/oc-only") ? "9" : "0" }]);
+    }
     openAlexCalls++;
     if (String(url).includes("10.5555%2Fcited")) return Response.json({ id: "https://openalex.org/W42", cited_by_count: 17, publication_year: 2025 });
     return new Response("not found", { status: 404 });
@@ -107,7 +113,7 @@ describe("loadSourceSignals", () => {
     ]);
     expect(a1.status).toBe("corrected");
     expect(a1.retractedReferences).toEqual([{ doi: "10.9/Retracted", title: "Bad paper", retractionDate: "2025-01-02" }]);
-    expect(a1.citations).toEqual({ count: 17, url: "https://openalex.org/works?filter=cites:W42" });
+    expect(a1.citations).toEqual({ count: 17, source: "openalex", url: "https://openalex.org/works?filter=cites:W42" });
     expect(a1.communityReviews).toMatchObject({ count: 1, items: [{ url: "https://hyp.is/1", reviewer: "R. One", postedAt: "2026-02-01" }] });
     // No DOI: no citation lookup. No public Review History: its reviews aren't shown.
     expect(a2.citations).toBeNull();
@@ -126,5 +132,11 @@ describe("loadSourceSignals", () => {
     const [, b] = await loadSourceSignals([{ id: "a1", doi: "https://doi.org/10.5555/CITED" }, { id: "a2", doi: "10.5555/unknown" }]);
     expect(b.citations).toBeNull();
     expect(openAlexCalls).toBe(2);
+    expect(openCitationsCalls).toBe(1);
+  });
+
+  test("falls back to OpenCitations when OpenAlex has no record", async () => {
+    const [a] = await loadSourceSignals([{ id: "a1", doi: "10.5555/oc-only" }]);
+    expect(a.citations).toEqual({ count: 9, source: "opencitations", url: null });
   });
 });

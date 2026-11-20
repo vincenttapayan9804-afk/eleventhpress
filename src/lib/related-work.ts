@@ -72,15 +72,24 @@ export function titleMatches(title: string, query: string): number {
 }
 
 /**
- * Drops the journal's own articles (by DOI), puts the titles that share
- * most words with the query first (sources otherwise come grouped by
- * index), drops titles sharing none when enough others do, and caps the list.
+ * Drops the journal's own articles (by DOI), puts the titles that best
+ * match the query first (sources otherwise come grouped by index), drops
+ * titles matching none of it when enough others do, and caps the list.
+ *
+ * A query word counts for more the fewer titles contain it, so a title on
+ * the actual topic ("TLE") outranks one that only shares common words
+ * ("students", "motivation").
  */
 export function outsideJournal(results: DiscoveryResult[], journalDois: Iterable<string>, limit = 12, query = ""): DiscoveryResult[] {
   const own = new Set([...journalDois].map((d) => d.toLowerCase()));
   const kept = results.filter((r) => !(r.doi && own.has(r.doi.toLowerCase())));
   if (!query) return kept.slice(0, limit);
-  const scored = kept.map((r, i) => ({ r, i, score: titleMatches(r.title, query) }));
+  const queryWords = [...new Set(words(query))];
+  const titleWords = kept.map((r) => words(r.title));
+  const hits = titleWords.map((t) => queryWords.map((q) => t.some((w) => sameWord(w, q))));
+  const n = kept.length;
+  const weight = queryWords.map((_, j) => Math.log(1 + n / (1 + hits.filter((h) => h[j]).length)));
+  const scored = kept.map((r, i) => ({ r, i, score: hits[i].reduce((sum, hit, j) => sum + (hit ? weight[j] : 0), 0) }));
   const relevant = scored.filter((x) => x.score > 0);
   const pool = relevant.length >= 3 ? relevant : scored;
   return pool

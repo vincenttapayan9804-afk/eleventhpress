@@ -21,7 +21,7 @@ import {
   MAX_SUGGESTIONS,
   SECTION_NAMES,
 } from "@/lib/suggested-questions";
-import { ARTICLE_RECORD_SELECT, formatArticleRecord, formatHistory } from "@/lib/rag-prompt";
+import { ARTICLE_RECORD_SELECT, EQUATION_AND_DIAGRAM_RULES, formatArticleRecord, formatHistory } from "@/lib/rag-prompt";
 import { analyzeQuestion, cleanSourceIds, resolveContextArticles, retrievalPlan, type ContextTurn, type QuestionIntent } from "@/lib/research-query";
 import {
   apaReference,
@@ -193,6 +193,7 @@ const SYSTEM_PROMPT = (journalName: string) =>
     "- Comparison or synthesis: open with the direct answer, then \"### Articles compared\" as a Markdown table with columns Article | Objective | Design & methods | Population & context | Key findings (cite in the cells), then \"### Similarities and differences\", \"### Conflicting findings\" (say if none were found), \"### Methodological limitations\" and \"### Evidence-supported synthesis\". Do not claim a consensus the evidence doesn't show. If only one relevant article is in the records, say a comparison isn't possible from the journal's records.",
     "- Refer to articles by a short form of their title in italics or quotation marks.",
     "- Be concise: most answers fit in 150–400 words and a comparison in about 600. Prefer a tight table and bullet points to long paragraphs.",
+    EQUATION_AND_DIAGRAM_RULES,
     "",
     "Conversation: earlier turns are only for understanding references such as \"this article\", \"the previous study\", \"those findings\", \"the second methodology\" or \"the same author\" (see RESOLVED REFERENCES when present). Never treat an earlier answer as evidence: verify every claim against the records in this message.",
     "",

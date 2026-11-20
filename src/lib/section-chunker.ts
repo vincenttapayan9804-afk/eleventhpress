@@ -95,11 +95,24 @@ function splitText(text: string): string[] {
       const window = clean.slice(windowStart, end);
       const cut = Math.max(window.lastIndexOf(". "), window.lastIndexOf("\n"));
       if (cut !== -1) end = windowStart + cut + 1;
+      // Never cut inside an equation ($$…$$): finish it, or stop before it.
+      if ((clean.slice(start, end).match(/\$\$/g) ?? []).length % 2 === 1) {
+        const close = clean.indexOf("$$", end);
+        const open = clean.lastIndexOf("$$", end - 1);
+        if (close !== -1 && close - start < PASSAGE_TARGET * 2) end = close + 2;
+        else if (open > start) end = open;
+      }
     }
     const piece = clean.slice(start, end).trim();
     if (piece) out.push(piece);
     if (end >= clean.length) break;
-    start = Math.max(end - PASSAGE_OVERLAP, start + 1);
+    let next = Math.max(end - PASSAGE_OVERLAP, start + 1);
+    // The overlap must not begin inside an equation either.
+    if ((clean.slice(0, next).match(/\$\$/g) ?? []).length % 2 === 1) {
+      const open = clean.lastIndexOf("$$", next - 1);
+      next = open > start ? open : end;
+    }
+    start = next;
   }
   return out;
 }
@@ -133,7 +146,7 @@ function tableToMarkdown(caption: string, rows: { cells: string[]; header: boole
 }
 
 const BLOCKS = new Set(["p", "li", "blockquote", "pre", "dd", "dt", "h1", "h2", "h3", "h4", "h5", "h6", "div", "section", "article", "br", "tr", "figcaption"]);
-const SKIP = new Set(["script", "style", "head", "header", "footer", "nav", "noscript", "svg", "math"]);
+const SKIP = new Set(["script", "style", "head", "header", "footer", "nav", "noscript", "svg"]);
 
 /**
  * The passages of an HTML galley. Reads the article body
@@ -153,6 +166,8 @@ export function galleyToPassages(html: string): SectionPassage[] {
   let heading: { level: number; text: string } | null = null;
   let table: { caption: string; rows: { cells: string[]; header: boolean }[]; row: { cells: string[]; header: boolean } | null; cell: string | null; captionOpen: boolean } | null = null;
   let figure: { caption: string; alt: string[]; captionOpen: boolean } | null = null;
+  // An equation being read: its TeX annotation when it has one, else alttext or the MathML text.
+  let math: { depth: number; display: boolean; tex: string; text: string; texOpen: boolean; alttext: string } | null = null;
 
   const currentPath = () => path.map((p) => p.text);
   const flushSection = () => {
@@ -174,6 +189,17 @@ export function galleyToPassages(html: string): SectionPassage[] {
   const parser = new Parser(
     {
       onopentag(name, attrs) {
+        if (math) {
+          math.depth++;
+          stack.push({ name, skip: false, body: false });
+          math.texOpen = name === "annotation" && /tex/i.test(attrs.encoding ?? "");
+          return;
+        }
+        if (name === "math" && inBody && skipDepth === 0) {
+          stack.push({ name, skip: false, body: false });
+          math = { depth: 0, display: attrs.display === "block", tex: "", text: "", texOpen: false, alttext: attrs.alttext ?? "" };
+          return;
+        }
         const cls = attrs.class ?? "";
         const skip = SKIP.has(name) || (!hasBody && /\b(front|abstract|journal|authors|affiliations|doi|licence)\b/.test(cls)) || (!hasBody && name === "h1");
         const body = hasBody && /\barticle-body\b/.test(cls);
@@ -202,10 +228,28 @@ export function galleyToPassages(html: string): SectionPassage[] {
         else if (BLOCKS.has(name)) addText("\n");
       },
       ontext(text) {
+        if (math) {
+          if (math.texOpen) math.tex += text;
+          else math.text += text;
+          return;
+        }
         if (!inBody || skipDepth > 0) return;
         addText(text);
       },
       onclosetag(name) {
+        if (math) {
+          stack.pop();
+          if (math.depth > 0) {
+            math.depth--;
+            if (name === "annotation") math.texOpen = false;
+            return;
+          }
+          const body = (math.tex.trim() || math.alttext.trim() || math.text.replace(/\s+/g, " ").trim()).replace(/\$\$/g, "$ $");
+          const display = math.display;
+          math = null;
+          if (body) addText(display ? `\n$$${body}$$\n` : ` $$${body}$$ `);
+          return;
+        }
         const open = stack.pop();
         if (open?.skip) skipDepth--;
         const wasBodyEnd = open?.body;

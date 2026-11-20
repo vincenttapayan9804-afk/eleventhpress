@@ -27,8 +27,13 @@
  *  - Once text has started arriving the provider is kept: if it then fails,
  *    stalls or the caller's deadline passes, the text written so far is
  *    returned via StreamInterruptedError so the caller can still show it.
+ *
+ * Tracing: each attempt is a Sentry span ("gen_ai.chat") with the provider,
+ * model, time to first token, characters written and outcome. Never the
+ * prompt or the answer. Without a Sentry DSN it records nothing.
  */
 import type Anthropic from "@anthropic-ai/sdk";
+import * as Sentry from "@sentry/nextjs";
 import {
   ANTHROPIC_MODEL,
   DEFAULT_OSS_MODEL,
@@ -341,14 +346,22 @@ export async function streamChat(system: string, user: string, opts: StreamChatO
       firstTokenMs: state.firstTokenAt === null ? null : state.firstTokenAt - started,
       attempts: i + 1,
     });
+    const span = Sentry.startInactiveSpan({
+      name: `stream ${c.provider}`,
+      op: "gen_ai.chat",
+      attributes: { "gen_ai.system": c.provider, "gen_ai.request.model": c.model, "llm.attempt": i + 1 },
+    });
+    let outcome = "error";
     try {
       if (c.provider === "anthropic") await streamAnthropic(c, system, user, opts, controller.signal, state, onActivity);
       else await streamOpenAICompatible(c, system, user, opts, controller.signal, state, onActivity);
       if (!state.text.trim()) throw new Error(`${c.id} returned no answer text`);
       markHealthy(c.id);
+      outcome = "ok";
       return result();
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
+      outcome = opts.signal?.aborted ? "aborted" : controller.signal.aborted ? (state.text.trim() ? "stalled" : "no_response") : "error";
       if (state.text.trim()) {
         // Keep what the reader has already seen rather than starting over.
         if (!opts.signal?.aborted) markFailed(c.id, message);
@@ -359,6 +372,14 @@ export async function streamChat(system: string, user: string, opts: StreamChatO
       errors.push(`${c.id}: ${message}`);
       console.warn(`[llm-stream] ${c.id} failed, trying the next provider:`, message);
     } finally {
+      span.setAttributes({
+        "llm.outcome": outcome,
+        "gen_ai.response.model": state.model,
+        "llm.first_token_ms": state.firstTokenAt === null ? -1 : state.firstTokenAt - started,
+        "llm.output_chars": state.text.length,
+      });
+      span.setStatus({ code: outcome === "ok" ? 1 : 2, message: outcome });
+      span.end();
       dog.stop();
       opts.signal?.removeEventListener("abort", onOuterAbort);
     }

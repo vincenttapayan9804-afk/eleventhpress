@@ -3,7 +3,6 @@
 import { AiLabel } from "@/components/ai-label";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown, { defaultUrlTransform, type Components } from "react-markdown";
-import remarkGfm from "remark-gfm";
 import {
   BookmarkCheck,
   Bookmark,
@@ -41,10 +40,11 @@ import { cn } from "@/lib/utils";
 import { INTENT_LABEL, type AnswerCitation, type AnswerData, type ChatMessage } from "./types";
 import { ResearchMascot } from "./mascot";
 import { RelatedWork, SourceFlag, useSourceSignals } from "./source-signals";
+import { CODE_COMPONENTS, REHYPE_PLUGINS, REMARK_PLUGINS, outsideMathAndCode } from "./markdown-extras";
 
 /** "[1][3]" → markdown links the renderer turns into citation chips. */
 function linkCitations(md: string): string {
-  return md.replace(/\[(\d{1,3})\](?!\()/g, (_m, n: string) => `[${n}](cite:${n})`);
+  return outsideMathAndCode(md, (t) => t.replace(/\[(\d{1,3})\](?!\()/g, (_m, n: string) => `[${n}](cite:${n})`));
 }
 
 function urlTransform(url: string): string {
@@ -303,7 +303,7 @@ export const AnswerView = memo(function AnswerView({
       thead: ({ children }) => <thead className="bg-[var(--royal-50)] text-xs uppercase tracking-[0.08em] text-[var(--royal-800)]">{children}</thead>,
       th: ({ children }) => <th className="border-b border-border/80 px-3 py-2 font-semibold">{children}</th>,
       td: ({ children }) => <td className="border-b border-border/50 px-3 py-2 align-top leading-relaxed">{children}</td>,
-      code: ({ children }) => <code className="rounded bg-muted px-1 py-0.5 font-mono text-[0.8em]">{children}</code>,
+      ...CODE_COMPONENTS,
       hr: () => <hr className="my-4 border-border/70" />,
     }),
     [byN, data, actions.onCite]
@@ -363,7 +363,7 @@ export const AnswerView = memo(function AnswerView({
       )}
 
       <div className="text-[0.95rem] text-foreground/90" aria-busy={revealing}>
-        <ReactMarkdown remarkPlugins={[remarkGfm]} urlTransform={urlTransform} components={components}>
+        <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS} urlTransform={urlTransform} components={components}>
           {linkCitations(shown)}
         </ReactMarkdown>
         {revealing && <span className="ml-0.5 inline-block h-4 w-[2px] translate-y-0.5 animate-pulse bg-primary align-baseline" aria-hidden="true" />}

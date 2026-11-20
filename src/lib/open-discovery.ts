@@ -49,7 +49,8 @@ export type DiscoverySource =
   | "eric"
   | "pubmed_central"
   | "zenodo"
-  | "core";
+  | "core"
+  | "europe_pmc";
 
 export interface DiscoveryResult {
   source: DiscoverySource;
@@ -324,6 +325,77 @@ export async function searchCore(query: string, limit = 5): Promise<DiscoveryRes
   }
 }
 
+/** Europe PMC — EMBL-EBI's free, keyless index of life-sciences
+ *  literature (PubMed, PMC, preprints, patents and more). An article with
+ *  an open-access full text in Europe PMC gets an openAccessUrl. */
+export async function searchEuropePmc(query: string, limit = 5): Promise<DiscoveryResult[]> {
+  const data = await fetchJson(
+    `https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=${encodeURIComponent(query)}&format=json&resultType=lite&pageSize=${limit}`
+  );
+  const items: any[] = Array.isArray(data?.resultList?.result) ? data.resultList.result : [];
+  return items
+    .map((doc: any): DiscoveryResult | null => {
+      const title = typeof doc?.title === "string" ? doc.title.replace(/<[^>]+>/g, "").replace(/\.$/, "").trim() : "";
+      const src = typeof doc?.source === "string" ? doc.source : null;
+      const id = typeof doc?.id === "string" ? doc.id : null;
+      if (!title || !src || !id) return null;
+      const pmcid = typeof doc.pmcid === "string" && /^PMC\d+$/.test(doc.pmcid) ? doc.pmcid : null;
+      const year = Number.parseInt(String(doc.pubYear ?? ""), 10);
+      return {
+        source: "europe_pmc",
+        title,
+        authors: typeof doc.authorString === "string" ? doc.authorString.replace(/\.$/, "") : "",
+        year: Number.isFinite(year) ? year : null,
+        venue: typeof doc.journalTitle === "string" ? doc.journalTitle : null,
+        doi: cleanDoi(doc.doi),
+        url: `https://europepmc.org/article/${encodeURIComponent(src)}/${encodeURIComponent(id)}`,
+        openAccessUrl: doc.isOpenAccess === "Y" && pmcid ? `https://europepmc.org/articles/${pmcid}` : null,
+      };
+    })
+    .filter((r): r is DiscoveryResult => r !== null)
+    .slice(0, limit);
+}
+
+// ---------------------------------------------------------------------------
+// Unpaywall: a legal open-access copy for a DOI. Free and keyless; asks for
+// a contact email on every request (the same polite-pool contact as above).
+// Cached per DOI on this server instance.
+// ---------------------------------------------------------------------------
+
+const UNPAYWALL_EMAIL = process.env.UNPAYWALL_EMAIL?.trim() || "editorial@eleventhpress.com";
+const OA_TTL_MS = 24 * 60 * 60 * 1000;
+const OA_CACHE_MAX = 2000;
+const oaCache = new Map<string, { at: number; url: string | null }>();
+
+export function __resetOpenAccessCacheForTests() {
+  oaCache.clear();
+}
+
+/** The best open-access URL Unpaywall knows for a DOI, or null. */
+export async function unpaywallUrl(doi: string): Promise<string | null> {
+  const key = doi.toLowerCase();
+  const hit = oaCache.get(key);
+  if (hit && Date.now() - hit.at < OA_TTL_MS) return hit.url;
+  const data = await fetchJson(`https://api.unpaywall.org/v2/${encodeURIComponent(key)}?email=${encodeURIComponent(UNPAYWALL_EMAIL)}`);
+  if (data === null) return null; // a failed lookup isn't cached
+  const best = data?.is_oa ? data.best_oa_location : null;
+  const raw = best?.url_for_landing_page || best?.url || best?.url_for_pdf || null;
+  const url = typeof raw === "string" && /^https?:\/\//i.test(raw) ? raw : null;
+  if (oaCache.size >= OA_CACHE_MAX) {
+    const oldest = oaCache.keys().next().value;
+    if (oldest !== undefined) oaCache.delete(oldest);
+  }
+  oaCache.set(key, { at: Date.now(), url });
+  return url;
+}
+
+/** Fills openAccessUrl from Unpaywall for results that have a DOI but no open-access link yet. */
+export async function withOpenAccessLinks(results: DiscoveryResult[]): Promise<DiscoveryResult[]> {
+  return Promise.all(
+    results.map(async (r) => (r.openAccessUrl || !r.doi ? r : { ...r, openAccessUrl: await unpaywallUrl(r.doi).catch(() => null) }))
+  );
+}
+
 export interface DiscoveryFanOut {
   /** Deduplicated by DOI (first source to surface a DOI wins), in source order. */
   results: DiscoveryResult[];
@@ -333,12 +405,13 @@ export interface DiscoveryFanOut {
 
 /** One search across every source at once, deduplicated. */
 export async function discoverAcrossSources(query: string, perSource = 5): Promise<DiscoveryFanOut> {
-  const [crossref, openalex, semanticScholar, eric, pubmedCentral, zenodo, core] = await Promise.all([
+  const [crossref, openalex, semanticScholar, eric, pubmedCentral, europePmc, zenodo, core] = await Promise.all([
     searchCrossref(query, perSource),
     searchOpenAlex(query, perSource),
     searchSemanticScholar(query, perSource),
     searchEric(query, perSource),
     searchPubMedCentral(query, perSource),
+    searchEuropePmc(query, perSource),
     searchZenodo(query, perSource),
     searchCore(query, perSource),
   ]);
@@ -348,6 +421,7 @@ export async function discoverAcrossSources(query: string, perSource = 5): Promi
     semantic_scholar: semanticScholar,
     eric,
     pubmed_central: pubmedCentral,
+    europe_pmc: europePmc,
     zenodo,
     core,
   };
