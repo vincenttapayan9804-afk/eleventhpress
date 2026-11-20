@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Clock, ListChecks, ListOrdered } from "lucide-react";
 import { APP_BASE_URL, ARTICLE_LANGUAGE, JOURNAL_IDENTITY } from "@/lib/site";
+import { searchDescription, searchTitle } from "@/lib/seo-text";
 import {
   getMediaStory,
   MEDIA_STORIES,
@@ -54,8 +55,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const image = { url: `${APP_BASE_URL}${mediaCoverPath(story)}`, width: 1200, height: 630, alt: story.cover.alt };
   const author = story.type === "NEWS" ? `Newsroom, ${JOURNAL_IDENTITY.name}` : `Editorial Office, ${JOURNAL_IDENTITY.name}`;
   return {
-    title: `${story.title} | ${JOURNAL_IDENTITY.shortName}`,
-    description: story.metaDescription,
+    title: searchTitle(story.title, [JOURNAL_IDENTITY.shortName]),
+    description: searchDescription(story.metaDescription),
     keywords: story.keywords,
     authors: [{ name: author }],
     alternates: { canonical: url },

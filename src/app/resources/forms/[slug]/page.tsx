@@ -6,6 +6,7 @@ import { ARTICLE_LANGUAGE, JOURNAL_IDENTITY } from "@/lib/site";
 import { getCurrentTenant } from "@/lib/tenant";
 import { brandCode, brandContactLine } from "@/lib/resources/tenant-brand";
 import { resourceBrandFor } from "@/lib/resources/tenant-brand-server";
+import { searchDescription, searchTitle } from "@/lib/seo-text";
 import { fmtLongDate, guideById, guidePath } from "@/lib/resources";
 import { PublicFormSubmit } from "@/components/forms/public-form-submit";
 import { FORM_ROLE_LABEL, formCitation, formPath, formPdfPath, formPlatformPath, getFormDoc } from "@/lib/forms";
@@ -33,8 +34,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!f) return { title: "Form not found" };
   const url = `${brand.baseUrl}${formPath(f)}`;
   return {
-    title: `${f.title} (${f.code}) | ${brand.publisher}`,
-    description: f.metaDescription,
+    title: searchTitle(`${f.title} (${f.code})`, [brand.publisher, brand.shortName]),
+    description: searchDescription(f.metaDescription),
     keywords: [...f.keywords, ...f.benchmarks],
     alternates: { canonical: url, types: { "application/pdf": `${brand.baseUrl}${formPdfPath(f)}` } },
     openGraph: { title: `${f.title} — Official form`, description: f.metaDescription, url, type: "article", siteName: brand.publisher, modifiedTime: f.effective },

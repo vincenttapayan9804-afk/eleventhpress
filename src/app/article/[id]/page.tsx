@@ -8,6 +8,8 @@ import { coinsSpanProps } from "@/lib/citation-export";
 import { publisherIdentityForJournal } from "@/lib/publisher-identity";
 import { tenantBaseUrl } from "@/lib/tenant";
 import { ARTICLE_LANGUAGE } from "@/lib/site";
+import { searchDescription, searchTitle } from "@/lib/seo-text";
+import { displayCase } from "@/lib/author-path";
 import { ARTICLE_LICENSE_URL, landingPageSignposts } from "@/lib/signposting";
 import { I18nProvider } from "@/components/i18n-provider";
 import { SiteHeader } from "@/components/site-header";
@@ -103,8 +105,10 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   }
 
   return {
-    title: `${article.title} — ${identity.whitelabel ? identity.shortName : identity.publisher}`,
-    description: summary,
+    // Shouting all-caps titles are shown in title case in search results;
+    // the citation_title tag above keeps the title exactly as published.
+    title: searchTitle(displayCase(article.title), identity.whitelabel ? [identity.shortName] : [identity.publisher, identity.shortName], " — "),
+    description: searchDescription(summary),
     alternates: { canonical: canonicalUrl },
     openGraph: {
       title: article.title,

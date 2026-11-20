@@ -14,6 +14,7 @@ import { ARTICLE_LANGUAGE, JOURNAL_IDENTITY } from "@/lib/site";
 import { getCurrentTenant } from "@/lib/tenant";
 import { brandCode, brandContactLine } from "@/lib/resources/tenant-brand";
 import { resourceBrandFor } from "@/lib/resources/tenant-brand-server";
+import { searchDescription, searchTitle } from "@/lib/seo-text";
 import { fmtLongDate, getGuideDoc, guideById, guideCitation, guidePath, guidePdfPath } from "@/lib/resources";
 import { ResourcePageShell, BackToResources } from "@/components/resources/resource-page-shell";
 import { FaqBlock, NumberedList, OnThisPage, SectionBlock, slugifyHeading } from "@/components/resources/content-blocks";
@@ -40,8 +41,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!g) return { title: "Guide not found" };
   const url = `${brand.baseUrl}${guidePath(g)}`;
   return {
-    title: `${g.title} (${g.code}) | ${brand.publisher}`,
-    description: g.metaDescription,
+    title: searchTitle(`${g.title} (${g.code})`, [brand.publisher, brand.shortName]),
+    description: searchDescription(g.metaDescription),
     keywords: [...g.keywords, ...g.benchmarks],
     authors: [{ name: `Editorial Office, ${brand.publisher}` }],
     alternates: { canonical: url, types: { "application/pdf": `${brand.baseUrl}${guidePdfPath(g)}` } },
