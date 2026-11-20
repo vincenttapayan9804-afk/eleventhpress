@@ -4,6 +4,8 @@ import { SpaShell } from "@/components/spa-shell";
 import { stateForPath, viewDescription, VIEW_META } from "@/lib/spa-routes";
 import { getCurrentTenant } from "@/lib/tenant";
 import { APP_BASE_URL } from "@/lib/site";
+import { SHARE_IMAGES } from "@/lib/share-image";
+import { PLATFORM_FAQS } from "@/lib/faqs";
 
 /**
  * Every page of the single-page site other than "/" — /articles, /about,
@@ -48,13 +50,85 @@ export async function generateMetadata({ params }: Props, parent: ResolvingMetad
     description,
     alternates: { canonical: `${APP_BASE_URL}${pathOf(slug)}` },
     robots: meta.index === false ? { index: false, follow: true } : undefined,
-    openGraph: { title: `${meta.title} — ${base}`, description, url: `${APP_BASE_URL}${pathOf(slug)}` },
+    openGraph: { title: `${meta.title} — ${base}`, description, url: `${APP_BASE_URL}${pathOf(slug)}`, images: SHARE_IMAGES },
+    twitter: { card: "summary_large_image", title: `${meta.title} — ${base}`, description, images: SHARE_IMAGES },
   };
+}
+
+/** schema.org page type for each section page (WebPage otherwise). */
+const PAGE_TYPES: Partial<Record<string, string>> = {
+  about: "AboutPage",
+  contact: "ContactPage",
+  faqs: "FAQPage",
+  browse: "CollectionPage",
+  books: "CollectionPage",
+  collections: "CollectionPage",
+  authors: "CollectionPage",
+  experts: "CollectionPage",
+  magazines: "CollectionPage",
+  podcasts: "CollectionPage",
+  media: "CollectionPage",
+  departments: "CollectionPage",
+  resources: "CollectionPage",
+};
+
+/**
+ * Structured data for an indexable section page: what kind of page it is,
+ * which site it belongs to, and a Home → page breadcrumb (shown in place of
+ * the bare URL in Google and Bing results). The FAQs page also carries its
+ * questions and answers as FAQPage — on the official site only, since a
+ * whitelabel tenant's FAQ copy is rewritten in its own name on the client.
+ */
+async function sectionJsonLd(path: string, view: string): Promise<string | null> {
+  const meta = VIEW_META[view as keyof typeof VIEW_META];
+  if (!meta || meta.index === false) return null;
+  const tenant = await getCurrentTenant().catch(() => null);
+  const whitelabel = !!tenant && !tenant.isPlatform;
+  const siteName = whitelabel ? tenant.siteName || tenant.name : "Eleventh Press International Publishing™";
+  const url = `${APP_BASE_URL}${path}`;
+  const type = PAGE_TYPES[view] ?? "WebPage";
+  const page: Record<string, unknown> = {
+    "@type": type === "FAQPage" && whitelabel ? "WebPage" : type,
+    "@id": `${url}#webpage`,
+    url,
+    name: meta.title,
+    description: viewDescription(meta.description, whitelabel ? siteName : null),
+    inLanguage: "en",
+    isPartOf: { "@type": "WebSite", "@id": `${APP_BASE_URL}/#website`, url: `${APP_BASE_URL}/`, name: siteName },
+    breadcrumb: { "@id": `${url}#breadcrumb` },
+  };
+  if (type === "FAQPage" && !whitelabel) {
+    page.mainEntity = PLATFORM_FAQS.map(({ q, a }) => ({
+      "@type": "Question",
+      name: q,
+      acceptedAnswer: { "@type": "Answer", text: a },
+    }));
+  }
+  const breadcrumb = {
+    "@type": "BreadcrumbList",
+    "@id": `${url}#breadcrumb`,
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: `${APP_BASE_URL}/` },
+      { "@type": "ListItem", position: 2, name: meta.title, item: url },
+    ],
+  };
+  return JSON.stringify({ "@context": "https://schema.org", "@graph": [page, breadcrumb] }).replace(/</g, "\\u003c");
 }
 
 export default async function SpaRoutePage({ params, searchParams }: Props) {
   const { slug } = await params;
-  const route = stateForPath(pathOf(slug), searchOf(await searchParams));
+  const path = pathOf(slug);
+  const route = stateForPath(path, searchOf(await searchParams));
   if (!route) notFound();
-  return <SpaShell initialRoute={route} />;
+  // Only a section's own URL (/about, /faqs …), not deeper views like /magazines/<id>.
+  const jsonLd = slug.length === 1 ? await sectionJsonLd(path, route.view).catch(() => null) : null;
+  return (
+    <>
+      {/* A plain text child, not dangerouslySetInnerHTML: React writes <script>
+          text verbatim (escaping any "</script"), and the JSON already has
+          every "<" escaped as \u003c. */}
+      {jsonLd ? <script type="application/ld+json">{jsonLd}</script> : null}
+      <SpaShell initialRoute={route} />
+    </>
+  );
 }

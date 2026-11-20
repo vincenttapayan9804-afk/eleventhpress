@@ -9,6 +9,7 @@ import { MEDIA_STORIES, mediaStoryPath } from "@/lib/media/stories";
 import { articlePath, SITEMAP_PATHS } from "@/lib/spa-routes";
 import { authorPath } from "@/lib/author-path";
 import { parseAuthors } from "@/lib/article";
+import { isSeedArticleTitle } from "@/lib/seed-content";
 
 // Next.js treats sitemap.ts as a static metadata route by default and
 // tries to prerender it at build time — this environment (like the rest of
@@ -48,8 +49,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })
   );
 
-  // One public profile per author (src/app/authors/[slug]).
-  const authorPaths = [...new Set(articles.flatMap((a) => parseAuthors(a.authors).filter((x) => x.name).map((x) => authorPath(x))))];
+  // One public profile per author (src/app/authors/[slug]). The sample
+  // articles from scripts/seed.ts don't count: their bylines are made-up
+  // people with placeholder ORCID iDs, so an author listed only on those
+  // gets no sitemap entry. Anyone who also has a real article keeps theirs.
+  const authorPaths = [
+    ...new Set(
+      articles
+        .filter((a) => !isSeedArticleTitle(a.title))
+        .flatMap((a) => parseAuthors(a.authors).filter((x) => x.name).map((x) => authorPath(x)))
+    ),
+  ];
 
   // On a tenant's own domain every URL is under that domain, not eleventhpress.org.
   const base = await requestBaseUrl(tenant);

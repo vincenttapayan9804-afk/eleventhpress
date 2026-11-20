@@ -22,7 +22,14 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
   // rest of /api/ stays blocked, and every /api/ response carries
   // X-Robots-Tag: noindex (next.config.ts) so the JSON itself is never
   // listed as a page.
-  const allow = ["/", "/api/articles"];
+  //
+  // The OAI-PMH and RePEc (ReDIF) feeds are public harvesting endpoints,
+  // linked from the footer and the About page. Harvesters such as BASE,
+  // CORE and OpenAIRE honour robots.txt, so leaving them under the /api/
+  // block stopped the very services they exist for, and Bing's Site Scan
+  // reported the footer link as "Blocked by robots.txt". They stay
+  // noindex, like every /api/ response.
+  const allow = ["/", "/api/articles", "/api/oai-pmh", "/api/redif"];
   const disallow = ["/dashboard", "/admin", "/api/"];
   return {
     rules: ["Googlebot", "Bingbot", "Twitterbot", "facebookexternalhit", "*"].map((userAgent) => ({ userAgent, allow, disallow })),

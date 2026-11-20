@@ -20,7 +20,7 @@ export async function generateMetadata({ params }: { params: Promise<{ year: str
   if (!y) return { title: "Article archive" };
   return {
     title: `Articles published in ${y}`,
-    description: `Every article published in ${y}, by date of publication.`,
+    description: `Every peer-reviewed, open-access article published in ${y}, listed month by month with its authors and a link to the full article.`,
     alternates: { canonical: `/archive/${y}` },
   };
 }

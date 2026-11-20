@@ -16,22 +16,11 @@
  */
 import { db } from "../src/lib/db";
 import { deleteArticleCascade } from "../src/lib/article-delete";
+import { SEED_ARTICLE_TITLES } from "../src/lib/seed-content";
 
 const SEED_AUTHOR_EMAIL = "author@eleventhpress.org";
 
-// Verbatim from scripts/seed.ts's ARTICLES array.
-const SEED_TITLES = [
-  "Topological Signatures in Strain-Engineered Transition Metal Dichalcogenides",
-  "CRISPR-Cas12a Base Editing Rescues Splicing Defects in a Cellular Model of Cystic Fibrosis",
-  "Sparse Mixture-of-Experts Routing for Resource-Constrained Edge Inference",
-  "Gentrification, Displacement, and the Informal Care Economy in Post-2010 Lisbon",
-  "Carbon Border Adjustment Mechanisms: A General Equilibrium Assessment of Distributional Effects",
-  "Attentional Bias Modification in Subclinical Anxiety: A Pre-Registered Multi-Site Replication",
-  "Reconstructing Seasonal Snowpack Trends in the Hindu Kush-Karakoram from Sentinel-2 Time Series",
-  "A Refined Bound for the Sum-of-Digits Function in Modular Arithmetic",
-  "Quantum Metrology with Squeezed-Vacuum-Enhanced Mach-Zehnder Interferometers",
-  "Microplastic Loads in Urban Stormwater Biofilters: A Six-City Comparative Audit",
-];
+const SEED_TITLES = [...SEED_ARTICLE_TITLES];
 
 interface ChildCounts {
   [table: string]: number;

@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Article archive",
-  description: "Every published article, listed by date of publication.",
+  description: "Every peer-reviewed, open-access article we have published, listed by date of publication, with links to each year's archive and every article.",
   alternates: { canonical: "/archive" },
 };
 

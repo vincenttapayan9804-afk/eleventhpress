@@ -19,6 +19,7 @@ import { fmtLongDate, getGuideDoc, guideById, guideCitation, guidePath, guidePdf
 import { ResourcePageShell, BackToResources } from "@/components/resources/resource-page-shell";
 import { FaqBlock, NumberedList, OnThisPage, SectionBlock, slugifyHeading } from "@/components/resources/content-blocks";
 import { Button } from "@/components/ui/button";
+import { SHARE_IMAGES } from "@/lib/share-image";
 
 /**
  * GET /resources/guides/[slug] — the online edition of an official
@@ -54,8 +55,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       siteName: brand.publisher,
       modifiedTime: g.effective,
       tags: g.keywords,
+      images: SHARE_IMAGES,
     },
-    twitter: { card: "summary_large_image", title: g.title, description: g.metaDescription },
+    twitter: { card: "summary_large_image", title: g.title, description: g.metaDescription, images: SHARE_IMAGES },
   };
 }
 

@@ -16,6 +16,7 @@ import { resourcesBlogVisible } from "@/lib/resources/tenant-brand-server";
 import { searchDescription, searchTitle } from "@/lib/seo-text";
 import { ResourcePageShell, BackToResources } from "@/components/resources/resource-page-shell";
 import { FaqBlock, NumberedList, OnThisPage, ReferenceList, SectionBlock, slugifyHeading } from "@/components/resources/content-blocks";
+import { SHARE_IMAGES } from "@/lib/share-image";
 
 /**
  * GET /resources/blog/[slug] — a crawlable, directly linkable Resources blog
@@ -61,8 +62,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       modifiedTime: post.dateModified,
       section: post.category,
       tags: post.keywords,
+      images: SHARE_IMAGES,
     },
-    twitter: { card: "summary_large_image", title: post.title, description: post.metaDescription },
+    twitter: { card: "summary_large_image", title: post.title, description: post.metaDescription, images: SHARE_IMAGES },
   };
 }
 
