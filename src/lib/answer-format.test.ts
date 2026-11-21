@@ -65,6 +65,7 @@ describe("tidyAnswerMarkdown", () => {
   test("a heading wrapped in bold becomes a heading", () => {
     expect(tidyAnswerMarkdown("Intro.\n\n**### Supporting evidence**\n- point")).toBe("Intro.\n\n### Supporting evidence\n- point");
     expect(tidyAnswerMarkdown("__## Limits__")).toBe("## Limits");
+    expect(tidyAnswerMarkdown("**### Research interpretation** (*AI interpretation*)")).toBe("### Research interpretation (*AI interpretation*)");
   });
   test("ordinary bold and headings are left alone", () => {
     const md = "**Key finding:** motivation rose.\n\n### Results\nText with ** stars **.";
