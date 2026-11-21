@@ -77,6 +77,7 @@ export function SiteHeader() {
       label: t("about"),
       items: [
         { label: t("aboutUs"), view: "about", section: t("sectionAbout") },
+        { label: t("globalImpact"), view: "globalImpact" },
         { label: t("faqs"), view: "faqs" },
         { label: t("contact"), view: "contact" },
         { label: t("charter"), view: "charter", section: t("sectionGovernance") },
@@ -87,7 +88,7 @@ export function SiteHeader() {
         { label: t("privacy"), view: "privacy" },
         { label: t("cookies"), view: "home", href: "/cookie-policy" },
       ],
-      active: ["about", "faqs", "contact", "charter", "policies", "trust", "accessibility", "terms", "privacy"].includes(view),
+      active: ["about", "globalImpact", "faqs", "contact", "charter", "policies", "trust", "accessibility", "terms", "privacy"].includes(view),
     },
   ];
 

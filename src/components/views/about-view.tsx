@@ -15,7 +15,6 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@
 import { DOI_REGISTRAR, issnLabel } from "@/lib/site";
 import { DISCIPLINES } from "@/lib/article";
 import { DISCIPLINE_ICONS } from "@/components/discipline-icons";
-import { GlobalImpactSection } from "@/components/about/global-impact-section";
 import {
   BookOpen,
   ShieldCheck,
@@ -271,11 +270,6 @@ export function AboutView() {
           })}
         </div>
       </section>
-
-      {/* Sustainable Development & Global Impact — part of the Eleventh Press
-          infrastructure mission, so shown on every journal's About page; a
-          whitelabel tenant's page names the journal as running on it. */}
-      <GlobalImpactSection hostedJournal={whitelabel ? orgName : null} />
 
       {/* Peer Review Process */}
       <section className="mt-12">
