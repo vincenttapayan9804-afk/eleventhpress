@@ -114,8 +114,16 @@ export function ArticleChatPanelImpl({ articleId, articleTitle }: { articleId: s
     if (restored.current) saveStored(articleId, messages);
   }, [articleId, messages]);
 
-  // Leaving the page (or switching article) cancels an answer in progress.
-  useEffect(() => () => abortRef.current?.abort(), [articleId]);
+  // Leaving the page (or switching article) cancels an answer in progress,
+  // quietly: the reader isn't told "Stopped" for a chat they've left.
+  const leftRef = useRef(false);
+  useEffect(() => {
+    leftRef.current = false;
+    return () => {
+      leftRef.current = true;
+      abortRef.current?.abort();
+    };
+  }, [articleId]);
 
   /** Stops the answer being prepared (the request is cancelled on the server too). */
   const stop = useCallback(() => abortRef.current?.abort(), []);
@@ -183,7 +191,7 @@ export function ArticleChatPanelImpl({ articleId, articleTitle }: { articleId: s
       }
     } catch (e: any) {
       if (controller.signal.aborted || e?.name === "AbortError") {
-        toast("Stopped. Your question is back in the box to edit or send again.");
+        if (!leftRef.current) toast("Stopped. Your question is back in the box to edit or send again.");
       } else {
         readerError(e, UNAVAILABLE);
       }
