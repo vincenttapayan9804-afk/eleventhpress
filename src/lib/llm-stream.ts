@@ -191,6 +191,10 @@ interface AttemptState {
   /** Answer or reasoning tokens have arrived. */
   active: boolean;
   model: string;
+  /** Reasoning tokens arrived (helps explain an empty answer). */
+  reasoned?: boolean;
+  /** The provider's finish_reason, when it sent one. */
+  finishReason?: string;
 }
 
 /** A watchdog that aborts `controller` after `ms` of no activity; `poke()` resets it. */
@@ -227,7 +231,10 @@ async function streamOpenAICompatible(c: StreamCandidate, system: string, user: 
     body: JSON.stringify({
       model: c.model,
       stream: true,
-      max_tokens: opts.maxTokens,
+      // Free reasoning models spend this budget on thinking before the answer;
+      // with only the answer's budget they can stop at "length" having written
+      // nothing. Leave room for both, as the Anthropic path does.
+      max_tokens: c.openRouter ? Math.max(opts.maxTokens * 3, 8000) : opts.maxTokens,
       ...(opts.temperature !== undefined ? { temperature: opts.temperature } : {}),
       // Free reasoning models can think for a minute before writing; keep it short.
       ...(c.openRouter ? { reasoning: { effort: "low" } } : {}),
@@ -262,8 +269,13 @@ async function streamOpenAICompatible(c: StreamCandidate, system: string, user: 
       }
       if (json?.error) throw new Error(`${c.id} stream error: ${JSON.stringify(json.error).slice(0, 300)}`);
       if (typeof json?.model === "string" && json.model) state.model = json.model;
-      const delta = json?.choices?.[0]?.delta ?? {};
-      if (delta.reasoning || delta.reasoning_content) onActivity();
+      const choice = json?.choices?.[0];
+      if (typeof choice?.finish_reason === "string") state.finishReason = choice.finish_reason;
+      const delta = choice?.delta ?? {};
+      if (delta.reasoning || delta.reasoning_content) {
+        state.reasoned = true;
+        onActivity();
+      }
       if (typeof delta.content === "string" && delta.content) {
         if (state.firstTokenAt === null) state.firstTokenAt = Date.now();
         state.text += delta.content;
@@ -355,7 +367,10 @@ export async function streamChat(system: string, user: string, opts: StreamChatO
     try {
       if (c.provider === "anthropic") await streamAnthropic(c, system, user, opts, controller.signal, state, onActivity);
       else await streamOpenAICompatible(c, system, user, opts, controller.signal, state, onActivity);
-      if (!state.text.trim()) throw new Error(`${c.id} returned no answer text`);
+      if (!state.text.trim()) {
+        const why = [state.finishReason && `finish: ${state.finishReason}`, state.reasoned && "only reasoning"].filter(Boolean).join(", ");
+        throw new Error(`${c.id} returned no answer text${why ? ` (${why})` : ""}`);
+      }
       markHealthy(c.id);
       outcome = "ok";
       return result();
