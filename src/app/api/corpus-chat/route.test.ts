@@ -14,6 +14,7 @@ type LlmStreamModule = typeof import("@/lib/llm-stream");
 type ChunksModule = typeof import("@/lib/chunk-embeddings");
 type RateLimitModule = typeof import("@/lib/ratelimit");
 type DbModule = typeof import("@/lib/db");
+type RlsModule = typeof import("@/lib/db-rls");
 // Query-string specifiers bypass any mock another file registered. They are
 // held in variables so the type checker doesn't try to resolve them.
 const REAL = {
@@ -21,11 +22,13 @@ const REAL = {
   chunks: "../../../lib/chunk-embeddings.ts?real=corpus-chat-route-test",
   ratelimit: "../../../lib/ratelimit.ts?real=corpus-chat-route-test",
   db: "../../../lib/db.ts?real=corpus-chat-route-test",
+  rls: "../../../lib/db-rls.ts?real=corpus-chat-route-test",
 };
 const realLlmStream = (await import(REAL.llmStream)) as LlmStreamModule;
 const realChunks = (await import(REAL.chunks)) as ChunksModule;
 const realRateLimit = (await import(REAL.ratelimit)) as RateLimitModule;
 const realDb = (await import(REAL.db)) as DbModule;
+const realRls = (await import(REAL.rls)) as RlsModule;
 
 let active = false;
 let llmConfigured = true;
@@ -46,6 +49,13 @@ let rateLimitOverride: Record<string, unknown> | null = null;
 let rateLimitKeys: string[] = [];
 let settingsRow: Record<string, unknown> | null = null;
 let platformTenant = true;
+/** Paper mode (Ask this paper): the article's status, its passages, on-demand indexing calls. */
+let paperStatus = "PUBLISHED";
+let paperPassages: unknown[] = [];
+let paperRetrievals: { articleId: string; query: string; limit: unknown }[] = [];
+let indexCalls: string[] = [];
+/** Passages from another article mixed into an evidence reload. */
+let evidenceFromOtherArticle = false;
 /** Correction notices on the cited articles. */
 let corrections: { articleId: string; type: string; title: string; doi: string | null; issuedAt: Date }[] = [];
 
@@ -117,8 +127,29 @@ mock.module("@/lib/chunk-embeddings", () => ({
     if (!active) return realChunks.loadCorpusChunksByIds(...args);
     evidenceLoads.push(args[0]);
     evidenceWheres.push(args[1]);
-    return [{ ...PASSAGE, focused: undefined }];
+    const own = [{ ...PASSAGE, focused: undefined }];
+    return evidenceFromOtherArticle ? [...own, { ...PASSAGE, chunkId: "other", articleId: "art_2", articleTitle: "Another paper" }] : own;
   }) as unknown as ChunksModule["loadCorpusChunksByIds"],
+  retrieveChunks: (async (...args: Parameters<ChunksModule["retrieveChunks"]>) => {
+    if (!active) return realChunks.retrieveChunks(...args);
+    paperRetrievals.push({ articleId: args[0], query: String(args[1]), limit: args[2] });
+    if (retrievalFailure) throw retrievalFailure;
+    return paperPassages;
+  }) as unknown as ChunksModule["retrieveChunks"],
+  indexArticleChunks: (async (...args: Parameters<ChunksModule["indexArticleChunks"]>) => {
+    if (!active) return realChunks.indexArticleChunks(...args);
+    indexCalls.push(args[0]);
+    return { chunkCount: 0 };
+  }) as unknown as ChunksModule["indexArticleChunks"],
+}));
+
+// Paper mode looks the article up under the tenant's row-level security.
+mock.module("@/lib/db-rls", () => ({
+  ...realRls,
+  withTenantRlsContext: (async (tenantId: string | null, fn: (tx: any) => Promise<unknown>) =>
+    active
+      ? fn({ article: { findUnique: async ({ where }: any) => (where.id === "art_1" ? { id: "art_1", title: RECORD.title, status: paperStatus } : null) } })
+      : realRls.withTenantRlsContext(tenantId, fn as any)) as unknown as RlsModule["withTenantRlsContext"],
 }));
 
 // Rate limiting is covered by its own tests; other files mock it in ways
@@ -207,6 +238,14 @@ beforeEach(() => {
   settingsRow = null;
   platformTenant = true;
   corrections = [];
+  paperStatus = "PUBLISHED";
+  paperPassages = [
+    { chunkId: "p1", chunkIndex: 3, score: 1, matchType: "lexical", text: "The study surveyed 412 households in coastal districts." },
+    { chunkId: "p2", chunkIndex: 0, score: 0.5, matchType: "vector", text: "Mangrove restoration reduced storm-surge damage by 30%." },
+  ];
+  paperRetrievals = [];
+  indexCalls = [];
+  evidenceFromOtherArticle = false;
   clearAssistantSettingsCache();
   console.info = () => {};
   console.error = () => {};
@@ -630,3 +669,145 @@ describe("POST /api/corpus-chat streamed answers and the time budget", () => {
   });
 });
 
+
+/** Ask this paper: the article page's chat is Ask the Corpus in paper mode. */
+function askPaper(question = "What method did the authors use, and what was the main finding?", extra: Record<string, unknown> = {}, headers: Record<string, string> = {}) {
+  return ask(question, undefined, { articleId: "art_1", ...extra }, headers);
+}
+
+describe("POST /api/corpus-chat paper mode (Ask this paper)", () => {
+  test("answers from that article only, with numbered citations, an APA source and follow-ups", async () => {
+    chatReplies = [
+      {
+        answer: "The authors surveyed 412 households [P1]. Restoration reduced damage by 30% [P2].\n\n### References\nRivera (2026).",
+        suggestedQuestions: ["How were the 412 households sampled?"],
+      },
+    ];
+    const body = await (await askPaper()).json();
+    expect(body.mode).toBe("answered");
+    expect(body.answer).toContain("[1]");
+    expect(body.answer).toContain("[2]");
+    expect(body.answer).not.toContain("[P1]");
+    expect(body.answer).not.toMatch(/### References/);
+    expect(body.citations).toHaveLength(2);
+    expect(body.sources).toHaveLength(1);
+    expect(body.sources[0].id).toBe("art_1");
+    expect(body.sources[0].reference).toContain("Journal of Test Studies");
+    expect(body.evidence.passagesReviewed).toBe(2);
+    expect(body.evidence.articlesReviewed).toBe(1);
+    expect(body.evidenceIds).toEqual(["p1", "p2"]);
+    expect(body.suggestedQuestions).toEqual(["How were the 412 households sampled?"]);
+    expect(body.sectionArticleId).toBe("art_1");
+    expect(body.quota).toBeUndefined();
+    expect(paperRetrievals).toHaveLength(1);
+    expect(paperRetrievals[0].articleId).toBe("art_1");
+    // The journal-wide search is not used.
+    expect(retrievalCalls).toHaveLength(0);
+  });
+
+  test("the prompt is written for this one article", async () => {
+    await askPaper();
+    const { system, user } = chatCalls[0];
+    expect(system).toContain("Journal of Test Studies");
+    expect(system).toContain(RECORD.title);
+    expect(system).toContain("This article doesn't cover this.");
+    expect(system).not.toContain("Articles compared");
+    expect(user).toContain("[A1]");
+    expect(user).toContain("[P1 |");
+    expect(user).not.toContain("SCOPE:");
+  });
+
+  test("streams the answer as it is written, then the verified result", async () => {
+    const res = await askPaper(undefined, {}, { accept: "application/x-ndjson" });
+    expect(res.headers.get("content-type")).toContain("application/x-ndjson");
+    const lines = (await res.text()).trim().split("\n").map((l) => JSON.parse(l));
+    expect(lines.some((l) => l.type === "delta")).toBe(true);
+    expect(lines.find((l) => l.type === "stage" && l.stage === "searching")?.scope).toBe("this article's full text");
+    expect(lines.at(-1).type).toBe("result");
+    expect(lines.at(-1).mode).toBe("answered");
+  });
+
+  test("keeps its own per-network limit instead of the institution's hourly quota", async () => {
+    await askPaper();
+    expect(rateLimitKeys).toHaveLength(1);
+    expect(rateLimitKeys[0]).toMatch(/^article-chat:/);
+    rateLimitOverride = { ok: false, message: "Too many questions. Please wait a few minutes." };
+    const res = await askPaper();
+    expect(res.status).toBe(429);
+    expect((await res.json()).error).toBe("Too many questions. Please wait a few minutes.");
+  });
+
+  test("still works when the journal-wide assistant is switched off", async () => {
+    settingsRow = { enabled: false, logQuestions: true, updatedAt: new Date(), starterQuestions: null };
+    const body = await (await askPaper()).json();
+    expect(body.mode).toBe("answered");
+    const corpus = await (await ask()).json();
+    expect(corpus.mode).toBe("disabled");
+  });
+
+  test("“This article doesn't cover this.” marks the answer as not grounded", async () => {
+    chatReplies = [{ answer: "This article doesn't cover this. It is about mangroves." }];
+    const body = await (await askPaper("What does it say about quantum gravity?")).json();
+    expect(body.mode).toBe("answered");
+    expect(body.grounded).toBe(false);
+  });
+
+  test("regenerate reuses this article's evidence only", async () => {
+    evidenceFromOtherArticle = true;
+    const body = await (await askPaper("What did they find?", { regenerate: true, evidenceIds: ["c1", "other"] })).json();
+    expect(evidenceLoads).toEqual([["c1", "other"]]);
+    expect(paperRetrievals).toHaveLength(0);
+    expect(body.evidenceIds).toEqual(["c1"]);
+    expect(chatCalls[0].opts.temperature).toBe(0.5);
+    expect(chatCalls[0].user).toContain("regenerated answer");
+  });
+
+  test("a follow-up is retrieved together with the previous question", async () => {
+    await ask("What were its limitations?", [
+      { role: "user", content: "What instrument measured damage?" },
+      { role: "assistant", content: "A household survey [1]." },
+    ], { articleId: "art_1" });
+    expect(paperRetrievals[0].query).toContain("What were its limitations?");
+    expect(paperRetrievals[0].query).toContain("What instrument measured damage?");
+  });
+
+  test("continue analysis keeps the earlier answer's evidence from this article", async () => {
+    evidenceFromOtherArticle = true;
+    const body = await (await askPaper("Go deeper on the method", { continueOf: { question: "What method?", evidenceIds: ["c1", "other"] } })).json();
+    expect(paperRetrievals[0].query).toContain("What method?");
+    expect(body.evidenceIds).toEqual(["p1", "p2", "c1"]);
+    expect(chatCalls[0].user).toContain("CONTINUING AN ANALYSIS");
+  });
+
+  test("an article with no indexed passages is indexed on demand, then says so if it has no text", async () => {
+    paperPassages = [];
+    const body = await (await askPaper()).json();
+    expect(indexCalls).toEqual(["art_1"]);
+    expect(body.mode).toBe("not-indexed");
+    expect(body.message).toMatch(/couldn't be indexed for chat/);
+  });
+
+  test("an unpublished or unknown article is not found", async () => {
+    paperStatus = "UNDER_REVIEW";
+    expect((await askPaper()).status).toBe(404);
+    paperStatus = "PUBLISHED";
+    expect((await ask("Hi?", undefined, { articleId: "art_9" })).status).toBe(404);
+    expect((await ask("Hi?", undefined, { articleId: "../x" })).status).toBe(404);
+    expect(chatCalls).toHaveLength(0);
+  });
+
+  test("a provider failure returns this article's friendly banner, never the raw error", async () => {
+    chatFailure = new Error(RAW_ANTHROPIC_401);
+    const body = await (await askPaper()).json();
+    expect(body.mode).toBe("unavailable");
+    expect(body.message).toMatch(/unavailable for this article/);
+    expect(JSON.stringify(body)).not.toContain("x-api-key");
+  });
+
+  test("no configured provider returns the friendly banner", async () => {
+    llmConfigured = false;
+    const body = await (await askPaper()).json();
+    expect(body.mode).toBe("unavailable");
+    expect(chatCalls).toHaveLength(0);
+  });
+});

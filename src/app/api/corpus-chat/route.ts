@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { extractRequestIp } from "@/lib/institutions";
 import { checkRateLimit } from "@/lib/ratelimit";
 import { anyStreamProvider, streamChat, StreamInterruptedError, type StreamChatResult } from "@/lib/llm-stream";
-import { isGrounded, NOT_COVERED_OPENING, splitAnswer, usedPassagesFromMarkers, visibleLength, FOLLOW_UPS_MARKER } from "@/lib/answer-format";
+import { isGrounded, NOT_COVERED_OPENING, PAPER_NOT_COVERED_OPENING, splitAnswer, usedPassagesFromMarkers, visibleLength, FOLLOW_UPS_MARKER } from "@/lib/answer-format";
 import { sectionsForQuestion } from "@/lib/section-chunker";
 import { passageLocation } from "@/lib/answer-integrity";
-import { loadCorpusChunksByIds, retrieveChunksAcrossCorpus, type CorpusRetrievedChunk } from "@/lib/chunk-embeddings";
+import { indexArticleChunks, loadCorpusChunksByIds, retrieveChunks, retrieveChunksAcrossCorpus, type CorpusRetrievedChunk } from "@/lib/chunk-embeddings";
 import { db } from "@/lib/db";
+import { withTenantRlsContext } from "@/lib/db-rls";
 import { correctionWarnings, loadCorrections } from "@/lib/source-signals";
 import { getSessionFromHeaders } from "@/lib/auth";
 import { resolveTenantFromHeaders, tenantCacheControl, type TenantContext } from "@/lib/tenant";
@@ -79,6 +80,13 @@ import {
  * has (the verified answer, which replaces the streamed text). Closing the
  * connection (the reader pressed Stop) cancels the model request.
  *
+ * Paper mode ("Ask this paper" on the article page): with `articleId` in the
+ * body the same pipeline answers about that one published article only. It
+ * keeps that feature's own behaviour: its own per-network limit (8 questions
+ * per 5 minutes) instead of the institution's hourly quota, no "assistant
+ * switched off" block, a prompt written for a single paper, and on-demand
+ * indexing of an article whose passages aren't indexed yet.
+ *
  * Models come from src/lib/llm-stream.ts: a self-hosted open model, pinned
  * free OpenRouter models, then Anthropic, whichever are configured. Every
  * question has a time budget (50 s, CORPUS_CHAT_DEADLINE_MS) inside the function's
@@ -109,6 +117,16 @@ function answerDeadlineMs(): number {
   return Number.isFinite(n) && n > 0 ? Math.min(n, 55_000) : 50_000;
 }
 const MAX_EVIDENCE_IDS = 16;
+
+/** Paper mode: what readers see when no answer can be produced. */
+const PAPER_UNAVAILABLE_MESSAGE = "AI chat is temporarily unavailable for this article. Please try again in a few minutes.";
+const PAPER_TIMEOUT_MESSAGE =
+  "This question took longer than the Research Assistant's time limit. Try asking about one part of the paper, or ask again in a moment.";
+const PAPER_NOT_INDEXED_MESSAGE =
+  "This article couldn't be indexed for chat. It may have no readable galley text yet; ask an editor to check its production files.";
+/** Paper mode: passages retrieved per question, and the per-network limit. */
+const PAPER_PASSAGE_LIMIT = 8;
+const PAPER_RATE_LIMIT = { limit: 8, windowSeconds: 300 };
 
 const RECORD_SELECT = {
   ...ARTICLE_RECORD_SELECT,
@@ -200,6 +218,52 @@ const SYSTEM_PROMPT = (journalName: string) =>
     `After the answer, write a line containing only ${FOLLOW_UPS_MARKER} and then up to ${MAX_SUGGESTIONS} short, specific follow-up questions, one per line starting with "- ", about the article(s) your answer is about, each on a different part of the paper (${SECTION_NAMES.join(", ")}) or a comparison with another article in the records, naming the article by a short form of its title, using its actual content (topic, variables, setting, instruments, findings) rather than generic wording, and answerable from these records. Do not repeat the reader's question.`,
     "",
     `Output format: the answer in Markdown (no JSON, no preamble, no reference list), citing with the [P…]/[A…] markers; then the ${FOLLOW_UPS_MARKER} section. If the records don't answer the question at all, begin the answer with exactly "${NOT_COVERED_OPENING}" and then say briefly what the journal's records do cover that is closest.`,
+  ].join("\n");
+
+/** Within one paper a "comparison" or "overview" is a substantive question. */
+type PaperIntent = Exclude<QuestionIntent, "comparison" | "overview">;
+
+function paperIntent(intent: QuestionIntent): PaperIntent {
+  return intent === "bibliographic" || intent === "section" ? intent : "general";
+}
+
+const PAPER_INTENT_NOTES: Record<PaperIntent, string> = {
+  bibliographic: "Question type: a factual or bibliographic lookup. Answer briefly, without headings.",
+  section: "Question type: about a specific part of the paper. Answer from that part of the paper.",
+  general: "Question type: a substantive research question about the paper.",
+};
+
+/** Paper mode: the same rules as SYSTEM_PROMPT, written for one article. */
+const PAPER_SYSTEM_PROMPT = (journalName: string, title: string) =>
+  [
+    `You are the AI Research Assistant of ${journalName}, an academic journal, answering a reader's questions about one published article: "${title}". Use ONLY the ARTICLE RECORD ([A1]: title, authors, date, DOI, keywords, abstract) and the PASSAGES ([P1], [P2], …: excerpts of the article's full text) in the message. They are the exclusive evidence for anything you say about this article.`,
+    "",
+    "How to work: (1) work out what the reader is really asking; (2) identify the passages that bear on it and check each is actually relevant, ignoring the rest; (3) read a passage in the context of the whole article, and prefer what the article as a whole says over an isolated sentence; (4) answer, citing the evidence.",
+    "",
+    "Evidence and knowledge boundary:",
+    "- Every factual statement about the article must be supported by the record or passages. Never use outside knowledge to fill a gap, and never present general knowledge as something this article says.",
+    "- Never fabricate findings, authors, titles, dates, DOIs, statistical results, methods, quotations, page numbers, citations or references.",
+    "- Reproduce numbers, statistics, sample sizes, dates and names exactly as written; never round, convert or estimate them. Quote only words that appear verbatim in a passage.",
+    "- If the evidence only partly answers the question, answer that part and say plainly what it doesn't establish (\"The article doesn't state …\"). If the reader asks about a different paper or a topic this article doesn't cover at all, say so using the opening given under Output format.",
+    "",
+    "Citations:",
+    "- Put a citation right after every major factual claim: [P4] for a passage, [A1] for the article record, several as [P4][P7]. Cite only passage numbers that exist in the message.",
+    "- Do not write a reference list; the platform builds it from your citations and the journal's verified metadata.",
+    "",
+    "Academic standards: rigorous, objective, neutral and appropriately qualified. Preserve the authors' meaning; never exaggerate conclusions, generalise beyond the study's sample and setting, or present correlation as causation. Report significance and effect sizes as the authors give them.",
+    "Keep documented findings (what the article reports, always cited) distinct from interpretation (your own reading, only under a \"### Research interpretation\" heading, which begins \"*AI interpretation, not stated by the authors:*\").",
+    "",
+    "Response structure (Markdown), adapted to the question — never pad a simple answer:",
+    "- Simple factual or bibliographic question: one to three sentences with citations, no headings.",
+    "- Substantive question: open with the direct answer in 2–4 sentences (no heading). Then add only the sections that add value, in this order: \"### Supporting evidence\" (bullet points, each cited), \"### Research interpretation\", \"### Limitations\" (of the study, and of the evidence available here).",
+    "- Be concise: most answers fit in 150–400 words. Prefer bullet points to long paragraphs.",
+    EQUATION_AND_DIAGRAM_RULES,
+    "",
+    "Conversation: earlier turns are only for understanding references such as \"those findings\" or \"the second instrument\". Never treat an earlier answer as evidence: verify every claim against the evidence in this message.",
+    "",
+    `After the answer, write a line containing only ${FOLLOW_UPS_MARKER} and then up to ${MAX_SUGGESTIONS} short, specific follow-up questions about this article, one per line starting with "- ", each on a different part of the paper (${SECTION_NAMES.join(", ")}), using its actual content (topic, variables, setting, instruments, findings) rather than generic wording, and answerable from this article. Do not repeat the reader's question.`,
+    "",
+    `Output format: the answer in Markdown (no JSON, no preamble, no reference list), citing with the [P…]/[A…] markers; then the ${FOLLOW_UPS_MARKER} section. If this article doesn't answer the question at all, begin the answer with exactly "${PAPER_NOT_COVERED_OPENING}" and then say briefly what the article does cover that is closest.`,
   ].join("\n");
 
 /**
@@ -309,6 +373,8 @@ interface AskInput {
   settings: AssistantSettings;
   signedIn: boolean;
   quota: Quota | null;
+  /** Paper mode: the one published article the question is about. */
+  paper: { id: string; title: string } | null;
 }
 
 interface Quota {
@@ -334,27 +400,6 @@ async function checkQuota(req: NextRequest, tenant: TenantContext | null, settin
 }
 
 export async function POST(req: NextRequest) {
-  const tenant = await resolveTenantFromHeaders(req.headers).catch(() => null);
-  const settings = await getAssistantSettings(tenantScopeId(tenant));
-  if (!settings.enabled) {
-    return NextResponse.json({ mode: "disabled", message: DISABLED_MESSAGE });
-  }
-
-  const quotaCheck = await checkQuota(req, tenant, settings);
-  if (!quotaCheck.ok) {
-    const resetAt = quotaCheck.quota?.resetAt ?? null;
-    return NextResponse.json(
-      {
-        error:
-          quotaCheck.basis === "account"
-            ? `You've asked ${quotaCheck.limit} questions in the last hour, the limit for your account. You can ask again shortly.`
-            : `This network has reached its limit of ${quotaCheck.limit} questions an hour. Sign in to get your own quota, or try again shortly.`,
-        quota: quotaCheck.quota ?? { limit: quotaCheck.limit, remaining: 0, resetAt, basis: quotaCheck.basis },
-      },
-      { status: 429 }
-    );
-  }
-
   let body: {
     question?: string;
     history?: unknown;
@@ -362,11 +407,44 @@ export async function POST(req: NextRequest) {
     regenerate?: boolean;
     scope?: unknown;
     continueOf?: { question?: unknown; evidenceIds?: unknown } | null;
+    articleId?: unknown;
   };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+  const paperMode = body.articleId !== undefined && body.articleId !== null;
+
+  const tenant = await resolveTenantFromHeaders(req.headers).catch(() => null);
+  const settings = await getAssistantSettings(tenantScopeId(tenant));
+
+  // Paper mode keeps Ask this paper's own limit and is not switched off with
+  // the journal-wide assistant; everything else uses the institution's quota.
+  let quotaCheck: { quota: Quota | null; signedIn: boolean };
+  if (paperMode) {
+    const rl = await checkRateLimit(`article-chat:${extractRequestIp(req.headers)}`, PAPER_RATE_LIMIT.limit, PAPER_RATE_LIMIT.windowSeconds);
+    if (!rl.ok) return NextResponse.json({ error: rl.message }, { status: 429 });
+    quotaCheck = { quota: null, signedIn: !!getSessionFromHeaders(req.headers) };
+  } else {
+    if (!settings.enabled) {
+      return NextResponse.json({ mode: "disabled", message: DISABLED_MESSAGE });
+    }
+    const check = await checkQuota(req, tenant, settings);
+    if (!check.ok) {
+      const resetAt = check.quota?.resetAt ?? null;
+      return NextResponse.json(
+        {
+          error:
+            check.basis === "account"
+              ? `You've asked ${check.limit} questions in the last hour, the limit for your account. You can ask again shortly.`
+              : `This network has reached its limit of ${check.limit} questions an hour. Sign in to get your own quota, or try again shortly.`,
+          quota: check.quota ?? { limit: check.limit, remaining: 0, resetAt, basis: check.basis },
+        },
+        { status: 429 }
+      );
+    }
+    quotaCheck = check;
   }
 
   const question = (typeof body.question === "string" ? body.question : "").trim();
@@ -377,12 +455,31 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `question must be ${MAX_QUESTION_LENGTH} characters or fewer` }, { status: 400 });
   }
 
+  // Paper mode: the article must be published and visible to this tenant.
+  let paper: AskInput["paper"] = null;
+  if (paperMode) {
+    const articleId = typeof body.articleId === "string" && /^[\w-]{1,64}$/.test(body.articleId) ? body.articleId : null;
+    const article = articleId
+      ? await withTenantRlsContext(tenant?.id ?? null, (tx) =>
+          tx.article.findUnique({ where: { id: articleId }, select: { id: true, title: true, status: true } })
+        ).catch((e: unknown) => {
+          console.error(`[corpus-chat] paper lookup failed for article ${articleId}:`, e);
+          return undefined;
+        })
+      : null;
+    if (article === undefined) return NextResponse.json({ mode: "unavailable", message: PAPER_UNAVAILABLE_MESSAGE });
+    if (!article || article.status !== "PUBLISHED") {
+      return NextResponse.json({ error: "Article not found" }, { status: 404 });
+    }
+    paper = { id: article.id, title: article.title };
+  }
+
   const input: AskInput = {
     question,
     history: cleanHistory(body.history),
     regenerate: body.regenerate === true,
     evidenceIds: cleanSourceIds(body.evidenceIds, MAX_EVIDENCE_IDS),
-    scope: cleanScope(body.scope),
+    scope: paper ? null : cleanScope(body.scope),
     continueOf:
       body.continueOf && typeof body.continueOf.question === "string" && body.continueOf.question.trim()
         ? { question: body.continueOf.question.trim().slice(0, MAX_QUESTION_LENGTH), evidenceIds: cleanSourceIds(body.continueOf.evidenceIds, MAX_EVIDENCE_IDS) }
@@ -391,6 +488,7 @@ export async function POST(req: NextRequest) {
     settings,
     signedIn: quotaCheck.signedIn,
     quota: quotaCheck.quota,
+    paper,
   };
 
   const abort = new AbortController();
@@ -443,23 +541,67 @@ export async function POST(req: NextRequest) {
   });
 }
 
+/**
+ * Paper mode retrieval: the article's most relevant passages (hybrid keyword
+ * + semantic search over that article only). An article whose passages
+ * aren't indexed yet is indexed on demand and searched again, so a reader is
+ * never stuck waiting for the next deploy. "Continue analysis" keeps the
+ * earlier answer's evidence (this article's only) in view.
+ */
+async function retrievePaperChunks(
+  paper: { id: string; title: string },
+  question: string,
+  history: ContextTurn[],
+  continueOf: AskInput["continueOf"],
+  where: Record<string, unknown>
+): Promise<CorpusRetrievedChunk[]> {
+  const analysis = analyzeQuestion(question);
+  const previousQuestion = continueOf
+    ? continueOf.question
+    : analysis.refersToContext
+      ? [...history].reverse().find((t) => t.role === "user")?.content ?? ""
+      : "";
+  const query = [question, previousQuestion.slice(0, MAX_QUESTION_LENGTH), sectionRetrievalHints(question)]
+    .filter((part) => part.trim())
+    .join("\n");
+  const search = () => retrieveChunks(paper.id, query, PAPER_PASSAGE_LIMIT, sectionsForQuestion(question));
+  let found = await search();
+  if (found.length === 0) {
+    try {
+      const indexed = await indexArticleChunks(paper.id);
+      if (indexed.chunkCount > 0) found = await search();
+    } catch (e) {
+      console.error(`[corpus-chat] on-demand indexing failed for article ${paper.id}:`, e);
+    }
+  }
+  let chunks: CorpusRetrievedChunk[] = found.map((c) => ({ ...c, articleId: paper.id, articleTitle: paper.title, focused: true }));
+  if (continueOf?.evidenceIds.length && chunks.length) {
+    const earlier = (await loadCorpusChunksByIds(continueOf.evidenceIds, where)).filter((c) => c.articleId === paper.id);
+    const seen = new Set(chunks.map((c) => c.chunkId));
+    chunks = [...chunks, ...earlier.filter((c) => !seen.has(c.chunkId))].slice(0, PAPER_PASSAGE_LIMIT + 4);
+  }
+  return chunks;
+}
+
 /** The whole question → cited answer pipeline. Never throws: every failure is a reader-facing result. */
 async function answerQuestion(input: AskInput, emit: Emit, signal: AbortSignal, onDelta?: (text: string) => void): Promise<Record<string, unknown>> {
   const started = Date.now();
   // Stops the model at the time budget as well as when the reader presses Stop.
   const deadline = AbortSignal.timeout(answerDeadlineMs());
   const modelSignal = AbortSignal.any([signal, deadline]);
-  const { question, history, regenerate, evidenceIds, scope, continueOf, tenant, settings, quota } = input;
+  const { question, history, regenerate, evidenceIds, scope, continueOf, tenant, settings, quota, paper } = input;
   const tenantId = tenantScopeId(tenant);
   const brandTenantId = tenant && !tenant.isPlatform ? tenant.id : null;
-  const where = corpusArticleWhere(tenantId, scope);
+  // Paper mode: only that article (its tenant was checked under RLS in POST).
+  const where = paper ? { status: "PUBLISHED", id: paper.id } : corpusArticleWhere(tenantId, scope);
+  const unavailableMessage = paper ? PAPER_UNAVAILABLE_MESSAGE : UNAVAILABLE_MESSAGE;
   const log = (outcome: Parameters<typeof logResearchQuery>[0]["outcome"], extra: Partial<Parameters<typeof logResearchQuery>[0]> = {}) =>
     logResearchQuery({
       tenantId,
       signedIn: input.signedIn,
       outcome,
       latencyMs: Date.now() - started,
-      scoped: !!scope,
+      scoped: !!scope || !!paper,
       question,
       logQuestion: settings.logQuestions,
       ...extra,
@@ -469,7 +611,7 @@ async function answerQuestion(input: AskInput, emit: Emit, signal: AbortSignal, 
   if (!anyStreamProvider()) {
     console.warn("[corpus-chat] no LLM provider configured (set ANTHROPIC_API_KEY, OPENROUTER_API_KEY, or LLM_BASE_URL/LLM_API_KEY)");
     log("unavailable");
-    return withQuota({ mode: "unavailable", message: UNAVAILABLE_MESSAGE });
+    return withQuota({ mode: "unavailable", message: unavailableMessage });
   }
 
   emit("understanding");
@@ -477,14 +619,21 @@ async function answerQuestion(input: AskInput, emit: Emit, signal: AbortSignal, 
   const analysis = analyzeQuestion(question);
   const plan = retrievalPlan(analysis);
   // Chosen articles are the focus; otherwise the conversation's.
-  const contextIds = scope?.articleIds?.length ? scope.articleIds.slice(0, plan.maxFocused + 2) : resolveContextArticles(analysis, history);
+  const contextIds = paper
+    ? [paper.id]
+    : scope?.articleIds?.length
+      ? scope.articleIds.slice(0, plan.maxFocused + 2)
+      : resolveContextArticles(analysis, history);
 
   let chunks: CorpusRetrievedChunk[] = [];
   try {
-    emit("searching", scope ? { scope: describeScope(scope) } : {});
+    emit("searching", paper ? { scope: "this article's full text" } : scope ? { scope: describeScope(scope) } : {});
     // "Regenerate": the same evidence as the earlier answer.
     if (regenerate && evidenceIds.length > 0) chunks = await loadCorpusChunksByIds(evidenceIds, where);
-    if (chunks.length === 0) {
+    if (paper) chunks = chunks.filter((c) => c.articleId === paper.id);
+    if (chunks.length === 0 && paper) {
+      chunks = await retrievePaperChunks(paper, question, history, continueOf, where);
+    } else if (chunks.length === 0) {
       // A follow-up that refers back ("what were its limitations?") is also
       // retrieved with the reader's previous question, and "the same
       // author" with the authors' names.
@@ -518,9 +667,9 @@ async function answerQuestion(input: AskInput, emit: Emit, signal: AbortSignal, 
       }
     }
   } catch (e) {
-    console.error("[corpus-chat] retrieval failed:", e);
+    console.error(`[corpus-chat] retrieval failed${paper ? ` for article ${paper.id}` : ""}:`, e);
     log("unavailable");
-    return withQuota({ mode: "unavailable", message: UNAVAILABLE_MESSAGE });
+    return withQuota({ mode: "unavailable", message: unavailableMessage });
   }
   if (signal.aborted) {
     log("stopped");
@@ -529,7 +678,9 @@ async function answerQuestion(input: AskInput, emit: Emit, signal: AbortSignal, 
   if (chunks.length === 0) {
     log("not-indexed");
     return withQuota(
-      scope
+      paper
+        ? { mode: "not-indexed", message: PAPER_NOT_INDEXED_MESSAGE }
+        : scope
         ? {
             mode: "no-match",
             message: "No published articles match the scope you set. Widen it (discipline, years, issue or chosen articles) and ask again.",
@@ -593,8 +744,11 @@ async function answerQuestion(input: AskInput, emit: Emit, signal: AbortSignal, 
     ? "\n\nThis is a regenerated answer: write a fresh response from the same evidence, organised and worded independently of any earlier answer."
     : "";
 
-  const systemPrompt = SYSTEM_PROMPT(journal.name);
-  const userPrompt = `${recordsBlock}\n\n${passageBlock}${historyBlock}${resolvedBlock}${focusNote}${scopeNote}${continueNote}\n\n${INTENT_NOTES[analysis.intent]}${regenerateNote}\n\nReader's question: ${question}`;
+  // Paper mode: one article, so no reference resolution, focus or scope notes.
+  const systemPrompt = paper ? PAPER_SYSTEM_PROMPT(journal.name, paper.title) : SYSTEM_PROMPT(journal.name);
+  const contextNotes = paper ? "" : `${resolvedBlock}${focusNote}${scopeNote}`;
+  const intentNote = paper ? PAPER_INTENT_NOTES[paperIntent(analysis.intent)] : INTENT_NOTES[analysis.intent];
+  const userPrompt = `${recordsBlock}\n\n${passageBlock}${historyBlock}${contextNotes}${continueNote}\n\n${intentNote}${regenerateNote}\n\nReader's question: ${question}`;
 
   let modelInfo: { provider: string; model: string; firstTokenMs: number | null } | null = null;
   try {
@@ -606,7 +760,7 @@ async function answerQuestion(input: AskInput, emit: Emit, signal: AbortSignal, 
       shown = 0;
       written = "";
       return streamChat(systemPrompt, userPrompt, {
-        maxTokens: analysis.intent === "comparison" ? 2600 : 2000,
+        maxTokens: !paper && analysis.intent === "comparison" ? 2600 : 2000,
         temperature: regenerate ? 0.5 : 0.1,
         signal: modelSignal,
         onDelta: (text) => {
@@ -637,7 +791,7 @@ async function answerQuestion(input: AskInput, emit: Emit, signal: AbortSignal, 
         incomplete = true;
       } else if (deadline.aborted && !signal.aborted) {
         log("timeout");
-        return withQuota({ mode: "unavailable", message: TIMEOUT_MESSAGE });
+        return withQuota({ mode: "unavailable", message: paper ? PAPER_TIMEOUT_MESSAGE : TIMEOUT_MESSAGE });
       } else {
         throw e;
       }
@@ -651,7 +805,10 @@ async function answerQuestion(input: AskInput, emit: Emit, signal: AbortSignal, 
     // An answer drawn only from the article records (e.g. "who wrote X?")
     // still cites its source: the named article's opening passage.
     if (usedPassages.length === 0 && grounded) {
-      const opening = chunks.findIndex((c) => c.focused);
+      // Paper mode: the paper's earliest retrieved passage.
+      const opening = paper
+        ? chunks.reduce((best, c, i) => (c.chunkIndex < chunks[best].chunkIndex ? i : best), 0)
+        : chunks.findIndex((c) => c.focused);
       if (opening !== -1) usedPassages = [opening + 1];
     }
 
@@ -699,12 +856,12 @@ async function answerQuestion(input: AskInput, emit: Emit, signal: AbortSignal, 
     }
 
     console.info(
-      `[corpus-chat] answered by ${result.provider}/${result.model} (first text ${result.firstTokenMs ?? "–"}ms${incomplete ? ", incomplete" : ""}); intent=${analysis.intent}, context=${contextIds.length}, ${chunks.length} passages, ${cited.citations.length} citations, evidence=${verified.check.status}${scope ? ", scoped" : ""}${continueOf ? ", continued" : ""}`
+      `[corpus-chat] answered by ${result.provider}/${result.model} (first text ${result.firstTokenMs ?? "–"}ms${incomplete ? ", incomplete" : ""}); intent=${analysis.intent}, context=${contextIds.length}, ${chunks.length} passages, ${cited.citations.length} citations, evidence=${verified.check.status}${paper ? `, paper=${paper.id}` : ""}${scope ? ", scoped" : ""}${continueOf ? ", continued" : ""}`
     );
 
     // Follow-up questions about the paper the answer is about: the article
     // the reader named or referred to, otherwise the first cited source.
-    const primaryTitle = focusedTitles[0] ?? sources[0]?.title ?? chunks[0]?.articleTitle ?? null;
+    const primaryTitle = paper?.title ?? focusedTitles[0] ?? sources[0]?.title ?? chunks[0]?.articleTitle ?? null;
     const asked = [question, ...history.filter((t) => t.role === "user").map((t) => t.content)];
     const sectionQuestions = primaryTitle ? remainingSectionQuestions(primaryTitle, asked) : [];
     const suggestedQuestions = finalizeSuggestions(reply.followUps, asked, sectionQuestions);
@@ -743,7 +900,7 @@ async function answerQuestion(input: AskInput, emit: Emit, signal: AbortSignal, 
       suggestedQuestions,
       sectionQuestions,
       sectionArticle: primaryTitle ? shortTitle(primaryTitle) : null,
-      sectionArticleId: focusedIds[0] ?? sources[0]?.id ?? null,
+      sectionArticleId: paper?.id ?? focusedIds[0] ?? sources[0]?.id ?? null,
       model: result.model,
       answeredAt: new Date().toISOString(),
     });
@@ -754,13 +911,13 @@ async function answerQuestion(input: AskInput, emit: Emit, signal: AbortSignal, 
     }
     if (deadline.aborted) {
       log("timeout", { ...modelInfo });
-      return withQuota({ mode: "unavailable", message: TIMEOUT_MESSAGE });
+      return withQuota({ mode: "unavailable", message: paper ? PAPER_TIMEOUT_MESSAGE : TIMEOUT_MESSAGE });
     }
     // e.g. a 401 from a provider, an exhausted credit balance, a rate limit
     // or a malformed reply. Logged in full here; the reader gets the same
     // friendly banner as every other non-answer path.
-    console.error("[corpus-chat] chat failed:", e);
+    console.error(`[corpus-chat] chat failed${paper ? ` for article ${paper.id}` : ""}:`, e);
     log("unavailable");
-    return withQuota({ mode: "unavailable", message: UNAVAILABLE_MESSAGE });
+    return withQuota({ mode: "unavailable", message: unavailableMessage });
   }
 }

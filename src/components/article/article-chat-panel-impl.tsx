@@ -2,9 +2,12 @@
 
 // ---------------------------------------------------------------------------
 // ArticleChatPanelImpl — "Ask this paper": the AI Research Assistant scoped
-// to one article (src/app/api/articles/[id]/chat/route.ts).
+// to one article. It is Ask the Corpus in paper mode (POST /api/corpus-chat
+// with `articleId`), so both share one pipeline and every improvement to it.
 //
-// Same experience as Ask the Corpus, on the article page: the parrot
+// Same experience as Ask the Corpus, on the article page: the answer is
+// streamed as it's written (with the server's real steps and a Stop
+// button), the parrot
 // mascot, structured answers with clickable citation numbers that preview
 // the exact supporting passage, an evidence check, the verified APA
 // reference, and controls to copy, copy citations, regenerate from the
@@ -22,17 +25,20 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { apiFetch } from "@/lib/api-client";
+import { askStream } from "@/components/research-assistant/stream";
 import { sectionQuestions } from "@/lib/suggested-questions";
 import { ResearchMascot } from "@/components/research-assistant/mascot";
 import { AnswerView, type AnswerActions } from "@/components/research-assistant/answer-view";
 import { EvidencePanel, type EvidenceSelection } from "@/components/research-assistant/evidence-panel";
 import {
+  LiveAnswer,
   ReportIssueDialog,
   SectionPills,
   SuggestionList,
   Thinking,
   toAnswerData,
   type ApiAnswer,
+  type StageState,
 } from "@/components/research-assistant/chat-parts";
 import { answerAsText, citationsText, copyText, downloadReport, exportItem } from "@/components/research-assistant/actions";
 import type { AnswerData, ChatMessage } from "@/components/research-assistant/types";
@@ -40,14 +46,6 @@ import type { AnswerData, ChatMessage } from "@/components/research-assistant/ty
 const MAX_QUESTION = 800;
 const MAX_STORED_MESSAGES = 24;
 const UNAVAILABLE = "AI chat is temporarily unavailable for this article. Please try again in a few minutes.";
-
-const PAPER_STEPS = [
-  "Understanding your question…",
-  "Searching this article's full text…",
-  "Reading the most relevant passages…",
-  "Checking the evidence…",
-  "Writing a cited answer…",
-];
 
 function newId(): string {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -80,12 +78,23 @@ function saveStored(articleId: string, messages: ChatMessage[]) {
 
 type Busy = { kind: "ask" } | { kind: "regenerate"; id: string } | null;
 
+/** "Continue analysis": the earlier question and the evidence its answer used. */
+type ContinueOf = { question: string; evidenceIds: string[] };
+
+/** Asks Ask the Corpus about this one article. */
+function askPaper(articleId: string, body: Record<string, unknown>, opts: Parameters<typeof askStream>[1] = {}): Promise<ApiAnswer> {
+  return askStream({ ...body, articleId }, opts);
+}
+
 export function ArticleChatPanelImpl({ articleId, articleTitle }: { articleId: string; articleTitle: string }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState<Busy>(null);
   const [unavailable, setUnavailable] = useState<string | null>(null);
-  const [followUp, setFollowUp] = useState<string | null>(null);
+  const [followUp, setFollowUp] = useState<ContinueOf | null>(null);
+  const [stage, setStage] = useState<StageState | null>(null);
+  const [liveText, setLiveText] = useState("");
+  const abortRef = useRef<AbortController | null>(null);
   const [exporting, setExporting] = useState<string | null>(null);
   const [selection, setSelection] = useState<EvidenceSelection | null>(null);
   const [reportFor, setReportFor] = useState<ChatMessage | null>(null);
@@ -104,6 +113,20 @@ export function ArticleChatPanelImpl({ articleId, articleTitle }: { articleId: s
   useEffect(() => {
     if (restored.current) saveStored(articleId, messages);
   }, [articleId, messages]);
+
+  // Leaving the page (or switching article) cancels an answer in progress,
+  // quietly: the reader isn't told "Stopped" for a chat they've left.
+  const leftRef = useRef(false);
+  useEffect(() => {
+    leftRef.current = false;
+    return () => {
+      leftRef.current = true;
+      abortRef.current?.abort();
+    };
+  }, [articleId]);
+
+  /** Stops the answer being prepared (the request is cancelled on the server too). */
+  const stop = useCallback(() => abortRef.current?.abort(), []);
 
   const starters = useMemo(() => sectionQuestions(articleTitle), [articleTitle]);
   const lastAssistant = useMemo(() => [...messages].reverse().find((m) => m.role === "assistant"), [messages]);
@@ -133,32 +156,51 @@ export function ArticleChatPanelImpl({ articleId, articleTitle }: { articleId: s
     const question = text.trim().slice(0, MAX_QUESTION);
     if (!question || busy) return;
     const prior = historyBefore(messages);
+    const continuing = followUp;
     const userMsg: ChatMessage = { id: newId(), role: "user", content: question, createdAt: new Date().toISOString() };
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setFollowUp(null);
     setUnavailable(null);
     setBusy({ kind: "ask" });
+    setStage({ stage: "sending" });
+    setLiveText("");
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const restore = () => {
+      setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
+      setInput((cur) => (cur.trim() ? cur : question));
+      setFollowUp(continuing);
+    };
     scrollToEnd();
     try {
-      const res = await apiFetch<ApiAnswer>(`/api/articles/${articleId}/chat`, {
-        method: "POST",
-        body: JSON.stringify({ question, history: prior }),
-      });
+      const res = await askPaper(
+        articleId,
+        { question, history: prior, ...(continuing ? { continueOf: continuing } : {}) },
+        { signal: controller.signal, onStage: setStage, onDelta: (t) => setLiveText((prev) => prev + t) }
+      );
       if (res.mode === "answered" && res.answer) {
-        const answer: ChatMessage = { id: newId(), role: "assistant", content: res.answer, createdAt: new Date().toISOString(), data: toAnswerData(res) };
+        const data: AnswerData = { ...toAnswerData(res), continued: continuing?.question ?? null };
+        const answer: ChatMessage = { id: newId(), role: "assistant", content: res.answer, createdAt: new Date().toISOString(), data };
         setMessages((prev) => [...prev, answer]);
+      } else if (res.mode === "stopped") {
+        restore();
       } else {
         setUnavailable(res.message || UNAVAILABLE);
-        setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
-        setInput(question);
+        restore();
       }
     } catch (e: any) {
-      readerError(e, UNAVAILABLE);
-      setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
-      setInput(question);
+      if (controller.signal.aborted || e?.name === "AbortError") {
+        if (!leftRef.current) toast("Stopped. Your question is back in the box to edit or send again.");
+      } else {
+        readerError(e, UNAVAILABLE);
+      }
+      restore();
     } finally {
+      if (abortRef.current === controller) abortRef.current = null;
       setBusy(null);
+      setStage(null);
+      setLiveText("");
     }
   }
 
@@ -168,26 +210,32 @@ export function ArticleChatPanelImpl({ articleId, articleTitle }: { articleId: s
     const i = messages.findIndex((m) => m.id === q.id);
     setBusy({ kind: "regenerate", id: answer.id });
     setUnavailable(null);
+    const controller = new AbortController();
+    abortRef.current = controller;
     try {
-      const res = await apiFetch<ApiAnswer>(`/api/articles/${articleId}/chat`, {
-        method: "POST",
-        body: JSON.stringify({
+      const res = await askPaper(
+        articleId,
+        {
           question: q.content,
           history: historyBefore(messages.slice(0, i)),
           evidenceIds: answer.data?.evidenceIds ?? [],
           regenerate: true,
-        }),
-      });
+        },
+        { signal: controller.signal }
+      );
       if (res.mode === "answered" && res.answer) {
-        const data = toAnswerData(res);
+        const data: AnswerData = { ...toAnswerData(res), continued: answer.data?.continued ?? null };
         setMessages((prev) => prev.map((m) => (m.id === answer.id ? { ...m, content: res.answer!, data, createdAt: new Date().toISOString() } : m)));
         toast.success("Answer regenerated from the same evidence.");
-      } else {
+      } else if (res.mode !== "stopped") {
         toast.error(res.message || "The answer couldn't be regenerated right now.");
       }
     } catch (e: any) {
-      toast.error(e?.status && e.status < 500 && e.message ? e.message : "The answer couldn't be regenerated right now.");
+      if (!controller.signal.aborted) {
+        toast.error(e?.status && e.status < 500 && e.message ? e.message : "The answer couldn't be regenerated right now.");
+      }
     } finally {
+      if (abortRef.current === controller) abortRef.current = null;
       setBusy(null);
     }
   }
@@ -248,7 +296,8 @@ export function ArticleChatPanelImpl({ articleId, articleTitle }: { articleId: s
       },
       onReport: () => setReportFor(m),
       onContinue: () => {
-        setFollowUp(questionFor(m)?.content ?? null);
+        const q = questionFor(m);
+        setFollowUp(q ? { question: q.content, evidenceIds: m.data?.evidenceIds ?? [] } : null);
         textareaRef.current?.focus();
       },
     };
@@ -332,7 +381,12 @@ export function ArticleChatPanelImpl({ articleId, articleTitle }: { articleId: s
             )
           )}
 
-          {busy?.kind === "ask" && <Thinking steps={PAPER_STEPS} label="The Research Assistant is reading this paper" />}
+          {busy?.kind === "ask" && (
+            <>
+              <Thinking stage={stage} onStop={stop} label="The Research Assistant is reading this paper" />
+              {liveText.trim() && <LiveAnswer text={liveText} />}
+            </>
+          )}
 
           {showFollowUps && lastAssistant?.data && (
             <div className="space-y-5 rounded-2xl border border-dashed border-border/90 p-4">
@@ -348,7 +402,7 @@ export function ArticleChatPanelImpl({ articleId, articleTitle }: { articleId: s
               <div className="mb-2 flex items-center gap-2 rounded-lg bg-primary/[0.06] px-3 py-1.5 text-[0.72rem] text-foreground">
                 <CornerDownRight className="h-3.5 w-3.5 flex-shrink-0 text-primary" />
                 <span className="truncate">
-                  Continuing the analysis of: <span className="font-medium">{followUp}</span>
+                  Continuing the analysis of: <span className="font-medium">{followUp.question}</span>
                 </span>
                 <button type="button" onClick={() => setFollowUp(null)} className="ml-auto rounded p-0.5 text-muted-foreground hover:text-foreground" aria-label="Dismiss">
                   <X className="h-3.5 w-3.5" />

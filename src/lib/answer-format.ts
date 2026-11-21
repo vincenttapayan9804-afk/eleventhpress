@@ -14,6 +14,9 @@ export const FOLLOW_UPS_MARKER = "FOLLOW-UPS:";
 /** Opening the model is told to use when the records don't answer the question at all. */
 export const NOT_COVERED_OPENING = "The journal's records don't cover this.";
 
+/** The same, for a question about one article (Ask this paper). */
+export const PAPER_NOT_COVERED_OPENING = "This article doesn't cover this.";
+
 const MARKER_LINE = /(^|\n)[ \t>*_#-]*FOLLOW[- ]?UPS:?[ \t*_]*(?=\n|$)/i;
 
 /**
@@ -73,5 +76,5 @@ export function usedPassagesFromMarkers(answer: string): number[] {
 /** False when the model said the records don't answer the question. */
 export function isGrounded(answer: string): boolean {
   const opening = answer.trim().replace(/[’‘]/g, "'").toLowerCase();
-  return !opening.startsWith(NOT_COVERED_OPENING.toLowerCase().replace(/\.$/, ""));
+  return ![NOT_COVERED_OPENING, PAPER_NOT_COVERED_OPENING].some((o) => opening.startsWith(o.toLowerCase().replace(/\.$/, "")));
 }
