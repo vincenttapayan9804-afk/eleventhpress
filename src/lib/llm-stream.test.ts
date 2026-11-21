@@ -127,7 +127,33 @@ describe("streamChat", () => {
     expect(seen).toEqual(["Hello ", "world"]);
     expect(r).toMatchObject({ text: "Hello world", provider: "oss-free", model: "pinned/model:free", attempts: 1 });
     expect(calls[0].url).toBe("https://openrouter.ai/api/v1/chat/completions");
-    expect(calls[0].body).toMatchObject({ model: "pinned/model:free", stream: true, max_tokens: 100, temperature: 0.1 });
+    expect(calls[0].body).toMatchObject({ model: "pinned/model:free", stream: true, max_tokens: 8000, temperature: 0.1 });
+  });
+
+  test("a model that only reasons is skipped with the reason, and the next one answers", async () => {
+    process.env.OPENROUTER_API_KEY = "or-key";
+    process.env.OPENROUTER_MODELS = "thinker/model:free,writer/model:free";
+    const enc = new TextEncoder();
+    const onlyReasoning = () =>
+      new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(enc.encode(`data: ${JSON.stringify({ choices: [{ delta: { reasoning: "hmm" } }] })}\n\n`));
+          controller.enqueue(enc.encode(`data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: "length" }] })}\n\n`));
+          controller.enqueue(enc.encode("data: [DONE]\n\n"));
+          controller.close();
+        },
+      });
+    const warn = console.warn;
+    const warnings: string[] = [];
+    console.warn = (...a: unknown[]) => void warnings.push(a.map(String).join(" "));
+    try {
+      fakeFetch((_url, body) => new Response((body as { model: string }).model.startsWith("thinker") ? onlyReasoning() : sse(["answer"])));
+      const r = await streamChat("s", "u", { maxTokens: 50 });
+      expect(r).toMatchObject({ text: "answer", attempts: 2 });
+      expect(warnings.join("\n")).toContain("returned no answer text (finish: length, only reasoning)");
+    } finally {
+      console.warn = warn;
+    }
   });
 
   test("a self-hosted server that is down falls through to OpenRouter, and is then skipped for a while", async () => {
