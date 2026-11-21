@@ -225,7 +225,10 @@ export function CorpusChatPanel({ open, onOpenChange }: { open: boolean; onOpenC
   const [small, setSmall] = useState(false);
   const [exporting, setExporting] = useState<string | null>(null);
   const [reportFor, setReportFor] = useState<ChatMessage | null>(null);
-  const [renaming, setRenaming] = useState<{ id: string; value: string } | null>(null);
+  // Where the name is being edited: the conversation list or the header. Only
+  // that one box renders; two would both autofocus, and the list box's blur
+  // (which saves) would close the editor the moment the header box opened.
+  const [renaming, setRenaming] = useState<{ id: string; value: string; where: "list" | "header" } | null>(null);
   const renameCancelled = useRef(false);
   const [editing, setEditing] = useState<{ id: string; value: string } | null>(null);
   const [collectionFor, setCollectionFor] = useState<{ conversationId: string; messageId: string; current: string | null } | null>(null);
@@ -914,11 +917,11 @@ export function CorpusChatPanel({ open, onOpenChange }: { open: boolean; onOpenC
                       c.id === activeId ? "bg-white/[0.12]" : "hover:bg-white/[0.06]"
                     )}
                   >
-                    {renaming?.id === c.id ? (
+                    {renaming?.id === c.id && renaming.where === "list" ? (
                       <input
                         autoFocus
                         value={renaming.value}
-                        onChange={(e) => setRenaming({ id: c.id, value: e.target.value })}
+                        onChange={(e) => setRenaming({ id: c.id, value: e.target.value, where: "list" })}
                         onBlur={() => void saveRename(c.id, renaming.value)}
                         onKeyDown={(e) => {
                           if (e.key === "Enter") {
@@ -949,7 +952,7 @@ export function CorpusChatPanel({ open, onOpenChange }: { open: boolean; onOpenC
                         {c.match && <span className="mt-0.5 line-clamp-2 block text-xs leading-snug text-white/65">{c.match}</span>}
                       </button>
                     )}
-                    {renaming?.id !== c.id && (
+                    {!(renaming?.id === c.id && renaming.where === "list") && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <button
@@ -961,7 +964,7 @@ export function CorpusChatPanel({ open, onOpenChange }: { open: boolean; onOpenC
                           </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-44">
-                          <DropdownMenuItem onClick={() => setRenaming({ id: c.id, value: c.title })}>
+                          <DropdownMenuItem onClick={() => setRenaming({ id: c.id, value: c.title, where: "list" })}>
                             <Pencil className="mr-2 h-3.5 w-3.5" /> Rename
                           </DropdownMenuItem>
                           <DropdownMenuItem
@@ -1206,7 +1209,7 @@ export function CorpusChatPanel({ open, onOpenChange }: { open: boolean; onOpenC
               {activeId && (
                 <button
                   type="button"
-                  onClick={() => setRenaming({ id: activeId, value: title })}
+                  onClick={() => setRenaming({ id: activeId, value: title, where: "header" })}
                   className="hidden rounded-md p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground lg:inline-flex"
                   aria-label="Rename conversation"
                   title="Rename conversation"
@@ -1293,12 +1296,12 @@ export function CorpusChatPanel({ open, onOpenChange }: { open: boolean; onOpenC
               </DialogPrimitive.Close>
             </header>
 
-            {renaming && renaming.id === activeId && (
+            {renaming && renaming.id === activeId && renaming.where === "header" && (
               <div className="flex items-center gap-2 border-b border-border/70 bg-muted/40 px-5 py-2">
                 <input
                   autoFocus
                   value={renaming.value}
-                  onChange={(e) => setRenaming({ id: renaming.id, value: e.target.value })}
+                  onChange={(e) => setRenaming({ id: renaming.id, value: e.target.value, where: "header" })}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();

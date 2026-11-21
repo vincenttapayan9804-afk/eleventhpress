@@ -16,11 +16,19 @@ export const NOT_COVERED_OPENING = "The journal's records don't cover this.";
 
 const MARKER_LINE = /(^|\n)[ \t>*_#-]*FOLLOW[- ]?UPS:?[ \t*_]*(?=\n|$)/i;
 
+/**
+ * Repairs Markdown slips free models make that would show as raw symbols:
+ * a heading wrapped in bold ("**### Supporting evidence**") becomes a heading.
+ */
+export function tidyAnswerMarkdown(md: string): string {
+  return md.replace(/^[ \t]*(\*\*|__)[ \t]*(#{1,6})[ \t]+(.+?)[ \t]*\1[ \t]*$/gm, "$2 $3");
+}
+
 /** Splits a complete reply into the answer and its follow-up questions. */
 export function splitAnswer(reply: string): { answer: string; followUps: string[] } {
   const m = MARKER_LINE.exec(reply);
-  if (!m) return { answer: reply.trim(), followUps: [] };
-  const answer = reply.slice(0, m.index).trim();
+  if (!m) return { answer: tidyAnswerMarkdown(reply.trim()), followUps: [] };
+  const answer = tidyAnswerMarkdown(reply.slice(0, m.index).trim());
   const followUps = reply
     .slice(m.index + m[0].length)
     .split("\n")

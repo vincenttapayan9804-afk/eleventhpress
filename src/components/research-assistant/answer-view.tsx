@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { tidyAnswerMarkdown } from "@/lib/answer-format";
 import { INTENT_LABEL, type AnswerCitation, type AnswerData, type ChatMessage } from "./types";
 import { ResearchMascot } from "./mascot";
 import { RelatedWork, SourceFlag, useSourceSignals } from "./source-signals";
@@ -44,7 +45,7 @@ import { CODE_COMPONENTS, REHYPE_PLUGINS, REMARK_PLUGINS, outsideMathAndCode } f
 
 /** "[1][3]" → markdown links the renderer turns into citation chips. */
 function linkCitations(md: string): string {
-  return outsideMathAndCode(md, (t) => t.replace(/\[(\d{1,3})\](?!\()/g, (_m, n: string) => `[${n}](cite:${n})`));
+  return outsideMathAndCode(tidyAnswerMarkdown(md), (t) => t.replace(/\[(\d{1,3})\](?!\()/g, (_m, n: string) => `[${n}](cite:${n})`));
 }
 
 function urlTransform(url: string): string {
@@ -258,6 +259,8 @@ export const AnswerView = memo(function AnswerView({
   const byN = useMemo(() => new Map(data.citations.map((c) => [c.n, c])), [data.citations]);
   const badge = evidenceBadge(data, scope);
   const BadgeIcon = badge.icon;
+  const evidenceCheckRef = useRef<HTMLDivElement>(null);
+  const hasWarnings = !revealing && !!data.evidence && data.evidence.warnings.length > 0;
   const primary = data.sources[0];
   const signals = useSourceSignals(revealing ? [] : data.sources);
   const signalOf = (id: string) => (signals.state?.status === "ready" ? signals.state.byId.get(id) : undefined);
@@ -317,10 +320,27 @@ export const AnswerView = memo(function AnswerView({
           {data.intent ? INTENT_LABEL[data.intent] : "Research answer"}
         </span>
         <span className="h-1 w-1 rounded-full bg-border" aria-hidden="true" />
-        <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium", badge.cls)}>
-          <BadgeIcon className="h-3 w-3" aria-hidden="true" />
-          {badge.label}
-        </span>
+        {hasWarnings ? (
+          // "Review details" reads as an action, so it is one: it brings the Evidence check into view.
+          <button
+            type="button"
+            onClick={() => {
+              const el = evidenceCheckRef.current;
+              el?.scrollIntoView({ behavior: "smooth", block: "center" });
+              el?.focus({ preventScroll: true });
+            }}
+            title="Show what to review"
+            className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", badge.cls)}
+          >
+            <BadgeIcon className="h-3 w-3" aria-hidden="true" />
+            {badge.label}
+          </button>
+        ) : (
+          <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium", badge.cls)}>
+            <BadgeIcon className="h-3 w-3" aria-hidden="true" />
+            {badge.label}
+          </span>
+        )}
         {data.coverage && scope === "journal" ? (
           <CoverageMeter data={data} scope={scope} />
         ) : data.evidence?.passagesReviewed ? (
@@ -369,8 +389,8 @@ export const AnswerView = memo(function AnswerView({
         {revealing && <span className="ml-0.5 inline-block h-4 w-[2px] translate-y-0.5 animate-pulse bg-primary align-baseline" aria-hidden="true" />}
       </div>
 
-      {!revealing && data.evidence && data.evidence.warnings.length > 0 && (
-        <div className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/[0.07] px-3.5 py-2.5 text-[0.8rem] leading-relaxed text-amber-900 dark:text-amber-200">
+      {hasWarnings && data.evidence && (
+        <div ref={evidenceCheckRef} tabIndex={-1} className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/[0.07] px-3.5 py-2.5 text-[0.8rem] leading-relaxed text-amber-900 dark:text-amber-200">
           <p className="mb-1 flex items-center gap-1.5 font-semibold">
             <ShieldAlert className="h-3.5 w-3.5" aria-hidden="true" /> Evidence check
           </p>
