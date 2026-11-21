@@ -18,6 +18,7 @@ const ENV_KEYS = [
   "AIRGAPPED_MODE",
   "LLM_FIRST_TOKEN_TIMEOUT_MS",
   "LLM_STALL_TIMEOUT_MS",
+  "LLM_THINK_TIMEOUT_MS",
 ] as const;
 const saved: Record<string, string | undefined> = {};
 const realFetch = globalThis.fetch;
@@ -118,6 +119,37 @@ describe("streamCandidates", () => {
 });
 
 describe("streamChat", () => {
+  test("the openrouter/free router gets a second try, since it picks another model", async () => {
+    process.env.OPENROUTER_API_KEY = "or-key";
+    let n = 0;
+    const calls = fakeFetch(() => (++n === 1 ? new Response("rate limited", { status: 429 }) : new Response(sse(["second pick"]))));
+    const r = await streamChat("s", "u", { maxTokens: 50 });
+    expect(r).toMatchObject({ text: "second pick", attempts: 2 });
+    expect(calls.map((c) => c.body.model)).toEqual(["openrouter/free", "openrouter/free"]);
+  });
+
+  test("a model that only thinks past the limit is abandoned for the next one", async () => {
+    process.env.OPENROUTER_API_KEY = "or-key";
+    process.env.OPENROUTER_MODELS = "slow/thinker:free,fast/writer:free";
+    process.env.LLM_THINK_TIMEOUT_MS = "300";
+    const enc = new TextEncoder();
+    const thinksForever = (signal: AbortSignal) =>
+      new ReadableStream<Uint8Array>({
+        start(controller) {
+          const t = setInterval(() => controller.enqueue(enc.encode(`data: ${JSON.stringify({ choices: [{ delta: { reasoning: "…" } }] })}\n\n`)), 50);
+          signal.addEventListener("abort", () => {
+            clearInterval(t);
+            controller.error(signal.reason);
+          });
+        },
+      });
+    const started = Date.now();
+    fakeFetch((_url, body, init) => new Response(body.model.startsWith("slow") ? thinksForever(init.signal as AbortSignal) : sse(["done"])));
+    const r = await streamChat("s", "u", { maxTokens: 50 });
+    expect(r).toMatchObject({ text: "done", attempts: 2 });
+    expect(Date.now() - started).toBeLessThan(3000);
+  });
+
   test("streams the deltas and reports the model that answered", async () => {
     process.env.OPENROUTER_API_KEY = "or-key";
     process.env.OPENROUTER_MODELS = "pinned/model:free";

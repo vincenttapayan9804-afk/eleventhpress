@@ -95,6 +95,12 @@ function numberEnv(name: string, fallback: number): number {
 const FIRST_ACTIVITY_MS = () => numberEnv("LLM_FIRST_TOKEN_TIMEOUT_MS", 15_000);
 /** Silence this long once a stream has started: treat it as stalled. */
 const STALL_MS = () => numberEnv("LLM_STALL_TIMEOUT_MS", 20_000);
+/**
+ * A model that is still only thinking (no answer text) this long after the
+ * request is abandoned for the next one: some free reasoning models think
+ * until they run out of tokens and never write an answer.
+ */
+const THINK_LIMIT_MS = () => numberEnv("LLM_THINK_TIMEOUT_MS", 18_000);
 /** How long a failed provider is skipped. */
 const CIRCUIT_OPEN_MS = () => numberEnv("LLM_CIRCUIT_OPEN_MS", 60_000);
 
@@ -335,7 +341,9 @@ export async function streamChat(system: string, user: string, opts: StreamChatO
   }
 
   const healthy = all.filter((c) => !isOpen(c.id));
-  const order = healthy.length ? healthy : all;
+  // The openrouter/free router picks a different free model on each request,
+  // so a second try often lands on one that answers.
+  const order = (healthy.length ? healthy : all).flatMap((c) => (c.openRouter && c.model === DEFAULT_OSS_MODEL ? [c, c] : [c]));
   const errors: string[] = [];
   for (let i = 0; i < order.length; i++) {
     const c = order[i];
@@ -345,6 +353,9 @@ export async function streamChat(system: string, user: string, opts: StreamChatO
     opts.signal?.addEventListener("abort", onOuterAbort, { once: true });
     const state: AttemptState = { text: "", firstTokenAt: null, active: false, model: c.model };
     const dog = watchdog(controller, FIRST_ACTIVITY_MS);
+    const thinkLimit = setTimeout(() => {
+      if (!state.text) controller.abort(new Error(`${c.id} was still thinking after ${Math.round(THINK_LIMIT_MS() / 1000)}s with no answer`));
+    }, THINK_LIMIT_MS());
     const onActivity = () => {
       if (!state.active) {
         state.active = true;
@@ -383,7 +394,7 @@ export async function streamChat(system: string, user: string, opts: StreamChatO
         throw new StreamInterruptedError(opts.signal?.aborted ? "stopped" : message, result());
       }
       if (opts.signal?.aborted) throw e;
-      markFailed(c.id, controller.signal.aborted ? `no response within ${Math.round(FIRST_ACTIVITY_MS() / 1000)}s` : message);
+      markFailed(c.id, message);
       errors.push(`${c.id}: ${message}`);
       console.warn(`[llm-stream] ${c.id} failed, trying the next provider:`, message);
     } finally {
@@ -396,6 +407,7 @@ export async function streamChat(system: string, user: string, opts: StreamChatO
       span.setStatus({ code: outcome === "ok" ? 1 : 2, message: outcome });
       span.end();
       dog.stop();
+      clearTimeout(thinkLimit);
       opts.signal?.removeEventListener("abort", onOuterAbort);
     }
   }
