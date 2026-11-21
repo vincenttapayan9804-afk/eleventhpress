@@ -272,9 +272,10 @@ export function AboutView() {
         </div>
       </section>
 
-      {/* Sustainable Development & Global Impact — Eleventh Press's own
-          commitments, so not shown on a whitelabel tenant's About page. */}
-      {!whitelabel && <GlobalImpactSection />}
+      {/* Sustainable Development & Global Impact — part of the Eleventh Press
+          infrastructure mission, so shown on every journal's About page; a
+          whitelabel tenant's page names the journal as running on it. */}
+      <GlobalImpactSection hostedJournal={whitelabel ? orgName : null} />
 
       {/* Peer Review Process */}
       <section className="mt-12">
