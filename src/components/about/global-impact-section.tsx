@@ -103,10 +103,22 @@ const INITIATIVES: { icon: typeof Globe2; name: string; status: Status; desc: st
   },
 ];
 
-export function GlobalImpactSection() {
+/**
+ * @param hostedJournal On a whitelabel tenant's About page, the journal's
+ *   name: the commitments below belong to the Eleventh Press infrastructure
+ *   the journal is published on, and the section says so rather than
+ *   implying the journal itself signed them.
+ */
+export function GlobalImpactSection({ hostedJournal = null }: { hostedJournal?: string | null }) {
   return (
     <section className="mt-12" id="global-impact" data-testid="about-global-impact">
       <h2 className="font-display text-2xl font-semibold">Sustainable Development &amp; Global Impact</h2>
+      {hostedJournal && (
+        <p className="mt-2 max-w-3xl text-sm font-medium leading-relaxed text-foreground/85" data-testid="global-impact-hosted">
+          {hostedJournal} is published on the Eleventh Press International Publishing™ infrastructure, which
+          carries the commitments below.
+        </p>
+      )}
       <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground text-justify">
         Eleventh Press International Publishing™ is committed to accelerating progress toward the United
         Nations Sustainable Development Goals through barrier-free, peer-reviewed scholarship. This is also
