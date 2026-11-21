@@ -28,6 +28,7 @@ export type ViewKey =
   | "privacy"
   | "terms"
   | "accessibility"
+  | "globalImpact"
   | "trust"
   | "contact"
   | "adminPortal"

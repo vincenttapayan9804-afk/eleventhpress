@@ -28,6 +28,7 @@ import {
   PrivacyView,
   TermsView,
   AccessibilityView,
+  GlobalImpactView,
   TrustView,
   ContactView,
   AdminPortalView,
@@ -58,7 +59,7 @@ const CorpusChatWidget = dynamic(() => import("@/components/corpus-chat-widget")
 // the client to apply the route from the URL first.
 const SSR_SAFE_VIEWS = new Set([
   "home", "browse", "books", "about", "login", "register", "collections", "authors", "experts",
-  "charter", "faqs", "policies", "privacy", "terms", "accessibility", "trust", "contact", "magazines", "podcasts",
+  "charter", "faqs", "policies", "privacy", "terms", "accessibility", "globalImpact", "trust", "contact", "magazines", "podcasts",
   "media", "departments", "resources", "pricing",
 ]);
 
@@ -215,6 +216,7 @@ export function SpaShell({ initialRoute }: { initialRoute?: RouteState }) {
               {renderView && view === "privacy" && <PrivacyView />}
               {renderView && view === "terms" && <TermsView />}
               {renderView && view === "accessibility" && <AccessibilityView />}
+              {renderView && view === "globalImpact" && <GlobalImpactView />}
               {renderView && view === "trust" && <TrustView />}
               {renderView && view === "contact" && <ContactView />}
               {renderView && view === "adminPortal" && <AdminPortalView />}
