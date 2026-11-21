@@ -21,7 +21,11 @@ const MARKER_LINE = /(^|\n)[ \t>*_#-]*FOLLOW[- ]?UPS:?[ \t*_]*(?=\n|$)/i;
  * a heading wrapped in bold ("**### Supporting evidence**") becomes a heading.
  */
 export function tidyAnswerMarkdown(md: string): string {
-  return md.replace(/^[ \t]*(\*\*|__)[ \t]*(#{1,6})[ \t]+(.+?)[ \t]*\1[ \t]*$/gm, "$2 $3");
+  // "**### Title**" and "**### Title** (more text)": the heading keeps the
+  // rest of the line; the stray bold markers go.
+  return md.replace(/^[ \t]*(\*\*|__)[ \t]*(#{1,6})[ \t]+(.+?)[ \t]*\1(.*)$/gm, (_m, _b, hashes: string, title: string, rest: string) =>
+    `${hashes} ${title}${rest.trimEnd()}`
+  );
 }
 
 /** Splits a complete reply into the answer and its follow-up questions. */
