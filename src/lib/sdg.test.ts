@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { DISCIPLINES } from "@/lib/article";
-import { SDG_GOALS, SDG_POSTER, sdgGoal, sdgLabel, suggestSdgs } from "./sdg";
+import { MAX_SDG_TAGS, SDG_GOALS, SDG_POSTER, parseSdgGoals, sdgGoal, sdgLabel, suggestSdgs } from "./sdg";
 
 describe("SDG_GOALS", () => {
   test("has the 17 goals in order, each with an official icon on disk", () => {
@@ -68,5 +68,19 @@ describe("suggestSdgs", () => {
   test("uses the discipline to break ties", () => {
     const s = suggestSdgs({ keywords: "migration, labor market", discipline: "Business" });
     expect(s[0].number).toBe(8);
+  });
+});
+
+describe("parseSdgGoals", () => {
+  test("keeps whole numbers 1-17, once each, in order, up to the limit", () => {
+    expect(parseSdgGoals([13, 4, 13, 0, 18, 2.5, "6", " 7 ", "x", null])).toEqual([13, 4, 6].slice(0, MAX_SDG_TAGS));
+    expect(parseSdgGoals([1, 2, 3, 4, 5])).toHaveLength(MAX_SDG_TAGS);
+  });
+
+  test("reads the stored JSON column and treats anything else as none", () => {
+    expect(parseSdgGoals("[3,9]")).toEqual([3, 9]);
+    expect(parseSdgGoals("not json")).toEqual([]);
+    expect(parseSdgGoals(null)).toEqual([]);
+    expect(parseSdgGoals({ 0: 4 })).toEqual([]);
   });
 });

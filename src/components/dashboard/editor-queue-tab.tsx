@@ -38,6 +38,9 @@ import {
 import type { ArticleStatus } from "@/lib/article";
 import { TriagePanel } from "@/components/dashboard/triage-panel";
 import { ManuscriptChecksPanel } from "@/components/dashboard/manuscript-checks-panel";
+import { SdgConfirmPanel, SdgStatusChip } from "@/components/sdg/sdg-confirm-panel";
+import { SdgReviewList } from "@/components/sdg/sdg-review-list";
+import { parseSdgGoals } from "@/lib/sdg";
 import {
   ListChecks,
   Clock,
@@ -110,6 +113,8 @@ export function EditorQueueTab({ queue, stats, onRefresh }: Props) {
         </div>
       )}
 
+      <SdgReviewList queue={queue} />
+
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">{queue.length} manuscript{queue.length === 1 ? "" : "s"}</p>
         <div className="flex rounded-md border border-border p-0.5 text-xs" role="group" aria-label="Layout">
@@ -179,6 +184,9 @@ export function EditorQueueTab({ queue, stats, onRefresh }: Props) {
                         <span className="text-[0.65rem] text-muted-foreground">
                           Submitted {a.submittedAt ? new Date(a.submittedAt).toLocaleDateString() : "—"}
                         </span>
+                        {a.sdgStatus === "PROPOSED" && a.status !== "PUBLISHED" && (
+                          <SdgStatusChip status="PROPOSED" goals={parseSdgGoals(a.sdgGoals)} />
+                        )}
                       </div>
                       <h3 className="mt-2 font-display text-base font-semibold leading-snug">
                         {a.title}
@@ -884,6 +892,11 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
                   <p className="eyebrow mb-1">Abstract</p>
                   <p className="text-xs leading-relaxed text-foreground/80">{article.abstract}</p>
                 </div>
+
+                <Separator />
+                <SdgConfirmPanel key={article.id} article={article} onConfirmed={onRefresh} />
+                <Separator />
+
                 <RevisionHistory articleId={article.id} />
               </div>
             </ScrollArea>
@@ -1169,6 +1182,12 @@ function ArticleDialog({ article, onClose, onRefresh }: { article: any | null; o
             easy to miss). */}
         {action && action !== DELETE_ACTION && (
           <div className="flex-shrink-0 border-t border-border bg-primary/5 p-3">
+            {(action === "PUBLISH" || action === "ACCEPT") && article.sdgStatus === "PROPOSED" && (
+              <p className="mb-2 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200" data-testid="sdg-publish-reminder">
+                The author&rsquo;s UN SDGs are still waiting for your confirmation (Overview tab). Unconfirmed goals are not
+                shown on the published article.
+              </p>
+            )}
             <Label className="text-xs">Editorial note (optional)</Label>
             <Textarea
               rows={2}

@@ -138,6 +138,35 @@ export function sdgLabel(n: number): string {
   return g ? `UN SDG ${g.number}: ${g.title}` : "";
 }
 
+/** Most goals one article can carry, for authors and editors alike. */
+export const MAX_SDG_TAGS = 3;
+
+export type SdgStatus = "NONE" | "PROPOSED" | "CONFIRMED";
+
+/**
+ * Cleans goal numbers from a request body or the stored JSON column:
+ * whole numbers 1–17 only, no repeats, original order, at most
+ * MAX_SDG_TAGS. Anything unreadable becomes [].
+ */
+export function parseSdgGoals(raw: unknown): number[] {
+  let v = raw;
+  if (typeof v === "string") {
+    try {
+      v = JSON.parse(v);
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(v)) return [];
+  const out: number[] = [];
+  for (const x of v) {
+    const n = typeof x === "string" && /^\d+$/.test(x.trim()) ? Number(x) : x;
+    if (typeof n === "number" && Number.isInteger(n) && n >= 1 && n <= 17 && !out.includes(n)) out.push(n);
+    if (out.length === MAX_SDG_TAGS) break;
+  }
+  return out;
+}
+
 export interface SdgSuggestionInput {
   title?: string | null;
   abstract?: string | null;
