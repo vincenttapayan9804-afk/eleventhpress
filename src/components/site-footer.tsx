@@ -147,9 +147,9 @@ export function SiteFooter() {
             <div>
               <p className="eyebrow mb-3">{t("policiesLabel")}</p>
               <ul className="space-y-2.5 text-sm text-muted-foreground">
-                <li>{t("policyOpenAccess")}</li>
-                <li>{t("policyPeerReview")}</li>
-                <li>{t("policyCrossref", { registrar: DOI_REGISTRAR })}</li>
+                <li><a href="/policies/open-access" data-testid="footer-policy-open-access" className="underline-offset-2 hover:text-primary hover:underline transition-colors">{t("policyOpenAccess")}</a></li>
+                <li><a href="/policies/peer-review" data-testid="footer-policy-peer-review" className="underline-offset-2 hover:text-primary hover:underline transition-colors">{t("policyPeerReview")}</a></li>
+                <li><a href="/policies/doi-deposit" data-testid="footer-policy-doi-deposit" className="underline-offset-2 hover:text-primary hover:underline transition-colors">{t("policyCrossref", { registrar: DOI_REGISTRAR })}</a></li>
                 <li>
                   <SpaLink
                     to={{ view: "privacy" }}
@@ -160,7 +160,7 @@ export function SiteFooter() {
                     {t("policyGdpr")}
                   </SpaLink>
                 </li>
-                <li>{t("policyPci")}</li>
+                <li><a href="/policies/payment-security" data-testid="footer-policy-payment-security" className="underline-offset-2 hover:text-primary hover:underline transition-colors">{t("policyPci")}</a></li>
                 <li>
                   <SpaLink
                     to={{ view: "terms" }}
