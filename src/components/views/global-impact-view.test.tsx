@@ -19,6 +19,8 @@ describe("Sustainable Development & Global Impact page", () => {
     expect(html).toContain("Institutional declaration of support");
     expect(html).toContain(SDG_ATTRIBUTION);
     expect(html).toContain("SDG Publishers Compact");
+    expect(html).toContain("has applied to join the SDG Publishers Compact");
+    expect(html).not.toContain(">Signatory<");
     expect(html).toContain("Global missions &amp; initiatives");
     expect(html).toContain(SDG_UN_DISCLAIMER);
     expect(html).not.toContain("has not been approved by the United Nations");

@@ -12,10 +12,11 @@
  * row, so it opens where the reader clicked. #sdg-N links open a goal.
  *
  * Honesty rule for the initiatives list: each one carries the status that is
- * actually true ("Signatory", "Supporter", "Aligned", "Follows",
- * "Integrated"). A formal membership or signatory badge is only added once
- * the publisher has signed (the SDG Publishers Compact: signed, badge
- * supplied by the publisher).
+ * actually true ("Application submitted", "Signatory", "Supporter",
+ * "Aligned", "Follows", "Integrated"). Eleventh Press is described as a
+ * member or signatory only once the organisation has confirmed it. SDG
+ * Publishers Compact: applied (badge supplied by the publisher); switch the
+ * card to STATUS_STYLE.Signatory / "Signatory" once membership is confirmed.
  *
  * The SDG poster includes the SDG logo/colour wheel, so the required
  * attribution line (SDG_ATTRIBUTION) sits directly beneath it.
@@ -29,12 +30,13 @@ import { SDG_ATTRIBUTION, SDG_GOALS, SDG_POSTER, sdgGoal } from "@/lib/sdg";
 import { SDG_DECLARATION, SDG_STATEMENT_FACTS, SDG_STATEMENTS, SDG_UN_DISCLAIMER } from "@/lib/sdg-statements";
 import { useTenantBranding, isWhitelabel } from "@/lib/tenant-branding-context";
 
-type Status = "Signatory" | "Supporter" | "Aligned" | "Follows" | "Integrated";
+type Status = "Applied" | "Signatory" | "Supporter" | "Aligned" | "Follows" | "Integrated";
 
 /** Official SDG Publishers Compact badge (UN / International Publishers Association), shown as supplied. */
 const PUBLISHERS_COMPACT_BADGE = "/sdg/sdg-publishers-compact.svg";
 
 const STATUS_STYLE: Record<Status, string> = {
+  Applied: "border-primary/40 bg-primary/10 text-primary",
   Signatory: "border-primary/40 bg-primary/10 text-primary",
   Supporter: "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-950 dark:text-emerald-200",
   Aligned: "border-sky-300 bg-sky-50 text-sky-800 dark:border-sky-700 dark:bg-sky-950 dark:text-sky-200",
@@ -375,11 +377,11 @@ export function GlobalImpactContent({ hostedJournal = null }: { hostedJournal?: 
           <div className="min-w-0">
             <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
               <h3 className="font-display text-xl font-semibold">SDG Publishers Compact</h3>
-              <span className={`rounded-full border px-2 py-0.5 text-[0.65rem] font-medium ${STATUS_STYLE.Signatory}`}>Signatory</span>
+              <span className={`rounded-full border px-2 py-0.5 text-[0.65rem] font-medium ${STATUS_STYLE.Applied}`} data-testid="compact-status">Application submitted</span>
             </div>
             <p className="mt-2 text-sm leading-relaxed text-foreground/85 sm:text-justify">
-              Eleventh Press International Publishing™ is a signatory of the SDG Publishers Compact, launched by
-              the United Nations in collaboration with the International Publishers Association. Signatories
+              Eleventh Press International Publishing™ has applied to join the SDG Publishers Compact, launched
+              by the United Nations in collaboration with the International Publishers Association. Signatories
               commit to ten actions that accelerate progress on the Sustainable Development Goals by 2030 —
               among them promoting and publishing SDG-related content, raising awareness of the goals among
               staff, authors and readers, and reporting annually on progress.
@@ -405,10 +407,10 @@ export function GlobalImpactContent({ hostedJournal = null }: { hostedJournal?: 
         ))}
       </div>
       <p className="mt-3 text-xs text-muted-foreground">
-        <strong>Signatory</strong>: a formal commitment we have signed. <strong>Supporter</strong>: a public commitment we make. <strong>Aligned</strong>: our policies meet the
+        <strong>Application submitted</strong>: we have formally applied to join. <strong>Supporter</strong>: a public commitment we make. <strong>Aligned</strong>: our policies meet the
         initiative&apos;s principles. <strong>Follows</strong>: we apply its guidance. <strong>Integrated</strong>:
-        built into the platform. We show a formal membership or signatory badge only once the organisation
-        concerned has confirmed it.
+        built into the platform. We describe ourselves as a member or signatory only once the
+        organisation concerned has confirmed it.
       </p>
       </section>
 
