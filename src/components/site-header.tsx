@@ -178,7 +178,7 @@ export function SiteHeader() {
                         {item.section && (
                           <>
                             {i > 0 && <DropdownMenuSeparator />}
-                            <DropdownMenuLabel className="text-[0.65rem] font-semibold uppercase tracking-wider text-muted-foreground">
+                            <DropdownMenuLabel className="text-[0.65rem] font-bold uppercase tracking-wider text-foreground/80">
                               {item.section}
                             </DropdownMenuLabel>
                           </>
@@ -317,7 +317,7 @@ export function SiteHeader() {
                         {group.items.map((item, i) => (
                           <Fragment key={item.href ?? item.view}>
                             {item.section && i > 0 && (
-                              <p className="mt-1 px-3 pl-5 text-[0.6rem] font-semibold uppercase tracking-wider text-muted-foreground/80">
+                              <p className="mt-1 px-3 pl-5 text-[0.6rem] font-bold uppercase tracking-wider text-foreground/80">
                                 {item.section}
                               </p>
                             )}
