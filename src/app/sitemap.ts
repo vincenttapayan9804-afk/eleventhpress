@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { POLICY_SLUGS } from "@/lib/policy-pages";
 import { headers } from "next/headers";
 import { db } from "@/lib/db";
 import { requestBaseUrl, resolveTenantFromHeaders } from "@/lib/tenant";
@@ -69,6 +70,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/`, changeFrequency: "daily", priority: 1 },
     ...authorPaths.map((path) => ({ url: `${base}${path}`, changeFrequency: "weekly" as const, priority: 0.6 })),
     { url: `${base}/cookie-policy`, changeFrequency: "yearly", priority: 0.2 },
+    ...POLICY_SLUGS.map((slug) => ({ url: `${base}/policies/${slug}`, changeFrequency: "yearly" as const, priority: 0.4 })),
     ...SITEMAP_PATHS.map((path) => ({
       url: `${base}${path}`,
       changeFrequency: (path === "/articles" ? "daily" : "monthly") as "daily" | "monthly",
