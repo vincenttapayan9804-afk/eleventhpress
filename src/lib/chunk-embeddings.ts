@@ -1,6 +1,6 @@
 /**
- * RAG chunk embeddings for the "Ask this paper" chat feature
- * (src/app/api/articles/[id]/chat/route.ts).
+ * RAG chunk embeddings for the Research Assistant: Ask the Corpus and its
+ * paper mode, "Ask this paper" (src/app/api/corpus-chat/route.ts).
  *
  * Splits a published article's full galley text into passages and embeds
  * each one with a real, free, open-source sentence-embedding model

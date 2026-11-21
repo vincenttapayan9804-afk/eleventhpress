@@ -88,7 +88,6 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: Object.fromEntries(
     [
       "/api/corpus-chat",
-      "/api/articles/*/chat",
       "/api/articles/*/similar",
       "/api/search/semantic",
       "/api/recommendations",
