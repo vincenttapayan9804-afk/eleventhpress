@@ -11,6 +11,7 @@ import { formById, SUBMISSION_FORM_IDS } from "@/lib/forms";
 import { validateFormAnswers } from "@/lib/forms/validate";
 import { saveFormSubmission } from "@/lib/forms/server";
 import type { FormAnswers, OfficialFormDoc } from "@/lib/forms/types";
+import { parseSdgGoals } from "@/lib/sdg";
 
 /**
  * POST /api/articles/submit
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
     const {
       title, abstract, keywords, discipline, authors, reviewModel, manuscriptKey, manuscriptName, openReview,
       funders, apcWaiverRequested, apcWaiverReason, references, insightCategory, keyTakeaways,
-      rightsRetentionConfirmed, dataAvailabilityStatement, declarations, declarationSignedName,
+      rightsRetentionConfirmed, dataAvailabilityStatement, declarations, declarationSignedName, sdgGoals,
     } = body as {
       title: string;
       abstract: string;
@@ -57,6 +58,7 @@ export async function POST(req: NextRequest) {
       authorConflictOfInterest?: string;
       declarations?: Record<string, unknown>;
       declarationSignedName?: string;
+      sdgGoals?: unknown;
     };
 
     // Experts submit Expert Insight pieces, never ordinary RESEARCH
@@ -146,6 +148,10 @@ export async function POST(req: NextRequest) {
       ? (manuscriptKey ? manuscriptKey.replace("raw-submissions", "anonymized-manuscripts").replace(/\.([^.]+)$/, "-anon.$1") : `anonymized-manuscripts/anon-${doiSuffix}.pdf`)
       : null;
 
+    // The author's proposed UN SDGs (optional). Stored as PROPOSED until an
+    // editor confirms them; never shown publicly before that.
+    const proposedSdgs = parseSdgGoals(sdgGoals);
+
     const article = await db.article.create({
       data: {
         journalId: journal.id,
@@ -177,6 +183,8 @@ export async function POST(req: NextRequest) {
         dataAvailabilityStatement: dataAvailabilityStatement.trim(),
         authorConflictOfInterest: authorConflictOfInterest.trim(),
         submittedAt: new Date(),
+        sdgGoals: proposedSdgs.length ? JSON.stringify(proposedSdgs) : null,
+        sdgStatus: proposedSdgs.length ? "PROPOSED" : "NONE",
       },
     });
 
@@ -201,7 +209,7 @@ export async function POST(req: NextRequest) {
         entityType: "ARTICLE",
         entityId: article.id,
         articleId: article.id,
-        metadata: JSON.stringify({ title, discipline: effectiveDiscipline, contentType, doi: draftDoi, plagiarismScore }),
+        metadata: JSON.stringify({ title, discipline: effectiveDiscipline, contentType, doi: draftDoi, plagiarismScore, sdgGoals: proposedSdgs }),
       },
     });
 

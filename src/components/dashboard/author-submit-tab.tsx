@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { clearDraft, loadDraft, saveDraft, savedAgo, type SubmissionDraft } from "@/lib/submission-draft";
 import { apiFetch } from "@/lib/api-client";
 import { useApp } from "@/lib/store";
@@ -43,6 +43,8 @@ import {
   ListOrdered,
 } from "lucide-react";
 import { SubmissionDeclarations, declarationsError, type Declarations } from "@/components/forms/submission-declarations";
+import { SdgGoalPicker } from "@/components/sdg/sdg-goal-picker";
+import { parseSdgGoals, suggestSdgs } from "@/lib/sdg";
 import { DISCIPLINES, CREDIT_ROLES, INSIGHT_CATEGORIES, INSIGHT_CATEGORY_LABELS, KEY_TAKEAWAYS_COUNT, type InsightCategory } from "@/lib/article";
 
 interface Props {
@@ -98,6 +100,7 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
     rightsRetentionConfirmed: false,
     dataAvailabilityStatement: "",
     authorConflictOfInterest: "",
+    sdgGoals: [] as number[],
   });
   // The Publication Charter's mandatory "Key Takeaways" box — exactly 5
   // bullets, required for every Expert Insight, unused for RESEARCH.
@@ -120,6 +123,18 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
   const [declarations, setDeclarations] = useState<Declarations>({});
   const [declActive, setDeclActive] = useState(0);
   const [declSignedName, setDeclSignedName] = useState("");
+  // Local, non-AI goal suggestions from what the author has typed so far.
+  const sdgSuggestions = useMemo(
+    () =>
+      suggestSdgs({
+        title: form.title,
+        abstract: form.abstract,
+        keywords: form.keywords,
+        discipline: isExpert ? null : form.discipline,
+      }),
+    [form.title, form.abstract, form.keywords, form.discipline, isExpert]
+  );
+  const sdgGoals = parseSdgGoals(form.sdgGoals);
   const declAuthors = authors.map((a) => ({ name: a.name.trim() || a.email, email: a.email }));
   const [references, setReferences] = useState("");
 
@@ -347,6 +362,7 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
           method: "POST",
           body: JSON.stringify({
             ...form,
+            sdgGoals,
             // The competing-interests statement printed with the article comes from EP-F-02.
             authorConflictOfInterest: String((declarations["form-author-coi"] as any)?.statement ?? "").trim(),
             declarations,
@@ -397,6 +413,10 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
             <Row label="Open peer review" value={form.openReview ? "Enabled — reviews will be public" : "Disabled"} />
             <Row label="Rights-retention statement" value={form.rightsRetentionConfirmed ? "Confirmed" : "Not confirmed"} />
             <Row label="Data availability" value={form.dataAvailabilityStatement} />
+            <Row
+              label="UN SDGs (awaiting editor)"
+              value={sdgGoals.length ? sdgGoals.map((n) => `SDG ${n}`).join(", ") : "None selected"}
+            />
             <Row label="Conflicts of interest" value={String((declarations["form-author-coi"] as any)?.statement ?? "")} />
             <Row label="Official declarations" value="EP-F-01 to EP-F-05 signed" />
             {uploadedFile && (
@@ -404,7 +424,7 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
             )}
           </div>
           <div className="mt-6 flex justify-center gap-3">
-            <Button onClick={() => { setResult(null); setStep(1); setForm({ title: "", abstract: "", keywords: "", discipline: "Physics", insightCategory: "", reviewModel: "DOUBLE_BLIND", openReview: false, apcWaiverRequested: false, apcWaiverReason: "", rightsRetentionConfirmed: false, dataAvailabilityStatement: "", authorConflictOfInterest: "" }); setUploadedFile(null); setFunders([]); setReferences(""); setDeclarations({}); setDeclActive(0); setDeclSignedName(""); setKeyTakeaways(Array(KEY_TAKEAWAYS_COUNT).fill("")); }}>
+            <Button onClick={() => { setResult(null); setStep(1); setForm({ title: "", abstract: "", keywords: "", discipline: "Physics", insightCategory: "", reviewModel: "DOUBLE_BLIND", openReview: false, apcWaiverRequested: false, apcWaiverReason: "", rightsRetentionConfirmed: false, dataAvailabilityStatement: "", authorConflictOfInterest: "", sdgGoals: [] }); setUploadedFile(null); setFunders([]); setReferences(""); setDeclarations({}); setDeclActive(0); setDeclSignedName(""); setKeyTakeaways(Array(KEY_TAKEAWAYS_COUNT).fill("")); }}>
               Submit another
             </Button>
             <Button variant="outline" onClick={() => { onSubmitted(); openDashboard("myArticles"); }}>
@@ -776,6 +796,22 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
                   </p>
                 </div>
               )}
+              <div className="space-y-2 rounded-md border border-border p-4" data-testid="submit-sdg-section">
+                <div>
+                  <p className="font-display text-sm font-semibold">UN Sustainable Development Goals (optional)</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Which goals does your work support? Choose up to three. An editor confirms them before they appear
+                    with your published {isExpert ? "insight" : "article"}.
+                  </p>
+                </div>
+                <SdgGoalPicker
+                  idPrefix="submit-sdg"
+                  value={sdgGoals}
+                  suggestions={sdgSuggestions}
+                  onChange={(next) => setForm({ ...form, sdgGoals: next })}
+                />
+              </div>
+
               <div className="space-y-1.5">
                 <Label htmlFor="review">{isExpert ? "Council review model" : "Peer-review model"}</Label>
                 <Select value={form.reviewModel} onValueChange={(v) => setForm({ ...form, reviewModel: v })}>

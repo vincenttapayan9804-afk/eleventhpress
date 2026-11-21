@@ -496,6 +496,16 @@ model Article {
   // author/editor-triggered, never run silently.
   laySummary           String?
   aiKeywordSuggestions String? // JSON array of suggested keyword strings
+
+  // UN Sustainable Development Goals (src/lib/sdg.ts). The author proposes
+  // up to 3 goals at submission (helped by the local, non-AI suggestSdgs());
+  // an editor confirms or changes them. Only CONFIRMED goals are ever shown
+  // publicly or sent to metadata feeds. CONFIRMED with an empty list means
+  // an editor decided no goal applies. NONE | PROPOSED | CONFIRMED
+  sdgGoals         String? // JSON array of goal numbers 1–17
+  sdgStatus        String    @default("NONE")
+  sdgConfirmedAt   DateTime?
+  sdgConfirmedById String?
   statisticalFlags     String? // JSON array of {flag, severity, explanation}
   statisticalCheckedAt DateTime?
   styleFlags           String? // JSON array of {flag, severity, explanation} — house-style consistency, see checkHouseStyle()
