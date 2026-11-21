@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { isGrounded, splitAnswer, usedPassagesFromMarkers, visibleLength } from "./answer-format";
+import { isGrounded, splitAnswer, tidyAnswerMarkdown, usedPassagesFromMarkers, visibleLength } from "./answer-format";
 
 describe("splitAnswer", () => {
   test("separates the answer from its follow-up questions", () => {
@@ -58,5 +58,19 @@ describe("isGrounded", () => {
   test("anything else is grounded", () => {
     expect(isGrounded("The study found a 30% reduction [P1].")).toBe(true);
     expect(isGrounded("The journal's records don't state the sample size, but …")).toBe(true);
+  });
+});
+
+describe("tidyAnswerMarkdown", () => {
+  test("a heading wrapped in bold becomes a heading", () => {
+    expect(tidyAnswerMarkdown("Intro.\n\n**### Supporting evidence**\n- point")).toBe("Intro.\n\n### Supporting evidence\n- point");
+    expect(tidyAnswerMarkdown("__## Limits__")).toBe("## Limits");
+  });
+  test("ordinary bold and headings are left alone", () => {
+    const md = "**Key finding:** motivation rose.\n\n### Results\nText with ** stars **.";
+    expect(tidyAnswerMarkdown(md)).toBe(md);
+  });
+  test("splitAnswer tidies the answer", () => {
+    expect(splitAnswer("**### Evidence**\nA [P1].").answer).toBe("### Evidence\nA [P1].");
   });
 });

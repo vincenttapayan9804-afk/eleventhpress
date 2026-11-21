@@ -1,3 +1,4 @@
+import { decodeEntities } from "./html-entities";
 /**
  * Live cross-database literature search against free, reputable open
  * scholarly data sources. Backs the Resources → Discover tab: a reader
@@ -398,7 +399,9 @@ export async function discoverAcrossSources(query: string, perSource = 5): Promi
   const seen = new Set<string>();
   const results: DiscoveryResult[] = [];
   for (const list of Object.values(grouped)) {
-    for (const r of list) {
+    for (const raw of list) {
+      // Some indexes (ERIC, Crossref) return titles with HTML entities: "Students&apos;".
+      const r = { ...raw, title: decodeEntities(raw.title), authors: decodeEntities(raw.authors), venue: raw.venue ? decodeEntities(raw.venue) : raw.venue };
       const key = r.doi ? `doi:${r.doi.toLowerCase()}` : `${r.source}:${r.title.toLowerCase()}`;
       if (seen.has(key)) continue;
       seen.add(key);
