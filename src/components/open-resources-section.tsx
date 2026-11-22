@@ -7,7 +7,9 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { OPEN_RESOURCES, UNESCO_OA_TERMS_URL, type OpenResource } from "@/lib/open-resources";
-import { Download, ExternalLink, BookOpenCheck, Copy, Check, Scale, Info, Copyright } from "lucide-react";
+import { TAKEAWAYS_NOTICE, takeawaysFor, takeawaysPdfPath, type EditorialTakeaways } from "@/lib/open-resources-takeaways";
+import { useTenantBranding } from "@/lib/tenant-branding-context";
+import { Download, ExternalLink, BookOpenCheck, Copy, Check, Scale, Info, Copyright, PenLine, FileDown } from "lucide-react";
 
 /**
  * "Open Resources" collection on the Books page: third-party open-access
@@ -15,6 +17,11 @@ import { Download, ExternalLink, BookOpenCheck, Copy, Check, Scale, Info, Copyri
  * attribution, licence and third-party-image notices each licence requires.
  * Covers owned by third parties carry an explicit copyright attribution and
  * a restrictions notice. Data and sourcing notes: src/lib/open-resources.ts.
+ *
+ * On the Eleventh Press platform each title also carries Eleventh Press
+ * Editorial Takeaways (our own commentary, clearly labelled, with a
+ * no-endorsement notice) and a branded PDF of them. Tenant sites don't show
+ * them, as with the Resources blog. Content: src/lib/open-resources-takeaways.ts.
  */
 
 /** Shown for every cover whose image belongs to a third party. */
@@ -27,6 +34,7 @@ const COVER_RESTRICTION =
   "its open licence remains permitted.";
 export function OpenResourcesSection() {
   const [open, setOpen] = useState<OpenResource | null>(null);
+  const showTakeaways = useTenantBranding().isPlatform;
 
   return (
     <section
@@ -78,6 +86,11 @@ export function OpenResourcesSection() {
               <div className="flex flex-wrap items-center gap-1.5">
                 <Badge variant="outline" className="border-[var(--royal-300)]/30 bg-[var(--royal-100)]/50 text-[0.6rem] text-primary">{r.type}</Badge>
                 <span className="font-mono text-[0.6rem] text-muted-foreground">{r.licence.code}</span>
+                {showTakeaways && takeawaysFor(r.slug) && (
+                  <Badge variant="outline" className="border-[var(--gold-300)]/50 bg-[var(--gold-300)]/10 text-[0.6rem] text-[var(--gold-600)] dark:text-[var(--gold-300)]">
+                    <PenLine className="mr-0.5 h-2.5 w-2.5" aria-hidden /> Takeaways
+                  </Badge>
+                )}
               </div>
               <h3 className="mt-2 line-clamp-2 font-display text-sm font-semibold leading-snug">{r.title}</h3>
               {r.subtitle && <p className="mt-0.5 line-clamp-2 text-xs italic text-muted-foreground">{r.subtitle}</p>}
@@ -124,7 +137,7 @@ export function OpenResourcesSection() {
       </p>
 
       <Dialog open={!!open} onOpenChange={(v) => !v && setOpen(null)}>
-        {open && <ResourceDetail r={open} />}
+        {open && <ResourceDetail r={open} takeaways={showTakeaways ? takeawaysFor(open.slug) : null} />}
       </Dialog>
     </section>
   );
@@ -139,7 +152,63 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function ResourceDetail({ r }: { r: OpenResource }) {
+function TakeawaysPanel({ r, t }: { r: OpenResource; t: EditorialTakeaways }) {
+  return (
+    <section
+      aria-labelledby={`takeaways-${r.slug}`}
+      data-testid="editorial-takeaways"
+      className="relative overflow-hidden rounded-xl border border-[var(--gold-300)]/40 bg-gradient-to-br from-[var(--royal-100)]/60 to-[var(--gold-300)]/10 p-4 sm:p-5"
+    >
+      <span aria-hidden className="absolute inset-y-0 left-0 w-1 bg-[var(--gold-500)]" />
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="eyebrow flex items-center gap-1.5"><PenLine className="h-3.5 w-3.5" /> Editorial · {t.code}</p>
+          <h4 id={`takeaways-${r.slug}`} className="mt-1 font-display text-base font-semibold sm:text-lg">
+            Eleventh Press Editorial Takeaways
+          </h4>
+        </div>
+        <Button asChild size="sm" className="h-8 text-xs">
+          <a href={takeawaysPdfPath(r.slug)} download aria-label={`Download the Eleventh Press takeaways for ${r.title} as a PDF`}>
+            <FileDown className="mr-1.5 h-3.5 w-3.5" /> Takeaways PDF
+          </a>
+        </Button>
+      </div>
+
+      <ol className="mt-4 space-y-3">
+        {t.takeaways.map((k, i) => (
+          <li key={k.title} className="flex gap-3">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-[0.7rem] font-semibold text-primary-foreground">
+              {i + 1}
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold leading-snug">{k.title}</p>
+              <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{k.text}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+
+      <div className="mt-4 rounded-lg bg-background/70 p-3">
+        <p className="text-xs font-semibold">Why it matters: the Eleventh Press view</p>
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{t.whyItMatters}</p>
+      </div>
+
+      <div className="mt-3">
+        <p className="text-xs font-semibold">Questions for further research</p>
+        <ul className="mt-1 list-disc space-y-1 pl-5 text-xs text-muted-foreground">
+          {t.researchQuestions.map((q) => <li key={q}>{q}</li>)}
+        </ul>
+      </div>
+
+      <p className="mt-4 flex items-start gap-1.5 border-t border-[var(--royal-300)]/15 pt-3 text-[0.65rem] leading-relaxed text-muted-foreground">
+        <Info className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
+        <span>{TAKEAWAYS_NOTICE}</span>
+      </p>
+    </section>
+  );
+}
+
+function ResourceDetail({ r, takeaways }: { r: OpenResource; takeaways: EditorialTakeaways | null }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     try {
@@ -207,6 +276,8 @@ function ResourceDetail({ r }: { r: OpenResource }) {
             </ul>
             <p className="mt-2 text-xs"><span className="font-medium">Who it&apos;s for:</span> <span className="text-muted-foreground">{r.audience}</span></p>
           </div>
+
+          {takeaways && <TakeawaysPanel r={r} t={takeaways} />}
 
           <dl className="divide-y divide-[var(--royal-300)]/10 rounded-xl border border-[var(--royal-300)]/15 px-4 py-1">
             <Field label="Author(s)">{r.creators}</Field>
