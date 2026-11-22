@@ -111,7 +111,9 @@
   "books": {
     "eyebrow": "Book publishing division",
     "title": "Browse books",
-    "description": "Explore monographs, edited volumes, and anthologies from our full-stack book publishing division — real ISBNs, EPUB and print-ready PDF downloads.",
+    "description": "Explore monographs, edited volumes, and anthologies from our full-stack book publishing division — real ISBNs, EPUB and print-ready PDF downloads — plus a curated library of free, openly licensed Open Resources from trusted public institutions.",
+    "openResourcesCta": "Browse free Open Resources",
+    "catalogueTitle": "Eleventh Press catalogue",
     "searchPlaceholder": "Search title, description, or author name…",
     "allCategories": "All categories",
     "booksFound": "{count} books found",

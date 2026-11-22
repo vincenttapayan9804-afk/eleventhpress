@@ -11,6 +11,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useReveal } from "@/hooks/use-scroll-reveal";
+import { OpenResourcesSection } from "@/components/open-resources-section";
 import { Search, BookMarked, FileX, FileText, Download } from "lucide-react";
 
 const FORMAT_LABELS: Record<string, string> = {
@@ -76,7 +77,17 @@ export function BooksView() {
         <p className="eyebrow">{t("eyebrow")}</p>
         <h1 className="mt-2 font-display text-4xl font-semibold">{t("title")}</h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{t("description")}</p>
+        <a
+          href="#open-resources"
+          className="mt-4 inline-flex items-center gap-2 rounded-full border border-[var(--royal-300)]/30 bg-[var(--royal-100)]/60 px-4 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-[var(--royal-100)]"
+        >
+          <BookMarked className="h-3.5 w-3.5" /> {t("openResourcesCta")}
+        </a>
       </div>
+
+      <OpenResourcesSection />
+
+      <h2 className="mt-12 font-display text-2xl font-semibold">{t("catalogueTitle")}</h2>
 
       {/* Filters */}
       <div className="sticky top-16 z-30 mt-6">

@@ -111,7 +111,9 @@
   "books": {
     "eyebrow": "División de publicación de libros",
     "title": "Explorar libros",
-    "description": "Explora monografías, volúmenes editados y antologías de nuestra división editorial de libros — ISBN reales, descargas en EPUB y PDF listo para imprimir.",
+    "description": "Explora monografías, volúmenes editados y antologías de nuestra división editorial de libros — ISBN reales, descargas en EPUB y PDF listo para imprimir — además de una biblioteca seleccionada de Recursos Abiertos gratuitos y con licencia abierta de instituciones públicas de confianza.",
+    "openResourcesCta": "Ver Recursos Abiertos gratuitos",
+    "catalogueTitle": "Catálogo de Eleventh Press",
     "searchPlaceholder": "Buscar por título, descripción o autor…",
     "allCategories": "Todas las categorías",
     "booksFound": "{count} libros encontrados",

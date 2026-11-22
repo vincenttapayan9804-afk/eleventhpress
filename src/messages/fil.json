@@ -111,7 +111,9 @@
   "books": {
     "eyebrow": "Book publishing division",
     "title": "Tingnan ang mga aklat",
-    "description": "Tuklasin ang mga monograph, edited volume, at anthology mula sa aming book publishing division — tunay na ISBN, EPUB, at print-ready PDF downloads.",
+    "description": "Tuklasin ang mga monograph, edited volume, at anthology mula sa aming book publishing division — tunay na ISBN, EPUB, at print-ready PDF downloads — kasama ang piniling aklatan ng libre at openly licensed na Open Resources mula sa mga pinagkakatiwalaang pampublikong institusyon.",
+    "openResourcesCta": "Tingnan ang libreng Open Resources",
+    "catalogueTitle": "Katalogo ng Eleventh Press",
     "searchPlaceholder": "Maghanap sa pamagat, deskripsyon, o pangalan ng may-akda…",
     "allCategories": "Lahat ng kategorya",
     "booksFound": "{count} aklat ang nahanap",

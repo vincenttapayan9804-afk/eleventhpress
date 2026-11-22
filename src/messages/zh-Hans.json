@@ -111,7 +111,9 @@
   "books": {
     "eyebrow": "图书出版部门",
     "title": "浏览图书",
-    "description": "探索我们全流程图书出版部门出品的专著、编著文集与选集——真实 ISBN、EPUB 与可打印 PDF 下载。",
+    "description": "探索我们全流程图书出版部门出品的专著、编著文集与选集——真实 ISBN、EPUB 与可打印 PDF 下载——以及精选自可信公共机构的免费开放许可「开放资源」。",
+    "openResourcesCta": "浏览免费开放资源",
+    "catalogueTitle": "Eleventh Press 书目",
     "searchPlaceholder": "按标题、描述或作者姓名搜索……",
     "allCategories": "全部分类",
     "booksFound": "找到 {count} 本图书",
