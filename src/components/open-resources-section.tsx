@@ -6,7 +6,10 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { OPEN_RESOURCES, UNESCO_OA_TERMS_URL, type OpenResource } from "@/lib/open-resources";
+import {
+  OPEN_RESOURCES, OPEN_RESOURCE_ORGS, UNESCO_OA_TERMS_URL, isNonCommercial, isPublisherHosted, orgOf, termsFor,
+  type OpenResource,
+} from "@/lib/open-resources";
 import { TAKEAWAYS_NOTICE, takeawaysFor, takeawaysPdfPath, type EditorialTakeaways } from "@/lib/open-resources-takeaways";
 import { useTenantBranding } from "@/lib/tenant-branding-context";
 import { Download, ExternalLink, BookOpenCheck, Copy, Check, Scale, Info, Copyright, PenLine, FileDown } from "lucide-react";
@@ -32,9 +35,25 @@ const COVER_RESTRICTION =
   "on its own (for example in other publications, websites, social media, presentations, merchandise or datasets) " +
   "without prior written permission from the copyright holder. Sharing the complete, unmodified publication under " +
   "its open licence remains permitted.";
+const ALL = "All publishers";
+
+/** Download control for a title: our hosted copy, or the publisher's own copy. */
+function PdfLink({ r, className, children }: { r: OpenResource; className?: string; children: React.ReactNode }) {
+  return isPublisherHosted(r) ? (
+    <a href={r.pdfPath} target="_blank" rel="noopener noreferrer" className={className}
+      aria-label={`Download the PDF of ${r.title} from ${orgOf(r)} (opens the publisher's site)`}>
+      {children}
+    </a>
+  ) : (
+    <a href={r.pdfPath} download className={className} aria-label={`Download PDF: ${r.title}`}>{children}</a>
+  );
+}
+
 export function OpenResourcesSection() {
   const [open, setOpen] = useState<OpenResource | null>(null);
+  const [org, setOrg] = useState<string>(ALL);
   const showTakeaways = useTenantBranding().isPlatform;
+  const shown = org === ALL ? OPEN_RESOURCES : OPEN_RESOURCES.filter((r) => orgOf(r) === org);
 
   return (
     <section
@@ -49,18 +68,40 @@ export function OpenResourcesSection() {
             Free, openly licensed publications
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            A curated library of open-access reports, books, briefs and magazines from trusted public institutions,
-            free to read, download and share under each work&apos;s own open licence. Every title is provided
-            exactly as published, with full credit to its authors and publisher.
+            A curated library of open-access reports, books, guides and studies from international organisations,
+            academic publishers and research institutes, free to read, download and share under each work&apos;s own
+            open licence. Every title is provided exactly as published, with full credit to its authors and publisher.
           </p>
         </div>
         <Badge variant="outline" className="w-fit border-[var(--royal-300)]/30 bg-background/60 text-primary">
-          {OPEN_RESOURCES.length} titles · free download
+          {OPEN_RESOURCES.length} titles · {OPEN_RESOURCE_ORGS.length} publishers · free
         </Badge>
       </div>
 
+      <div role="group" aria-label="Filter by publisher" className="mt-5 flex flex-wrap gap-2">
+        {[ALL, ...OPEN_RESOURCE_ORGS].map((o) => {
+          const n = o === ALL ? OPEN_RESOURCES.length : OPEN_RESOURCES.filter((r) => orgOf(r) === o).length;
+          const active = org === o;
+          return (
+            <button
+              key={o}
+              type="button"
+              aria-pressed={active}
+              onClick={() => setOrg(o)}
+              className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+                active
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-[var(--royal-300)]/30 bg-background/60 text-foreground hover:border-primary/60"
+              }`}
+            >
+              {o} <span className={active ? "opacity-80" : "text-muted-foreground"}>· {n}</span>
+            </button>
+          );
+        })}
+      </div>
+
       <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {OPEN_RESOURCES.map((r) => (
+        {shown.map((r) => (
           <article key={r.slug} className="pearl-card flex flex-col overflow-hidden p-0">
             <button
               type="button"
@@ -75,7 +116,12 @@ export function OpenResourcesSection() {
                 decoding="async"
                 className="mx-auto aspect-[3/4] max-h-72 w-auto rounded-md object-contain sm:max-h-none sm:w-full shadow-md transition-transform duration-500 group-hover:scale-[1.03]"
               />
-              {r.coverRights && (
+              {r.coverKind === "tile" ? (
+                <span className="mt-2 flex items-start justify-center gap-1 text-center text-[0.6rem] leading-snug text-muted-foreground">
+                  <Info className="mt-px h-2.5 w-2.5 shrink-0" aria-hidden />
+                  <span>Identification tile · original cover not reproduced</span>
+                </span>
+              ) : r.coverRights && (
                 <span className="mt-2 flex items-start justify-center gap-1 text-center text-[0.6rem] leading-snug text-muted-foreground">
                   <Copyright className="mt-px h-2.5 w-2.5 shrink-0" aria-hidden />
                   <span>{r.coverRights.label} · cover image not openly licensed</span>
@@ -101,9 +147,11 @@ export function OpenResourcesSection() {
                   <Info className="mr-1 h-3 w-3" /> Details
                 </Button>
                 <Button asChild size="sm" className="h-8 flex-1 text-xs">
-                  <a href={r.pdfPath} download aria-label={`Download PDF: ${r.title}`}>
-                    <Download className="mr-1 h-3 w-3" /> PDF
-                  </a>
+                  <PdfLink r={r}>
+                    {isPublisherHosted(r)
+                      ? <><ExternalLink className="mr-1 h-3 w-3" /> PDF at {orgOf(r)}</>
+                      : <><Download className="mr-1 h-3 w-3" /> PDF</>}
+                  </PdfLink>
                 </Button>
               </div>
             </div>
@@ -115,12 +163,13 @@ export function OpenResourcesSection() {
         <Scale className="mt-0.5 h-3.5 w-3.5 shrink-0" />
         <span>
           These works are not Eleventh Press publications. They are redistributed free of charge and without modification
-          under their open licences; all rights not granted by those licences remain with their holders. Their inclusion
-          does not imply endorsement of, or affiliation with, Eleventh Press International Publishing™ by the publishers
-          or authors. Use of UNESCO works is subject to the{" "}
+          under their open licences (or, where a publisher&apos;s terms call for it, linked to the publisher&apos;s own copy);
+          all rights not granted by those licences remain with their holders. Their inclusion does not imply endorsement
+          of, or affiliation with, Eleventh Press International Publishing™ by the publishers or authors. Each title&apos;s
+          details name its licence and any publisher terms of use; use of UNESCO works is subject to the{" "}
           <a href={UNESCO_OA_TERMS_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
             UNESCO Open Access terms of use
-          </a>.
+          </a>, and titles under a NonCommercial licence are provided for non-commercial use only.
         </span>
       </p>
       <p className="mt-2 flex items-start gap-2 text-[0.7rem] leading-relaxed text-muted-foreground">
@@ -129,10 +178,12 @@ export function OpenResourcesSection() {
           <span className="font-medium text-foreground">Image rights notice.</span> Cover images and photographs credited
           to third parties (marked “cover image not openly licensed”) remain the exclusive property of their respective
           copyright holders, named in each title&apos;s details. They are excluded from the open licences and may not be
-          reused separately without the holder&apos;s prior written permission. Names, logos and emblems shown on the
-          covers, including the UNESCO, UNICEF and World Health Organization logos, the ASEAN emblem, the Education 2030
-          and Sustainable Development Goals marks and other partner and funder logos, belong to their owners, are not licensed under Creative Commons, and may not be reused without
-          their authorization.
+          reused separately without the holder&apos;s prior written permission. Where a cover may not be shown at all, a
+          plain Eleventh Press identification tile is used instead. Names, logos and emblems shown on the covers,
+          including the UNESCO, UNICEF, World Health Organization, World Bank Group, Springer Nature and Commonwealth of
+          Learning logos, the ASEAN emblem, the Education 2030 and Sustainable Development Goals marks and other partner
+          and funder logos, belong to their owners, are not licensed under Creative Commons, and may not be reused
+          without their authorization.
         </span>
       </p>
 
@@ -210,6 +261,7 @@ function TakeawaysPanel({ r, t }: { r: OpenResource; t: EditorialTakeaways }) {
 
 function ResourceDetail({ r, takeaways }: { r: OpenResource; takeaways: EditorialTakeaways | null }) {
   const [copied, setCopied] = useState(false);
+  const terms = termsFor(r);
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(r.citation);
@@ -235,8 +287,11 @@ function ResourceDetail({ r, takeaways }: { r: OpenResource; takeaways: Editoria
           {r.coverRights && (
             <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-2.5 text-[0.65rem] leading-snug">
               <p className="flex items-center gap-1 font-semibold">
-                <Copyright className="h-3 w-3" /> Cover image rights
+                <Copyright className="h-3 w-3" /> {r.coverKind === "tile" ? "Original cover image rights" : "Cover image rights"}
               </p>
+              {r.coverKind === "tile" && (
+                <p className="mt-1 text-muted-foreground">The original cover is not reproduced on this page.</p>
+              )}
               <p className="mt-1">
                 <span className="font-medium">Copyright holder:</span> {r.coverRights.owner}.
               </p>
@@ -251,11 +306,17 @@ function ResourceDetail({ r, takeaways }: { r: OpenResource; takeaways: Editoria
           )}
           <div className="flex flex-col gap-2">
             <Button asChild size="sm">
-              <a href={r.pdfPath} download><Download className="mr-1.5 h-3.5 w-3.5" /> Download PDF ({r.fileSizeMb} MB)</a>
+              <PdfLink r={r}>
+                {isPublisherHosted(r)
+                  ? <><ExternalLink className="mr-1.5 h-3.5 w-3.5" /> PDF at {orgOf(r)} ({r.fileSizeMb} MB)</>
+                  : <><Download className="mr-1.5 h-3.5 w-3.5" /> Download PDF ({r.fileSizeMb} MB)</>}
+              </PdfLink>
             </Button>
-            <Button asChild size="sm" variant="outline">
-              <a href={r.pdfPath} target="_blank" rel="noopener noreferrer"><BookOpenCheck className="mr-1.5 h-3.5 w-3.5" /> Read online</a>
-            </Button>
+            {!isPublisherHosted(r) && (
+              <Button asChild size="sm" variant="outline">
+                <a href={r.pdfPath} target="_blank" rel="noopener noreferrer"><BookOpenCheck className="mr-1.5 h-3.5 w-3.5" /> Read online</a>
+              </Button>
+            )}
             <Button asChild size="sm" variant="ghost" className="text-xs">
               <a href={r.doi ? `https://doi.org/${r.doi}` : r.sourceUrl} target="_blank" rel="noopener noreferrer">
                 <ExternalLink className="mr-1.5 h-3 w-3" /> Original source
@@ -310,21 +371,30 @@ function ResourceDetail({ r, takeaways }: { r: OpenResource; takeaways: Editoria
             <p className="mt-2">
               <span className="font-medium">{r.rightsHolder}.</span> This publication is available in Open Access under the{" "}
               <a href={r.licence.url} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">{r.licence.name} ({r.licence.code})</a>{" "}
-              licence. By using its content, users accept the{" "}
-              <a href={r.termsUrl ?? UNESCO_OA_TERMS_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">terms of use of the UNESCO Open Access Repository</a>.
+              licence.
+              {terms && (
+                <>
+                  {" "}By using its content, users accept the{" "}
+                  <a href={terms.url} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">{terms.label}</a>.
+                </>
+              )}
             </p>
+            {r.licenceSource && <p className="mt-2"><span className="font-medium">Licence source:</span> {r.licenceSource}</p>}
+            {r.extractOf && <p className="mt-2"><span className="font-medium">Chapter extract:</span> {r.extractOf}</p>}
             {r.coverRights && (
               <p className="mt-2">
                 <span className="font-medium">Cover image:</span> {r.coverRights.label}, copyright holder{" "}
                 {r.coverRights.owner}. Not covered by the open licence; all rights reserved (see “Cover image rights”).
               </p>
             )}
-            {r.licence.code.includes("NC") && (
+            {isNonCommercial(r) && (
               <p className="mt-2">This licence does not permit commercial use. Eleventh Press provides it free of charge, for non-commercial purposes only.</p>
             )}
             {r.thirdPartyNotice && <p className="mt-2">{r.thirdPartyNotice}</p>}
             <p className="mt-2">
-              Redistributed by Eleventh Press International Publishing™ without changes to the original file. The designations
+              {isPublisherHosted(r)
+                ? `Not redistributed by Eleventh Press International Publishing™: the PDF links go to ${orgOf(r)}'s own copy.`
+                : "Redistributed by Eleventh Press International Publishing™ without changes to the original file."} The designations
               employed and the presentation of material do not imply the expression of any opinion whatsoever on the part of
               the publisher concerning the legal status of any country, territory, city or area or of its authorities. The ideas
               and opinions expressed are those of the authors and do not necessarily reflect those of the publisher, nor do they

@@ -38,7 +38,7 @@ export const TAKEAWAYS_AUTHOR = withTrademark("Editorial Office, Eleventh Press 
 /** Shown with every set of takeaways, on the page and in the PDF. */
 export const TAKEAWAYS_NOTICE =
   "These takeaways are Eleventh Press's own independent reading of the publication, written in our own words. " +
-  "They are not written, reviewed or endorsed by UNESCO, the co-publishers or the authors, and they do not " +
+  "They are not written, reviewed or endorsed by the publishers, co-publishers or authors of the publication, and they do not " +
   "replace the original. Figures are reported as the publication gives them; for exact wording, data and " +
   "context, read the full publication.";
 
@@ -505,6 +505,402 @@ export const OPEN_RESOURCE_TAKEAWAYS: Record<string, EditorialTakeaways> = {
       "What is the effect of differentiated teaching on learning outcomes in large or multi-grade classes?",
       "How much planning time does differentiation take, and which tools reduce it most?",
       "How can diagnostic assessment be kept fair in multilingual classrooms?",
+    ],
+  },
+  "oecd-digital-education-outlook-2026": {
+    code: "EP-OR-15",
+    preparedOn: PREPARED,
+    takeaways: [
+      {
+        title: "Better output is not the same as more learning",
+        text: "The report's sharpest warning is that students who lean heavily on general-purpose chatbots can hand in stronger work while thinking less. When the mental effort that turns answers into understanding drops, performance and learning come apart.",
+      },
+      {
+        title: "Pedagogy-first tools outperform generic chatbots",
+        text: "Hybrid systems that pair generative AI with an explicit teaching model, such as Socratic tutoring or evidence-centred assessment design, show more promise than off-the-shelf assistants that simply supply answers.",
+      },
+      {
+        title: "Use it slowly to support creativity",
+        text: "The evidence it reviews suggests generative AI helps creativity most when it is used for iterative exploration and reflection, and can undermine original thinking when used to churn out instant content.",
+      },
+      {
+        title: "Teachers should be augmented, not replaced",
+        text: "Of three ways humans and AI can work together (replacement, complementarity and augmentation), the report favours augmentation, in which teachers and AI critique and refine each other's work while professional judgement stays with the teacher.",
+      },
+      {
+        title: "Beyond the classroom: institutions, assessment and research",
+        text: "Generative AI is already mapping course equivalencies for admissions and guidance, generating assessment items at scale and changing how education research is done, though the report stresses that human oversight remains essential.",
+      },
+    ],
+    whyItMatters:
+      "For universities and journals alike, the report gives an evidence-based vocabulary for AI policy: the question is not whether students and researchers use generative AI, but whether its use preserves the effort through which people learn and judge. That distinction should shape assessment design, author guidance and research-integrity rules.",
+    researchQuestions: [
+      "How can institutions measure the gap between AI-assisted task performance and actual learning gains?",
+      "Do purpose-built educational AI tools produce better learning outcomes than general chatbots in low-resource classrooms?",
+      "What forms of teacher–AI teaming preserve teacher agency in Philippine and ASEAN schools?",
+    ],
+  },
+  "oecd-skills-in-the-ai-age-2026": {
+    code: "EP-OR-16",
+    preparedOn: PREPARED,
+    takeaways: [
+      {
+        title: "AI adoption is accelerating, but unevenly",
+        text: "The paper reports that the share of firms using AI in OECD countries rose from about 7% to 20% between 2021 and 2025. Large firms and start-ups lead, while small businesses are held back by cost, infrastructure and a shortage of skilled staff.",
+      },
+      {
+        title: "Exposure is not the same as automation risk",
+        text: "Highly skilled occupations such as managers, professionals and engineers are the most exposed to AI, yet the least likely to be automated. Routine low- and middle-skill jobs face the higher risk of being replaced.",
+      },
+      {
+        title: "AI tends to complement work, but displacement is real",
+        text: "AI affects jobs by automating some tasks, creating new ones and raising productivity. The evidence reviewed suggests it more often complements human labour, while workers in repetitive roles remain vulnerable.",
+      },
+      {
+        title: "A broad skills mix is needed, not just coding",
+        text: "Foundational literacy and numeracy, everyday ICT skills, scarce advanced AI skills (held by around 1% of the workforce) and complementary skills such as critical thinking, creativity and collaboration all matter.",
+      },
+      {
+        title: "Six policy levers for governments",
+        text: "The paper calls for stronger education and training, lifelong learning, an ICT and AI talent pipeline, AI literacy for everyone, employer-led training and better policy co-ordination guided by labour-market data.",
+      },
+    ],
+    whyItMatters:
+      "The paper offers a clear framework for curriculum and research planning in an AI-shaped labour market. Its distinction between exposure and automation risk is especially useful for higher education institutions deciding which programmes to redesign, and for researchers studying skills mismatch in emerging economies.",
+    researchQuestions: [
+      "Which occupations in the Philippines are most exposed to generative AI, and how does that differ from their automation risk?",
+      "What barriers keep small and medium-sized enterprises in developing economies from adopting AI?",
+      "How effective are short, modular AI-literacy programmes for adult workers?",
+    ],
+  },
+  "world-development-report-2024-middle-income-trap": {
+    code: "EP-OR-17",
+    preparedOn: PREPARED,
+    takeaways: [
+      {
+        title: "Middle-income countries are in a race against time",
+        text: "The report finds that the 108 middle-income countries, home to about 6 billion people, face long odds: the economies that have reached high income since 1990 together have fewer than 250 million people, and ageing, debt and protectionism make the climb harder.",
+      },
+      {
+        title: "Two transitions, not one",
+        text: "Its “3i” framework says lower-middle-income countries must add infusion, bringing in and spreading technologies from abroad, to investment; upper-middle-income countries must then add innovation, pushing out the frontier themselves.",
+      },
+      {
+        title: "Creation, preservation and destruction must be balanced",
+        text: "Drawing on Schumpeterian economics, the report argues that growth depends on letting new firms and ideas grow, preserving what works and allowing outdated arrangements to give way.",
+      },
+      {
+        title: "Discipline incumbents and reward merit",
+        text: "Powerful incumbents, from large corporations to state-owned enterprises, can add value or block it. Competition policy should welcome new entrants without coddling small firms or vilifying large ones, and talent must be developed and allocated by merit.",
+      },
+      {
+        title: "Efficiency is the simple imperative",
+        text: "The report concludes that middle-income economies must use capital, labour and energy far more efficiently, and treats crises, including climate pressures, as openings for reforms that would otherwise stall.",
+      },
+    ],
+    whyItMatters:
+      "The Philippines is a lower-middle-income country, so the report speaks directly to its development choices. For researchers in economics, business and public policy it offers a testable framework, linking technology diffusion, competition and talent to growth, that local data can confirm or challenge.",
+    researchQuestions: [
+      "How far has the Philippines moved from an investment-led to an investment-and-infusion growth strategy?",
+      "Which institutions most effectively diffuse foreign technologies to domestic firms in ASEAN economies?",
+      "How do competition regimes in middle-income countries affect firm entry and productivity growth?",
+    ],
+  },
+  "organization-in-biology": {
+    code: "EP-OR-18",
+    preparedOn: PREPARED,
+    takeaways: [
+      {
+        title: "Organisation has been biology's blind spot",
+        text: "The editor argues that, since the Modern Synthesis and the rise of molecular biology, research focused on genes and populations and largely neglected how the parts of living systems interact to keep the whole going.",
+      },
+      {
+        title: "Closure of constraints is the unifying idea",
+        text: "Most chapters build on a definition of biological organisation as a “closure of constraints”: the structures that channel a system's processes are themselves produced and maintained by that system.",
+      },
+      {
+        title: "A concept with a long history",
+        text: "Organisation has defined life since the seventeenth century and helped make biology a discipline of its own; later it was joined by the concepts of evolution and regulation.",
+      },
+      {
+        title: "From philosophy to models and experiments",
+        text: "The volume applies the organisational view to cognition, organismal agency in evolution, the origins of life from prebiotic chemistry, inheritance, development, organogenesis and ecological function.",
+      },
+      {
+        title: "A real debate, not a manifesto",
+        text: "One chapter argues that organicism can stand without the concept of organisation at all, and another compares organisational and evolutionary accounts of what an organism is, which keeps the book open to critique.",
+      },
+    ],
+    whyItMatters:
+      "The book shows how a philosophical concept can become a working scientific tool, which matters for interdisciplinary research in biology, ecology and systems science. Its organisational account of ecological function also gives sustainability researchers a fresh theoretical footing.",
+    researchQuestions: [
+      "Can “closure of constraints” be operationalised as a measurable property in experimental systems biology?",
+      "How would an organisational definition of ecological function change biodiversity and sustainability assessments?",
+      "What does an organisational view of development imply for models of organogenesis and regeneration?",
+    ],
+  },
+  "national-skills-strategies-saudi-arabia-2025": {
+    code: "EP-OR-19",
+    preparedOn: PREPARED,
+    takeaways: [
+      {
+        title: "Stop-gap training is not a skills strategy",
+        text: "The report argues that one-off interventions cannot keep up with changing skill needs, and that countries are moving towards coordinated national systems that connect education, training and work.",
+      },
+      {
+        title: "Think in systems, not silos",
+        text: "Skills development is too often left to the TVET sector alone. A systems view treats education, labour markets, policy, industry and society as one ecosystem and looks for leverage points where action has most effect.",
+      },
+      {
+        title: "Saudi Arabia built a dedicated lead body",
+        text: "With World Bank support, the Ministry of Human Resources and Social Development set up a Skills and Training Deputyship to lead the national skilling agenda, as part of the Kingdom's economic diversification.",
+      },
+      {
+        title: "Five principles for a coordinated system",
+        text: "The authors distil five principles: good governance and an enabling environment; demand-led skills development; decisions based on accurate labour market information; credible quality assurance; and partnerships.",
+      },
+      {
+        title: "Employers need a formal voice",
+        text: "Sectoral bodies such as Sector Skills Councils are presented as the bridge between what employers need and what training providers supply, supported by labour market information systems.",
+      },
+    ],
+    whyItMatters:
+      "The five principles offer a ready checklist for evaluating skills reforms in other countries, including the Philippines, where TESDA, the Department of Education and the Commission on Higher Education share responsibility. For researchers, the report is a well-documented case of system-level reform in progress.",
+    researchQuestions: [
+      "How well do the five principles describe the governance of the Philippine skills system?",
+      "What makes Sector Skills Councils effective in economies with large informal sectors?",
+      "How can labour market information systems be kept accurate and timely in developing countries?",
+    ],
+  },
+  "using-technology-to-improve-tvet-2023": {
+    code: "EP-OR-20",
+    preparedOn: PREPARED,
+    takeaways: [
+      {
+        title: "EdTech touches the whole TVET cycle",
+        text: "The paper maps technology's roles from materials design and open educational resources, through online and blended delivery and simulations, to work-based learning, credentialing and recognition of prior learning.",
+      },
+      {
+        title: "COVID-19 turned a choice into a necessity",
+        text: "The pandemic, together with the Fourth Industrial Revolution, made technology essential for keeping technical and vocational training running and relevant.",
+      },
+      {
+        title: "Countries are at different starting points",
+        text: "Recommendations are matched to three levels of EdTech advancement: latent, emerging and established, so that each country can start from where it actually is.",
+      },
+      {
+        title: "Infrastructure alone is not enough",
+        text: "Governance, reliable funding, teacher and trainer capacity, partnerships and incentives for innovation all appear alongside devices and connectivity as conditions for success.",
+      },
+      {
+        title: "Open licensing multiplies impact",
+        text: "Openly licensed materials can be adapted to local contexts and shared across institutions, which lowers costs and speeds up updates in fast-changing trades.",
+      },
+    ],
+    whyItMatters:
+      "The latent, emerging and established framework gives TVET researchers and administrators a practical diagnostic for planning technology investments. It also suits comparative studies across ASEAN, where systems sit at very different stages of EdTech readiness.",
+    researchQuestions: [
+      "At which level of EdTech advancement do Philippine TVET institutions sit, and what explains differences between regions?",
+      "How effective are simulations and virtual reality for practical skills training compared with workshop practice?",
+      "What makes recognition of prior learning systems trusted by employers?",
+    ],
+  },
+  "costing-odl-and-icts-in-tvet-2017": {
+    code: "EP-OR-21",
+    preparedOn: PREPARED,
+    takeaways: [
+      {
+        title: "Technology does not automatically cut costs",
+        text: "The chapter warns against the assumption that distance and technology-based delivery is always cheaper, noting how little costing research exists for TVET in particular.",
+      },
+      {
+        title: "Know your cost categories",
+        text: "It clarifies direct, indirect, fixed, variable, marginal and unit costs, and the difference between cost-efficiency and cost-effectiveness, as a shared language for planners.",
+      },
+      {
+        title: "Scale is what makes distance learning cheaper",
+        text: "Course design costs are paid whatever the enrolment, so lower costs per student follow only when many students study and succeed, and when presenting the course needs fewer staff than face-to-face teaching.",
+      },
+      {
+        title: "Completion changes the arithmetic",
+        text: "Measured per graduate rather than per enrolment, programmes with low completion rates can be far more expensive than they appear.",
+      },
+      {
+        title: "Share to save",
+        text: "Because TVET serves small groups across many trades, the authors recommend consortia, industry partnerships, shared repositories, MOOCs and open educational resources to spread development costs.",
+      },
+    ],
+    whyItMatters:
+      "Sound costing is often missing from proposals for online and blended programmes. This chapter gives researchers and administrators a compact framework for building realistic budgets and for judging cost-effectiveness claims in grant proposals and policy debates.",
+    researchQuestions: [
+      "What is the full cost per graduate of blended TVET programmes compared with face-to-face delivery?",
+      "How much do shared open educational resources reduce course development costs in practice?",
+      "Which student support costs most affect completion rates in distance TVET?",
+    ],
+  },
+  "good-stories-dont-grow-on-trees": {
+    code: "EP-OR-22",
+    preparedOn: PREPARED,
+    takeaways: [
+      {
+        title: "Free to read is not free to make",
+        text: "Openly licensed storybooks still cost money to write, illustrate, translate, edit and print, and those costs have to be met fairly for local publishing to survive.",
+      },
+      {
+        title: "Different books, different cost drivers",
+        text: "The study compares basic storybooks read for enjoyment, levelled readers that teach reading and STEM stories that need subject experts, each with its own cost profile.",
+      },
+      {
+        title: "Translation is a fast but imperfect shortcut",
+        text: "Translating existing stories can grow local-language collections quickly, but the report shows it carries its own costs and quality questions.",
+      },
+      {
+        title: "Seven very different business models",
+        text: "Profiles of Let's Read!, BookBox, Book Dash, African Storybook, StoryWeaver, Sub-Saharan Publishers and Ubongo show varied approaches to paying creators, quality assurance and licensing.",
+      },
+      {
+        title: "Funding must reach local creators",
+        text: "The authors conclude there is no one-size-fits-all cost, and that if money does not reach local authors, illustrators and publishers, short-term book supply may undermine long-term capacity.",
+      },
+    ],
+    whyItMatters:
+      "The report applies to any open-content initiative, including open-access publishing: openness is a distribution model, not a cost model. It is a useful reference for Eleventh Press authors and researchers studying the economics of open knowledge and mother-tongue learning materials.",
+    researchQuestions: [
+      "What does it cost to produce a quality storybook in a Philippine mother-tongue language, and who pays?",
+      "How do open licences affect the revenue and visibility of small local publishers?",
+      "Does machine translation lower the cost of local-language storybooks without lowering quality?",
+    ],
+  },
+  "guide-to-quality-in-online-learning": {
+    code: "EP-OR-23",
+    preparedOn: PREPARED,
+    takeaways: [
+      {
+        title: "Online is a different method, not a copy of the classroom",
+        text: "The guide stresses that good online teaching does not try to reproduce face-to-face lessons online; it uses the medium to offer different, and sometimes better, learning experiences.",
+      },
+      {
+        title: "Quality must be planned at institution level",
+        text: "Strategic plans, policies, governance and budgets need to recognise online learning explicitly, rather than leaving it to individual enthusiasts.",
+      },
+      {
+        title: "Course design and usability matter",
+        text: "Clear course design, accessible materials and good web usability are treated as core quality factors, not technical extras.",
+      },
+      {
+        title: "Community is built, not assumed",
+        text: "Interaction needs clear purposes, instructions, small groups, active facilitation and etiquette guidelines if students are to collaborate well online.",
+      },
+      {
+        title: "Assessment and support close the loop",
+        text: "Sound assessment, exam security and consistent student support are presented as decisive for both quality and credibility.",
+      },
+    ],
+    whyItMatters:
+      "Written before the pandemic made online teaching universal, the guide's sixteen questions remain a compact quality checklist. Institutions can use it to audit their programmes, and researchers can use it as a baseline for studying how quality expectations have changed since 2013.",
+    researchQuestions: [
+      "Which of the guide's quality factors best predict student completion in online programmes?",
+      "How have institutions' approaches to online exam security changed since the rise of generative AI?",
+      "What forms of online community building work best for working adult learners?",
+    ],
+  },
+  "guide-to-quality-in-post-traditional-online-higher-education": {
+    code: "EP-OR-24",
+    preparedOn: PREPARED,
+    takeaways: [
+      {
+        title: "Openness is reshaping higher education",
+        text: "The guide describes a move towards open content, open data, open educational resources and MOOCs, driven by youth unemployment, tighter public funding and new technology.",
+      },
+      {
+        title: "Traditional quality assurance does not fit easily",
+        text: "Quality systems were built for tightly structured programmes, while post-traditional learning is defined by openness and flexibility, which creates a genuine dilemma.",
+      },
+      {
+        title: "OER and MOOCs need their own quality lens",
+        text: "It sets out separate quality considerations for open educational resources and for MOOCs, rather than applying course-accreditation rules unchanged.",
+      },
+      {
+        title: "Recognition is the hard question",
+        text: "The guide asks whether open learning can lead to recognised awards, and what open badges and other credentials add.",
+      },
+      {
+        title: "Institutions must rethink policy and budgets",
+        text: "Openness raises institutional policy questions and may shift spending priorities, from producing content towards supporting, assessing and certifying learners.",
+      },
+    ],
+    whyItMatters:
+      "Its questions about micro-credentials, badges and the accreditation of open learning are now central to higher education policy. Read alongside the 2013 guide, it helps researchers trace how quality thinking has adapted to openness.",
+    researchQuestions: [
+      "How do employers in the Philippines value micro-credentials and digital badges compared with degrees?",
+      "What quality assurance models work for MOOCs offered for academic credit?",
+      "How has the adoption of open educational resources changed institutional spending priorities?",
+    ],
+  },
+  "survey-government-oer-policies-2012": {
+    code: "EP-OR-25",
+    preparedOn: PREPARED,
+    takeaways: [
+      {
+        title: "A global snapshot from 82 countries",
+        text: "The survey, run by the Commonwealth of Learning and UNESCO, analysed responses from 82 countries received by April 2012, ahead of the World OER Congress in Paris.",
+      },
+      {
+        title: "High interest, few explicit policies",
+        text: "Interest in OER was strong in every region, but few governments had explicit OER policies, and many digital-content projects did not clearly state an open licence.",
+      },
+      {
+        title: "Confusion about what OER means",
+        text: "Some responses mixed up OER with open source software, open access journals or distance learning, which the report flags as a need for clearer communication.",
+      },
+      {
+        title: "Creative Commons leads where licences are open",
+        text: "Where open licences were used, the Creative Commons framework was the most common, though licensing choices varied between countries.",
+      },
+      {
+        title: "A roadmap for further work",
+        text: "The report recommends deeper policy analysis, regional studies, a repository of OER research and continued advocacy in several languages.",
+      },
+    ],
+    whyItMatters:
+      "The survey is a historical baseline for the open education movement. Comparing it with today's policies, including UNESCO's 2019 Recommendation on OER, shows how far governments have moved and where gaps persist, which makes it a valuable source for policy researchers.",
+    researchQuestions: [
+      "How have national OER policies in Southeast Asia changed since the 2012 survey?",
+      "What explains differences in OER policy adoption between regions?",
+      "How do teachers understand the difference between OER and other free online materials?",
+    ],
+  },
+  "ict-professional-development-teachers-guyana-2012": {
+    code: "EP-OR-26",
+    preparedOn: PREPARED,
+    takeaways: [
+      {
+        title: "Start from the teacher, not the device",
+        text: "Guyana's strategy grew from a gap in its ICT plan: teachers had not been prepared to use technology for teaching, in a country where many teachers were untrained.",
+      },
+      {
+        title: "A national learning pathway",
+        text: "The strategy sets out a progression from ICT courses in initial teacher education to short in-service courses for principals, ICT coordinators and support staff.",
+      },
+      {
+        title: "A shared framework ends curriculum disputes",
+        text: "Adopting the UNESCO ICT Competency Framework for Teachers streamlined a contested curriculum review and gave the two teacher education institutions a common structure.",
+      },
+      {
+        title: "Audit before you train",
+        text: "Surveys of ICT skills, access and attitudes among teachers, officials and trainers informed which interventions to fund first.",
+      },
+      {
+        title: "Keep it affordable and monitored",
+        text: "Mentoring, CD-ROM distribution where connectivity was poor, open educational resources and a built-in monitoring and evaluation plan kept the approach low-cost and adaptable.",
+      },
+    ],
+    whyItMatters:
+      "Small and resource-constrained education systems, including many island and rural communities in the Philippines, face the same challenges Guyana addressed. The case study offers a replicable model and a useful comparison point for research on teachers' digital competence.",
+    researchQuestions: [
+      "How well does the UNESCO ICT Competency Framework for Teachers fit pre-service curricula in the Philippines?",
+      "What are the long-term effects of school-based ICT mentoring on teaching practice?",
+      "How can ICT professional development be delivered cost-effectively in low-connectivity areas?",
     ],
   },
 };
