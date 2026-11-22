@@ -277,10 +277,36 @@ export function SiteHeader() {
                 </Button>
               </SheetTrigger>
               <SheetContent side="right" className="glass-strong w-72 overflow-y-auto pb-8">
-                <SheetHeader>
-                  <SheetTitle className="font-display text-foreground">
-                    {branding.siteName || "Eleventh Press"}
-                  </SheetTitle>
+                {/* Same brand lockup as the header bar (logo or EP wax seal,
+                    full name, tagline), so the menu carries the official
+                    branding rather than a bare text title. pr-10 keeps it
+                    clear of the sheet's close button. */}
+                <SheetHeader className="pr-10" data-testid="mobile-nav-brand">
+                  <SpaLink
+                    to={{ view: "home" }}
+                    onNavigate={() => { setView("home"); setMobileNavOpen(false); }}
+                    className="flex min-w-0 items-center gap-3 text-left"
+                  >
+                    {branding.logoUrl ? (
+                      <img
+                        src={branding.logoUrl}
+                        alt=""
+                        className="h-10 w-auto max-w-[110px] flex-shrink-0 object-contain"
+                      />
+                    ) : (
+                      <span className="wax-mark flex-shrink-0" aria-hidden="true">
+                        <span className="wax-mark-text">EP</span>
+                      </span>
+                    )}
+                    <div className="flex min-w-0 flex-col leading-tight">
+                      <SheetTitle className="text-balance font-display text-[0.95rem] font-semibold leading-[1.2] text-foreground">
+                        {branding.siteName || tHeader("brandName")}
+                      </SheetTitle>
+                      <p className="mt-1 text-balance font-sans text-[0.55rem] font-medium uppercase leading-[1.35] tracking-[0.14em] text-muted-foreground">
+                        {branding.tagline || (branding.isPlatform ? tHeader("brandTagline") : "Research Platform")}
+                      </p>
+                    </div>
+                  </SpaLink>
                 </SheetHeader>
                 {/* Theme and sound switches sit at the top of the menu, where
                     they are always on screen; at the bottom they fell below
