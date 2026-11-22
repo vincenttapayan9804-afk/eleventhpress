@@ -15,7 +15,6 @@ const USERS_INPUT = [
     role: "SUPER_ADMIN",
     expertise: "publishing, editorial management",
     country: "United Kingdom",
-    orcid: "0000-0002-1001-0010",
     bio: "Editor-in-Chief with twenty years of academic publishing experience across STM and HSS disciplines.",
   },
   {
@@ -26,7 +25,6 @@ const USERS_INPUT = [
     role: "EDITOR",
     expertise: "machine learning, distributed systems, computer vision",
     country: "United Kingdom",
-    orcid: "0000-0002-1001-0011",
     bio: "Professor of Computer Science overseeing the computing and physical sciences track of the journal.",
   },
   {
@@ -37,7 +35,6 @@ const USERS_INPUT = [
     role: "ASSOCIATE_EDITOR",
     expertise: "molecular biology, genomics, CRISPR",
     country: "India",
-    orcid: "0000-0002-1001-0012",
     bio: "Associate Editor handling life sciences and biomedical submissions.",
   },
   {
@@ -48,7 +45,6 @@ const USERS_INPUT = [
     role: "REVIEWER",
     expertise: "quantum materials, superconductivity, condensed matter",
     country: "Japan",
-    orcid: "0000-0002-1001-0013",
     bio: "Reviewer in condensed matter physics with active research on topological insulators.",
   },
   {
@@ -59,7 +55,6 @@ const USERS_INPUT = [
     role: "REVIEWER",
     expertise: "urban sociology, migration, social networks",
     country: "Italy",
-    orcid: "0000-0002-1001-0014",
     bio: "Reviewer specialising in urban studies and migration policy.",
   },
   {
@@ -70,7 +65,6 @@ const USERS_INPUT = [
     role: "AUTHOR",
     expertise: "climate modelling, atmospheric science",
     country: "South Africa",
-    orcid: "0000-0002-1001-0015",
     bio: "Author of several interdisciplinary papers on regional climate downscaling.",
   },
   {
