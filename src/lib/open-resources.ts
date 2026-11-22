@@ -5,8 +5,13 @@
  * These are NOT Eleventh Press titles. They keep their original publisher,
  * rights holder, ISBN/DOI and licence, and they are shown and credited as
  * such. Every entry was transcribed from the publication's own imprint page
- * (title verso). The PDFs are served as received (public/open-resources/)
- * and the covers are renderings of each PDF's own first page.
+ * (title verso) and, where the PDF itself is silent on its licence, from the
+ * publisher's or repository's own record (noted in `licenceSource`). The PDFs
+ * are served as received (public/open-resources/). Covers are renderings of
+ * each PDF's own first page, except where the cover may not be reused (the
+ * OECD forbids reuse of its cover images; other covers carry stock or
+ * third-party images whose rights are not stated). Those titles show a plain
+ * Eleventh Press identification tile instead (`coverKind: "tile"`).
  *
  * Licence obligations reflected in the UI (src/components/open-resources-section.tsx):
  * - attribution to the rights holder, with the licence named and linked;
@@ -17,7 +22,9 @@
  * - covers whose image belongs to a third party carry `coverRights`: an
  *   explicit copyright attribution to the owner plus a restrictions notice
  *   for readers. Where the publication does not state the image's licence,
- *   it is treated as all rights reserved (the conservative reading).
+ *   it is treated as all rights reserved (the conservative reading);
+ * - each publisher's own terms of use are linked (`terms`), and NonCommercial
+ *   titles are offered free of charge only.
  */
 
 export type OpenLicence = {
@@ -63,6 +70,26 @@ export type OpenResource = {
   thirdPartyNotice?: string;
   /** Publisher's open-access terms page, when it differs from UNESCO_OA_TERMS_URL. */
   termsUrl?: string;
+  /**
+   * The publisher's own terms of use for its open-access works. Left out for
+   * UNESCO titles (the UNESCO Open Access terms apply); `null` when the
+   * publisher states none beyond the licence.
+   */
+  terms?: { label: string; url: string } | null;
+  /** Publishing organisation, for filtering; defaults to UNESCO. */
+  org?: string;
+  /** Where the licence is stated, when not on the PDF's own imprint page. */
+  licenceSource?: string;
+  /** For a part of a larger work, e.g. a single chapter: what it is taken from. */
+  extractOf?: string;
+  /**
+   * "publisher" when the PDF is not redistributed by Eleventh Press and
+   * `pdfPath` is the publisher's own download URL (used where the publisher's
+   * terms restrict elements printed in the PDF, such as its cover image).
+   */
+  pdfHost?: "local" | "publisher";
+  /** "tile" when the original cover may not be shown and an Eleventh Press identification tile is used. */
+  coverKind?: "original" | "tile";
   funding?: string;
   summary: string;
   description: string[];
@@ -85,7 +112,52 @@ const CC_BY_NC_SA_4_IGO: OpenLicence = {
   url: "https://creativecommons.org/licenses/by-nc-sa/4.0/",
 };
 
+const CC_BY_4: OpenLicence = {
+  code: "CC BY 4.0",
+  name: "Creative Commons Attribution 4.0 International",
+  url: "https://creativecommons.org/licenses/by/4.0/",
+};
+
+const CC_BY_3_IGO: OpenLicence = {
+  code: "CC BY 3.0 IGO",
+  name: "Creative Commons Attribution 3.0 IGO",
+  url: "https://creativecommons.org/licenses/by/3.0/igo/",
+};
+
+const CC_BY_NC_3_IGO: OpenLicence = {
+  code: "CC BY-NC 3.0 IGO",
+  name: "Creative Commons Attribution-NonCommercial 3.0 IGO",
+  url: "https://creativecommons.org/licenses/by-nc/3.0/igo/",
+};
+
+const CC_BY_SA_3: OpenLicence = {
+  code: "CC BY-SA 3.0",
+  name: "Creative Commons Attribution-ShareAlike 3.0",
+  url: "https://creativecommons.org/licenses/by-sa/3.0/",
+};
+
+const CC_BY_SA_4: OpenLicence = {
+  code: "CC BY-SA 4.0",
+  name: "Creative Commons Attribution-ShareAlike 4.0 International",
+  url: "https://creativecommons.org/licenses/by-sa/4.0/",
+};
+
 export const UNESCO_OA_TERMS_URL = "https://www.unesco.org/en/open-access/cc-sa";
+
+const OECD_TERMS = { label: "OECD terms and conditions", url: "https://www.oecd.org/en/about/terms-conditions.html" };
+const WORLD_BANK_TERMS = { label: "World Bank Open Knowledge Repository terms of use", url: "https://openknowledge.worldbank.org/pages/terms-of-use" };
+const COL_TERMS = { label: "Commonwealth of Learning Open Access Repository (OASIS)", url: "https://oasis.col.org" };
+
+/** The OECD's own licence condition, printed on each OECD title's imprint page. */
+const OECD_NOTICE =
+  "Per the OECD's licence conditions, the CC BY 4.0 licence does not apply to third-party material in the work, and the OECD logo, visual identity and cover image may not be used without the OECD's express permission. For that reason Eleventh Press does not redistribute this PDF: the download links go to the OECD's own copy, and a plain identification tile stands in for the cover. No OECD endorsement of Eleventh Press is suggested or implied.";
+
+const WORLD_BANK_NOTICE =
+  "Per the World Bank, it does not necessarily own each component of the content in the work (such as tables, figures or images); the licence does not warrant that reusing a third-party component will not infringe its owner's rights, and permission for such reuse must be sought from that owner.";
+
+/** Shown for titles whose cover is replaced by an Eleventh Press identification tile. */
+export const TILE_COVER_CREDIT =
+  "Identification tile designed by Eleventh Press. The publication's original cover is not reproduced on this page.";
 
 const unesdoc = (id: string) => `https://unesdoc.unesco.org/ark:/48223/pf0000${id}`;
 
@@ -101,7 +173,7 @@ export const OPEN_RESOURCES: OpenResource[] = [
     publisher: "UNESCO Institute for Statistics, Montreal, and Global Education Monitoring Report, Paris",
     year: 2026,
     pages: 141,
-    fileSizeMb: 2.4,
+    fileSizeMb: 2.6,
     language: "English",
     isbn: "978-92-9189-356-0",
     doi: "10.54676/HAMS6403",
@@ -139,7 +211,7 @@ export const OPEN_RESOURCES: OpenResource[] = [
     publisher: "UNESCO International Institute for Educational Planning (IIEP), Paris; Global Partnership for Education (GPE) Education Out Loud",
     year: 2026,
     pages: 192,
-    fileSizeMb: 2.7,
+    fileSizeMb: 2.8,
     language: "English",
     isbn: "978-92-803-1478-6",
     doi: "10.54673/ZHOX5913",
@@ -185,7 +257,7 @@ export const OPEN_RESOURCES: OpenResource[] = [
     publisher: "United Nations Educational, Scientific and Cultural Organization (UNESCO), Paris",
     year: 2026,
     pages: 56,
-    fileSizeMb: 3.8,
+    fileSizeMb: 4.0,
     language: "English",
     issn: "2220-2285 (print); 2220-2293 (online)",
     sourceUrl: unesdoc("399990"),
@@ -554,7 +626,7 @@ export const OPEN_RESOURCES: OpenResource[] = [
       "United Nations Educational, Scientific and Cultural Organization (UNESCO), Paris; United Nations Children's Fund (UNICEF), New York; World Health Organization (WHO), Geneva",
     year: 2026,
     pages: 93,
-    fileSizeMb: 1.3,
+    fileSizeMb: 1.4,
     language: "English",
     isbn: "978-92-3-100899-3 (UNESCO); 978-92-4-012491-2 (WHO, electronic)",
     doi: "10.54675/QDVK2110",
@@ -603,7 +675,7 @@ export const OPEN_RESOURCES: OpenResource[] = [
     publisher: "United Nations Educational, Scientific and Cultural Organization (UNESCO), Paris",
     year: 2025,
     pages: 103,
-    fileSizeMb: 2.4,
+    fileSizeMb: 2.5,
     language: "English",
     isbn: "978-92-3-100787-3",
     doi: "10.54675/LJOW4285",
@@ -655,7 +727,7 @@ export const OPEN_RESOURCES: OpenResource[] = [
     publisher: "United Nations Educational, Scientific and Cultural Organization (UNESCO), Paris",
     year: 2026,
     pages: 118,
-    fileSizeMb: 17.5,
+    fileSizeMb: 18.4,
     language: "English",
     isbn: "978-92-3-100915-0",
     doi: "10.58338/JXYO3928",
@@ -702,7 +774,7 @@ export const OPEN_RESOURCES: OpenResource[] = [
       "UNESCO, Paris, and the UNESCO Regional Office in Bangkok and Office for UN Coordination for Asia and the Pacific",
     year: 2026,
     pages: 131,
-    fileSizeMb: 1.7,
+    fileSizeMb: 1.8,
     language: "English",
     doi: "10.54675/ZOWN9409",
     reportCode: "BGK/C4-8703/ED/26/013",
@@ -734,4 +806,562 @@ export const OPEN_RESOURCES: OpenResource[] = [
     pdfPath: "/open-resources/differentiated-teaching-learning-asia-pacific.pdf",
     coverPath: "/open-resources/covers/differentiated-teaching-learning-asia-pacific.webp",
   },
+  {
+    slug: "oecd-digital-education-outlook-2026",
+    org: "OECD",
+    title: "OECD Digital Education Outlook 2026",
+    subtitle: "Exploring Effective Uses of Generative AI in Education",
+    series: "OECD Digital Education Outlook",
+    type: "Flagship report",
+    category: "AI in education",
+    creators:
+      "OECD Directorate for Education and Skills (Centre for Educational Research and Innovation), edited by Stéphan Vincent-Lancrin, with chapters by international researchers",
+    publisher: "OECD Publishing, Paris",
+    year: 2026,
+    pages: 267,
+    fileSizeMb: 11.4,
+    language: "English",
+    isbn: "978-92-64-91530-5 (PDF); 978-92-64-74128-7 (print)",
+    issn: "2788-8576 (online); 2788-8568 (print)",
+    doi: "10.1787/062a7394-en",
+    sourceUrl: "https://www.oecd.org/en/publications/oecd-digital-education-outlook-2026_062a7394-en.html",
+    licence: CC_BY_4,
+    terms: OECD_TERMS,
+    rightsHolder: "© OECD 2026",
+    coverKind: "tile",
+    coverCredit: TILE_COVER_CREDIT,
+    coverRights: {
+      label: "Gerhard Richter, “Lesende”",
+      printedCredit: "Photo credits: Cover © Gerhard Richter 2025 (23122025).",
+      owner: "Gerhard Richter",
+      basis:
+        "A work of art reproduced by the OECD with the permission of the Gerhard Richter Atelier, as the publication's acknowledgements state. Third-party material is outside the OECD's CC BY 4.0 licence, and the OECD's terms also forbid use of its cover image without express permission.",
+    },
+    thirdPartyNotice: OECD_NOTICE,
+    pdfHost: "publisher",
+    summary:
+      "The OECD's evidence review of generative AI in education: where it genuinely helps students, teachers and institutions, and why general-purpose chatbots can improve output without improving learning.",
+    description: [
+      "Generative AI arrived in classrooms before most education systems had a policy for it. This edition of the OECD's flagship Digital Education Outlook brings together empirical studies, design experiments and expert contributions to ask a sharper question than whether to allow it: under which conditions does GenAI actually support learning?",
+      "Its central finding is a warning about a gap between performance and learning. When students lean on general-purpose chatbots, their work can look better while the mental effort that produces understanding falls away. Tools built on explicit pedagogy, such as Socratic AI tutors, structured feedback and evidence-centred assessment design, show more promise than generic assistants.",
+      "Later chapters turn to teachers and systems: a framework for teacher–AI teaming that favours augmentation over replacement, purpose-built educational tools co-designed with teachers, AI teaching assistants and tutoring copilots, AI for course-equivalency mapping, test-item generation, and the use of GenAI in education research itself, including low-connectivity “unplugged” approaches tested in rural Brazil.",
+    ],
+    highlights: [
+      "Evidence on when GenAI improves learning and when it only improves task output",
+      "AI tutoring, collaborative learning and creativity, chapter by chapter",
+      "A teacher–AI teaming framework: replacement, complementarity, augmentation",
+      "System uses: admissions, curriculum analytics, assessment and research",
+    ],
+    audience:
+      "Education policymakers, school and university leaders, teacher educators, edtech designers and researchers studying AI in teaching and learning.",
+    citation:
+      "OECD (2026), OECD Digital Education Outlook 2026: Exploring Effective Uses of Generative AI in Education, OECD Publishing, Paris, https://doi.org/10.1787/062a7394-en.",
+    pdfPath: "https://www.oecd.org/content/dam/oecd/en/publications/reports/2026/01/oecd-digital-education-outlook-2026_940e0dd8/062a7394-en.pdf",
+    coverPath: "/open-resources/covers/oecd-digital-education-outlook-2026.webp",
+  },
+  {
+    slug: "oecd-skills-in-the-ai-age-2026",
+    org: "OECD",
+    title: "Skills in the AI Age",
+    series: "OECD Artificial Intelligence Papers, No. 60",
+    type: "Policy paper",
+    category: "AI, skills & work",
+    creators: "Written by Elif Köksal-Oudot for the OECD-Korea Digital Society Initiative of the OECD Digital Policy Committee",
+    publisher: "OECD Publishing, Paris",
+    year: 2026,
+    pages: 36,
+    fileSizeMb: 2.2,
+    language: "English",
+    doi: "10.1787/972bd15e-en",
+    sourceUrl: "https://www.oecd.org/en/publications/skills-in-the-ai-age_972bd15e-en.html",
+    licence: CC_BY_4,
+    terms: OECD_TERMS,
+    rightsHolder: "© OECD 2026",
+    coverKind: "tile",
+    coverCredit: TILE_COVER_CREDIT,
+    coverRights: {
+      label: "© Viktoriia Hnatiuk/Shutterstock",
+      printedCredit: "Photo credits: © Viktoriia Hnatiuk/Shutterstock.",
+      owner: "Viktoriia Hnatiuk, licensed through Shutterstock, Inc.",
+      basis:
+        "A licensed stock photograph. Third-party material is outside the OECD's CC BY 4.0 licence, and the OECD's terms also forbid use of its cover image without express permission.",
+    },
+    thirdPartyNotice: OECD_NOTICE,
+    pdfHost: "publisher",
+    summary:
+      "A concise OECD policy paper on how AI is reshaping jobs and skill needs, and what governments can do so that workers gain from it rather than lose out.",
+    description: [
+      "AI is spreading quickly through firms: the paper reports that the share of firms using it in OECD countries rose from around 7% to 20% between 2021 and 2025, with larger firms and start-ups leading and small businesses held back by cost, infrastructure and skills shortages.",
+      "It separates exposure to AI from risk of automation. Highly skilled occupations are the most exposed, yet least likely to be automated, while routine low- and middle-skill jobs carry the higher automation risk. Overall, the evidence it reviews suggests AI more often complements human work than replaces it, though displacement remains a real risk for routine roles.",
+      "The paper then sets out the skills people need (foundational, ICT and specialist AI skills, plus critical thinking, creativity and collaboration) and six policy directions: stronger education and training, lifelong learning, an ICT and AI talent pipeline, AI literacy for all, employer-led training, and better co-ordination using labour-market data.",
+    ],
+    highlights: [
+      "Firm-level AI adoption trends across OECD countries, 2021–2025",
+      "Why exposure to AI is not the same as risk of automation",
+      "The skill mix for the AI age, from literacy to machine learning",
+      "Six policy levers for governments, employers and education systems",
+    ],
+    audience:
+      "Policymakers in education, labour and digital affairs, TVET and higher education leaders, employers, and researchers studying AI and the future of work.",
+    citation:
+      "OECD (2026), “Skills in the AI age”, OECD Artificial Intelligence Papers, No. 60, OECD Publishing, Paris, https://doi.org/10.1787/972bd15e-en.",
+    pdfPath: "https://www.oecd.org/content/dam/oecd/en/publications/reports/2026/07/skills-in-the-ai-age_e8d8c1e6/972bd15e-en.pdf",
+    coverPath: "/open-resources/covers/oecd-skills-in-the-ai-age-2026.webp",
+  },
+  {
+    slug: "world-development-report-2024-middle-income-trap",
+    org: "World Bank",
+    title: "World Development Report 2024",
+    subtitle: "The Middle-Income Trap",
+    series: "World Development Report",
+    type: "Flagship report",
+    category: "Economic development",
+    creators: "A World Bank Group team led by Somik V. Lall, under the overall guidance of Indermit Gill, Senior Vice President and Chief Economist",
+    publisher: "The World Bank, Washington, DC",
+    year: 2024,
+    pages: 276,
+    fileSizeMb: 9.2,
+    language: "English",
+    isbn: "978-1-4648-2078-6 (softcover); e-ISBN 978-1-4648-2096-0",
+    issn: "0163-5085",
+    doi: "10.1596/978-1-4648-2078-6",
+    sourceUrl: "https://openknowledge.worldbank.org/entities/publication/7c5cd962-11ae-4101-8f3f-e15b86135f0e",
+    licence: CC_BY_3_IGO,
+    terms: WORLD_BANK_TERMS,
+    rightsHolder: "© 2024 International Bank for Reconstruction and Development / The World Bank",
+    coverCredit: "Cover rendered from the first page of the publication.",
+    thirdPartyNotice: WORLD_BANK_NOTICE,
+    summary:
+      "The World Bank's flagship argument for how middle-income countries, home to 6 billion people, can avoid stalling before they reach high income: invest, then infuse technology, then innovate.",
+    description: [
+      "The 108 middle-income countries aim to reach high-income status within a generation or two, yet the report finds the record discouraging: the economies that have made that leap since 1990 together hold fewer than 250 million people, and rising debt, ageing populations, protectionism and the energy transition are making the climb harder.",
+      "Its answer is the “3i” framework. Lower-middle-income countries need to move beyond investment alone (1i) to investment plus infusion (2i), bringing in technologies and business practices from abroad and spreading them at home. Upper-middle-income countries that have mastered infusion then add innovation (3i), pushing out the technological frontier rather than only borrowing from it.",
+      "Drawing on Schumpeterian economics, the report shows that these shifts depend on how societies balance the forces of creation, preservation and destruction: disciplining powerful incumbents, rewarding merit so talent rises, and using crises to retire outdated policies. Country experiences from the Republic of Korea, Poland and Chile illustrate the path, with an emphasis on efficiency in capital, labour and energy.",
+    ],
+    highlights: [
+      "The 1i → 2i → 3i sequence of growth strategies",
+      "Creation, preservation and destruction as forces of structural change",
+      "Talent, social mobility and the role of incumbents and SMEs",
+      "Energy efficiency and emissions as conditions for growth",
+    ],
+    audience:
+      "Economists, development policymakers, planning agencies, business schools and researchers in growth, innovation and public policy, including in the Philippines and ASEAN.",
+    citation:
+      "World Bank. 2024. World Development Report 2024: The Middle-Income Trap. Washington, DC: World Bank. doi:10.1596/978-1-4648-2078-6. License: Creative Commons Attribution CC BY 3.0 IGO.",
+    pdfPath: "/open-resources/world-development-report-2024-middle-income-trap.pdf",
+    coverPath: "/open-resources/covers/world-development-report-2024-middle-income-trap.webp",
+  },
+  {
+    slug: "organization-in-biology",
+    org: "Springer Nature",
+    title: "Organization in Biology",
+    series: "History, Philosophy and Theory of the Life Sciences, Vol. 33",
+    type: "Edited volume",
+    category: "Biology & philosophy of science",
+    creators:
+      "Edited by Matteo Mossio (IHPST, CNRS/Université Paris 1). Contributors: Georg Toepfer; Charles T. Wolfe; Gertrudis Van de Vijver and Levi Haeck; Cliff Hooker; Olivier Sartenaer; Philippe Huneman; Johannes Jaeger; Kepa Ruiz-Mirazo and Alvaro Moreno; Gaëlle Pontarotti; Leonardo Bich and Derek Skillings; Maël Montévil and Ana M. Soto; Charbel N. El-Hani, Felipe Rebelo Gomes de Lima and Nei de Freitas Nunes-Neto",
+    publisher: "Springer, Cham (Springer Nature Switzerland AG)",
+    year: 2024,
+    pages: 338,
+    fileSizeMb: 4.7,
+    language: "English",
+    isbn: "978-3-031-38968-9 (eBook); 978-3-031-38967-2 (print)",
+    issn: "2211-1956 (electronic); 2211-1948 (print)",
+    doi: "10.1007/978-3-031-38968-9",
+    sourceUrl: "https://link.springer.com/book/10.1007/978-3-031-38968-9",
+    licence: CC_BY_4,
+    terms: null,
+    rightsHolder: "© The Editor(s) (if applicable) and The Author(s) 2024",
+    coverCredit: "Cover rendered from the first page of the publication.",
+    thirdPartyNotice:
+      "Per the publisher, images or other third-party material in the book are included in its Creative Commons licence unless a credit line to the material indicates otherwise.",
+    summary:
+      "Thirteen chapters arguing that biology has overlooked how living systems organise themselves, and showing how the concept of organisation can guide theory, models and experiments.",
+    description: [
+      "For most of the twentieth century, the editor argues, biology focused on genes and populations and lost sight of organisation: the distinctive way the parts of a living system interact so that the system maintains itself. This open-access volume asks whether making organisation an explicit scientific concept can strengthen today's move beyond gene-centred explanation.",
+      "Most contributions build on the idea of biological organisation as a “closure of constraints”, in which the structures that channel a system's processes are themselves produced and maintained by that system. Early chapters trace the concept's history from the seventeenth century, examine varieties of organicism, and debate how far it should be treated philosophically or as a working scientific principle.",
+      "Later chapters apply the organisational view to evolution and organismal agency, the origins of life from prebiotic chemistry, inheritance, development and organogenesis, and ecology, where it leads to a new notion of ecological function and sustainability. One chapter deliberately argues the opposite case, which makes the book a genuine debate.",
+    ],
+    highlights: [
+      "Organisation as “closure of constraints”, the book's unifying idea",
+      "History of the concept and the case for and against organicism",
+      "Applications to evolution, origins of life, development and inheritance",
+      "An organisational theory of ecological functions and sustainability",
+    ],
+    audience:
+      "Biologists, philosophers of science, theoretical and systems biologists, ecologists and graduate students interested in the foundations of the life sciences.",
+    citation:
+      "Mossio, M. (Ed.). (2024). Organization in Biology. History, Philosophy and Theory of the Life Sciences, vol. 33. Cham: Springer. https://doi.org/10.1007/978-3-031-38968-9",
+    pdfPath: "/open-resources/organization-in-biology.pdf",
+    coverPath: "/open-resources/covers/organization-in-biology.webp",
+  },
+  {
+    slug: "national-skills-strategies-saudi-arabia-2025",
+    org: "World Bank",
+    title: "Towards System-Level Reform through National Skills Strategies",
+    subtitle: "Lessons from the Kingdom of Saudi Arabia",
+    type: "Report",
+    category: "Skills & TVET policy",
+    creators: "Ahmed Alzahrani, Sonja Loots, Neil Butcher and Carole Chartouni",
+    publisher:
+      "The World Bank, Washington, DC, prepared at the request of the Ministry of Human Resources and Social Development (MHRSD), Kingdom of Saudi Arabia",
+    year: 2025,
+    pages: 72,
+    fileSizeMb: 14.0,
+    language: "English",
+    sourceUrl: "https://hdl.handle.net/10986/42811",
+    licence: CC_BY_NC_3_IGO,
+    terms: WORLD_BANK_TERMS,
+    licenceSource:
+      "The licence is recorded on the World Bank Open Knowledge Repository record for this report (hdl.handle.net/10986/42811). The report's own rights page permits reproduction, in whole or in part, for noncommercial purposes with full attribution.",
+    rightsHolder: "© 2025 The World Bank",
+    coverKind: "tile",
+    coverCredit: TILE_COVER_CREDIT,
+    coverRights: {
+      label: "iStock.com / Vadim Nefedov",
+      printedCredit: "Cover photo: iStock.com / Vadim Nefedov",
+      owner: "Vadim Nefedov, licensed through iStock (Getty Images)",
+      basis:
+        "A licensed stock photograph. The publication states that non-World Bank images require further permission for reuse.",
+    },
+    thirdPartyNotice:
+      "Per the World Bank, images credited to the MHRSD archives, Unsplash and iStock require further permission for reuse. Cover design: www.doscuatroocho.net.",
+    funding: "Prepared under the Technical Cooperation Program between the World Bank and the Government of Saudi Arabia.",
+    summary:
+      "How Saudi Arabia, with World Bank support, built a system-level national skills strategy, and five principles any country can use to coordinate skills development.",
+    description: [
+      "Skills gaps are rarely solved by one-off training programmes. This World Bank report argues for a systems approach to national skills strategies: treating education, training, labour markets, industry and policy as one connected ecosystem rather than leaving skills development to the TVET sector alone.",
+      "It draws on the World Bank's work with Saudi Arabia's Ministry of Human Resources and Social Development, which created a Skills and Training Deputyship to lead the national skilling agenda as part of the Kingdom's drive to diversify its economy.",
+      "From that experience it distils five principles: good governance and an enabling environment; demand-led skills development through bodies such as Sector Skills Councils; decisions based on accurate labour market information; credible quality assurance; and partnerships among government, employers and providers. The authors present these principles as applicable well beyond Saudi Arabia.",
+    ],
+    highlights: [
+      "Why a systems approach outperforms stop-gap skills interventions",
+      "Five principles for a coordinated national skills system",
+      "Sector Skills Councils and labour market information systems in practice",
+      "Lessons from the Kingdom of Saudi Arabia's reform",
+    ],
+    audience:
+      "Labour and education ministries, TVET authorities, sector skills bodies, employers' associations, development partners and researchers in skills policy.",
+    citation:
+      "Alzahrani, A., Loots, S., Butcher, N., and Chartouni, C. 2025. Towards System-Level National Skills Strategies: Lessons from the Kingdom of Saudi Arabia. World Bank. Washington, DC.",
+    pdfPath: "/open-resources/national-skills-strategies-saudi-arabia-2025.pdf",
+    coverPath: "/open-resources/covers/national-skills-strategies-saudi-arabia-2025.webp",
+  },
+  {
+    slug: "using-technology-to-improve-tvet-2023",
+    org: "Neil Butcher & Associates",
+    title: "Using Technology to Improve Access, Equity, Quality, and Relevance of TVET",
+    series: "Background paper for Building Better Formal TVET Systems (World Bank, UNESCO and ILO, 2023)",
+    type: "Background paper",
+    category: "Skills & TVET policy",
+    creators: "Sarah Hoosen, Mohini Baijnath and Neil Butcher (Neil Butcher & Associates)",
+    publisher: "Neil Butcher & Associates, Johannesburg",
+    year: 2023,
+    pages: 85,
+    fileSizeMb: 1.1,
+    language: "English",
+    sourceUrl: "https://www.nba.co.za/resource/using-technology-improve-access-equity-quality-and-relevance-tvet",
+    licence: CC_BY_SA_4,
+    terms: null,
+    licenceSource:
+      "The PDF carries no licence statement; the licence is the one the publisher, Neil Butcher & Associates, states for this paper on its resource page (nba.co.za).",
+    rightsHolder: "Neil Butcher & Associates, 2023",
+    coverKind: "tile",
+    coverCredit: TILE_COVER_CREDIT,
+    summary:
+      "A practical review of how educational technology can widen access to TVET and improve its quality and relevance, with recommendations matched to each country's stage of EdTech readiness.",
+    description: [
+      "Written as a background paper for the World Bank, UNESCO and ILO report Building Better Formal TVET Systems, this study asks how technical and vocational education can harness educational technology at a time of rapid digital change, the Fourth Industrial Revolution and the disruption of COVID-19.",
+      "It maps EdTech's roles across the whole TVET cycle: designing and sharing learning materials (including open educational resources), online and blended delivery, simulations and virtual reality, work-based learning, and credentialing and recognition of prior learning, with case studies from around the world.",
+      "The paper closes with the barriers that stall progress and a matrix of recommendations for countries at three levels of EdTech advancement (latent, emerging and established) covering infrastructure, governance, funding, capacity, partnerships, open licensing and innovation.",
+    ],
+    highlights: [
+      "A conceptual framework for EdTech's roles in TVET",
+      "Case studies on online delivery, simulations, work-based learning and RPL",
+      "Challenges and lessons learned from implementation",
+      "Recommendations by level of country EdTech advancement",
+    ],
+    audience:
+      "TVET policymakers, institution leaders, trainers, development partners and researchers working on skills and educational technology.",
+    citation:
+      "Hoosen, S., Baijnath, M., and Butcher, N. 2023. Using Technology to Improve Access, Equity, Quality, and Relevance of TVET. Background paper for World Bank, UNESCO and ILO (2023), Building Better Formal TVET Systems: Principles and Practice in Low- and Middle-Income Countries. Neil Butcher & Associates.",
+    pdfPath: "/open-resources/using-technology-to-improve-tvet-2023.pdf",
+    coverPath: "/open-resources/covers/using-technology-to-improve-tvet-2023.webp",
+  },
+  {
+    slug: "costing-odl-and-icts-in-tvet-2017",
+    org: "Commonwealth of Learning",
+    title: "Considerations in Costing ODL and ICTs in TVET",
+    series: "Chapter 12 of Using ICTs and Blended Learning in Transforming TVET (ed. Colin Latchem)",
+    type: "Book chapter",
+    category: "Skills & TVET policy",
+    creators: "Sarah Hoosen and Neil Butcher. Book edited by Colin Latchem",
+    publisher:
+      "United Nations Educational, Scientific and Cultural Organization (UNESCO), Paris, and Commonwealth of Learning (COL), Burnaby",
+    year: 2017,
+    pages: 16,
+    fileSizeMb: 0.1,
+    language: "English",
+    isbn: "978-92-3-100212-0 (UNESCO); 978-1-894975-85-8 (COL)",
+    sourceUrl: "http://hdl.handle.net/11599/2718",
+    licence: CC_BY_SA_3_IGO,
+    terms: COL_TERMS,
+    licenceSource:
+      "This chapter file carries no licence statement of its own. The licence is the one printed on the imprint page of the full book, which is also recorded on the Commonwealth of Learning's repository record (hdl.handle.net/11599/2718).",
+    extractOf:
+      "This file is Chapter 12 (pages 185–200) of Latchem, C. (Ed.) (2017), Using ICTs and Blended Learning in Transforming TVET, provided as a separate chapter extract. Eleventh Press has made no other changes. The complete book is available from the Commonwealth of Learning.",
+    rightsHolder: "© UNESCO and Commonwealth of Learning, 2017",
+    coverKind: "tile",
+    coverCredit: TILE_COVER_CREDIT,
+    summary:
+      "What it really costs to deliver technical and vocational training at a distance or with technology, and why cheaper per student does not always mean more cost-effective.",
+    description: [
+      "Policymakers often assume that open and distance learning (ODL) and ICTs will cut the cost of technical and vocational education. This chapter tests that assumption, noting how little costing research exists for TVET and drawing lessons from wider ODL experience.",
+      "It defines the key costing terms (direct, indirect, fixed, variable, marginal and unit costs, cost-efficiency and cost-effectiveness) and then works through the main cost areas: students' own costs, student support, teachers and trainers, technology and ICT, course design and development, delivery and administration.",
+      "Its core message is that design costs are incurred regardless of enrolment, so ODL is cheaper per student only when large numbers study successfully. Because TVET often serves small groups across many trades, the authors point to consortia, industry partnerships, shared repositories, MOOCs and open educational resources as ways to make technology-based TVET affordable.",
+    ],
+    highlights: [
+      "A glossary of costing terms for education planners",
+      "The seven main cost areas of ODL, applied to TVET",
+      "Why completion rates change the cost-per-graduate picture",
+      "How OER and shared development can lower costs",
+    ],
+    audience:
+      "TVET planners, finance officers, institution managers and researchers making the case for, or evaluating, technology-based training.",
+    citation:
+      "Hoosen, S., and Butcher, N. 2017. Considerations in Costing ODL and ICTs in TVET. In C. Latchem (Ed.), Using ICTs and Blended Learning in Transforming TVET (pp. 185–200). Paris: UNESCO; Burnaby: Commonwealth of Learning.",
+    pdfPath: "/open-resources/costing-odl-and-icts-in-tvet-2017.pdf",
+    coverPath: "/open-resources/covers/costing-odl-and-icts-in-tvet-2017.webp",
+  },
+  {
+    slug: "good-stories-dont-grow-on-trees",
+    org: "Neil Butcher & Associates",
+    title: "Good Stories Don’t Grow on Trees",
+    subtitle: "A Guide to Effective Costing of Storybooks in the Global South",
+    type: "Research report",
+    category: "Early literacy & publishing",
+    creators: "Neil Butcher, Lisbeth Levey and Kirsty von Gogh",
+    publisher: "Neil Butcher & Associates, Johannesburg",
+    year: 2019,
+    pages: 98,
+    fileSizeMb: 3.7,
+    language: "English",
+    sourceUrl: "https://www.nba.co.za/resource/good-stories-dont-grow-trees-guide-effective-costing-storybooks-global-south",
+    licence: CC_BY_4,
+    terms: null,
+    rightsHolder: "Neil Butcher & Associates, 2019",
+    coverKind: "tile",
+    coverCredit: TILE_COVER_CREDIT,
+    thirdPartyNotice:
+      "The publication's cover image is credited to Fati and the Honey Tree, by Osu Library Fund, illustrated by Therson Boadu (Sub-Saharan Publishers), via StoryWeaver. As its licence terms are not restated in the report, Eleventh Press does not reproduce it here. Figures and screenshots of other organisations' platforms remain theirs.",
+    funding: "Funded by the William and Flora Hewlett Foundation.",
+    summary:
+      "What it actually costs to write, illustrate, translate and print children's storybooks in local languages, drawn from seven publishers and platforms across Africa and Asia.",
+    description: [
+      "Openly licensed storybooks are free to read, but someone still pays to create, translate and print them. This study from Neil Butcher & Associates examines those costs so that funders and governments can support local-language children's publishing sustainably.",
+      "It compares three storybook models (basic storybooks read for pleasure, levelled readers that teach reading, and STEM stories that need subject expertise) and the cost drivers of each: authors and illustrators, editing and quality assurance, translation, printing and overheads.",
+      "Seven organisational profiles, including the Asia Foundation's Let's Read!, BookBox, Book Dash, Saide's African Storybook, Pratham Books' StoryWeaver, Sub-Saharan Publishers and Ubongo, show the range of business models and licensing choices. The conclusion is that there is no one-size-fits-all cost, and that money must reach local authors, illustrators and publishers if early-literacy efforts are to last.",
+    ],
+    highlights: [
+      "Cost drivers for basic, levelled and STEM storybooks",
+      "Translation, print and overhead costs compared",
+      "Seven publisher and platform profiles from Africa and Asia",
+      "How open licensing interacts with sustainable business models",
+    ],
+    audience:
+      "Early-literacy funders, ministries of education, children's publishers, NGOs and researchers in book provision and open educational resources.",
+    citation:
+      "Butcher, N., Levey, L., and von Gogh, K. 2019. Good Stories Don't Grow on Trees: A Guide to Effective Costing of Storybooks in the Global South. Neil Butcher & Associates.",
+    pdfPath: "/open-resources/good-stories-dont-grow-on-trees.pdf",
+    coverPath: "/open-resources/covers/good-stories-dont-grow-on-trees.webp",
+  },
+  {
+    slug: "guide-to-quality-in-online-learning",
+    org: "Academic Partnerships",
+    title: "A Guide to Quality in Online Learning",
+    type: "Guide",
+    category: "Online & distance learning",
+    creators: "Neil Butcher and Merridy Wilson-Strydom. Edited by Sir John Daniel and Stamenka Uvalić-Trumbić",
+    publisher: "Academic Partnerships, Dallas, Texas",
+    year: 2013,
+    pages: 28,
+    fileSizeMb: 2.6,
+    language: "English",
+    sourceUrl: "https://www.nba.co.za/resource/guide-quality-online-learning",
+    licence: CC_BY_SA_3,
+    terms: null,
+    rightsHolder: "Academic Partnerships, 2013",
+    coverKind: "tile",
+    coverCredit: TILE_COVER_CREDIT,
+    thirdPartyNotice:
+      "The cover illustration's creator and licence are not stated in the publication, so Eleventh Press does not reproduce it here. The licence stated in the PDF (CC BY-SA 3.0) is used; where a later web listing gives a different licence, the one printed in the work applies.",
+    summary:
+      "A short, practical guide that answers sixteen common questions about what makes formal online courses high quality, with a reading list of international benchmarks.",
+    description: [
+      "Commissioned by Academic Partnerships as online learning expanded rapidly after 2012, this guide distils existing quality frameworks into the issues that matter most to academics and students taking or teaching credit-bearing online courses.",
+      "It is organised as sixteen frequently asked questions: what online learning is and how it is offered; what quality means and how institutions assure it; what resources quality requires; how students can judge a course; and the roles of course design, web usability, assessment, exam security, interaction and community building, teaching and facilitation, and student support.",
+      "Each answer is brief and grounded in examples from higher education worldwide, and the guide closes with an annotated reading list of quality benchmarks and international good practice for readers who want to go deeper.",
+    ],
+    highlights: [
+      "Sixteen FAQs covering the full online course life cycle",
+      "Institutional quality assurance and resourcing",
+      "Assessment, exam security, interaction and student support",
+      "An annotated list of quality benchmarks and frameworks",
+    ],
+    audience:
+      "Academics, programme leaders, quality assurance staff and students in higher education who design, teach or choose online courses.",
+    citation:
+      "Butcher, N., and Wilson-Strydom, M. 2013. A Guide to Quality in Online Learning. Edited by J. Daniel and S. Uvalić-Trumbić. Dallas, TX: Academic Partnerships.",
+    pdfPath: "/open-resources/guide-to-quality-in-online-learning.pdf",
+    coverPath: "/open-resources/covers/guide-to-quality-in-online-learning.webp",
+  },
+  {
+    slug: "guide-to-quality-in-post-traditional-online-higher-education",
+    org: "Academic Partnerships",
+    title: "A Guide to Quality in Post-Traditional Online Higher Education",
+    type: "Guide",
+    category: "Online & distance learning",
+    creators: "Neil Butcher and Sarah Hoosen. Edited by Sir John Daniel and Stamenka Uvalić-Trumbić",
+    publisher: "Academic Partnerships, Dallas, Texas",
+    year: 2014,
+    pages: 36,
+    fileSizeMb: 1.9,
+    language: "English",
+    sourceUrl: "https://www.nba.co.za/resource/guide-quality-post-traditional-online-higher-education",
+    licence: CC_BY_SA_3,
+    terms: null,
+    rightsHolder: "Academic Partnerships, 2014",
+    coverKind: "tile",
+    coverCredit: TILE_COVER_CREDIT,
+    thirdPartyNotice:
+      "The cover illustration's creator and licence are not stated in the publication, so Eleventh Press does not reproduce it here. The licence stated in the PDF (CC BY-SA 3.0) is used; where a later web listing gives a different licence, the one printed in the work applies.",
+    summary:
+      "The companion guide on assuring quality when higher education goes open: OER, MOOCs, open badges, alternative credentials and the accreditation questions they raise.",
+    description: [
+      "A year after the first guide on formal online learning, its editors asked how quality can be assured in the less formal, more open forms of higher education that were multiplying: short courses, open content, MOOCs and new kinds of certification. This guide calls them “post-traditional” higher education.",
+      "It first explains what openness means in education, defining open learning, open source software, open access, open data, open educational resources and MOOCs, and the forces driving them, from youth unemployment to shrinking public funding and new technology.",
+      "It then works through the hard questions: how to assure quality in OER and MOOCs, whether post-traditional learning can lead to recognised awards, what open badges add, how accreditation might adapt, which policy issues openness raises for institutions, and how it may change their spending priorities.",
+    ],
+    highlights: [
+      "Key terms of openness, from open access to MOOCs",
+      "Quality considerations for OER and for MOOCs",
+      "Open badges, awards and the future of accreditation",
+      "Policy and budget implications for institutions",
+    ],
+    audience:
+      "University leaders, quality agencies, accreditation bodies, open-education practitioners and researchers in higher education policy.",
+    citation:
+      "Butcher, N., and Hoosen, S. 2014. A Guide to Quality in Post-Traditional Online Higher Education. Edited by J. Daniel and S. Uvalić-Trumbić. Dallas, TX: Academic Partnerships.",
+    pdfPath: "/open-resources/guide-to-quality-in-post-traditional-online-higher-education.pdf",
+    coverPath: "/open-resources/covers/guide-to-quality-in-post-traditional-online-higher-education.webp",
+  },
+  {
+    slug: "survey-government-oer-policies-2012",
+    org: "Commonwealth of Learning",
+    title: "Survey on Governments’ Open Educational Resources (OER) Policies",
+    type: "Survey report",
+    category: "Open education policy",
+    creators: "Prepared by Sarah Hoosen of Neil Butcher & Associates, for the Commonwealth of Learning and UNESCO",
+    publisher: "Commonwealth of Learning, Vancouver, and UNESCO, Paris",
+    year: 2012,
+    pages: 40,
+    fileSizeMb: 1.1,
+    language: "English",
+    isbn: "978-1-894975-54-1",
+    sourceUrl: "http://hdl.handle.net/11599/291",
+    licence: CC_BY_SA_3,
+    terms: COL_TERMS,
+    rightsHolder: "© 2012 by the Commonwealth of Learning",
+    coverKind: "tile",
+    coverCredit: TILE_COVER_CREDIT,
+    thirdPartyNotice:
+      "The cover photograph's creator and licence are not stated in the publication, so Eleventh Press does not reproduce it here.",
+    funding:
+      "Part of the project Fostering Governmental Support for OER Internationally (Commonwealth of Learning and UNESCO), partially funded by the William and Flora Hewlett Foundation.",
+    summary:
+      "The first worldwide survey of government policies on open educational resources, with responses from 82 countries, prepared for the 2012 World OER Congress in Paris.",
+    description: [
+      "In 2012 the Commonwealth of Learning and UNESCO asked the world's governments what policies they had on open educational resources (OER). This report analyses the responses received from 82 countries by April 2012, in time for the World OER Congress that adopted the Paris OER Declaration.",
+      "It reviews, region by region, whether governments had OER policies, how they supported OER in practice, which licences they used and which obstacles they faced, alongside notable national initiatives.",
+      "The findings show strong interest but few explicit OER policies, some confusion between OER, open source software and distance learning, and Creative Commons as the most widely used open licensing framework. The report recommends deeper policy analysis, regional studies, a repository of OER research and continued awareness-raising.",
+    ],
+    highlights: [
+      "Responses from 82 countries, analysed by region",
+      "The state of national OER policies and initiatives in 2012",
+      "Licensing choices and barriers to OER adoption",
+      "Recommendations that fed into the 2012 Paris OER Declaration",
+    ],
+    audience:
+      "Education policymakers, open-education advocates, librarians and researchers tracing the history and spread of OER policy.",
+    citation:
+      "Hoosen, S. 2012. Survey on Governments' Open Educational Resources (OER) Policies. Vancouver: Commonwealth of Learning; Paris: UNESCO. http://hdl.handle.net/11599/291",
+    pdfPath: "/open-resources/survey-government-oer-policies-2012.pdf",
+    coverPath: "/open-resources/covers/survey-government-oer-policies-2012.webp",
+  },
+  {
+    slug: "ict-professional-development-teachers-guyana-2012",
+    org: "Commonwealth of Learning",
+    title: "Information and Communication Technologies (ICT) Professional Development Strategy for Teachers in Guyana",
+    subtitle: "A Case Study",
+    type: "Case study",
+    category: "Teacher development",
+    creators: "Andrew Moore (author and researcher). Edited by Neil Butcher and Trudi van Wyk",
+    publisher: "Commonwealth of Learning, Vancouver",
+    year: 2012,
+    pages: 24,
+    fileSizeMb: 5.6,
+    language: "English",
+    sourceUrl: "http://hdl.handle.net/11599/279",
+    licence: CC_BY_SA_4,
+    terms: COL_TERMS,
+    licenceSource:
+      "The brochure itself carries no licence statement; the licence is the one recorded for it on the Commonwealth of Learning's Open Access Repository (hdl.handle.net/11599/279).",
+    rightsHolder: "Commonwealth of Learning, 2012",
+    coverCredit: "Cover rendered from the first page of the publication. Photographs: Andrew Moore. Design and layout: Denise Tremblay.",
+    thirdPartyNotice:
+      "The partner logos printed on the cover (including those of the Commonwealth of Learning, the Commonwealth Secretariat, Microsoft and UNESCO) belong to their owners and are not covered by the licence.",
+    summary:
+      "How Guyana built a national, low-cost strategy to train teachers to use ICT in the classroom, using the UNESCO ICT Competency Framework for Teachers as its backbone.",
+    description: [
+      "In a country where only about a quarter of people used the Internet and many teachers were untrained, Guyana's Ministry of Education set out in 2011 to make ICT a lever for better teaching. This Commonwealth of Learning case study describes the ICT Professional Development Strategy for Teachers that resulted.",
+      "Developed with the Commonwealth Secretariat, the Commonwealth of Learning, Microsoft, Neil Butcher & Associates and Guyana's national teacher education institutions, the strategy sets a learning pathway for officials, teacher educators, teachers, student teachers and principals, from ICT courses in initial teacher education to short in-service courses for principals, ICT coordinators and support staff.",
+      "It shows how the UNESCO ICT Competency Framework for Teachers streamlined a contested curriculum review, and how audits of skills and access, mentoring, open educational resources and a monitoring and evaluation plan made the approach affordable and adaptable for other developing countries.",
+    ],
+    highlights: [
+      "A national ICT learning pathway from pre-service to principals",
+      "Use of the UNESCO ICT Competency Framework for Teachers",
+      "Audits of ICT skills and access, mentoring and cost-saving delivery",
+      "Monitoring and evaluation built into the strategy",
+    ],
+    audience:
+      "Ministries of education, teacher education institutions, ICT-in-education planners and researchers in small or resource-constrained systems.",
+    citation:
+      "Moore, A. 2012. Information and Communication Technologies (ICT) Professional Development Strategy for Teachers in Guyana: A Case Study. Vancouver: Commonwealth of Learning. http://hdl.handle.net/11599/279",
+    pdfPath: "/open-resources/ict-professional-development-teachers-guyana-2012.pdf",
+    coverPath: "/open-resources/covers/ict-professional-development-teachers-guyana-2012.webp",
+  },
 ];
+
+/** The publisher's terms of use shown with a title, or null when none apply beyond the licence. */
+export function termsFor(r: OpenResource): { label: string; url: string } | null {
+  if (r.terms !== undefined) return r.terms;
+  return { label: "terms of use of the UNESCO Open Access Repository", url: r.termsUrl ?? UNESCO_OA_TERMS_URL };
+}
+
+/** Publishing organisation of a title, for filtering. */
+export function orgOf(r: OpenResource): string {
+  return r.org ?? "UNESCO";
+}
+
+/** Publishers in the collection, in catalogue order. */
+export const OPEN_RESOURCE_ORGS: string[] = [...new Set(OPEN_RESOURCES.map(orgOf))];
+
+/** True when the title's licence forbids commercial use. */
+export function isNonCommercial(r: OpenResource): boolean {
+  return r.licence.code.includes("NC");
+}
+
+/** True when Eleventh Press links to the publisher's copy instead of redistributing the PDF. */
+export function isPublisherHosted(r: OpenResource): boolean {
+  return r.pdfHost === "publisher";
+}

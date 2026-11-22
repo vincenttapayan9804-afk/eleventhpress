@@ -20,7 +20,7 @@ import QRCode from "qrcode";
 import { ISSN_PENDING_LABEL, JOURNAL_IDENTITY } from "@/lib/site";
 import { pdfSafe } from "@/lib/provenance-certificate-pdf";
 import type { OpenResource } from "@/lib/open-resources";
-import { UNESCO_OA_TERMS_URL } from "@/lib/open-resources";
+import { isNonCommercial, termsFor } from "@/lib/open-resources";
 import {
   TAKEAWAYS_AUTHOR, TAKEAWAYS_NOTICE, TAKEAWAYS_ONLINE_PATH, takeawaysCitation, type EditorialTakeaways,
 } from "@/lib/open-resources-takeaways";
@@ -293,10 +293,14 @@ export async function buildTakeawaysPdf(r: OpenResource, tk: EditorialTakeaways)
     });
 
     heading("The original publication and its licence", false);
+    const terms = termsFor(r);
     const credit = [
       `${r.rightsHolder}. ${fullTitle}. ${r.publisher}, ${r.year}.`,
-      `Available free in Open Access under the ${r.licence.name} (${r.licence.code}) licence: ${r.licence.url}. Use of the original is subject to the terms of use of the UNESCO Open Access Repository: ${r.termsUrl ?? UNESCO_OA_TERMS_URL}.`,
-      r.licence.code.includes("NC") ? "Its licence does not permit commercial use; Eleventh Press provides these takeaways free of charge." : "",
+      `Available free in Open Access under the ${r.licence.name} (${r.licence.code}) licence: ${r.licence.url}.`,
+      terms ? `Use of the original is subject to the ${terms.label}: ${terms.url}.` : "",
+      r.licenceSource ?? "",
+      r.extractOf ?? "",
+      isNonCommercial(r) ? "Its licence does not permit commercial use; Eleventh Press provides these takeaways free of charge." : "",
       r.coverRights ? `The cover image (${r.coverRights.label}) belongs to ${r.coverRights.owner.replace(/^The /, "the ")} and is not covered by the open licence; it is deliberately not reproduced here.` : "",
       r.thirdPartyNotice ?? "",
     ].filter(Boolean).join(" ");
