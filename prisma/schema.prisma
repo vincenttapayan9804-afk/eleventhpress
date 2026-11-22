@@ -127,6 +127,10 @@ model User {
   // Refreshed unconditionally on every deploy alongside Article.citations
   // (scripts/refresh-citation-metrics.ts); GET /api/editorial-board also
   // tries a live fetch first and only falls back to these cached values.
+  // Public title shown on the Editorial Board in place of the role-based
+  // label (e.g. "Founder" instead of "Editor-in-Chief"). Display only:
+  // it grants no permissions. Null = use the role's label.
+  boardTitle                  String?
   boardWorksCount             Int?
   boardCitedByCount           Int?
   boardHIndex                 Int?

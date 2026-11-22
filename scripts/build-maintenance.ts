@@ -26,6 +26,8 @@ const STEPS: Step[] = [
   { script: "backfill-platform-tenant.ts", args: ["--confirm"], mode: "every" },
   { script: "backfill-tenant-subdomains.ts", mode: "every" },
   { script: "backfill-audit-tenant.ts", args: ["--confirm"], mode: "once", alreadyApplied: true },
+  { script: "clear-placeholder-author-orcids.ts", mode: "once" },
+  { script: "set-founder-title.ts", mode: "once" },
   { script: "backfill-galleys.ts", args: ["--confirm"], mode: "every" },
   { script: "backfill-provenance.ts", args: ["--confirm"], mode: "every" },
   { script: "backfill-email-verified.ts", args: ["--confirm"], mode: "once", alreadyApplied: true },
