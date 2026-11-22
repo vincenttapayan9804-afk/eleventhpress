@@ -111,7 +111,9 @@
   "books": {
     "eyebrow": "Division d'édition de livres",
     "title": "Parcourir les livres",
-    "description": "Découvrez les monographies, ouvrages collectifs et anthologies de notre division d'édition de livres — véritables ISBN, téléchargements EPUB et PDF prêts à imprimer.",
+    "description": "Découvrez les monographies, ouvrages collectifs et anthologies de notre division d'édition de livres — véritables ISBN, téléchargements EPUB et PDF prêts à imprimer — ainsi qu'une bibliothèque sélectionnée de Ressources ouvertes, gratuites et sous licence libre, issues d'institutions publiques de confiance.",
+    "openResourcesCta": "Parcourir les Ressources ouvertes gratuites",
+    "catalogueTitle": "Catalogue Eleventh Press",
     "searchPlaceholder": "Rechercher par titre, description ou auteur…",
     "allCategories": "Toutes les catégories",
     "booksFound": "{count} livres trouvés",

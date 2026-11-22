@@ -44,6 +44,7 @@ export async function GET() {
       profession: true,
       bio: true,
       orcid: true,
+      boardTitle: true,
       avatarUrl: true,
       website: true,
       twitterUrl: true,
@@ -59,14 +60,14 @@ export async function GET() {
 
   const withMetrics = await Promise.all(
     members.map(async (m) => {
-      const { boardWorksCount, boardCitedByCount, boardHIndex, boardMetricsCheckedAt, ...rest } = m;
+      const { boardWorksCount, boardCitedByCount, boardHIndex, boardMetricsCheckedAt, boardTitle, ...rest } = m;
       const live = m.orcid ? await fetchAuthorCitationMetrics(m.orcid) : null;
       const citationMetrics = live
         ? { worksCount: live.worksCount, citedByCount: live.citedByCount, hIndex: live.hIndex, source: "openalex-live" as const }
         : boardWorksCount != null
           ? { worksCount: boardWorksCount, citedByCount: boardCitedByCount ?? 0, hIndex: boardHIndex, source: "openalex-cached" as const, checkedAt: boardMetricsCheckedAt }
           : null;
-      return { ...rest, roleLabel: ROLE_LABEL[m.role] || m.role, citationMetrics };
+      return { ...rest, roleLabel: boardTitle || ROLE_LABEL[m.role] || m.role, citationMetrics };
     })
   );
 

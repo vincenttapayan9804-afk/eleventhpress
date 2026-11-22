@@ -15,7 +15,6 @@ const USERS_INPUT = [
     role: "SUPER_ADMIN",
     expertise: "publishing, editorial management",
     country: "United Kingdom",
-    orcid: "0000-0002-1001-0010",
     bio: "Editor-in-Chief with twenty years of academic publishing experience across STM and HSS disciplines.",
   },
   {
@@ -26,7 +25,6 @@ const USERS_INPUT = [
     role: "EDITOR",
     expertise: "machine learning, distributed systems, computer vision",
     country: "United Kingdom",
-    orcid: "0000-0002-1001-0011",
     bio: "Professor of Computer Science overseeing the computing and physical sciences track of the journal.",
   },
   {
@@ -37,7 +35,6 @@ const USERS_INPUT = [
     role: "ASSOCIATE_EDITOR",
     expertise: "molecular biology, genomics, CRISPR",
     country: "India",
-    orcid: "0000-0002-1001-0012",
     bio: "Associate Editor handling life sciences and biomedical submissions.",
   },
   {
@@ -48,7 +45,6 @@ const USERS_INPUT = [
     role: "REVIEWER",
     expertise: "quantum materials, superconductivity, condensed matter",
     country: "Japan",
-    orcid: "0000-0002-1001-0013",
     bio: "Reviewer in condensed matter physics with active research on topological insulators.",
   },
   {
@@ -59,7 +55,6 @@ const USERS_INPUT = [
     role: "REVIEWER",
     expertise: "urban sociology, migration, social networks",
     country: "Italy",
-    orcid: "0000-0002-1001-0014",
     bio: "Reviewer specialising in urban studies and migration policy.",
   },
   {
@@ -70,7 +65,6 @@ const USERS_INPUT = [
     role: "AUTHOR",
     expertise: "climate modelling, atmospheric science",
     country: "South Africa",
-    orcid: "0000-0002-1001-0015",
     bio: "Author of several interdisciplinary papers on regional climate downscaling.",
   },
   {
@@ -116,9 +110,9 @@ const ARTICLES: SeedArticle[] = [
     keywords: ["topological insulators", "transition metal dichalcogenides", "strain engineering", "spin-orbit coupling", "ARPES"],
     discipline: "Physics",
     authors: [
-      { name: "Hiroshi Tanabe", affiliation: "University of Tokyo", orcid: "0000-0002-2222-1111", email: "h.tanabe@u-tokyo.ac.jp" },
+      { name: "Hiroshi Tanabe", affiliation: "University of Tokyo", email: "h.tanabe@u-tokyo.ac.jp" },
       { name: "Mira Patel", affiliation: "Indian Institute of Science", email: "mira.patel@iisc.ac.in" },
-      { name: "James O'Connor", affiliation: "Trinity College Dublin", orcid: "0000-0002-2222-1112", email: "j.oconnor@tcd.ie" },
+      { name: "James O'Connor", affiliation: "Trinity College Dublin", email: "j.oconnor@tcd.ie" },
     ],
     status: "PUBLISHED",
     reviewModel: "DOUBLE_BLIND",
@@ -137,7 +131,7 @@ const ARTICLES: SeedArticle[] = [
     keywords: ["CRISPR", "base editing", "cystic fibrosis", "CFTR", "lipid nanoparticles"],
     discipline: "Biology",
     authors: [
-      { name: "Ana Beatriz Souza", affiliation: "University of São Paulo", orcid: "0000-0002-3333-0001", email: "a.souza@usp.br" },
+      { name: "Ana Beatriz Souza", affiliation: "University of São Paulo", email: "a.souza@usp.br" },
       { name: "Daniel Kim", affiliation: "Stanford University", email: "dkim@stanford.edu" },
     ],
     status: "PUBLISHED",
@@ -158,7 +152,7 @@ const ARTICLES: SeedArticle[] = [
     keywords: ["mixture of experts", "edge inference", "transformers", "model compression", "sparse routing"],
     discipline: "Computer Science",
     authors: [
-      { name: "Liu Chen", affiliation: "Tsinghua University", orcid: "0000-0002-4444-0001", email: "liuchen@tsinghua.edu.cn" },
+      { name: "Liu Chen", affiliation: "Tsinghua University", email: "liuchen@tsinghua.edu.cn" },
       { name: "Priya Raghunathan", affiliation: "Indian Institute of Science", email: "priya.r@iisc.ac.in" },
       { name: "Sven Larsson", affiliation: "KTH Royal Institute of Technology", email: "svenl@kth.se" },
     ],
@@ -180,7 +174,7 @@ const ARTICLES: SeedArticle[] = [
     keywords: ["gentrification", "care economy", "migration", "Lisbon", "urban sociology"],
     discipline: "Sociology",
     authors: [
-      { name: "Sofia Marenco", affiliation: "University of Bologna", orcid: "0000-0002-5555-0001", email: "s.marenco@unibo.it" },
+      { name: "Sofia Marenco", affiliation: "University of Bologna", email: "s.marenco@unibo.it" },
       { name: "João Ferreira", affiliation: "University of Coimbra", email: "jferreira@uc.pt" },
     ],
     status: "PUBLISHED",
@@ -200,7 +194,7 @@ const ARTICLES: SeedArticle[] = [
     keywords: ["carbon border adjustment", "CGE modelling", "climate policy", "trade", "distributional effects"],
     discipline: "Economics",
     authors: [
-      { name: "Amara Okafor", affiliation: "University of Cape Town", orcid: "0000-0002-1001-0015", email: "amara.okafor@uct.ac.za" },
+      { name: "Amara Okafor", affiliation: "University of Cape Town", email: "amara.okafor@uct.ac.za" },
       { name: "Lucas Bauer", affiliation: "DIW Berlin", email: "lbauer@diw.de" },
     ],
     status: "UNDER_REVIEW",
@@ -218,7 +212,7 @@ const ARTICLES: SeedArticle[] = [
     keywords: ["attentional bias", "anxiety", "replication", "digital mental health", "dot-probe"],
     discipline: "Psychology",
     authors: [
-      { name: "Rachel Goldstein", affiliation: "Northwestern University", orcid: "0000-0002-6666-0001", email: "r.goldstein@northwestern.edu" },
+      { name: "Rachel Goldstein", affiliation: "Northwestern University", email: "r.goldstein@northwestern.edu" },
       { name: "Tobias Frank", affiliation: "Humboldt University of Berlin", email: "tfrank@hu-berlin.de" },
     ],
     status: "REVISIONS_REQUIRED",
@@ -236,7 +230,7 @@ const ARTICLES: SeedArticle[] = [
     keywords: ["snowpack", "Sentinel-2", "Hindu Kush", "remote sensing", "water resources"],
     discipline: "Environmental Science",
     authors: [
-      { name: "Imran Khan", affiliation: "COMSATS University Islamabad", orcid: "0000-0002-7777-0001", email: "imran.khan@comsats.edu.pk" },
+      { name: "Imran Khan", affiliation: "COMSATS University Islamabad", email: "imran.khan@comsats.edu.pk" },
       { name: "Élise Dubois", affiliation: "ETH Zürich", email: "elise.dubois@ethz.ch" },
     ],
     status: "ACCEPTED",
@@ -255,7 +249,7 @@ const ARTICLES: SeedArticle[] = [
     keywords: ["sum of digits", "prime numbers", "exponential sums", "analytic number theory", "discrepancy"],
     discipline: "Mathematics",
     authors: [
-      { name: "Yuki Nakamura", affiliation: "Kyoto University", orcid: "0000-0002-8888-0001", email: "y.nakamura@kyoto-u.ac.jp" },
+      { name: "Yuki Nakamura", affiliation: "Kyoto University", email: "y.nakamura@kyoto-u.ac.jp" },
     ],
     status: "SUBMITTED",
     reviewModel: "DOUBLE_BLIND",
@@ -272,7 +266,7 @@ const ARTICLES: SeedArticle[] = [
     keywords: ["quantum metrology", "squeezed light", "Mach-Zehnder", "quantum sensing", "fibre optics"],
     discipline: "Physics",
     authors: [
-      { name: "Kenji Watanabe", affiliation: "University of Tokyo", orcid: "0000-0002-1001-0013", email: "k.watanabe@u-tokyo.ac.jp" },
+      { name: "Kenji Watanabe", affiliation: "University of Tokyo", email: "k.watanabe@u-tokyo.ac.jp" },
       { name: "Mateo Rossi", affiliation: "Politecnico di Milano", email: "mateo.rossi@polimi.it" },
     ],
     status: "PUBLISHED",
@@ -292,7 +286,7 @@ const ARTICLES: SeedArticle[] = [
     keywords: ["microplastics", "stormwater", "biofilters", "urban ecology", "nature-based solutions"],
     discipline: "Environmental Science",
     authors: [
-      { name: "Mei Lin Tan", affiliation: "National University of Singapore", orcid: "0000-0002-9999-0001", email: "meilin.tan@nus.edu.sg" },
+      { name: "Mei Lin Tan", affiliation: "National University of Singapore", email: "meilin.tan@nus.edu.sg" },
       { name: "Olufemi Adebayo", affiliation: "University of Lagos", email: "o.adebayo@unilag.edu.ng" },
     ],
     status: "PUBLISHED",
