@@ -7,14 +7,24 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { OPEN_RESOURCES, UNESCO_OA_TERMS_URL, type OpenResource } from "@/lib/open-resources";
-import { Download, ExternalLink, BookOpenCheck, Copy, Check, Scale, Info } from "lucide-react";
+import { Download, ExternalLink, BookOpenCheck, Copy, Check, Scale, Info, Copyright } from "lucide-react";
 
 /**
  * "Open Resources" collection on the Books page: third-party open-access
  * publications redistributed unmodified under their own licences, with the
  * attribution, licence and third-party-image notices each licence requires.
- * Data and sourcing notes: src/lib/open-resources.ts.
+ * Covers owned by third parties carry an explicit copyright attribution and
+ * a restrictions notice. Data and sourcing notes: src/lib/open-resources.ts.
  */
+
+/** Shown for every cover whose image belongs to a third party. */
+const COVER_RESTRICTION =
+  "All rights reserved by the copyright holder. This image is not covered by the publication's open licence, " +
+  "and Eleventh Press claims no rights in it. It is shown solely to identify the publication, as part of the " +
+  "unmodified original. You may not copy, extract, crop, edit, adapt, redistribute or otherwise reuse this image " +
+  "on its own (for example in other publications, websites, social media, presentations, merchandise or datasets) " +
+  "without prior written permission from the copyright holder. Sharing the complete, unmodified publication under " +
+  "its open licence remains permitted.";
 export function OpenResourcesSection() {
   const [open, setOpen] = useState<OpenResource | null>(null);
 
@@ -41,7 +51,7 @@ export function OpenResourcesSection() {
         </Badge>
       </div>
 
-      <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {OPEN_RESOURCES.map((r) => (
           <article key={r.slug} className="pearl-card flex flex-col overflow-hidden p-0">
             <button
@@ -57,6 +67,12 @@ export function OpenResourcesSection() {
                 decoding="async"
                 className="mx-auto aspect-[3/4] max-h-72 w-auto rounded-md object-contain sm:max-h-none sm:w-full shadow-md transition-transform duration-500 group-hover:scale-[1.03]"
               />
+              {r.coverRights && (
+                <span className="mt-2 flex items-start justify-center gap-1 text-center text-[0.6rem] leading-snug text-muted-foreground">
+                  <Copyright className="mt-px h-2.5 w-2.5 shrink-0" aria-hidden />
+                  <span>{r.coverRights.label} · cover image not openly licensed</span>
+                </span>
+              )}
             </button>
             <div className="flex flex-1 flex-col p-4">
               <div className="flex flex-wrap items-center gap-1.5">
@@ -92,6 +108,18 @@ export function OpenResourcesSection() {
           <a href={UNESCO_OA_TERMS_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
             UNESCO Open Access terms of use
           </a>.
+        </span>
+      </p>
+      <p className="mt-2 flex items-start gap-2 text-[0.7rem] leading-relaxed text-muted-foreground">
+        <Copyright className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+        <span>
+          <span className="font-medium text-foreground">Image rights notice.</span> Cover images and photographs credited
+          to third parties (marked “cover image not openly licensed”) remain the exclusive property of their respective
+          copyright holders, named in each title&apos;s details. They are excluded from the open licences and may not be
+          reused separately without the holder&apos;s prior written permission. Names, logos and emblems shown on the
+          covers, including the UNESCO logo, the ASEAN emblem, the Sustainable Development Goals icons and partner and
+          funder logos, belong to their owners, are not licensed under Creative Commons, and may not be reused without
+          their authorization.
         </span>
       </p>
 
@@ -135,6 +163,23 @@ function ResourceDetail({ r }: { r: OpenResource }) {
         <div className="space-y-3">
           <img src={r.coverPath} alt={`Cover of ${r.title}`} className="w-full rounded-md shadow-lg" />
           <p className="text-[0.65rem] leading-snug text-muted-foreground">{r.coverCredit}</p>
+          {r.coverRights && (
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-2.5 text-[0.65rem] leading-snug">
+              <p className="flex items-center gap-1 font-semibold">
+                <Copyright className="h-3 w-3" /> Cover image rights
+              </p>
+              <p className="mt-1">
+                <span className="font-medium">Copyright holder:</span> {r.coverRights.owner}.
+              </p>
+              <p className="mt-1 text-muted-foreground">
+                <span className="font-medium text-foreground">Credited in the publication as:</span> “{r.coverRights.printedCredit}”.
+              </p>
+              <p className="mt-1 text-muted-foreground">{r.coverRights.basis}</p>
+              <p className="mt-1 text-muted-foreground">
+                <span className="font-medium text-foreground">Restrictions:</span> {COVER_RESTRICTION}
+              </p>
+            </div>
+          )}
           <div className="flex flex-col gap-2">
             <Button asChild size="sm">
               <a href={r.pdfPath} download><Download className="mr-1.5 h-3.5 w-3.5" /> Download PDF ({r.fileSizeMb} MB)</a>
@@ -195,8 +240,14 @@ function ResourceDetail({ r }: { r: OpenResource }) {
               <span className="font-medium">{r.rightsHolder}.</span> This publication is available in Open Access under the{" "}
               <a href={r.licence.url} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">{r.licence.name} ({r.licence.code})</a>{" "}
               licence. By using its content, users accept the{" "}
-              <a href={UNESCO_OA_TERMS_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">terms of use of the UNESCO Open Access Repository</a>.
+              <a href={r.termsUrl ?? UNESCO_OA_TERMS_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">terms of use of the UNESCO Open Access Repository</a>.
             </p>
+            {r.coverRights && (
+              <p className="mt-2">
+                <span className="font-medium">Cover image:</span> {r.coverRights.label}, copyright holder{" "}
+                {r.coverRights.owner}. Not covered by the open licence; all rights reserved (see “Cover image rights”).
+              </p>
+            )}
             {r.licence.code.includes("NC") && (
               <p className="mt-2">This licence does not permit commercial use. Eleventh Press provides it free of charge, for non-commercial purposes only.</p>
             )}
