@@ -542,4 +542,196 @@ export const OPEN_RESOURCES: OpenResource[] = [
     pdfPath: "/open-resources/mhpss-ukrainian-scientists-2026.pdf",
     coverPath: "/open-resources/covers/mhpss-ukrainian-scientists-2026.webp",
   },
+  {
+    slug: "teaching-with-care-mental-health-well-being",
+    title: "Teaching with Care",
+    subtitle: "A Practical Guide for Teachers to Support Mental Health and Well-being in Schools",
+    type: "Practical guide",
+    category: "Teaching, mental health & well-being",
+    creators:
+      "UNESCO, in collaboration with UNICEF and WHO. Written by Rena Deitz, Jennifer Flemming and Ashley Nemiro; coordinated by Yongfeng Liu with Munire Abulimiti (UNESCO Section of Health and Education)",
+    publisher:
+      "United Nations Educational, Scientific and Cultural Organization (UNESCO), Paris; United Nations Children's Fund (UNICEF), New York; World Health Organization (WHO), Geneva",
+    year: 2026,
+    pages: 93,
+    fileSizeMb: 1.3,
+    language: "English",
+    isbn: "978-92-3-100899-3 (UNESCO); 978-92-4-012491-2 (WHO, electronic)",
+    doi: "10.54675/QDVK2110",
+    sourceUrl: unesdoc("399510"),
+    licence: CC_BY_SA_3_IGO,
+    rightsHolder: "© UNESCO, UNICEF, WHO 2026",
+    coverCredit: "Cover photo: Twinsterphoto/Shutterstock.com. Inside icons: © UNESCO/Weiwei Kang. Designed by UNESCO.",
+    coverRights: {
+      label: "Cover photo © Twinsterphoto / Shutterstock",
+      printedCredit: "Cover photo: Twinsterphoto/Shutterstock.com",
+      owner: "Twinsterphoto, licensed through Shutterstock, Inc.",
+      basis:
+        "A licensed stock photograph. The publisher states that “the present license applies exclusively to the text content of the publication”, so this photo is not covered by the CC BY-SA licence.",
+    },
+    thirdPartyNotice:
+      "Per the publisher, the CC BY-SA licence applies exclusively to the text. Images, illustrations and charts not clearly identified as UNESCO's or as public domain need prior permission from UNESCO (publication.copyright@unesco.org). UNICEF and WHO photographs are copyrighted and may not be reproduced in any medium without their prior written permission.",
+    funding: "Supported by the Governments of Norway and Sweden.",
+    summary:
+      "Everyday, evidence-based strategies that help teachers protect learners' mental health and well-being, without extra training or turning teachers into therapists. A joint UNESCO, UNICEF and WHO guide.",
+    description: [
+      "Around one in seven adolescents worldwide lives with a mental health condition, and many more face stress, adversity or exclusion that affect how they feel and learn. Teachers say they want to help but need clarity on what is feasible and within their role. This joint guide from UNESCO, UNICEF and WHO, shaped by teachers in Nigeria, India, Viet Nam, Germany, Singapore and elsewhere, answers that need.",
+      "It is organized around ten practical actions in four modules. Module 1 covers promoting well-being in the classroom: safe and predictable routines, positive relationships, prosocial behaviour and social-emotional skills woven into ordinary lessons. Module 2 is about noticing early signs of distress across ages and genders and linking learners to school and community support. Module 3 turns to teachers' own well-being and that of their colleagues. Module 4 covers working with families and communities and advocating for change.",
+      "The guide is clear about what teachers are not expected to do: diagnose conditions or provide treatment. Each module ends with adaptations for different settings and a self-assessment, and examples of good practice range from a multilingual classroom in Ghana to a teacher's self-care plan in Ukraine.",
+    ],
+    highlights: [
+      "Ten classroom actions across four modules, each with a self-assessment",
+      "Myths and facts about learner mental health, and early signs of distress by age",
+      "Tools for mapping school and community support services",
+      "STOP–THINK–GO and peer check-ins for teachers' own well-being",
+    ],
+    audience:
+      "Teachers at every level, school leaders, teacher educators, school counsellors and education ministries building whole-school approaches to mental health and psychosocial support.",
+    citation:
+      "UNESCO, UNICEF and WHO. 2026. Teaching with care: A practical guide for teachers to support mental health and well-being in schools. Paris: UNESCO. https://doi.org/10.54675/QDVK2110",
+    pdfPath: "/open-resources/teaching-with-care-mental-health-well-being.pdf",
+    coverPath: "/open-resources/covers/teaching-with-care-mental-health-well-being.webp",
+  },
+  {
+    slug: "addressing-violent-pasts-through-education",
+    title: "Addressing Violent Pasts through Education",
+    subtitle: "A Policy Guide",
+    type: "Policy guide",
+    category: "Peace, history & citizenship education",
+    creators:
+      "UNESCO Section of Global Citizenship and Peace Education. Drafted by Michelle J. Bellino (University of Michigan) and Julia Paulson (University of Saskatchewan), reviewed and edited by Natasha Robinson (University of Oxford)",
+    publisher: "United Nations Educational, Scientific and Cultural Organization (UNESCO), Paris",
+    year: 2025,
+    pages: 103,
+    fileSizeMb: 2.4,
+    language: "English",
+    isbn: "978-92-3-100787-3",
+    doi: "10.54675/LJOW4285",
+    sourceUrl: unesdoc("395088"),
+    licence: CC_BY_SA_3_IGO,
+    rightsHolder: "© UNESCO 2025",
+    coverCredit:
+      "Cover credits: Ajdin Kamber/Shutterstock.com*; Rhodes no nose: Crispin Cooper via Wikimedia Commons (CC BY-SA 4.0); © UNESCO/Chris Dansie/Hortenzia. Cover design: Chris Dansie/Hortenzia. Typeset: Luiza Maximo.",
+    coverRights: {
+      label: "Cover photo © Ajdin Kamber / Shutterstock*",
+      printedCredit:
+        "Cover credits: Ajdin Kamber/Shutterstock.com*; Rhodes no nose: Crispin Cooper via WikiMedia Commons (Available under CC BY-SA 4.0); © UNESCO/Chris Dansie/Hortenzia",
+      owner: "Ajdin Kamber, licensed through Shutterstock, Inc.",
+      basis:
+        "The publisher marks this photo with an asterisk and states that “images marked with an asterisk (*) do not fall under the CC-BY-SA license and may not be used or reproduced without the prior permission of the copyright holders”. The cover is a composite: the statue photograph “Rhodes no nose” is by Crispin Cooper and is separately available under its own CC BY-SA 4.0 licence (https://creativecommons.org/licenses/by-sa/4.0/), which requires crediting him; the cover design is © UNESCO / Chris Dansie / Hortenzia. The restrictions below apply to the Shutterstock photo.",
+    },
+    thirdPartyNotice:
+      "Per the publisher, any image in this guide marked with an asterisk (*) is excluded from the CC BY-SA licence and may not be used or reproduced without the prior permission of its copyright holder.",
+    funding:
+      "Financially supported by the Government of Canada. Developed in the International Program on Holocaust and Genocide Education, run jointly by UNESCO and the United States Holocaust Memorial Museum.",
+    summary:
+      "UNESCO's first policy guidance on teaching about war, genocide, colonialism, enslavement and their legacies in ways that build peace rather than deepen divides.",
+    description: [
+      "How a society teaches its violent past shapes its future. Left unaddressed, or taught as a single heroic story, histories of war and atrocity can fuel polarization, denial and renewed conflict. This guide, rooted in UNESCO's decades of Holocaust education and in the 2023 Recommendation on Education for Peace, Human Rights and Sustainable Development, gives education policymakers strategies for teaching these histories with care.",
+      "It first defines “violent pasts”, from war and displacement to colonial oppression and enslavement, and shows how violence can persist long after it officially ends. It then sets out frameworks for this work: human rights education, global citizenship education, education about atrocity crimes and peace education. The core of the guide describes system-wide action on policy, curricula and textbooks, teacher support, museums and memorials, and civil society and international cooperation.",
+      "A chapter on pedagogy covers historical inquiry, open classroom climates, working with emotions, remembrance, teaching with testimonies and the particular care needed in victim communities. Fifteen case studies run from Argentina, Colombia and Cambodia to Rwanda, Timor-Leste, Lebanon, Canada and Bristol in the United Kingdom. Annexes provide an example roadmap and a needs-assessment tool.",
+    ],
+    highlights: [
+      "Fifteen country and programme case studies of education about violent pasts",
+      "Promising practices for policies, curricula, textbooks, teachers and memory sites",
+      "Pedagogical strategies, from historical inquiry to teaching with testimonies",
+      "An example roadmap and a needs-assessment tool for ministries",
+    ],
+    audience:
+      "Education policymakers and curriculum developers, history and civics teachers, teacher educators, museums and memorial institutions, and peacebuilding and transitional-justice practitioners.",
+    citation:
+      "UNESCO. 2025. Addressing violent pasts through education: A policy guide. Paris: UNESCO. https://doi.org/10.54675/LJOW4285",
+    pdfPath: "/open-resources/addressing-violent-pasts-through-education.pdf",
+    coverPath: "/open-resources/covers/addressing-violent-pasts-through-education.webp",
+  },
+  {
+    slug: "ai-answers-you-decide-mil-companion",
+    title: "AI Answers. You Decide.",
+    subtitle: "A Companion Guide to the UNESCO Media and Information Literacy Curriculum",
+    type: "Teaching guide",
+    category: "Media & information literacy, AI",
+    creators:
+      "Anne Leppäjärvi (author). Coordinated by Adeline Hulin and Olivier Van Bockstael, with an International Expert Group and a Peer Review Group",
+    publisher: "United Nations Educational, Scientific and Cultural Organization (UNESCO), Paris",
+    year: 2026,
+    pages: 118,
+    fileSizeMb: 17.5,
+    language: "English",
+    isbn: "978-92-3-100915-0",
+    doi: "10.58338/JXYO3928",
+    sourceUrl: unesdoc("400013"),
+    licence: CC_BY_SA_3_IGO,
+    rightsHolder: "© UNESCO 2026",
+    coverCredit: "Cover image: Haui Roa. Design and illustration: Haui Roa. Typeset by UNESCO.",
+    coverRights: {
+      label: "Cover image: Haui Roa",
+      printedCredit: "Cover image: Haui Roa",
+      owner: "Haui Roa (designer and illustrator)",
+      basis:
+        "The cover artwork is credited by name to its illustrator, and the publication does not say that it is released under the open licence. Eleventh Press therefore treats it as all rights reserved by its creator.",
+    },
+    summary:
+      "A ready-to-teach guide that helps learners understand how AI shapes the information they see, question what it tells them and keep their own judgement.",
+    description: [
+      "AI now shapes how information is produced, filtered and shared, often without people noticing. This companion to UNESCO's Media and Information Literacy curriculum Think Critically, Click Wisely! extends media and information literacy to that new environment. It is written for educators in classrooms, libraries, youth groups and adult education, and needs no technical expertise.",
+      "It starts with an Orientation Map that places the learner at the centre of the systems that predict, classify, decide and generate. Five units follow. AI in Our Pocket covers the four types of AI and the data we give away. AI's Roles in the Media Landscape covers journalism, publishing ethics and informed trust. AI, the Human Mind and Knowledge covers chatbots, filtering, fact-checking, emotions and research. AI, Power and Human Rights covers the right to evaluate, inequality, accountability and AI's energy costs. AI Futures Are Being Built Now asks learners to move from bystander to builder.",
+      "Every section can be taught as a standalone lesson with “Try This” activities designed for learners aged 13 to 15 and adaptable for other ages. Most activities work without learners using AI themselves, since the educator can run the tool on a shared screen. A glossary, a Shared Global Examples Table and a Try This Finder make the guide easy to use.",
+    ],
+    highlights: [
+      "Five units, each usable as a standalone lesson",
+      "“Try This” classroom activities, most of which work without learners using AI directly",
+      "Real-world examples from many countries, gathered in a Shared Global Examples Table",
+      "Covers AI and journalism, human rights, accountability, inclusion and climate costs",
+    ],
+    audience:
+      "Teachers, librarians, youth workers, adult and teacher educators, and anyone teaching media and information literacy to learners aged about 13 and up.",
+    citation:
+      "Leppäjärvi, A. 2026. AI answers. You decide. A companion guide to the UNESCO Media and Information Literacy Curriculum. Paris: UNESCO. https://doi.org/10.58338/JXYO3928",
+    pdfPath: "/open-resources/ai-answers-you-decide-mil-companion.pdf",
+    coverPath: "/open-resources/covers/ai-answers-you-decide-mil-companion.webp",
+  },
+  {
+    slug: "differentiated-teaching-learning-asia-pacific",
+    title: "Teachers' Guide on Differentiated Teaching and Learning",
+    subtitle: "Addressing Learning Needs in the Asia-Pacific Region",
+    type: "Teachers' guide",
+    category: "Inclusive teaching & assessment",
+    creators:
+      "Isabelle Nizet (Université de Sherbrooke), author, with UNESCO Bangkok under the supervision of Rika Yorozu, and national drafting teams from Bhutan and Lao PDR",
+    publisher:
+      "UNESCO, Paris, and the UNESCO Regional Office in Bangkok and Office for UN Coordination for Asia and the Pacific",
+    year: 2026,
+    pages: 131,
+    fileSizeMb: 1.7,
+    language: "English",
+    doi: "10.54675/ZOWN9409",
+    reportCode: "BGK/C4-8703/ED/26/013",
+    sourceUrl: unesdoc("400036"),
+    licence: CC_BY_SA_3_IGO,
+    rightsHolder: "© UNESCO 2026",
+    coverCredit: "Graphic design and cover illustration: Nattawud Nittayagun. Copyediting: Ingrid Lewis.",
+    thirdPartyNotice:
+      "Per the publisher, any image in this guide marked with an asterisk (*) is excluded from the CC BY-SA licence and may not be used or reproduced without the prior permission of its copyright holder. The cover illustration is not so marked.",
+    funding:
+      "Financially supported by the Government of the Republic of Korea, through UNESCO Bangkok's project on addressing learning gaps and preventing drop-out in Asia-Pacific.",
+    summary:
+      "Practical tools that help teachers in Asia and the Pacific find out what each learner needs and adapt their teaching so no one is left behind, piloted in Bhutan and Lao PDR.",
+    description: [
+      "Across the Asia-Pacific region, many learners still fall short of minimum proficiency and the most vulnerable are at risk of dropping out. Classrooms are increasingly diverse in readiness, interests, preferences and backgrounds. This guide from UNESCO Bangkok, developed with the education ministries of Bhutan and Lao PDR, helps teachers move beyond one-size-fits-all teaching.",
+      "Chapter 1 explains differentiated teaching and its link to inclusive education. Chapter 2 shows how to use low-stakes diagnostic and formative assessments to build learner, group and class profiles. Chapter 3 is a toolbox of strategies: universal design for learning, tiered tasks, scaffolding, jigsaw, learning menus, flexible grouping, learning stations and centres. It also covers support for learners with disabilities, reducing gender and cultural bias, and adapting assessment.",
+      "Chapter 4 helps teachers plan with a “differentiation compass” and templates. Chapter 5 shows where digital tools, from augmented reality to learning management systems, can support differentiation. Twenty-eight worked examples from real lessons, many from Bhutanese and Lao classrooms, and a reflection exercise at the end of each chapter make the guide practical.",
+    ],
+    highlights: [
+      "28 worked classroom examples, from Grade 6 science to Grade 11 physics",
+      "Ready-to-use diagnostic, interest and preference assessment tools",
+      "Strategies by learner readiness, interest, preference and environment",
+      "Guidance on learners with disabilities, gender bias and digital tools",
+    ],
+    audience:
+      "Primary and secondary teachers, school leaders, teacher educators and education policymakers in Asia and the Pacific, including the Philippines, and anyone building inclusive classrooms.",
+    citation:
+      "UNESCO. 2026. Teachers' guide on differentiated teaching and learning: Addressing learning needs in the Asia-Pacific region. Paris: UNESCO; Bangkok: UNESCO Bangkok. https://doi.org/10.54675/ZOWN9409",
+    pdfPath: "/open-resources/differentiated-teaching-learning-asia-pacific.pdf",
+    coverPath: "/open-resources/covers/differentiated-teaching-learning-asia-pacific.webp",
+  },
 ];

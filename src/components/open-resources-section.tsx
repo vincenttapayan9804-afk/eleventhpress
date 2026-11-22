@@ -117,8 +117,8 @@ export function OpenResourcesSection() {
           to third parties (marked “cover image not openly licensed”) remain the exclusive property of their respective
           copyright holders, named in each title&apos;s details. They are excluded from the open licences and may not be
           reused separately without the holder&apos;s prior written permission. Names, logos and emblems shown on the
-          covers, including the UNESCO logo, the ASEAN emblem, the Sustainable Development Goals icons and partner and
-          funder logos, belong to their owners, are not licensed under Creative Commons, and may not be reused without
+          covers, including the UNESCO, UNICEF and World Health Organization logos, the ASEAN emblem, the Education 2030
+          and Sustainable Development Goals marks and other partner and funder logos, belong to their owners, are not licensed under Creative Commons, and may not be reused without
           their authorization.
         </span>
       </p>
