@@ -1165,3 +1165,83 @@ body[data-tenant-font="system"] {
 @media (prefers-reduced-motion: reduce) {
   .ra-mascot, .ra-mascot * { animation: none !important; }
 }
+
+/* ---------------------------------------------------------------------------
+   Open Edition magazine (src/components/views/open-edition-issue-view.tsx).
+   Print-magazine typesetting for long-form reading: an editorial serif body
+   on a ~66-character measure, old-style figures, drop cap and small-caps
+   lead-in, numbered figures, and pull quotes. Colours come from the site
+   tokens so light and dark themes both work.
+   --------------------------------------------------------------------------- */
+.oe {
+  --oe-ink: var(--foreground);
+  --oe-ink-soft: var(--muted-foreground);
+  --oe-paper: var(--background);
+  --oe-rule: color-mix(in oklab, var(--foreground) 14%, transparent);
+  --oe-accent: var(--primary);
+  --oe-gold: var(--gold-500);
+  --oe-chart-a: var(--primary);
+  --oe-chart-b: var(--gold-400);
+  --oe-chart-mute: color-mix(in oklab, var(--foreground) 14%, var(--background));
+  --oe-serif: var(--font-editorial), "Source Serif 4", Georgia, "Times New Roman", serif;
+  /* One text measure (~68 characters of body type) shared by every block in
+     an article, so paragraphs, headings, lists, figures and notes all hang
+     from the same left edge. */
+  --oe-measure: 39rem;
+}
+.oe-cover { container-type: inline-size; position: relative; aspect-ratio: 3 / 4; width: 100%; overflow: hidden; border-radius: 3px; background: oklch(0.97 0.015 85); color: oklch(0.22 0.1 295); box-shadow: 0 28px 48px -28px oklch(0.2 0.1 295 / 0.65), 0 1px 0 oklch(0 0 0 / 0.06); }
+.oe-cover img { position: absolute; left: 6cqw; right: 6cqw; bottom: 18cqw; width: 88cqw; height: 54cqw; object-fit: cover; border-radius: 0.6cqw; }
+.oe-cover .oe-cover-mast { position: absolute; left: 6cqw; right: 6cqw; top: 5cqw; display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 2.6cqw; letter-spacing: 0.2em; text-transform: uppercase; }
+.oe-cover .oe-cover-logo { position: absolute; left: 5.4cqw; top: 9.5cqw; font-family: var(--font-serif); font-weight: 700; font-size: 30cqw; line-height: 0.8; letter-spacing: -0.04em; color: oklch(0.36 0.18 295); }
+.oe-cover .oe-cover-logo i { font-weight: 400; }
+.oe-cover .oe-cover-title { position: absolute; left: 6cqw; right: 6cqw; top: 35cqw; font-family: var(--font-serif); font-weight: 700; font-size: 10.6cqw; line-height: 0.92; letter-spacing: -0.03em; }
+.oe-cover .oe-cover-title i { font-weight: 400; }
+.oe-cover .oe-cover-line { position: absolute; left: 6cqw; right: 26cqw; bottom: 5cqw; font-size: 3.1cqw; font-weight: 500; line-height: 1.3; }
+.oe-cover .oe-cover-bar { position: absolute; right: 6cqw; bottom: 5cqw; width: 17cqw; padding: 1.4cqw 1.6cqw 1cqw; background: oklch(0.22 0.1 295); color: oklch(0.97 0.015 85); border-radius: 0.6cqw; }
+.oe-cover .oe-cover-bar::before { content: ""; display: block; height: 6cqw; background: repeating-linear-gradient(90deg, oklch(0.97 0.015 85) 0 0.35cqw, transparent 0.35cqw 0.7cqw, oklch(0.97 0.015 85) 0.7cqw 1.4cqw, transparent 1.4cqw 1.75cqw, oklch(0.97 0.015 85) 1.75cqw 1.95cqw, transparent 1.95cqw 2.5cqw); }
+.oe-cover .oe-cover-bar span { display: block; font-family: var(--font-mono); font-size: 1.7cqw; letter-spacing: 0.1em; text-align: center; margin-top: 0.6cqw; }
+
+.oe-serif { font-family: var(--oe-serif); }
+.oe-note p { font-family: var(--oe-serif); font-size: 1.15rem; line-height: 1.7; margin: 0 0 1em; font-variant-numeric: oldstyle-nums proportional-nums; hanging-punctuation: first; text-wrap: pretty; }
+.oe-note p:first-child::first-letter { font-family: var(--font-serif); font-weight: 700; float: left; font-size: 3.4em; line-height: 0.8; padding: 0.08em 0.1em 0 0; color: var(--oe-accent); }
+
+/* Article body */
+.oe-prose { font-family: var(--oe-serif); font-size: 1.1875rem; line-height: 1.72; color: var(--oe-ink); font-variant-numeric: oldstyle-nums proportional-nums; font-optical-sizing: auto; hanging-punctuation: first; counter-reset: oe-fig; }
+.oe-prose > * { max-width: var(--oe-measure); margin-left: auto; margin-right: auto; }
+.oe-prose p { margin-top: 0; margin-bottom: 1.05em; text-wrap: pretty; hyphens: auto; }
+.oe-prose.oe-dropcap > p:first-of-type::first-letter { font-family: var(--font-serif); font-weight: 700; float: left; font-size: 4.1em; line-height: 0.78; padding: 0.07em 0.09em 0 0; color: var(--oe-accent); }
+.oe-prose.oe-dropcap > p:first-of-type::first-line { font-variant-caps: all-small-caps; letter-spacing: 0.04em; font-size: 1.04em; }
+.oe-prose h2, .oe-prose h3 { font-family: var(--font-serif); font-weight: 600; font-size: 1.55rem; line-height: 1.22; letter-spacing: -0.012em; margin-top: 1.9em; margin-bottom: 0.55em; text-wrap: balance; font-variant-numeric: lining-nums; }
+.oe-prose h4 { font-family: var(--font-sans); font-size: 0.82rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--oe-ink-soft); margin-top: 2em; margin-bottom: 0.6em; }
+.oe-prose ul, .oe-prose ol { padding-left: 1.35em; margin-bottom: 1.1em; box-sizing: border-box; }
+.oe-prose ul { list-style: disc; }
+.oe-prose ol { list-style: decimal; }
+.oe-prose li { margin-bottom: 0.45em; padding-left: 0.2em; }
+.oe-prose ul > li::marker { color: var(--oe-gold); }
+.oe-prose ol > li::marker { color: var(--oe-accent); font-family: var(--font-serif); font-weight: 600; }
+.oe-prose strong { font-weight: 650; }
+.oe-prose a { color: var(--oe-accent); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; text-decoration-color: color-mix(in oklab, var(--oe-accent) 45%, transparent); }
+.oe-prose a:hover { text-decoration-color: currentColor; }
+.oe-prose sup { font-family: var(--font-sans); font-size: 0.62em; line-height: 0; vertical-align: baseline; position: relative; top: -0.55em; font-variant-numeric: lining-nums; }
+.oe-prose sup a { text-decoration: none; font-weight: 600; padding: 0 0.08em; }
+.oe-prose table { width: 100%; border-collapse: collapse; font-family: var(--font-sans); font-size: 0.88rem; line-height: 1.5; font-variant-numeric: lining-nums tabular-nums; }
+.oe-prose th, .oe-prose td { border-bottom: 1px solid var(--oe-rule); padding: 0.5em 0.6em; text-align: left; vertical-align: top; }
+.oe-prose .oe-pull { font-family: var(--font-serif); font-style: italic; font-weight: 400; font-size: 1.65rem; line-height: 1.28; letter-spacing: -0.01em; color: var(--oe-accent); text-align: left; border-top: 2px solid var(--oe-gold); border-bottom: 1px solid var(--oe-rule); padding: 0.75em 0 0.7em; margin: 1.6em auto; text-wrap: balance; hyphens: manual; font-variant-numeric: lining-nums; }
+.oe-prose .oe-figure { counter-increment: oe-fig; margin: 2em auto; padding: 1.25rem 1.25rem 1rem; border-top: 2px solid var(--oe-ink); border-bottom: 1px solid var(--oe-rule); background: color-mix(in oklab, var(--oe-ink) 2.5%, transparent); font-family: var(--font-sans); font-variant-numeric: lining-nums tabular-nums; }
+.oe-prose .oe-figure h4 { margin: 0 0 1rem; font-family: var(--font-sans); font-size: 0.95rem; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--oe-ink); }
+.oe-prose .oe-figure h4::before { content: "Figure " counter(oe-fig) ". "; color: var(--oe-accent); }
+.oe-prose .oe-figure svg { display: block; width: 100%; height: auto; overflow: visible; }
+.oe-prose .oe-figure figcaption { font-family: var(--font-mono); font-size: 0.7rem; line-height: 1.5; color: var(--oe-ink-soft); margin-top: 0.85rem; }
+@media (max-width: 640px) {
+  .oe-prose { font-size: 1.09rem; line-height: 1.68; }
+  .oe-prose .oe-pull { font-size: 1.35rem; }
+  .oe-prose .oe-figure { padding: 1rem 0.85rem 0.85rem; overflow-x: auto; }
+  /* Keep chart labels legible on phones: the drawing keeps a readable
+     size and the figure scrolls sideways instead of shrinking it. */
+  .oe-prose .oe-figure svg { min-width: 500px; }
+}
+.oe-sources { font-family: var(--font-sans); font-size: 0.86rem; line-height: 1.55; color: var(--oe-ink-soft); }
+.oe-sources a { color: var(--oe-accent); text-underline-offset: 2px; word-break: break-word; }
+.oe-sources li { scroll-margin-top: 96px; padding-left: 0.25em; margin-bottom: 0.55em; }
+.oe-sources li::marker { font-variant-numeric: tabular-nums; color: var(--oe-ink); font-weight: 600; }
+.oe-sources li:target { background: color-mix(in oklab, var(--gold-300) 30%, transparent); border-radius: 4px; }

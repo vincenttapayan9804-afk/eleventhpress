@@ -11,6 +11,46 @@ import {
 } from "@/components/ui/select";
 import { useReveal } from "@/hooks/use-scroll-reveal";
 import { Newspaper, FileX, ArrowRight } from "lucide-react";
+import { OPEN_EDITION_ISSUES, readingMinutes, type OpenEditionIssue } from "@/lib/open-edition";
+import { OpenEditionCover } from "@/components/views/open-edition-issue-view";
+
+/** The latest Open Edition issue, featured at the top of /magazines. */
+function OpenEditionFeature({ issue, onOpen }: { issue: OpenEditionIssue; onOpen: () => void }) {
+  const minutes = issue.pieces.reduce((t, p) => t + readingMinutes(p.bodyHtml), 0);
+  const highlights = issue.pieces.filter((p) => p.kind === "original").slice(0, 4);
+  return (
+    <section aria-labelledby="oe-feature-h" className="mt-8 overflow-hidden rounded-2xl border border-foreground/10 bg-gradient-to-br from-[var(--gold-200)]/40 via-background to-[var(--royal-100)]/50 dark:from-[oklch(0.22_0.04_85)]/40 dark:to-[oklch(0.22_0.06_295)]/50">
+      <div className="grid items-center gap-10 p-6 sm:p-10 md:grid-cols-[minmax(0,260px)_1fr] lg:gap-14 lg:p-12">
+        <button onClick={onOpen} aria-label={`Open ${issue.series}: ${issue.title} ${issue.titleItalic}`} className="cover-click-glow mx-auto block w-full max-w-[260px] transition-transform duration-500 hover:-translate-y-1">
+          <OpenEditionCover issue={issue} />
+        </button>
+        <div>
+          <p className="font-mono text-[0.7rem] uppercase tracking-[0.2em] text-[var(--gold-600)]">
+            New · {issue.series} · Vol. {issue.volume}, No. {issue.issueNumber}
+          </p>
+          <h2 id="oe-feature-h" className="mt-3 font-display text-4xl font-bold leading-[1.02] tracking-tight sm:text-5xl">
+            {issue.title} <span className="font-normal italic text-primary">{issue.titleItalic}</span>
+          </h2>
+          <p className="mt-4 max-w-2xl font-serif text-lg leading-relaxed text-foreground/80">{issue.description}</p>
+          <ul className="mt-6 grid gap-x-8 gap-y-2 text-sm sm:grid-cols-2">
+            {highlights.map((p) => (
+              <li key={p.slug} className="flex gap-2 border-t border-foreground/10 pt-2">
+                <span className="font-mono text-[0.62rem] uppercase tracking-[0.14em] text-muted-foreground">{p.section}</span>
+                <span className="font-medium leading-snug">{p.title}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-8 flex flex-wrap items-center gap-4">
+            <Button onClick={onOpen} className="rounded-full px-6">
+              Read the issue <ArrowRight className="ml-1.5 h-4 w-4" />
+            </Button>
+            <span className="text-sm text-muted-foreground">Free to read · {issue.pieces.length} pieces · {minutes} min</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 interface IssueItem {
   id: string;
@@ -62,6 +102,7 @@ export function MagazinesView() {
     [issues, magazine]
   );
   const [hero, ...rest] = filtered;
+  const latestOpenEdition = OPEN_EDITION_ISSUES[OPEN_EDITION_ISSUES.length - 1];
 
   if (loading) {
     return (
@@ -73,7 +114,8 @@ export function MagazinesView() {
           <h1 className="mt-2 font-display text-5xl font-bold tracking-tight sm:text-6xl">{t("title")}</h1>
           <p className="mt-3 max-w-xl text-sm text-muted-foreground">{t("description")}</p>
         </div>
-        <div className="mt-8 h-96 shimmer rounded-2xl" />
+        {latestOpenEdition && <OpenEditionFeature issue={latestOpenEdition} onOpen={() => openMagazineIssue(latestOpenEdition.id)} />}
+        <div className="mt-8 h-64 shimmer rounded-2xl" />
       </div>
     );
   }
@@ -98,13 +140,17 @@ export function MagazinesView() {
         )}
       </div>
 
-      {filtered.length === 0 ? (
+      {magazine === "ALL" && latestOpenEdition && (
+        <OpenEditionFeature issue={latestOpenEdition} onOpen={() => openMagazineIssue(latestOpenEdition.id)} />
+      )}
+
+      {filtered.length === 0 ? (latestOpenEdition ? null : (
         <div className="mt-16 flex flex-col items-center justify-center py-24 text-center">
           <FileX className="h-12 w-12 text-muted-foreground" />
           <p className="mt-4 font-display text-lg font-medium">{t("noIssuesTitle")}</p>
           <p className="text-sm text-muted-foreground">{t("noIssuesHint")}</p>
         </div>
-      ) : (
+      )) : (
         <>
           {/* Hero — latest issue, Forbes-style split cover treatment */}
           {hero && (
