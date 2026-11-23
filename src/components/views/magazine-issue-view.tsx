@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Newspaper, Loader2, Download, FileText, Printer, Lock } from "lucide-react";
 import { MagazinePieceListenCard } from "@/components/narration/magazine-piece-listen-card";
 import { ContentDataTables } from "@/components/data-tables/content-data-tables";
+import { getOpenEditionIssue } from "@/lib/open-edition";
+import { OpenEditionIssueView } from "@/components/views/open-edition-issue-view";
 
 interface Piece {
   id: string;
@@ -96,7 +98,18 @@ function PieceReader({ piece, onBack }: { piece: Piece; onBack: () => void }) {
   );
 }
 
+/**
+ * /magazines/<id>: an Open Edition issue (static content, src/lib/open-edition.ts)
+ * or a magazine issue from the database.
+ */
 export function MagazineIssueView() {
+  const { magazineIssueId } = useApp();
+  const openEdition = getOpenEditionIssue(magazineIssueId);
+  if (openEdition) return <OpenEditionIssueView issue={openEdition} />;
+  return <DbMagazineIssueView />;
+}
+
+function DbMagazineIssueView() {
   const t = useTranslations("magazines");
   const { magazineIssueId, setView } = useApp();
   const [issue, setIssue] = useState<IssueDetail | null>(null);

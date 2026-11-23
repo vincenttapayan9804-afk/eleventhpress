@@ -8,6 +8,7 @@ import { BLOGS, GUIDES } from "@/lib/resources-content";
 import { OFFICIAL_FORMS } from "@/lib/forms";
 import { MEDIA_STORIES, mediaStoryPath } from "@/lib/media/stories";
 import { articlePath, SITEMAP_PATHS } from "@/lib/spa-routes";
+import { OPEN_EDITION_ISSUES } from "@/lib/open-edition";
 import { authorPath } from "@/lib/author-path";
 import { parseAuthors } from "@/lib/article";
 import { isSeedArticleTitle } from "@/lib/seed-content";
@@ -75,6 +76,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: `${base}${path}`,
       changeFrequency: (path === "/articles" ? "daily" : "monthly") as "daily" | "monthly",
       priority: path === "/articles" ? 0.9 : 0.5,
+    })),
+    // Open Edition magazine issues (platform only — Eleventh Press's own magazine).
+    ...(tenant && !tenant.isPlatform ? [] : OPEN_EDITION_ISSUES).map((i) => ({
+      url: `${base}/magazines/${i.id}`,
+      lastModified: new Date(`${i.publishedAt}T00:00:00Z`),
+      changeFrequency: "monthly" as const,
+      priority: 0.7,
     })),
     // Resources blog posts (platform only — they are Eleventh Press's own
     // editorial posts) and official guides (server-rendered pages).

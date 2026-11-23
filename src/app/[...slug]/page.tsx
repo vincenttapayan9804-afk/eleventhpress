@@ -6,6 +6,7 @@ import { getCurrentTenant } from "@/lib/tenant";
 import { APP_BASE_URL } from "@/lib/site";
 import { SHARE_IMAGES } from "@/lib/share-image";
 import { PLATFORM_FAQS } from "@/lib/faqs";
+import { getOpenEditionIssue } from "@/lib/open-edition";
 
 /**
  * Every page of the single-page site other than "/" — /articles, /about,
@@ -42,6 +43,19 @@ export async function generateMetadata({ params }: Props, parent: ResolvingMetad
   const tenant = await getCurrentTenant().catch(() => null);
   const siteName = tenant && !tenant.isPlatform ? tenant.siteName || tenant.name : null;
   const base = (await parent).title?.absolute || siteName || "Eleventh Press International Publishing™";
+  const openEdition = route.view === "magazineIssue" ? getOpenEditionIssue(route.magazineIssueId) : undefined;
+  if (openEdition) {
+    const title = `${openEdition.series}: ${openEdition.title} ${openEdition.titleItalic} — Magazines — ${base}`;
+    const url = `${APP_BASE_URL}${pathOf(slug)}`;
+    const images = [{ url: `${APP_BASE_URL}${openEdition.cover}`, alt: openEdition.coverAlt }];
+    return {
+      title,
+      description: openEdition.description,
+      alternates: { canonical: url },
+      openGraph: { title, description: openEdition.description, url, type: "article", images },
+      twitter: { card: "summary_large_image", title, description: openEdition.description, images },
+    };
+  }
   const meta = VIEW_META[route.view];
   if (!meta) return { title: base, alternates: { canonical: `${APP_BASE_URL}${pathOf(slug)}` } };
   const description = viewDescription(meta.description, siteName);
@@ -115,13 +129,52 @@ async function sectionJsonLd(path: string, view: string): Promise<string | null>
   return JSON.stringify({ "@context": "https://schema.org", "@graph": [page, breadcrumb] }).replace(/</g, "\\u003c");
 }
 
+/** schema.org PublicationIssue for an Open Edition issue, listing its articles. */
+function openEditionJsonLd(issue: NonNullable<ReturnType<typeof getOpenEditionIssue>>, path: string): string {
+  const url = `${APP_BASE_URL}${path}`;
+  const data = {
+    "@context": "https://schema.org",
+    "@type": "PublicationIssue",
+    "@id": `${url}#issue`,
+    url,
+    name: `${issue.title} ${issue.titleItalic}`,
+    issueNumber: String(issue.issueNumber),
+    datePublished: issue.publishedAt,
+    description: issue.description,
+    image: `${APP_BASE_URL}${issue.cover}`,
+    isAccessibleForFree: true,
+    isPartOf: {
+      "@type": "PublicationVolume",
+      volumeNumber: String(issue.volume),
+      isPartOf: { "@type": "Periodical", name: issue.series, publisher: { "@type": "Organization", name: "Eleventh Press International Publishing" } },
+    },
+    hasPart: issue.pieces.map((p) => ({
+      "@type": "Article",
+      headline: p.title,
+      description: p.dek,
+      url: `${url}#${p.slug}`,
+      image: `${APP_BASE_URL}${p.image}`,
+      author: p.reprint
+        ? p.reprint.authors
+          ? p.reprint.authors.split(/, | and /).map((name) => ({ "@type": "Person", name: name.replace(/^Dr /, "") }))
+          : { "@type": "Organization", name: p.reprint.publisher }
+        : { "@type": "Organization", name: "Eleventh Press Editorial Team" },
+      ...(p.reprint ? { license: p.reprint.licence.url, isBasedOn: p.reprint.sourceUrl } : {}),
+    })),
+  };
+  return JSON.stringify(data).replace(/</g, "\\u003c");
+}
+
 export default async function SpaRoutePage({ params, searchParams }: Props) {
   const { slug } = await params;
   const path = pathOf(slug);
   const route = stateForPath(path, searchOf(await searchParams));
   if (!route) notFound();
   // Only a section's own URL (/about, /faqs …), not deeper views like /magazines/<id>.
-  const jsonLd = slug.length === 1 ? await sectionJsonLd(path, route.view).catch(() => null) : null;
+  const openEdition = route.view === "magazineIssue" ? getOpenEditionIssue(route.magazineIssueId) : undefined;
+  const jsonLd = openEdition
+    ? openEditionJsonLd(openEdition, path)
+    : slug.length === 1 ? await sectionJsonLd(path, route.view).catch(() => null) : null;
   return (
     <>
       {/* A plain text child, not dangerouslySetInnerHTML: React writes <script>
