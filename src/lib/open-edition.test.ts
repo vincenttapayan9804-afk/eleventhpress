@@ -1,12 +1,16 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { OPEN_EDITION_ISSUES, getOpenEditionIssue, readingMinutes } from "./open-edition";
+import { OPEN_EDITION_ISSUES, getOpenEditionIssue, openEditionCopyright, readingMinutes } from "./open-edition";
 import { pathForState, stateForPath } from "./spa-routes";
 
 const PUBLIC = join(import.meta.dir, "..", "..", "public");
 
 describe("Open Edition issues", () => {
+  test("originals are all rights reserved, not Creative Commons", () => {
+    expect(openEditionCopyright(2026)).toBe("© 2026 Eleventh Press International Publishing™. All rights reserved.");
+  });
+
   test("issue ids are unique and route to /magazines/<id>", () => {
     const ids = OPEN_EDITION_ISSUES.map((i) => i.id);
     expect(new Set(ids).size).toBe(ids.length);
@@ -25,6 +29,13 @@ describe("Open Edition issues", () => {
       test("cover and every article image exist in /public", () => {
         expect(existsSync(join(PUBLIC, issue.cover))).toBe(true);
         for (const p of issue.pieces) expect(existsSync(join(PUBLIC, p.image))).toBe(true);
+      });
+
+      test("print edition PDF exists (run scripts/build-open-edition-pdf.ts)", () => {
+        expect(issue.pdf).toMatch(/^\/magazines\/open-edition\/.+\.pdf$/);
+        const pdf = join(PUBLIC, issue.pdf);
+        expect(existsSync(pdf)).toBe(true);
+        expect(readFileSync(pdf).subarray(0, 5).toString()).toBe("%PDF-");
       });
 
       test("piece slugs are unique", () => {
