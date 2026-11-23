@@ -130,6 +130,24 @@ img { display: block; max-width: 100%; }
 .cover-bar { position: absolute; right: 12mm; bottom: 13mm; width: 36mm; padding: 3mm 3.4mm 2.2mm; background: var(--plum-deep); color: var(--cream); border-radius: 1.2mm; }
 .cover-bar::before { content: ""; display: block; height: 12mm; background: repeating-linear-gradient(90deg, var(--cream) 0 0.7mm, transparent 0.7mm 1.4mm, var(--cream) 1.4mm 2.8mm, transparent 2.8mm 3.5mm, var(--cream) 3.5mm 3.9mm, transparent 3.9mm 5mm); }
 .cover-bar span { display: block; margin-top: 1.4mm; text-align: center; font: 500 5.6pt/1 var(--mono); letter-spacing: 0.14em; }
+/* "frame" cover (Vol. 1, No. 2 onward): full-bleed photo in a gold frame.
+   Sizes are the on-site design scaled to A4 (1cqw = 2.1mm). */
+.cover--frame { background: #0f101f; color: #fcfbfe; }
+.cover--frame .cover-photo { left: 0; right: 0; top: 0; bottom: 0; width: 210mm; height: 297mm; border-radius: 0; }
+.cover--frame .cover-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgb(0 0 0 / 0.78) 0 38%, rgb(0 0 0 / 0.1) 70%, rgb(0 0 0 / 0.5)); }
+.cover--frame::after { content: ""; position: absolute; inset: 7.35mm; border: 0.95mm solid #e4b750; }
+.cover--frame .cover-mast { left: 12.6mm; right: 12.6mm; top: 10.5mm; align-items: baseline; font: 400 11pt/1 var(--mono); letter-spacing: 0.22em; }
+.cover--frame .cover-mast span:last-child { font-size: 10.2pt; letter-spacing: 0.14em; }
+.cover--frame .cover-logo { left: 11.3mm; top: 20mm; font: 900 63mm/0.8 var(--serif-display); letter-spacing: -0.04em; color: #e4b750; }
+.cover--frame .cover-logo i { font-weight: 300; }
+.cover--frame .cover-text { position: absolute; left: 12.6mm; right: 12.6mm; top: 84mm; }
+.cover--frame .cover-title { position: static; margin: 0; font: 500 26.25mm/0.9 var(--serif-display); letter-spacing: -0.03em; }
+.cover--frame .cover-rule { width: 37.8mm; height: 1.05mm; background: #e4b750; margin: 7.1mm 0; }
+.cover--frame .cover-line { position: static; max-width: 130mm; margin: 0; font: 500 18.4pt/1.35 var(--sans); }
+.cover--frame .cover-line b { display: block; font-weight: 700; font-size: 14.3pt; letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 1.3mm; }
+.cover--frame .cover-bar { right: 12.6mm; bottom: 10.5mm; width: 35.7mm; padding: 2.9mm 3.4mm 2.1mm; background: #fcfbfe; color: #0f101f; border-radius: 1.26mm; }
+.cover--frame .cover-bar::before { height: 12.6mm; background: repeating-linear-gradient(90deg, #0f101f 0 0.74mm, transparent 0.74mm 1.47mm, #0f101f 1.47mm 2.94mm, transparent 2.94mm 3.68mm, #0f101f 3.68mm 4.1mm, transparent 4.1mm 5.25mm); }
+.cover--frame .cover-bar span { font-size: 10pt; letter-spacing: 0.1em; margin-top: 1.26mm; }
 
 /* --- Front matter: contents, editors' note, colophon ------------------- */
 

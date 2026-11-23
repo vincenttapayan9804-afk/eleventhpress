@@ -47,8 +47,28 @@ function pieceFromHash(issue: OpenEditionIssue): string | null {
 }
 
 function IssueCover({ issue, className = "" }: { issue: OpenEditionIssue; className?: string }) {
+  const label = `Cover of ${issue.series}, Vol. ${issue.volume}, No. ${issue.issueNumber}: ${issue.title} ${issue.titleItalic}`;
+  if (issue.coverStyle === "frame") {
+    return (
+      <div className={`oe-cover oe-cover--frame ${className}`} role="img" aria-label={label}>
+        <img src={issue.cover} alt="" />
+        <div className="oe-cover-shade" />
+        <div className="oe-cover-mast"><span>Eleventh Press</span><span>No. {String(issue.issueNumber).padStart(2, "0")}</span></div>
+        <div className="oe-cover-logo">Open<i>.</i></div>
+        <div className="oe-cover-text">
+          <div className="oe-cover-title">{issue.title} {issue.titleItalic}</div>
+          <div className="oe-cover-rule" />
+          <div className="oe-cover-line">
+            {issue.coverKicker && <b>{issue.coverKicker}</b>}
+            {issue.coverLine}
+          </div>
+        </div>
+        <div className="oe-cover-bar"><span>FREE ISSUE</span></div>
+      </div>
+    );
+  }
   return (
-    <div className={`oe-cover ${className}`} role="img" aria-label={`Cover of ${issue.series}, Vol. ${issue.volume}, No. ${issue.issueNumber}: ${issue.title} ${issue.titleItalic}`}>
+    <div className={`oe-cover ${className}`} role="img" aria-label={label}>
       <img src={issue.cover} alt="" />
       <div className="oe-cover-mast"><span>Eleventh Press</span><span>No. {String(issue.issueNumber).padStart(2, "0")}</span></div>
       <div className="oe-cover-logo">Open<i>.</i></div>
@@ -252,18 +272,22 @@ function PieceReader({
 
       <div className="mx-auto mt-10 max-w-4xl px-4 sm:px-6 lg:px-8">
         {credit && (
-          <div className="mx-auto mb-10 max-w-[var(--oe-measure)] rounded-lg border border-emerald-600/30 bg-emerald-600/[0.05] p-5 text-[0.92rem] leading-relaxed">
-            <p className="font-mono text-[0.66rem] uppercase tracking-[0.16em] text-emerald-700 dark:text-emerald-400">Republished under an open licence</p>
+          <div className="relative mx-auto mb-10 max-w-[var(--oe-measure)] rounded-lg border border-emerald-600/30 bg-emerald-600/[0.05] p-5 text-[0.92rem] leading-relaxed">
+            <p className="font-mono text-[0.66rem] uppercase tracking-[0.16em] text-emerald-700 dark:text-emerald-400">{/^public domain/i.test(credit.licence.label) ? "Republished from the public domain" : "Republished under an open licence"}</p>
             <p className="mt-2">
               From{" "}
               <a href={credit.sourceUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary underline underline-offset-2">
                 <i>{credit.publication}</i>
               </a>
-              , published by {credit.publisher}. Licensed under{" "}
+              , published by {credit.publisher}. {/^public domain/i.test(credit.licence.label) ? "" : "Licensed under "}
               <a href={credit.licence.url} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2">{credit.licence.label}</a>.{" "}
               {credit.notes}
             </p>
             <p className="mt-2 text-muted-foreground">Eleventh Press is not affiliated with, sponsored by or endorsed by {credit.publisher}.</p>
+            {credit.counterPixel && (
+              // Republication counter required by the publisher's guidelines.
+              <img src={credit.counterPixel} alt="" width={1} height={1} referrerPolicy="no-referrer-when-downgrade" className="pointer-events-none absolute h-px w-px opacity-0" />
+            )}
           </div>
         )}
 
@@ -418,8 +442,8 @@ function IssueHome({ issue, onOpen }: { issue: OpenEditionIssue; onOpen: (slug: 
           <span className="font-semibold text-foreground">{openEditionCopyright(issue.year)}</span> {OPEN_EDITION_RIGHTS_DETAIL}
         </p>
         <p>
-          Cover and article photographs: Unsplash, under the Unsplash Licence. Charts and illustrations are drawn by Eleventh Press from the cited data.
-          Reprints keep their original Creative Commons licences, shown on each article. Publication names identify the source of each reprint; Eleventh
+          Cover and article photographs: Unsplash, under the Unsplash Licence, unless another credit is shown under the picture. Charts and illustrations are drawn by Eleventh Press from the cited data.
+          Reprints keep their original open licences or public-domain status, shown on each article. Publication names identify the source of each reprint; Eleventh
           Press is not affiliated with, sponsored by or endorsed by those publishers.
         </p>
       </footer>

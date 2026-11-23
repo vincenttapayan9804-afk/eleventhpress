@@ -53,6 +53,29 @@ function OpenEditionFeature({ issue, onOpen }: { issue: OpenEditionIssue; onOpen
   );
 }
 
+/** Earlier Open Edition issues, shown under the featured latest one. */
+function OpenEditionBackIssues({ issues, onOpen }: { issues: OpenEditionIssue[]; onOpen: (id: string) => void }) {
+  if (issues.length === 0) return null;
+  return (
+    <section aria-labelledby="oe-back-h" className="mt-6">
+      <h2 id="oe-back-h" className="font-mono text-[0.7rem] uppercase tracking-[0.2em] text-muted-foreground">Earlier Open Edition issues</h2>
+      <ul className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-6">
+        {issues.map((issue) => (
+          <li key={issue.id}>
+            <button onClick={() => onOpen(issue.id)} aria-label={`Open ${issue.series}: ${issue.title} ${issue.titleItalic}`} className="group block w-full text-left">
+              <span className="block transition-transform duration-500 group-hover:-translate-y-1">
+                <OpenEditionCover issue={issue} />
+              </span>
+              <span className="mt-2 block font-mono text-[0.62rem] uppercase tracking-[0.14em] text-muted-foreground">Vol. {issue.volume}, No. {issue.issueNumber}</span>
+              <span className="block font-display text-base font-semibold leading-tight">{issue.title} <i className="font-normal">{issue.titleItalic}</i></span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 interface IssueItem {
   id: string;
   magazineName: string;
@@ -104,6 +127,7 @@ export function MagazinesView() {
   );
   const [hero, ...rest] = filtered;
   const latestOpenEdition = OPEN_EDITION_ISSUES[OPEN_EDITION_ISSUES.length - 1];
+  const earlierOpenEditions = OPEN_EDITION_ISSUES.slice(0, -1).reverse();
 
   if (loading) {
     return (
@@ -116,6 +140,7 @@ export function MagazinesView() {
           <p className="mt-3 max-w-xl text-sm text-muted-foreground">{t("description")}</p>
         </div>
         {latestOpenEdition && <OpenEditionFeature issue={latestOpenEdition} onOpen={() => openMagazineIssue(latestOpenEdition.id)} />}
+        <OpenEditionBackIssues issues={earlierOpenEditions} onOpen={openMagazineIssue} />
         <div className="mt-8 h-64 shimmer rounded-2xl" />
       </div>
     );
@@ -142,7 +167,10 @@ export function MagazinesView() {
       </div>
 
       {magazine === "ALL" && latestOpenEdition && (
-        <OpenEditionFeature issue={latestOpenEdition} onOpen={() => openMagazineIssue(latestOpenEdition.id)} />
+        <>
+          <OpenEditionFeature issue={latestOpenEdition} onOpen={() => openMagazineIssue(latestOpenEdition.id)} />
+          <OpenEditionBackIssues issues={earlierOpenEditions} onOpen={openMagazineIssue} />
+        </>
       )}
 
       {filtered.length === 0 ? (latestOpenEdition ? null : (
