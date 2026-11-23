@@ -16,6 +16,8 @@
  * on /magazines by src/components/views/magazines-view.tsx.
  */
 
+import { CONNECTED_WORLD_PIECES } from "./open-edition-connected-world";
+
 export type VerificationStatus = "source" | "document" | "reported";
 
 export interface VerificationEntry {
@@ -31,8 +33,15 @@ export interface ReprintCredit {
   publisher: string;
   authors: string | null;
   sourceUrl: string;
+  /** An open licence, or a public-domain statement for public-domain works. */
   licence: { label: string; url: string };
   notes: string;
+  /**
+   * Republication counter the publisher requires on web copies (The
+   * Conversation's 1x1 image). Shown on the website only; print editions
+   * are exempt under their guidelines.
+   */
+  counterPixel?: string;
 }
 
 export interface OpenEditionPiece {
@@ -69,6 +78,13 @@ export interface OpenEditionIssue {
   /** Second half of the cover title, set in italic. */
   titleItalic: string;
   coverLine: string;
+  /**
+   * Cover layout. "paper" (default): cream ground with a framed photo.
+   * "frame": full-bleed photo inside a gold frame, with a kicker line.
+   */
+  coverStyle?: "paper" | "frame";
+  /** Small caps line above the cover line ("frame" covers). */
+  coverKicker?: string;
   description: string;
   cover: string;
   coverAlt: string;
@@ -587,6 +603,30 @@ export const OPEN_EDITION_ISSUES: OpenEditionIssue[] = [
       "Every figure in our features links to its source, and every reprint carries its licence. At the back of the issue you will find the standards we hold ourselves to, including exactly how we use AI tools and where human editors stay accountable.",
     ],
     pieces: LEARNING_EVERYWHERE_PIECES,
+  },
+  {
+    id: "open-edition-connected-world",
+    series: "Open Edition",
+    volume: 1,
+    issueNumber: 2,
+    year: 2026,
+    publishedAt: "2026-11-23",
+    title: "Connected",
+    titleItalic: "World",
+    coverLine: "Digital literacy, open data and the people behind the network",
+    coverStyle: "frame",
+    coverKicker: "Technology & society",
+    description:
+      "Open Edition's second issue: eight original, fully sourced features on the 2 billion people still offline, the mobile gender gap, digital literacy, undersea cables, connecting every school, open data, internet shutdowns and the Global Digital Compact, alongside six openly licensed reprints.",
+    cover: "/magazines/open-edition/02/cover.webp",
+    coverAlt: "City lights across the Earth at night, seen from space",
+    pdf: "/magazines/open-edition/02/open-edition-vol1-no2-connected-world.pdf",
+    editorsNote: [
+      "Our second issue is about connection: who has it, who does not, and what it takes to make it count. In 2026, for the first time, more than three in four people are online. That still leaves 2 billion people outside the connected world, most of them poorer, more rural and more likely to be women.",
+      "The issue moves in three parts. First, who is online, and the skills people need once they get there. Second, the physical network: the glass cables on the sea floor, the satellites overhead, and the effort to connect every school. Third, the rules: how openly governments share their data, how often they switch the internet off, and what the world's governments have promised to do about it.",
+      "As before, every figure in our features links to its source and is logged in a verification table, and every reprint carries its licence. Our original articles are the copyright of Eleventh Press International Publishing; the reprints remain free to share under the terms their publishers chose.",
+    ],
+    pieces: CONNECTED_WORLD_PIECES,
   },
 ];
 

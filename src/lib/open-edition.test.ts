@@ -47,6 +47,20 @@ describe("Open Edition issues", () => {
         expect(issue.pieces.filter((p) => p.kind === "original").length).toBeGreaterThanOrEqual(5);
       });
 
+      if (issue.issueNumber >= 2) {
+        test("from No. 2: 6 to 8 originals and more than 3 licensed reprints", () => {
+          const originals = issue.pieces.filter((p) => p.kind === "original").length;
+          expect(originals).toBeGreaterThanOrEqual(6);
+          expect(originals).toBeLessThanOrEqual(8);
+          expect(issue.pieces.filter((p) => p.kind === "reprint").length).toBeGreaterThan(3);
+        });
+      }
+
+      test("cover settings are complete", () => {
+        expect(issue.coverLine.length).toBeGreaterThan(10);
+        if (issue.coverStyle === "frame") expect(issue.coverKicker?.length).toBeGreaterThan(3);
+      });
+
       for (const p of issue.pieces) {
         test(`${p.slug}: markup is safe and alt text present`, () => {
           expect(p.bodyHtml).not.toMatch(/<script|<iframe|\son\w+=|javascript:/i);
@@ -70,7 +84,16 @@ describe("Open Edition issues", () => {
           });
         } else {
           test(`${p.slug}: reprint carries its licence and source`, () => {
-            expect(p.reprint?.licence.url).toMatch(/^https:\/\/creativecommons\.org\/licenses\//);
+            const licence = p.reprint!.licence;
+            if (/^public domain/i.test(licence.label)) {
+              // Public-domain works (e.g. NASA) link to the publisher's usage terms.
+              expect(licence.url).toMatch(/^https:\/\//);
+            } else {
+              expect(licence.url).toMatch(/^https:\/\/creativecommons\.org\/licenses\//);
+              // Non-commercial licences are not usable on a site that sells books.
+              expect(licence.label).not.toMatch(/NC/);
+            }
+            if (p.reprint!.counterPixel) expect(p.reprint!.counterPixel).toMatch(/^https:\/\//);
             expect(p.reprint?.sourceUrl).toMatch(/^https:\/\//);
             expect(p.verification).toBeUndefined();
           });

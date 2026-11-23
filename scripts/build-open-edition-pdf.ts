@@ -103,7 +103,33 @@ function pageRules(issue: OpenEditionIssue): string {
   return rules.join("\n");
 }
 
+/** What readers may do with a reprint, worded for its licence. */
+function reuseTerms(label: string, publisher: string): string {
+  if (/^public domain/i.test(label)) return `This work is in the public domain: you may reuse it freely. Please credit ${publisher}.`;
+  if (/-ND\b/.test(label)) return `Reprinted under <b>${esc(label)}</b>: you may share this article unchanged under the terms of that licence, crediting ${esc(publisher)}. Adaptations are not permitted.`;
+  if (/-SA\b/.test(label)) return `Reprinted under <b>${esc(label)}</b>: you may share and adapt this article under the terms of that licence, crediting ${esc(publisher)}, and must share adaptations under the same licence.`;
+  return `Reprinted under <b>${esc(label)}</b>: you may share and adapt this article under the terms of that licence, crediting ${esc(publisher)} as the original publisher.`;
+}
+
+function isPublicDomain(label: string): boolean {
+  return /^public domain/i.test(label);
+}
+
 function cover(issue: OpenEditionIssue): string {
+  if (issue.coverStyle === "frame") {
+    return `<section class="cover cover--frame sheet" aria-label="Cover">
+  <img class="cover-photo" src="${photo(issue.cover)}" alt="${esc(issue.coverAlt)}">
+  <div class="cover-shade"></div>
+  <div class="cover-mast"><span>Eleventh Press</span><span>No. ${pad(issue.issueNumber)}</span></div>
+  <div class="cover-logo">Open<i>.</i></div>
+  <div class="cover-text">
+    <h1 class="cover-title">${esc(issue.title)} ${esc(issue.titleItalic)}</h1>
+    <div class="cover-rule"></div>
+    <p class="cover-line">${issue.coverKicker ? `<b>${esc(issue.coverKicker)}</b>` : ""}${esc(issue.coverLine)}</p>
+  </div>
+  <div class="cover-bar"><span>FREE ISSUE</span></div>
+</section>`;
+  }
   return `<section class="cover sheet" aria-label="Cover">
   <img class="cover-photo" src="${photo(issue.cover)}" alt="${esc(issue.coverAlt)}">
   <div class="cover-mast"><span>Eleventh Press</span><span>Vol. ${issue.volume} · No. ${pad(issue.issueNumber)} · ${esc(issueMonth(issue))}</span></div>
@@ -148,7 +174,7 @@ function editorsNote(issue: OpenEditionIssue): string {
       <h3>Publisher</h3><p>${esc(OPEN_EDITION_PUBLISHER)}™</p>
       <h3>Editorial</h3><p>${esc(OPEN_EDITION_BYLINE)}</p>
       <h3>Read online</h3><p>eleventhpress.com/magazines/${esc(issue.id)}</p>
-      <h3>Images</h3><p>Photographs from Unsplash, used under the Unsplash Licence; each is credited under the picture. Charts and illustrations drawn by Eleventh Press from the cited data.</p>
+      <h3>Images</h3><p>Photographs are credited under each picture: Unsplash, under the Unsplash Licence, unless stated otherwise. Charts and illustrations drawn by Eleventh Press from the cited data.</p>
       <h3>Rights</h3><p>${esc(openEditionCopyright(issue.year))} Reprints keep their own open licences; see page “Rights and licences”.</p>
     </aside>
   </div>
@@ -161,8 +187,8 @@ function article(issue: OpenEditionIssue, p: OpenEditionPiece, i: number): strin
   const credit = p.reprint;
   const by = credit ? credit.authors || credit.publisher : OPEN_EDITION_BYLINE;
   const licence = credit
-    ? `<div class="licence-box"><p class="eyebrow">Republished under an open licence</p>
-<p>From <a href="${esc(credit.sourceUrl)}"><i>${esc(credit.publication)}</i></a>, published by ${esc(credit.publisher)}. Licensed under <a href="${esc(credit.licence.url)}">${esc(credit.licence.label)}</a>. ${esc(credit.notes)}</p>
+    ? `<div class="licence-box"><p class="eyebrow">${isPublicDomain(credit.licence.label) ? "Republished from the public domain" : "Republished under an open licence"}</p>
+<p>From <a href="${esc(credit.sourceUrl)}"><i>${esc(credit.publication)}</i></a>, published by ${esc(credit.publisher)}. ${isPublicDomain(credit.licence.label) ? "" : "Licensed under "}<a href="${esc(credit.licence.url)}">${esc(credit.licence.label)}</a>. ${esc(credit.notes)}</p>
 <p>Eleventh Press is not affiliated with, sponsored by or endorsed by ${esc(credit.publisher)}. This article is not covered by Eleventh Press copyright.</p></div>`
     : "";
 
@@ -186,7 +212,7 @@ function article(issue: OpenEditionIssue, p: OpenEditionPiece, i: number): strin
   <tbody>${p.verification.map((r) => `<tr><td>${esc(r.claim)}</td><td>${esc(r.source)}</td><td><span class="status ${r.status}">${STATUS_LABEL[r.status]}</span></td><td>${esc(r.note)}</td></tr>`).join("")}</tbody></table></div>` : ""}
   <p class="rights-line"><b>${esc(openEditionCopyright(issue.year))}</b> This article is not published under a Creative Commons licence. You may quote brief extracts with credit to ${esc(OPEN_EDITION_PUBLISHER)}; any other reproduction needs our written permission.</p>
 </div>`
-    : `<p class="rights-line">Reprinted under <b>${esc(credit?.licence.label ?? "")}</b>: you may share and adapt this article under the terms of that licence, crediting ${esc(credit?.publisher ?? "")} as the original publisher.</p>`;
+    : `<p class="rights-line">${reuseTerms(credit?.licence.label ?? "", credit?.publisher ?? "")}</p>`;
 
   return `<article id="${esc(p.slug)}" class="sheet piece-${i}" aria-labelledby="${esc(p.slug)}-h">
   <header class="article-head">
@@ -225,14 +251,14 @@ function rights(issue: OpenEditionIssue): string {
   </div>
   <div class="rights-block">
     <h2>Licensed reprints</h2>
-    <p>The following articles are reproduced unchanged under the open licence chosen by their publisher. They are not covered by Eleventh Press copyright, and you may reuse them under the terms of their licence.</p>
+    <p>The following articles are reproduced unchanged, except where a note on the article says otherwise, under the open licence chosen by their publisher or as public-domain works. They are not covered by Eleventh Press copyright, and you may reuse them under the terms shown.</p>
     <table class="reprint-table"><thead><tr><th>Article</th><th>Source</th><th>Licence</th></tr></thead><tbody>
     ${reprints.map((p) => `<tr><td>${esc(p.title)}</td><td><i>${esc(p.reprint!.publication)}</i>, ${esc(p.reprint!.publisher)}<br><a href="${esc(p.reprint!.sourceUrl)}">${esc(p.reprint!.sourceUrl)}</a></td><td><a href="${esc(p.reprint!.licence.url)}">${esc(p.reprint!.licence.label)}</a></td></tr>`).join("")}
     </tbody></table>
   </div>
   <div class="rights-block">
     <h2>Images and names</h2>
-    <p>Photographs are used under the Unsplash Licence and are not covered by any Creative Commons licence in this issue. Publication names identify the source of each reprint; Eleventh Press is not affiliated with, sponsored by or endorsed by those publishers.</p>
+    <p>Photographs are used under the Unsplash Licence, or as public-domain NASA images where credited, and are not covered by any Creative Commons licence in this issue. Publication names identify the source of each reprint; Eleventh Press is not affiliated with, sponsored by or endorsed by those publishers.</p>
   </div>
 </section>`;
 }
@@ -280,9 +306,11 @@ async function findPiecePages(pdf: Uint8Array, issue: OpenEditionIssue): Promise
     texts.push(norm(tc.items.map((it) => ("str" in it ? it.str : "")).join(" ")));
   }
   let from = 3; // cover, contents, editors' note
-  return issue.pieces.map((p) => {
-    // Headlines can be shortened in the running head, so match the start of the headline.
-    const key = norm(p.title).slice(0, 40);
+  return issue.pieces.map((p, i) => {
+    // Match the article's own kicker ("05 · Section", Original/Reprint) followed
+    // by its headline, so a title quoted in another article's source list or a
+    // running head is never mistaken for the opening page.
+    const key = norm(`${pad(i + 1)} ${p.section} ${p.kind === "original" ? "Original" : "Reprint"}`) + norm(p.title).slice(0, 24);
     const idx = texts.findIndex((t, k) => k >= from && t.includes(key));
     if (idx < 0) throw new Error(`Could not find the opening page of "${p.title}"`);
     from = idx + 1;
