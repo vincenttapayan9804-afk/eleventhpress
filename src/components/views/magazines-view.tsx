@@ -12,7 +12,7 @@ import {
 import { useReveal } from "@/hooks/use-scroll-reveal";
 import { Newspaper, FileX, ArrowRight } from "lucide-react";
 import { OPEN_EDITION_ISSUES, readingMinutes, type OpenEditionIssue } from "@/lib/open-edition";
-import { OpenEditionCover } from "@/components/views/open-edition-issue-view";
+import { OpenEditionCover, OpenEditionDownload } from "@/components/views/open-edition-issue-view";
 
 /** The latest Open Edition issue, featured at the top of /magazines. */
 function OpenEditionFeature({ issue, onOpen }: { issue: OpenEditionIssue; onOpen: () => void }) {
@@ -44,6 +44,7 @@ function OpenEditionFeature({ issue, onOpen }: { issue: OpenEditionIssue; onOpen
             <Button onClick={onOpen} className="rounded-full px-6">
               Read the issue <ArrowRight className="ml-1.5 h-4 w-4" />
             </Button>
+            <OpenEditionDownload issue={issue} />
             <span className="text-sm text-muted-foreground">Free to read · {issue.pieces.length} pieces · {minutes} min</span>
           </div>
         </div>

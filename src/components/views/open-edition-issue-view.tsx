@@ -7,12 +7,14 @@ import {
   OPEN_EDITION_BYLINE,
   OPEN_EDITION_GUIDANCE,
   OPEN_EDITION_PRINCIPLES,
+  OPEN_EDITION_RIGHTS_DETAIL,
+  openEditionCopyright,
   readingMinutes,
   type OpenEditionIssue,
   type OpenEditionPiece,
   type VerificationStatus,
 } from "@/lib/open-edition";
-import { ArrowLeft, ArrowRight, BookOpen, ChevronDown, Clock, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, ChevronDown, Clock, Download, ShieldCheck } from "lucide-react";
 
 /**
  * Reader for an Open Edition issue (src/lib/open-edition.ts): the issue
@@ -52,12 +54,38 @@ function IssueCover({ issue, className = "" }: { issue: OpenEditionIssue; classN
       <div className="oe-cover-logo">Open<i>.</i></div>
       <div className="oe-cover-title">{issue.title} <i>{issue.titleItalic}</i></div>
       <div className="oe-cover-line">{issue.coverLine}</div>
-      <div className="oe-cover-bar"><span>FREE · CC</span></div>
+      <div className="oe-cover-bar"><span>FREE ISSUE</span></div>
     </div>
   );
 }
 
 export { IssueCover as OpenEditionCover };
+
+/** File name readers get when they download the print edition. */
+function pdfName(issue: OpenEditionIssue) {
+  return issue.pdf.split("/").pop() ?? "open-edition.pdf";
+}
+
+export function OpenEditionDownload({ issue, className = "" }: { issue: OpenEditionIssue; className?: string }) {
+  return (
+    <a
+      href={issue.pdf}
+      download={pdfName(issue)}
+      className={`inline-flex items-center gap-2 rounded-full border border-foreground/20 px-6 py-3 text-sm font-semibold hover:border-foreground/50 ${className}`}
+    >
+      <Download className="h-4 w-4" /> Download PDF
+    </a>
+  );
+}
+
+function RightsNote({ year }: { year: number }) {
+  return (
+    <p className="border-t border-border pt-3 text-sm leading-relaxed text-muted-foreground">
+      <span className="font-semibold text-foreground">{openEditionCopyright(year)}</span>{" "}
+      This article is not published under a Creative Commons licence. You may link to it and quote brief extracts with credit; any other reproduction needs our written permission.
+    </p>
+  );
+}
 
 function KindTag({ piece }: { piece: OpenEditionPiece }) {
   return piece.kind === "original" ? (
@@ -256,6 +284,7 @@ function PieceReader({
             </section>
             <Disclosure />
             <VerificationLog piece={piece} />
+            <RightsNote year={issue.year} />
           </div>
         )}
 
@@ -353,6 +382,7 @@ function IssueHome({ issue, onOpen }: { issue: OpenEditionIssue; onOpen: (slug: 
             <a href="#contents" className="inline-flex items-center gap-2 rounded-full border border-foreground/20 px-6 py-3 text-sm font-semibold hover:border-foreground/50">
               Contents
             </a>
+            <OpenEditionDownload issue={issue} />
           </div>
         </div>
       </header>
@@ -383,7 +413,10 @@ function IssueHome({ issue, onOpen }: { issue: OpenEditionIssue; onOpen: (slug: 
         <StandardsSection />
       </div>
 
-      <footer className="mt-14 border-t border-foreground/10 pt-6 text-sm leading-relaxed text-muted-foreground">
+      <footer className="mt-14 space-y-3 border-t border-foreground/10 pt-6 text-sm leading-relaxed text-muted-foreground">
+        <p>
+          <span className="font-semibold text-foreground">{openEditionCopyright(issue.year)}</span> {OPEN_EDITION_RIGHTS_DETAIL}
+        </p>
         <p>
           Cover and article photographs: Unsplash, under the Unsplash Licence. Charts and illustrations are drawn by Eleventh Press from the cited data.
           Reprints keep their original Creative Commons licences, shown on each article. Publication names identify the source of each reprint; Eleventh

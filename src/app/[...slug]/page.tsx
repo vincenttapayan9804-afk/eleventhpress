@@ -6,7 +6,7 @@ import { getCurrentTenant } from "@/lib/tenant";
 import { APP_BASE_URL } from "@/lib/site";
 import { SHARE_IMAGES } from "@/lib/share-image";
 import { PLATFORM_FAQS } from "@/lib/faqs";
-import { getOpenEditionIssue } from "@/lib/open-edition";
+import { getOpenEditionIssue, openEditionCopyright } from "@/lib/open-edition";
 
 /**
  * Every page of the single-page site other than "/" — /articles, /about,
@@ -143,6 +143,7 @@ function openEditionJsonLd(issue: NonNullable<ReturnType<typeof getOpenEditionIs
     description: issue.description,
     image: `${APP_BASE_URL}${issue.cover}`,
     isAccessibleForFree: true,
+    encoding: { "@type": "MediaObject", contentUrl: `${APP_BASE_URL}${issue.pdf}`, encodingFormat: "application/pdf" },
     isPartOf: {
       "@type": "PublicationVolume",
       volumeNumber: String(issue.volume),
@@ -159,7 +160,14 @@ function openEditionJsonLd(issue: NonNullable<ReturnType<typeof getOpenEditionIs
           ? p.reprint.authors.split(/, | and /).map((name) => ({ "@type": "Person", name: name.replace(/^Dr /, "") }))
           : { "@type": "Organization", name: p.reprint.publisher }
         : { "@type": "Organization", name: "Eleventh Press Editorial Team" },
-      ...(p.reprint ? { license: p.reprint.licence.url, isBasedOn: p.reprint.sourceUrl } : {}),
+      ...(p.reprint
+        ? { license: p.reprint.licence.url, isBasedOn: p.reprint.sourceUrl }
+        : {
+            // Originals are all rights reserved, not Creative Commons.
+            copyrightHolder: { "@type": "Organization", name: "Eleventh Press International Publishing" },
+            copyrightYear: issue.year,
+            copyrightNotice: openEditionCopyright(issue.year),
+          }),
     })),
   };
   return JSON.stringify(data).replace(/</g, "\\u003c");

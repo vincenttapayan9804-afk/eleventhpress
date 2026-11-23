@@ -72,11 +72,27 @@ export interface OpenEditionIssue {
   description: string;
   cover: string;
   coverAlt: string;
+  /** Downloadable print edition, built by scripts/build-open-edition-pdf.tsx. */
+  pdf: string;
   editorsNote: string[];
   pieces: OpenEditionPiece[];
 }
 
 export const OPEN_EDITION_BYLINE = "Eleventh Press Editorial Team";
+
+export const OPEN_EDITION_PUBLISHER = "Eleventh Press International Publishing";
+
+/**
+ * Rights in Open Edition's own work. Originals (text, charts and
+ * illustrations) are NOT released under Creative Commons, unlike the
+ * platform's journal articles; reprints keep their own licences.
+ */
+export function openEditionCopyright(year: number): string {
+  return `© ${year} ${OPEN_EDITION_PUBLISHER}™. All rights reserved.`;
+}
+
+export const OPEN_EDITION_RIGHTS_DETAIL =
+  "Original articles, charts and illustrations in Open Edition are the copyright of Eleventh Press International Publishing and are not published under a Creative Commons licence. You may link to them and quote brief extracts with credit; any other reproduction needs our written permission. Reprints keep the open licence shown on each one.";
 
 export const OPEN_EDITION_GUIDANCE = [
   { label: "COPE (2023). Authorship and AI tools: COPE position statement", url: "https://publicationethics.org/node/56046" },
@@ -564,6 +580,7 @@ export const OPEN_EDITION_ISSUES: OpenEditionIssue[] = [
       "The inaugural issue of Open Edition: six original, fully sourced features on out-of-school children, learning poverty, the global teacher gap, home-language teaching, open textbooks and AI in schools, alongside three openly licensed reprints.",
     cover: "/magazines/open-edition/01/cover.webp",
     coverAlt: "A red apple on a stack of books",
+    pdf: "/magazines/open-edition/01/open-edition-vol1-no1-learning-everywhere.pdf",
     editorsNote: [
       "Open Edition is a new kind of magazine from Eleventh Press. Each issue takes one theme and brings together two kinds of writing: original features researched and written by our editorial team, and the best openly licensed journalism from publishers who share their work with the world.",
       "Our first issue is about learning. It starts with the children the system misses, moves to the classrooms where too many still struggle to read, and ends with what helps: more teachers, teaching in the languages children speak, open textbooks anyone can adapt, and careful use of new technology.",
