@@ -1,3 +1,5 @@
+import { WCAG_CLAIM } from "@/lib/wcag-claim";
+import { CcLicenceBadge, OpenAccessIcon, WcagConformanceLogo } from "@/components/badges/open-badges";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -85,6 +87,15 @@ export default async function PolicyTopicPage({ params }: { params: Promise<{ to
           <p className="eyebrow">{page.eyebrow}</p>
           <h1 className="mt-2 font-display text-3xl font-semibold sm:text-4xl">{page.title}</h1>
           <p className="mt-3 max-w-2xl leading-relaxed text-muted-foreground">{page.summary}</p>
+          {topic === "open-access" && (
+            <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2" data-testid="policy-open-access-marks">
+              <OpenAccessIcon className="h-8" title="Open Access symbol" />
+              <CcLicenceBadge code={JOURNAL_IDENTITY.license} />
+              <p className="text-xs text-muted-foreground">
+                Open Access symbol designed by PLOS (<a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="license noopener noreferrer" className="underline underline-offset-2">CC BY-SA 3.0</a>). Creative Commons licence buttons by Creative Commons.
+              </p>
+            </div>
+          )}
           <p className="mt-3 text-xs text-muted-foreground">Last updated {page.updated ?? POLICY_PAGES_UPDATED}</p>
           <dl className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
             {page.highlights.map((h) => (
@@ -107,7 +118,15 @@ export default async function PolicyTopicPage({ params }: { params: Promise<{ to
           ))}
         </div>
 
-        <aside className="mt-12 grid gap-6 border-t border-[var(--royal-300)]/15 pt-8 sm:grid-cols-2">
+        <div className="mt-12 flex flex-wrap items-center gap-3 rounded-xl border border-border p-3 text-xs text-muted-foreground" data-testid="wcag-claim">
+          <WcagConformanceLogo />
+          <p className="max-w-xl">
+            This page conforms to WCAG 2.2 Level AA, as evaluated by us on {WCAG_CLAIM.evaluatedOn}. This is our own claim, not a
+            W3C certification, and it covers only the policy pages. <a href="/accessibility" className="text-primary underline underline-offset-2">Scope and details</a>.
+          </p>
+        </div>
+
+        <aside className="mt-8 grid gap-6 border-t border-[var(--royal-300)]/15 pt-8 sm:grid-cols-2">
           <div>
             <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Further reading</h2>
             <ul className="mt-3 space-y-2 text-sm">

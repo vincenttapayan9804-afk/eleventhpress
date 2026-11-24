@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import { POLICY_SLUGS } from "../src/lib/policy-pages";
 
 /**
  * Automated WCAG 2.2 AA scan (axe-core) over the static, database-free
@@ -83,3 +84,47 @@ for (const { name, trigger, group } of PAGES) {
     expect(results.violations, JSON.stringify(results.violations, null, 2)).toEqual([]);
   });
 }
+
+// The policy pages are real, server-rendered routes (not SPA views), so they
+// are scanned by address (every slug, so a new policy page is scanned at once and
+// the WCAG claim in src/lib/wcag-claim.ts stays honest) — including the Open Access page that carries the
+// open-access symbol and the Creative Commons licence button.
+for (const slug of POLICY_SLUGS) {
+  test(`policy page ${slug} has no automatically-detectable accessibility violations`, async ({ page }) => {
+    await page.goto(`/policies/${slug}`, { waitUntil: "networkidle" });
+    // Same as the view scans above: the cookie banner fades in, and checked
+    // mid-fade its button reads as washed out, so wait for animations to end.
+    await page
+      .waitForFunction(
+        () =>
+          document
+            .getAnimations()
+            .every((a) => a.playState !== "running" || a.effect?.getTiming().iterations === Infinity),
+        null,
+        { timeout: 10_000 },
+      )
+      .catch(() => undefined);
+    const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag22aa"]).analyze();
+    expect(results.violations, JSON.stringify(results.violations, null, 2)).toEqual([]);
+  });
+}
+
+test("footer shows the open-access symbol and licence button, and they work", async ({ page }) => {
+  await page.goto("/", { waitUntil: "networkidle" });
+  const note = page.getByTestId("footer-open-access-note");
+  await expect(note).toBeVisible();
+  await expect(note.getByTestId("cc-badge")).toHaveAttribute("href", /creativecommons\.org\/licenses\/by\/4\.0\//);
+  for (const img of await note.locator("img").all()) {
+    expect(await img.evaluate((el: HTMLImageElement) => el.naturalWidth)).toBeGreaterThan(0);
+  }
+});
+
+test("policy pages carry the WCAG logo only inside the claimed scope, and the statement lists them", async ({ page }) => {
+  await page.goto("/policies/open-access", { waitUntil: "networkidle" });
+  const logo = page.getByTestId("wcag-logo");
+  await expect(logo).toHaveAttribute("href", "https://www.w3.org/WAI/WCAG2AA-Conformance");
+  expect(await logo.locator("img").evaluate((el: HTMLImageElement) => el.naturalWidth)).toBeGreaterThan(0);
+  // the logo must not appear sitewide (the SPA home is outside the claim)
+  await page.goto("/", { waitUntil: "networkidle" });
+  await expect(page.getByTestId("wcag-logo")).toHaveCount(0);
+});

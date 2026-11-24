@@ -1,5 +1,7 @@
 "use client";
 
+import { WcagConformanceLogo } from "@/components/badges/open-badges";
+import { WCAG_CLAIM } from "@/lib/wcag-claim";
 import { openContact } from "@/lib/contact-store";
 import { useApp } from "@/lib/store";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,6 +20,7 @@ import {
   Keyboard,
   Mail,
   ScanSearch,
+  ShieldCheck,
 } from "lucide-react";
 
 /**
@@ -110,6 +113,40 @@ export function AccessibilityView() {
               accessibility of a published article's HTML depends on what the underlying conversion
               produces. Automated CI scanning only covers database-free pages today, not the full
               article-reading experience.
+            </p>
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="mt-10" id="conformance-claim" aria-labelledby="claim-title">
+        <div className="flex flex-wrap items-center gap-2">
+          <ShieldCheck className="h-5 w-5 text-primary" aria-hidden="true" />
+          <h2 id="claim-title" className="font-display text-2xl font-semibold">Conformance claim and its scope</h2>
+        </div>
+        <Card className="paper-card mt-4">
+          <CardContent className="space-y-4 p-6 text-sm text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-4">
+              <WcagConformanceLogo />
+              <p className="max-w-xl text-justify">
+                The pages listed below conform to WCAG {WCAG_CLAIM.version} Level {WCAG_CLAIM.level}. This is our own claim, evaluated on{" "}
+                {WCAG_CLAIM.evaluatedOn}; it is not a W3C certification, and W3C has not reviewed it.
+              </p>
+            </div>
+            <ul className="list-disc space-y-1 pl-5" aria-label="Pages covered by the claim">
+              {WCAG_CLAIM.pages.map((href) => (
+                <li key={href}><a href={href} className="text-primary underline underline-offset-2">{href}</a></li>
+              ))}
+            </ul>
+            <p className="text-justify">
+              <span className="font-medium text-foreground">How we evaluated them.</span> An automated axe-core scan against the WCAG 2.0, 2.1 and 2.2
+              A and AA rules (run on every change and blocking a release), plus checks by hand: keyboard use and visible focus, reflow at
+              320 px, text enlarged to 200%, increased text spacing, page language and titles, heading order, link and image names, and
+              target sizes.
+            </p>
+            <p className="text-justify">
+              <span className="font-medium text-foreground">What is not covered.</span> The rest of the platform, including article pages, the
+              dashboard, embedded media and the interactive charts, is not part of this claim. The report below shows where it only partly
+              meets the criteria, and we are working on those gaps.
             </p>
           </CardContent>
         </Card>

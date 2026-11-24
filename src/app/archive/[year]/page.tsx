@@ -1,3 +1,4 @@
+import { SkipLink } from "@/components/skip-link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { I18nProvider } from "@/components/i18n-provider";
@@ -44,8 +45,9 @@ export default async function ArchiveYearPage({ params }: { params: Promise<{ ye
   return (
     <I18nProvider>
       <div className="min-h-dvh flex flex-col bg-background">
+        <SkipLink />
         <SiteHeader />
-        <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-12 sm:px-6 lg:px-8">
+        <main id="main-content" className="mx-auto w-full max-w-3xl flex-1 px-4 py-12 sm:px-6 lg:px-8">
           <nav aria-label="Breadcrumb" className="text-sm">
             <a href="/archive" className="text-primary hover:underline">Article archive</a>
             <span className="text-muted-foreground"> / {y}</span>

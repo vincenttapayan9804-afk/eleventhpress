@@ -1,3 +1,4 @@
+import { SkipLink } from "@/components/skip-link";
 import type { Metadata } from "next";
 import { I18nProvider } from "@/components/i18n-provider";
 import { SiteHeader } from "@/components/site-header";
@@ -25,8 +26,9 @@ export default async function ArchivePage() {
   return (
     <I18nProvider>
       <div className="min-h-dvh flex flex-col bg-background">
+        <SkipLink />
         <SiteHeader />
-        <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-12 sm:px-6 lg:px-8">
+        <main id="main-content" className="mx-auto w-full max-w-3xl flex-1 px-4 py-12 sm:px-6 lg:px-8">
           <p className="eyebrow">Browse by date</p>
           <h1 className="mt-2 font-display text-4xl font-semibold">Article archive</h1>
           <p className="mt-3 text-sm text-muted-foreground">

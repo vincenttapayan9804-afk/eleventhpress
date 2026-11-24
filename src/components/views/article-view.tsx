@@ -427,7 +427,7 @@ export function ArticleView() {
           {article.status === "PUBLISHED" && (
             <>
               <span className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-1.5 py-0.5 text-[0.65rem] font-medium text-foreground/80" data-testid="open-access-mark">
-                <OpenAccessIcon /> Open access
+                <OpenAccessIcon title="" /> Open access
               </span>
               <CcLicenceBadge code={JOURNAL_IDENTITY.license} />
             </>

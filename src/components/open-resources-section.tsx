@@ -64,7 +64,7 @@ export function OpenResourcesSection() {
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="max-w-3xl">
-          <p className="eyebrow flex items-center gap-1.5"><BookOpenCheck className="h-3.5 w-3.5" /> Open Resources</p>
+          <p className="eyebrow flex items-center gap-1.5"><OpenAccessIcon className="h-4" title="" /> Open Resources</p>
           <h2 id="open-resources-title" className="mt-2 font-display text-2xl font-semibold sm:text-3xl">
             Free, openly licensed publications
           </h2>

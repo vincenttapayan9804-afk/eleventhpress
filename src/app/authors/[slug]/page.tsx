@@ -281,7 +281,7 @@ export default async function AuthorProfilePage({ params }: { params: Promise<{ 
                   <li>
                     <a href={`https://orcid.org/${p.orcid}`} target="_blank" rel="noopener noreferrer me" className="inline-flex items-center gap-1.5 font-medium text-foreground/80 hover:text-primary">
                       <OrcidIcon />
-                      {p.orcid}
+                      https://orcid.org/{p.orcid}
                       {p.verification.orcidAuthenticated && <BadgeCheck className="h-3.5 w-3.5 text-primary" aria-label="authenticated" />}
                     </a>
                   </li>

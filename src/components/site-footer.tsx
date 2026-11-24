@@ -1,6 +1,6 @@
 "use client";
 
-import { OpenAccessIcon } from "@/components/badges/open-badges";
+import { CcLicenceBadge, OpenAccessIcon } from "@/components/badges/open-badges";
 import { useTranslations } from "next-intl";
 import { POWERED_BY_CREDIT, POWERED_BY_URL } from "@/lib/powered-by";
 import { useApp } from "@/lib/store";
@@ -21,7 +21,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { openCookiePreferences } from "@/lib/cookie-consent";
-import { DOI_REGISTRAR } from "@/lib/site";
+import { DOI_REGISTRAR, JOURNAL_IDENTITY } from "@/lib/site";
 import { useTenantBranding, isWhitelabel, type ClientBranding } from "@/lib/tenant-branding-context";
 
 const SOCIAL_ICONS: Record<string, { icon: LucideIcon; label: string }> = {
@@ -245,7 +245,11 @@ export function SiteFooter() {
             ) : (
               <p>{t("copyright", { year: new Date().getFullYear() })}</p>
             )}
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4" data-testid="footer-open-access-note">
+              <a href="/policies/open-access" className="inline-flex min-h-6 min-w-6 items-center justify-center hover:opacity-80" aria-label={t("policyOpenAccess")}>
+                <OpenAccessIcon className="h-6" title="" />
+              </a>
+              <CcLicenceBadge code={JOURNAL_IDENTITY.license} showLabel={false} />
               <p className="font-mono">{t("indexedLine", { registrar: DOI_REGISTRAR })}</p>
             </div>
           </div>

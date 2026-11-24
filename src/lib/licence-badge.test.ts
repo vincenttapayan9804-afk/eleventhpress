@@ -39,3 +39,14 @@ describe("badges apply automatically", () => {
     }
   });
 });
+
+import { WCAG_CLAIM } from "./wcag-claim";
+import { POLICY_SLUGS } from "./policy-pages";
+
+describe("WCAG claim scope", () => {
+  test("covers exactly the policy pages and names W3C's own explanation", () => {
+    expect(WCAG_CLAIM.pages).toEqual(POLICY_SLUGS.map((s) => `/policies/${s}`));
+    expect(WCAG_CLAIM.explanationUrl).toBe("https://www.w3.org/WAI/WCAG2AA-Conformance");
+    expect(WCAG_CLAIM.level).toBe("AA");
+  });
+});

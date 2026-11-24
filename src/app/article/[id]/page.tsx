@@ -1,3 +1,4 @@
+import { SkipLink } from "@/components/skip-link";
 import { JOURNAL_IDENTITY } from "@/lib/site";
 import { CcLicenceBadge, OpenAccessIcon } from "@/components/badges/open-badges";
 import type { Metadata } from "next";
@@ -137,8 +138,9 @@ export default async function ArticlePage({ params }: { params: Promise<{ id: st
     return (
       <I18nProvider>
         <div className="min-h-dvh flex flex-col bg-background">
-          <SiteHeader />
-          <main className="flex-1">
+          <SkipLink />
+        <SiteHeader />
+          <main id="main-content" className="flex-1">
             <ArticleRouteBootstrap articleId={unpublished.id}>
               <div className="min-h-[50vh]" aria-busy="true" />
             </ArticleRouteBootstrap>
@@ -251,6 +253,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ id: st
   return (
     <I18nProvider>
       <div className="min-h-dvh flex flex-col bg-background">
+        <SkipLink />
         <SiteHeader />
         {signposts.map((l, i) => (
           <link key={`${l.rel}-${i}`} rel={l.rel} href={l.href} {...(l.type ? { type: l.type } : {})} />
@@ -259,7 +262,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ id: st
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
-        <main className="flex-1">
+        <main id="main-content" className="flex-1">
           {/* Always-present, real semantic HTML — this is what a crawler that
               doesn't execute JavaScript sees. ArticleRouteBootstrap replaces
               it with the full interactive ArticleView once the client
@@ -277,7 +280,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ id: st
               {journalLine && <p className="mt-1 text-sm text-muted-foreground">{journalLine}</p>}
               {article.doi && <p className="mt-1 text-sm text-muted-foreground">DOI: {article.doi}</p>}
               <p className="mt-3 flex flex-wrap items-center gap-2 text-xs text-foreground/80">
-                <span className="inline-flex items-center gap-1 rounded-md border border-border px-1.5 py-0.5 font-medium"><OpenAccessIcon /> Open access</span>
+                <span className="inline-flex items-center gap-1 rounded-md border border-border px-1.5 py-0.5 font-medium"><OpenAccessIcon title="" /> Open access</span>
                 <CcLicenceBadge code={JOURNAL_IDENTITY.license} />
               </p>
               <section className="mt-6" aria-labelledby="abstract-heading">
