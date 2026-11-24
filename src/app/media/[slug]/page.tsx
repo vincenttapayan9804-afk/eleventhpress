@@ -12,6 +12,7 @@ import {
   mediaStoryPath,
   mediaWordCount,
   stripCitations,
+  mediaBylineName,
 } from "@/lib/media/stories";
 import { stateForPath } from "@/lib/spa-routes";
 import { getCurrentTenant } from "@/lib/tenant";
@@ -53,7 +54,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
   const url = `${APP_BASE_URL}${mediaStoryPath(story)}`;
   const image = { url: `${APP_BASE_URL}${mediaCoverPath(story)}`, width: 1200, height: 630, alt: story.cover.alt };
-  const author = story.type === "NEWS" ? `Newsroom, ${JOURNAL_IDENTITY.name}` : `Editorial Office, ${JOURNAL_IDENTITY.name}`;
+  const author = story.type === "NEWS" ? mediaBylineName(story.type) : `Editorial Office, ${JOURNAL_IDENTITY.name}`;
   return {
     title: searchTitle(story.title, [JOURNAL_IDENTITY.shortName]),
     description: searchDescription(story.metaDescription),
@@ -89,7 +90,7 @@ export default async function MediaStoryPage({ params }: Props) {
   const url = `${APP_BASE_URL}${mediaStoryPath(story)}`;
   const cover = mediaCoverPath(story);
   const isNews = story.type === "NEWS";
-  const authorName = isNews ? `Newsroom, ${JOURNAL_IDENTITY.name}` : `Editorial Office, ${JOURNAL_IDENTITY.name}`;
+  const authorName = isNews ? mediaBylineName(story.type) : `Editorial Office, ${JOURNAL_IDENTITY.name}`;
   const readMinutes = mediaReadMinutes(story);
   const publisher = {
     "@type": "Organization",
@@ -167,7 +168,7 @@ export default async function MediaStoryPage({ params }: Props) {
           <h1 className="mt-3 font-display text-3xl font-bold leading-[1.08] tracking-tight sm:text-[2.75rem]">{story.title}</h1>
           <p className="mt-4 font-serif text-lg italic leading-relaxed text-muted-foreground sm:text-xl">{story.dek}</p>
           <p className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border pt-4 text-sm text-muted-foreground">
-            <span className="font-medium text-foreground">By the {isNews ? "Newsroom" : "Editorial Office"}</span>
+            <span className="font-medium text-foreground">{isNews ? `By ${mediaBylineName(story.type)}` : "By the Editorial Office"}</span>
             <span aria-hidden>·</span>
             <time dateTime={story.datePublished}>{fmtLongDate(story.datePublished)}</time>
             <span aria-hidden>·</span>

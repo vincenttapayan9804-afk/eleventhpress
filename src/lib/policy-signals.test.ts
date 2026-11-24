@@ -14,3 +14,12 @@ describe("policy signals", () => {
     }
   });
 });
+
+import { mediaBylineName, mediaStoryListItem, MEDIA_STORIES } from "./media/stories";
+describe("newsroom byline", () => {
+  test("news is bylined to the Eleventh Press Newsroom, blogs to the Editorial Office", () => {
+    expect(mediaBylineName("NEWS")).toBe("Eleventh Press Newsroom");
+    const news = MEDIA_STORIES.find((s) => s.type === "NEWS")!;
+    expect(mediaStoryListItem(news).authorName).toBe("Eleventh Press Newsroom");
+  });
+});

@@ -1,6 +1,12 @@
 import { NEWS } from "@/lib/media/news";
 import { MEDIA_BLOGS } from "@/lib/media/blogs";
 import type { MediaStory } from "@/lib/media/types";
+import { JOURNAL_IDENTITY } from "@/lib/site";
+
+/** Byline shown on a story: the platform newsroom for news, the editorial office for blogs. */
+export function mediaBylineName(type: MediaStory["type"]): string {
+  return type === "NEWS" ? `${JOURNAL_IDENTITY.shortName} Newsroom` : "Editorial Office";
+}
 
 /**
  * Editorial stories shipped with the code: ten newsroom pieces and five
@@ -60,7 +66,7 @@ export function mediaStoryListItem(s: MediaStory) {
     type: s.type,
     title: s.title,
     dek: s.dek,
-    authorName: s.type === "NEWS" ? "Newsroom" : "Editorial Office",
+    authorName: mediaBylineName(s.type),
     category: s.category,
     tags: s.keywords.join(", "),
     heroImageUrl: mediaCoverPath(s),
