@@ -321,7 +321,7 @@ export function BrandingTab({ tenantId, onSaved }: { tenantId?: string; onSaved?
                 <FieldBox id="tagline" label="Tagline" error={errors.tagline}>
                   <Input
                     id="tagline"
-                    placeholder="An Enterprise Research Ecosystem"
+                    placeholder="An Enterprise Research, Publication, & Media Network"
                     value={form.tagline}
                     onChange={(e) => field("tagline", e.target.value)}
                   />

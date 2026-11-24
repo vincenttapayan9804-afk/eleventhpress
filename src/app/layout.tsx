@@ -55,7 +55,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const title = tenant?.siteName
     ? `${tenant.siteName} — ${tenant.tagline || POWERED_BY_CREDIT}`
     : DEFAULT_TITLE;
-  // A short tagline alone ("An Enterprise Research Ecosystem") is too thin
+  // A short tagline alone ("An Enterprise Research, Publication, & Media Network") is too thin
   // for a search snippet; the platform site keeps it and adds the full pitch.
   const description = !tenant?.tagline
     ? DEFAULT_DESCRIPTION
