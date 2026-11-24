@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { SpaShell } from "@/components/spa-shell";
 import { requestBaseUrl, resolveTenantFromHeaders } from "@/lib/tenant";
 import { publisherIdentityForTenantId } from "@/lib/publisher-identity";
+import { policySignals } from "@/lib/policy-signals";
 
 async function context() {
   const tenant = await resolveTenantFromHeaders(await headers()).catch(() => null);
@@ -35,8 +36,9 @@ async function homeJsonLd(): Promise<string | null> {
   // signal that this site *is* the organization of that name.
   const sameAs = Object.values(tenant?.socialLinks ?? {}).filter((u): u is string => typeof u === "string" && /^https:\/\//.test(u));
   const org: Record<string, unknown> = {
-    "@type": "Organization",
+    "@type": ["Organization", "NewsMediaOrganization"],
     "@id": `${base}/#organization`,
+    ...policySignals(base),
     name: id.publisher,
     alternateName: alternateNames.length > 1 ? alternateNames : alternateNames[0],
     ...(tenant?.tagline ? { slogan: tenant.tagline, description: `${plain}: ${tenant.tagline}.` } : {}),
