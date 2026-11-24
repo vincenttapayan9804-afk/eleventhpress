@@ -792,7 +792,7 @@ export function AuthorSubmitTab({ onSubmitted }: Props) {
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    Used by Elasticsearch to match your paper against the reviewer pool.
+                    Used by editors to match your paper with suitable reviewers.
                   </p>
                 </div>
               )}

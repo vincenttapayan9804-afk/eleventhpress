@@ -534,8 +534,8 @@ export function IndexingTab() {
                     OAI-PMH 2.0 endpoint
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Exposes Dublin Core records for every published article. Scopus and Web of
-                    Science harvesters poll this endpoint daily.
+                    Exposes Dublin Core records for every published article, for indexers and
+                    repositories to harvest.
                   </p>
                   <code className="mt-2 block rounded bg-muted px-2 py-1 font-mono text-xs">
                     GET /api/oai-pmh?verb=ListRecords&metadataPrefix=oai_dc

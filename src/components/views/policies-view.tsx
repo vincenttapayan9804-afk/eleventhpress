@@ -201,9 +201,8 @@ export function PoliciesView() {
               <Globe2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
               <p>
                 Metadata for every published article is exposed as Dublin Core records through
-                our OAI-PMH 2.0 endpoint — the standard harvesting format Scopus and WoS
-                harvesters, and journal-indexing crawlers generally, consume to pull structured
-                metadata. Every article also carries a real, permanently-resolving{" "}
+                our OAI-PMH 2.0 endpoint — the standard harvesting format that journal-indexing
+                services and repositories use to pull structured metadata. Every article also carries a real, permanently-resolving{" "}
                 {DOI_REGISTRAR} DOI.
               </p>
             </div>

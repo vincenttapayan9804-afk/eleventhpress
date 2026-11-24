@@ -194,8 +194,8 @@ export function AboutView() {
             are assigned a real, permanently-resolving {DOI_REGISTRAR} DOI upon
             publication, and are freely downloadable with no login wall — genuine open
             access, not open access in name only. The journal’s content is indexed via an
-            OAI-PMH 2.0 endpoint that exposes Dublin Core records for harvester consumption
-            by Scopus and Web of Science, and is automatically crawled by Google Scholar.
+            OAI-PMH 2.0 endpoint that exposes Dublin Core records for indexers and
+            repositories to harvest, and the pages are open to Google Scholar’s crawler.
           </p>
           <p>
             We publish on a continuous basis rather than holding accepted work for a
@@ -294,9 +294,8 @@ export function AboutView() {
             discipline-matched reviewers.
           </p>
           <p>
-            Reviewers are selected from a curated pool indexed by Elasticsearch. Editor
-            queries combine the article’s discipline and extracted keywords against
-            reviewer expertise statements, and ranked by match score. Reviewers are
+            Reviewers are selected by the handling editor from a curated pool, matching the
+            article’s discipline and keywords against reviewer expertise statements. Reviewers are
             invited with a 14-day deadline; they may accept, decline, or request an
             extension. Completed reviews consist of an overall score (1–5), a
             recommendation (Accept / Minor revisions / Major revisions / Reject), a
@@ -483,7 +482,7 @@ export function AboutView() {
                     </TableCell>
                     <TableCell className="whitespace-normal text-xs text-muted-foreground">Clears Phases I, II, and III</TableCell>
                     <TableCell className="whitespace-normal text-xs text-muted-foreground">
-                      Proceeds to production; eligible for ESCI/SCIE/SSCI indexing assessment.
+                      Proceeds to production. We aim to meet the quality standards of selective indexes such as ESCI, SCIE and SSCI; inclusion is decided by the index, not by us.
                     </TableCell>
                   </TableRow>
                   <TableRow>
@@ -713,7 +712,7 @@ export function AboutView() {
               <IndexItem
                 icon={Globe2}
                 title="OAI-PMH 2.0"
-                desc="Dublin Core XML feed consumed daily by Scopus and WoS harvesters. Every published article is mapped to the Dublin Core standard."
+                desc="Dublin Core XML feed that indexers and repositories can harvest. Every published article is mapped to the Dublin Core standard."
               />
               <IndexItem
                 icon={FileText}
@@ -832,7 +831,7 @@ const ARCHITECTURE = [
     name: "Workflow & Peer Review",
     description: "State machine, reviewer assignment, deadline tracking, flexible review forms.",
     icon: Workflow,
-    db: "MongoDB",
+    db: "PostgreSQL",
   },
   {
     name: "Production & Typesetting",
@@ -844,7 +843,7 @@ const ARCHITECTURE = [
     name: "Indexing & Discovery",
     description: "OAI-PMH feed, Google Scholar pings, sitemaps, JSON-LD structured data.",
     icon: Globe2,
-    db: "Elasticsearch",
+    db: "PostgreSQL",
   },
   {
     name: "DOI & Metadata",
@@ -860,7 +859,7 @@ const ARCHITECTURE = [
   },
   {
     name: "Notification",
-    description: "Email (SES), SMS (Twilio), and in-app notifications for every state change.",
+    description: "Email and in-app notifications for every state change.",
     icon: Bell,
     db: "Redis",
   },
