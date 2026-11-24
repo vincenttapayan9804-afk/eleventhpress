@@ -1,5 +1,6 @@
 "use client";
 
+import { OpenAccessIcon } from "@/components/badges/open-badges";
 import { useTranslations } from "next-intl";
 import { POWERED_BY_CREDIT, POWERED_BY_URL } from "@/lib/powered-by";
 import { useApp } from "@/lib/store";
@@ -147,7 +148,7 @@ export function SiteFooter() {
             <div>
               <p className="eyebrow mb-3">{t("policiesLabel")}</p>
               <ul className="space-y-2.5 text-sm text-muted-foreground">
-                <li><a href="/policies/open-access" data-testid="footer-policy-open-access" className="underline-offset-2 hover:text-primary hover:underline transition-colors">{t("policyOpenAccess")}</a></li>
+                <li><a href="/policies/open-access" data-testid="footer-policy-open-access" className="inline-flex items-center gap-1.5 underline-offset-2 hover:text-primary hover:underline transition-colors"><OpenAccessIcon className="h-3.5 w-3.5" title="" />{t("policyOpenAccess")}</a></li>
                 <li><a href="/policies/peer-review" data-testid="footer-policy-peer-review" className="underline-offset-2 hover:text-primary hover:underline transition-colors">{t("policyPeerReview")}</a></li>
                 <li><a href="/policies/doi-deposit" data-testid="footer-policy-doi-deposit" className="underline-offset-2 hover:text-primary hover:underline transition-colors">{t("policyCrossref", { registrar: DOI_REGISTRAR })}</a></li>
                 <li>

@@ -1,5 +1,6 @@
 "use client";
 
+import { CcLicenceBadge, OpenAccessIcon, OrcidIcon } from "@/components/badges/open-badges";
 import { AiLabel } from "@/components/ai-label";
 import { isWhitelabel, useTenantBranding } from "@/lib/tenant-branding-context";
 import { articlePath } from "@/lib/spa-routes";
@@ -13,7 +14,7 @@ import { articlePdfPath, scholarDate } from "@/lib/scholar-meta";
 import { apiFetch } from "@/lib/api-client";
 import { ArticleDetail } from "@/lib/types";
 import { DISCIPLINE_COLORS, parseAuthors, parseFunders, CORRECTION_TYPE_LABELS, CorrectionType } from "@/lib/article";
-import { DOI_REGISTRAR } from "@/lib/site";
+import { DOI_REGISTRAR, JOURNAL_IDENTITY } from "@/lib/site";
 import { attentionMetricsConfigured } from "@/lib/attention-metrics";
 import { AltmetricBadge, PlumXBadge } from "@/components/attention-badges";
 import { buildBibTeX, buildRis, buildWikidataQuickStatements, coinsSpanProps } from "@/lib/citation-export";
@@ -423,6 +424,14 @@ export function ArticleView() {
           <Badge variant="outline" className="border-[var(--royal-300)]/20 bg-muted text-muted-foreground">
             {article.reviewModel.replace("_", "-")}
           </Badge>
+          {article.status === "PUBLISHED" && (
+            <>
+              <span className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-1.5 py-0.5 text-[0.65rem] font-medium text-foreground/80" data-testid="open-access-mark">
+                <OpenAccessIcon /> Open access
+              </span>
+              <CcLicenceBadge code={JOURNAL_IDENTITY.license} />
+            </>
+          )}
           {openReviewStatus?.openReview && (
             <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-700 gap-1">
               <Globe2 className="h-3 w-3" /> Open peer review
@@ -478,9 +487,11 @@ export function ArticleView() {
                     href={`https://orcid.org/${a.orcid}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-0.5 font-mono text-[0.65rem] text-primary hover:underline"
+                    className="inline-flex items-center gap-1 font-mono text-[0.65rem] text-primary hover:underline"
+                    aria-label={`ORCID iD ${a.orcid}`}
                   >
-                    ORCID {a.orcid}
+                    <OrcidIcon className="h-3.5 w-3.5" />
+                    https://orcid.org/{a.orcid}
                   </a>
                 )}
                 {a.creditRoles && a.creditRoles.length > 0 && (
@@ -1069,9 +1080,7 @@ export function ArticleView() {
               <div className="space-y-1.5 text-xs">
                 <p className="flex items-center justify-between gap-3">
                   <span className="text-muted-foreground">Licence</span>
-                  <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer" className="font-medium hover:underline">
-                    CC BY 4.0
-                  </a>
+                  <CcLicenceBadge code={JOURNAL_IDENTITY.license} />
                 </p>
                 <p className="flex items-center justify-between gap-3">
                   <span className="text-muted-foreground">DOI status</span>

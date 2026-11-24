@@ -1,5 +1,6 @@
 "use client";
 
+import { OrcidIcon } from "@/components/badges/open-badges";
 import { authorPath, displayCase } from "@/lib/author-path";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -525,7 +526,7 @@ export function AuthorsView() {
                     rel="noreferrer"
                     className="inline-flex w-fit items-center gap-1.5 rounded-md border border-[var(--royal-300)]/30 px-2.5 py-1 text-xs font-medium text-primary hover:bg-[var(--royal-100)]"
                   >
-                    <BadgeCheck className="h-3.5 w-3.5" /> {selected.orcid}
+                    <OrcidIcon className="h-3.5 w-3.5" /> {selected.orcid}
                   </a>
                 )}
                 {selected.website && (

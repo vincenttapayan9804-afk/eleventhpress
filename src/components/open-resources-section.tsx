@@ -1,5 +1,6 @@
 "use client";
 
+import { CcLicenceBadge, OpenAccessIcon } from "@/components/badges/open-badges";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -131,7 +132,10 @@ export function OpenResourcesSection() {
             <div className="flex flex-1 flex-col p-4">
               <div className="flex flex-wrap items-center gap-1.5">
                 <Badge variant="outline" className="border-[var(--royal-300)]/30 bg-[var(--royal-100)]/50 text-[0.6rem] text-primary">{r.type}</Badge>
-                <span className="font-mono text-[0.6rem] text-muted-foreground">{r.licence.code}</span>
+                <span className="inline-flex items-center gap-1 font-mono text-[0.6rem] text-muted-foreground">
+                  <OpenAccessIcon className="h-3 w-3" />
+                  {r.licence.code}
+                </span>
                 {showTakeaways && takeawaysFor(r.slug) && (
                   <Badge variant="outline" className="border-[var(--gold-300)]/50 bg-[var(--gold-300)]/10 text-[0.6rem] text-[var(--gold-600)] dark:text-[var(--gold-300)]">
                     <PenLine className="mr-0.5 h-2.5 w-2.5" aria-hidden /> Takeaways
@@ -371,7 +375,7 @@ function ResourceDetail({ r, takeaways }: { r: OpenResource; takeaways: Editoria
             <p className="mt-2">
               <span className="font-medium">{r.rightsHolder}.</span> This publication is available in Open Access under the{" "}
               <a href={r.licence.url} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">{r.licence.name} ({r.licence.code})</a>{" "}
-              licence.
+              licence. <CcLicenceBadge code={r.licence.code} className="ml-1 align-middle" />
               {terms && (
                 <>
                   {" "}By using its content, users accept the{" "}

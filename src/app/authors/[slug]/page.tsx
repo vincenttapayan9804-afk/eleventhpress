@@ -1,3 +1,4 @@
+import { OrcidIcon } from "@/components/badges/open-badges";
 import type { Metadata } from "next";
 import { cache } from "react";
 import { headers } from "next/headers";
@@ -279,7 +280,7 @@ export default async function AuthorProfilePage({ params }: { params: Promise<{ 
                 {p.orcid && (
                   <li>
                     <a href={`https://orcid.org/${p.orcid}`} target="_blank" rel="noopener noreferrer me" className="inline-flex items-center gap-1.5 font-medium text-foreground/80 hover:text-primary">
-                      <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#a6ce39] text-[0.55rem] font-bold text-white" aria-hidden="true">iD</span>
+                      <OrcidIcon />
                       {p.orcid}
                       {p.verification.orcidAuthenticated && <BadgeCheck className="h-3.5 w-3.5 text-primary" aria-label="authenticated" />}
                     </a>

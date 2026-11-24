@@ -1,5 +1,6 @@
 "use client";
 
+import { CcLicenceBadge } from "@/components/badges/open-badges";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useApp } from "@/lib/store";
 import { editorialSerif } from "@/lib/fonts-editorial";
@@ -281,6 +282,7 @@ function PieceReader({
               </a>
               , published by {credit.publisher}. {/^public domain/i.test(credit.licence.label) ? "" : "Licensed under "}
               <a href={credit.licence.url} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2">{credit.licence.label}</a>.{" "}
+              <CcLicenceBadge code={credit.licence.label} linked={false} className="mr-1 align-middle" />
               {credit.notes}
             </p>
             <p className="mt-2 text-muted-foreground">Eleventh Press is not affiliated with, sponsored by or endorsed by {credit.publisher}.</p>

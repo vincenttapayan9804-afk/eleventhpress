@@ -1,3 +1,5 @@
+import { JOURNAL_IDENTITY } from "@/lib/site";
+import { CcLicenceBadge, OpenAccessIcon } from "@/components/badges/open-badges";
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { articlePdfPath, scholarDate } from "@/lib/scholar-meta";
@@ -274,6 +276,10 @@ export default async function ArticlePage({ params }: { params: Promise<{ id: st
               <p className="mt-2 text-sm text-muted-foreground">By {authorNames}</p>
               {journalLine && <p className="mt-1 text-sm text-muted-foreground">{journalLine}</p>}
               {article.doi && <p className="mt-1 text-sm text-muted-foreground">DOI: {article.doi}</p>}
+              <p className="mt-3 flex flex-wrap items-center gap-2 text-xs text-foreground/80">
+                <span className="inline-flex items-center gap-1 rounded-md border border-border px-1.5 py-0.5 font-medium"><OpenAccessIcon /> Open access</span>
+                <CcLicenceBadge code={JOURNAL_IDENTITY.license} />
+              </p>
               <section className="mt-6" aria-labelledby="abstract-heading">
                 <h2 id="abstract-heading" className="font-display text-xl font-semibold">Abstract</h2>
                 <p className="mt-2 whitespace-pre-line leading-relaxed">{article.abstract}</p>
