@@ -39,7 +39,7 @@ export interface PolicyPage {
 const p = (text: string): PolicyBlock => ({ kind: "p", text });
 const list = (...items: string[]): PolicyBlock => ({ kind: "list", items });
 
-export const POLICY_SLUGS = ["open-access", "peer-review", "doi-deposit", "payment-security", "editorial-standards"] as const;
+export const POLICY_SLUGS = ["open-access", "peer-review", "doi-deposit", "payment-security", "editorial-standards", "staff-contributors"] as const;
 export type PolicySlug = (typeof POLICY_SLUGS)[number];
 
 export const POLICY_PAGES_UPDATED = "21 November 2026";
@@ -476,6 +476,89 @@ export function policyPages(name: string, editorialEmail: string): Record<Policy
         { label: "Publication Charter", href: "/charter" },
         { label: "All editorial policies", href: "/policies" },
         { label: "Journalism Trust Initiative", href: "https://www.journalismtrustinitiative.org/" },
+      ],
+    },
+    // Keep it truthful: these are commitments about how we treat the people
+    // who work with us. No named staff yet — roles only.
+    "staff-contributors": {
+      slug: "staff-contributors",
+      title: "Staff & contributors",
+      eyebrow: "Editorial policy",
+      summary: `The commitments ${name} makes to the editors, reporters, reviewers, authors and freelancers who work with it: training, safety, fair treatment and honesty about conflicts of interest.`,
+      updated: "24 November 2026",
+      highlights: [
+        { label: "Freelancers", value: "Clear terms, paid on time" },
+        { label: "Safety", value: "Taken seriously" },
+        { label: "Conflicts of interest", value: "Declared and managed" },
+        { label: "Concerns", value: "Raised without penalty" },
+      ],
+      sections: [
+        {
+          heading: "Who this covers",
+          blocks: [
+            p(`This policy covers everyone who contributes to ${name}: staff editors, freelance writers, photographers and translators, peer reviewers, editorial board members and volunteers. It sits alongside our editorial standards, which cover what we publish.`),
+          ],
+        },
+        {
+          heading: "Training and support",
+          blocks: [
+            p("We expect good work, and we commit to helping people do it."),
+            list(
+              "New editors and contributors are briefed on our editorial standards, our correction and complaints processes, and our rules on AI use before they work on published material.",
+              "Reviewers and editors receive guidance on ethical review, confidentiality and conflicts of interest.",
+              "We update this guidance when our standards change, and tell the people affected.",
+            ),
+          ],
+        },
+        {
+          heading: "Safety and wellbeing",
+          blocks: [
+            p("No story is worth anyone's safety. We will not ask a contributor to take unreasonable risks, and anyone may decline an assignment they consider unsafe without it counting against them."),
+            list(
+              "Contributors working on sensitive or risky subjects can agree with their editor, in advance, how they will check in and what to do if something goes wrong.",
+              "We protect the identity of sources and contributors who are at risk, and we do not publish a name or location where doing so could put someone in danger.",
+              "We take harassment, abuse and threats against our contributors seriously and will support the person affected.",
+            ),
+          ],
+        },
+        {
+          heading: "Fair treatment of freelancers",
+          blocks: [
+            p("Freelance and occasional contributors are treated fairly and professionally."),
+            list(
+              "Terms are agreed in writing before work starts: what is expected, the fee if there is one, the deadline, and how the work may be used.",
+              "Fees agreed are paid in full and on the agreed date. If a piece is not used after we commissioned it, we tell the contributor promptly and explain the reason.",
+              "Authors keep their copyright. Research is published under an open licence chosen with the author, and no rights are taken beyond what was agreed.",
+              "Contributors are credited accurately for their work, and told before a piece is significantly changed.",
+              "No one is treated worse because of their race, ethnicity, gender, religion, disability, age, sexual orientation, nationality or background.",
+            ),
+          ],
+        },
+        {
+          heading: "Conflicts of interest",
+          blocks: [
+            p("A conflict of interest is anything that could reasonably make someone doubt that a person's work was fair, such as a financial stake, a close personal or family relationship, a competing project, or a recent working relationship with the subject."),
+            list(
+              "Editors, reviewers and contributors must tell us about any conflict before they work on a piece. If in doubt, they should declare it.",
+              "A person with a conflict does not review, edit or make decisions about that piece. It is passed to someone else.",
+              "Where a conflict is relevant to readers, the published piece says so.",
+              "Staff and contributors do not accept gifts, payments or hospitality from people or organisations they cover, other than items of trivial value.",
+              "Editorial staff do not take paid work from, or hold investments in, organisations they are responsible for covering without telling the Editor-in-Chief.",
+            ),
+          ],
+        },
+        {
+          heading: "Raising a concern",
+          blocks: [
+            p(`Anyone working with ${name} who is worried about a breach of our standards, unfair treatment or unsafe conditions can raise it with their editor or directly with the Editor-in-Chief at ${editorialEmail}. Concerns are handled confidentially, and no one is penalised for raising one in good faith.`),
+          ],
+        },
+      ],
+      related: [
+        { label: "Editorial standards", href: "/policies/editorial-standards" },
+        { label: "Peer-review policy", href: "/policies/peer-review" },
+        { label: "Contact the editorial office", href: "/contact" },
+        { label: "All editorial policies", href: "/policies" },
       ],
     },
   };
