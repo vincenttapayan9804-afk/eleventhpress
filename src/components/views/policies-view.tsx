@@ -222,7 +222,12 @@ export function PoliciesView() {
           guide under Resources.
         </p>
         <div className="mt-5 flex flex-wrap justify-center gap-3">
-          <Button onClick={() => setView("about")}>
+          <Button asChild data-testid="cta-editorial-standards">
+            <a href="/policies/editorial-standards">
+              <ClipboardCheck className="mr-2 h-4 w-4" /> Editorial standards
+            </a>
+          </Button>
+          <Button variant="outline" onClick={() => setView("about")}>
             <BookOpen className="mr-2 h-4 w-4" /> About the journal
           </Button>
           <Button variant="outline" onClick={() => setView("resources")}>

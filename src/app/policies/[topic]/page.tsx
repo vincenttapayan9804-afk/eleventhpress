@@ -85,7 +85,7 @@ export default async function PolicyTopicPage({ params }: { params: Promise<{ to
           <p className="eyebrow">{page.eyebrow}</p>
           <h1 className="mt-2 font-display text-3xl font-semibold sm:text-4xl">{page.title}</h1>
           <p className="mt-3 max-w-2xl leading-relaxed text-muted-foreground">{page.summary}</p>
-          <p className="mt-3 text-xs text-muted-foreground">Last updated {POLICY_PAGES_UPDATED}</p>
+          <p className="mt-3 text-xs text-muted-foreground">Last updated {page.updated ?? POLICY_PAGES_UPDATED}</p>
           <dl className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
             {page.highlights.map((h) => (
               <div key={h.label} className="rounded-xl border border-primary/15 bg-primary/[0.04] p-3">
