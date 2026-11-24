@@ -161,6 +161,7 @@ export function SiteFooter() {
                   </SpaLink>
                 </li>
                 <li><a href="/policies/payment-security" data-testid="footer-policy-payment-security" className="underline-offset-2 hover:text-primary hover:underline transition-colors">{t("policyPci")}</a></li>
+                <li><a href="/policies/editorial-mission" data-testid="footer-policy-editorial-mission" className="underline-offset-2 hover:text-primary hover:underline transition-colors">{t("policyEditorialMission")}</a></li>
                 <li><a href="/policies/editorial-standards" data-testid="footer-policy-editorial-standards" className="underline-offset-2 hover:text-primary hover:underline transition-colors">{t("policyEditorialStandards")}</a></li>
                 <li><a href="/policies/staff-contributors" data-testid="footer-policy-staff-contributors" className="underline-offset-2 hover:text-primary hover:underline transition-colors">{t("policyStaffContributors")}</a></li>
                 <li>

@@ -39,7 +39,7 @@ export interface PolicyPage {
 const p = (text: string): PolicyBlock => ({ kind: "p", text });
 const list = (...items: string[]): PolicyBlock => ({ kind: "list", items });
 
-export const POLICY_SLUGS = ["open-access", "peer-review", "doi-deposit", "payment-security", "editorial-standards", "staff-contributors"] as const;
+export const POLICY_SLUGS = ["open-access", "peer-review", "doi-deposit", "payment-security", "editorial-standards", "staff-contributors", "editorial-mission"] as const;
 export type PolicySlug = (typeof POLICY_SLUGS)[number];
 
 export const POLICY_PAGES_UPDATED = "21 November 2026";
@@ -360,7 +360,7 @@ export function policyPages(name: string, editorialEmail: string): Record<Policy
       slug: "editorial-standards",
       title: "Editorial standards",
       eyebrow: "Editorial policy",
-      summary: `How ${name} keeps its work accurate and independent: how we correct mistakes, how we use AI, how we keep paid content apart from editorial work, the rules for reader contributions, and how to make a complaint. These standards apply to research articles, magazine issues and News & Notes alike.`,
+      summary: `How ${name} keeps its work accurate and independent: how we treat our sources, how we correct mistakes, how we use AI, how we keep paid content apart from editorial work, the rules for reader contributions, and how to make a complaint. These standards apply to research articles, magazine issues and News & Notes alike.`,
       updated: "24 November 2026",
       highlights: [
         { label: "Corrections", value: "Visible and dated" },
@@ -374,6 +374,35 @@ export function policyPages(name: string, editorialEmail: string): Record<Policy
           blocks: [
             p(`${name} publishes to inform readers accurately. We check facts before we publish, name our sources wherever we can, separate fact from opinion, and correct mistakes openly. Editorial decisions are made by our editors on the merits of the work, never because of who paid, who is asking, or who might be offended.`),
             p("Every piece is reviewed by a human editor before it is published. The editor in charge of a piece is accountable for it, whatever tools were used to make it."),
+          ],
+        },
+        {
+          heading: "Sources and how we treat them",
+          blocks: [
+            p("Our reporting is only as good as the sources behind it. These rules apply to everyone who writes for us."),
+            list(
+              "Name and link our sources wherever we can. Readers should be able to see where a claim comes from and check it for themselves.",
+              "Check important claims against more than one independent source, and against the original document, data or study where one exists, not only a press release or a second-hand account.",
+              "Say clearly what we know, what is claimed and what is unconfirmed. Where a source has an interest in the story, we say so.",
+              "Seek a range of voices. We aim to draw on sources of different backgrounds, genders, regions and viewpoints, and to include the people a story is about, not only those who speak about them.",
+              "Give people we write about a fair chance to respond to serious claims before we publish, and report their response.",
+            ),
+            p("Anonymous sources. We prefer named sources and treat anonymity as a last resort."),
+            list(
+              "We grant anonymity only when a source could face real harm, such as danger, loss of work or legal action, and the information is important and cannot be obtained another way.",
+              "The decision is made by an editor, not the reporter alone, and the editor knows who the source is and checks that the source has first-hand knowledge and no hidden motive.",
+              "We tell readers why the source is not named and describe them as precisely as safety allows.",
+              "Once we promise anonymity we keep the promise, unless the source has lied to us or a court orders us to disclose.",
+              "We never invent or composite sources, and we never present anonymous claims from a single source as established fact.",
+            ),
+            p("Privacy, safety and dignity of people in our stories."),
+            list(
+              "We respect people's privacy and publish private information only where there is a clear public-interest reason, such as exposing wrongdoing or protecting public health or safety.",
+              "We take extra care with children, victims of crime or abuse, people in crisis and other vulnerable people. We seek informed consent, avoid identifying details where they could cause harm, and consider whether naming someone is necessary.",
+              "We do not use deception or hidden recording to gather information unless it is the only way to expose serious wrongdoing and an editor has agreed in advance.",
+              "We do not pay sources for information. We do not let sources, advertisers, governments or other outside parties approve or change our content before it is published. Sharing a draft with a source is allowed only to check facts, and the editor decides what changes.",
+            ),
+            p("Images and recordings. We do not alter photographs, audio or video in a way that misleads. Where an image is illustrative or computer-made, we label it. We use third-party material only with the right to do so, and credit the owner."),
           ],
         },
         {
@@ -484,7 +513,7 @@ export function policyPages(name: string, editorialEmail: string): Record<Policy
       slug: "staff-contributors",
       title: "Staff & contributors",
       eyebrow: "Editorial policy",
-      summary: `The commitments ${name} makes to the editors, reporters, reviewers, authors and freelancers who work with it: training, safety, fair treatment and honesty about conflicts of interest.`,
+      summary: `The commitments ${name} makes to the editors, reporters, reviewers, authors and freelancers who work with it: recruitment and diversity, training, safety and wellbeing, fair treatment, freedom to organise and honesty about conflicts of interest.`,
       updated: "24 November 2026",
       highlights: [
         { label: "Freelancers", value: "Clear terms, paid on time" },
@@ -500,6 +529,19 @@ export function policyPages(name: string, editorialEmail: string): Record<Policy
           ],
         },
         {
+          heading: "Recruitment, diversity and inclusion",
+          blocks: [
+            p("We want the people who make our work to reflect the readers and researchers we serve, and we recruit on that basis."),
+            list(
+              "Roles, commissions and board places are filled on skills, experience and the needs of the work. We advertise them openly where we can, in plain language and without unnecessary requirements.",
+              "We do not discriminate on grounds of race, ethnicity, gender, gender identity, religion, disability, age, sexual orientation, nationality, social background or any other protected characteristic, at any stage from recruitment to ending a working relationship.",
+              "We take reasonable steps to make our work accessible to people with disabilities and to people working in different languages, time zones and regions, including where the working language is not their first.",
+              "We look at who we commission and who we cite, and take steps to widen the range of contributors, reviewers and editors we work with.",
+              "Harassment, bullying and abuse are not tolerated, whether by colleagues, contributors, authors, reviewers or the people we cover.",
+            ),
+          ],
+        },
+        {
           heading: "Training and support",
           blocks: [
             p("We expect good work, and we commit to helping people do it."),
@@ -507,6 +549,8 @@ export function policyPages(name: string, editorialEmail: string): Record<Policy
               "New editors and contributors are briefed on our editorial standards, our correction and complaints processes, and our rules on AI use before they work on published material.",
               "Reviewers and editors receive guidance on ethical review, confidentiality and conflicts of interest.",
               "We update this guidance when our standards change, and tell the people affected.",
+              "We brief editors and contributors again when the law or best practice changes in a way that affects their work, for example on defamation, privacy, copyright, data protection, research integrity or the use of AI.",
+              "Where a piece raises a legal risk, such as a claim that could damage someone's reputation, the editor refers it to the Editor-in-Chief, who obtains legal advice before it is published. Contributors are never asked to carry that risk alone.",
             ),
           ],
         },
@@ -518,6 +562,8 @@ export function policyPages(name: string, editorialEmail: string): Record<Policy
               "Contributors working on sensitive or risky subjects can agree with their editor, in advance, how they will check in and what to do if something goes wrong.",
               "We protect the identity of sources and contributors who are at risk, and we do not publish a name or location where doing so could put someone in danger.",
               "We take harassment, abuse and threats against our contributors seriously and will support the person affected.",
+              "Some work involves distressing material, such as violence, abuse or disaster. Editors tell contributors in advance when material may be distressing, limit unnecessary exposure, allow breaks and reassignment, and make time to talk afterwards. We encourage people to seek professional support and will help them find it.",
+              "We expect reasonable hours, realistic deadlines and the right to switch off, and we do not expect contributors to work unpaid for us.",
             ),
           ],
         },
@@ -531,6 +577,7 @@ export function policyPages(name: string, editorialEmail: string): Record<Policy
               "Authors keep their copyright. Research is published under an open licence chosen with the author, and no rights are taken beyond what was agreed.",
               "Contributors are credited accurately for their work, and told before a piece is significantly changed.",
               "No one is treated worse because of their race, ethnicity, gender, religion, disability, age, sexual orientation, nationality or background.",
+              "Contributors are free to join or form a union, professional association or other collective body, and to be represented by it, and will not be penalised for doing so.",
             ),
           ],
         },
@@ -558,6 +605,77 @@ export function policyPages(name: string, editorialEmail: string): Record<Policy
         { label: "Editorial standards", href: "/policies/editorial-standards" },
         { label: "Peer-review policy", href: "/policies/peer-review" },
         { label: "Contact the editorial office", href: "/contact" },
+        { label: "All editorial policies", href: "/policies" },
+      ],
+    },
+    "editorial-mission": {
+      slug: "editorial-mission",
+      title: "Mission & values",
+      eyebrow: "Editorial policy",
+      summary: `Why ${name} exists, who it serves, and the values that guide every editorial decision, across research articles, magazine issues, The Review, Open Edition and News & Notes.`,
+      updated: "24 November 2026",
+      highlights: [
+        { label: "Access", value: "Open to every reader" },
+        { label: "Standard", value: "Accurate and independent" },
+        { label: "Scope", value: "Research, magazine and news" },
+        { label: "Accountability", value: "Corrected in the open" },
+      ],
+      sections: [
+        {
+          heading: "Our mission",
+          blocks: [
+            p(`${name} exists to make trustworthy knowledge freely available to everyone. We publish peer-reviewed research and reliable reporting about it, so that researchers, students, professionals and curious readers can find, read, check and use what we publish without a paywall.`),
+          ],
+        },
+        {
+          heading: "What we publish",
+          blocks: [
+            p("Our work falls into four strands, each held to the standards set out on our Editorial standards page:"),
+            list(
+              "Research articles: original work that passes double-blind peer review and is published open access with a permanent DOI.",
+              "The Review and magazine issues: edited, longer-form pieces that explain, assess and put research in context.",
+              "Open Edition: freely licensed books and resources that we gather and make easier to find, credited to their publishers.",
+              "News & Notes: short reports and updates about research, publishing and our own work, written by our newsroom.",
+            ),
+          ],
+        },
+        {
+          heading: "Who we serve",
+          blocks: [
+            p("Our first duty is to our readers, and to the public who rely on research without always having access to it. We serve authors and reviewers by treating them fairly and promptly, and we serve the wider research community by keeping an accurate, permanent record. We write in clear language and make our work accessible across languages, devices and abilities."),
+          ],
+        },
+        {
+          heading: "Our values",
+          blocks: [
+            list(
+              "Accuracy: we check before we publish, show our evidence and sources, and correct mistakes openly.",
+              "Independence: editorial decisions are made on merit. Funders, advertisers, sources, governments and authors who pay a processing charge have no say over what we publish or how we cover them.",
+              "Fairness and impartiality: we give people a chance to respond, separate fact from opinion, and treat people and views with respect.",
+              "Openness: our research is free to read and reuse under an open licence, and we are transparent about how we work and how we are funded.",
+              "Accountability: a named human editor answers for everything we publish, anyone can complain, and our standards apply to us as much as to anyone.",
+              "Inclusion and care: we aim to include a wide range of voices and to look after the safety and wellbeing of the people who work with us and appear in our stories.",
+            ),
+          ],
+        },
+        {
+          heading: "How we are funded",
+          blocks: [
+            p("Our income comes from article processing charges, optional reader subscriptions and services. We do not currently publish advertising or sponsored content, and none of our funding buys editorial coverage or a favourable decision. Authors who cannot pay can ask for a waiver, which does not affect peer review."),
+          ],
+        },
+        {
+          heading: "The standards behind the mission",
+          blocks: [
+            p("Our values are put into practice by the policies linked below, which follow widely used international standards for research and journalism, including the Committee on Publication Ethics (COPE) guidance for journals and the principles of the Journalism Trust Initiative. We are not a member of COPE and are not certified under the Journalism Trust Initiative; we describe these standards as the ones we work to, not as a certification."),
+          ],
+        },
+      ],
+      related: [
+        { label: "Editorial standards", href: "/policies/editorial-standards" },
+        { label: "Staff & contributors", href: "/policies/staff-contributors" },
+        { label: "Publication Charter", href: "/charter" },
+        { label: "About us", href: "/about" },
         { label: "All editorial policies", href: "/policies" },
       ],
     },

@@ -17,6 +17,7 @@ export function policySignals(base: string) {
     ownershipFundingInfo: `${base}/about`,
     hasPart: [
       { "@type": "WebPage", name: "Editorial standards", url: editorial },
+      { "@type": "WebPage", name: "Mission & values", url: `${base}/policies/editorial-mission` },
       { "@type": "WebPage", name: "Staff & contributors", url: `${base}/policies/staff-contributors` },
       { "@type": "WebPage", name: "Publication Charter", url: `${base}/charter` },
     ],
