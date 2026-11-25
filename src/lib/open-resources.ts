@@ -142,6 +142,12 @@ const CC_BY_NC: OpenLicence = {
   url: "https://creativecommons.org/licenses/by-nc/4.0/",
 };
 
+const CC_BY_NC_ND_4: OpenLicence = {
+  code: "CC BY-NC-ND 4.0",
+  name: "Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International",
+  url: "https://creativecommons.org/licenses/by-nc-nd/4.0/",
+};
+
 const CC_BY_SA_4: OpenLicence = {
   code: "CC BY-SA 4.0",
   name: "Creative Commons Attribution-ShareAlike 4.0 International",
@@ -1391,6 +1397,50 @@ export const OPEN_RESOURCES: OpenResource[] = [
       "Allen, L., Barbour, V., Borrell-Damián, L., Cobey, K., Dube, N., Firth, C., Lawrence, R., Lima, G., McGuirk, S., Morris, J. P., Trinh, A.-K., & Uwineza, J. (2026). A practical guide to implementing responsible research assessment at research funding organizations. Declaration on Research Assessment (DORA). https://doi.org/10.5281/zenodo.18402271",
     pdfPath: "/open-resources/practical-guide-responsible-research-assessment-funders-2026.pdf",
     coverPath: "/open-resources/covers/practical-guide-responsible-research-assessment-funders-2026.webp",
+  },
+  {
+    slug: "the-politics-of-riverine-rights-2026",
+    org: "Routledge",
+    title: "The Politics of Riverine Rights",
+    subtitle: "Environmental Struggles in Aotearoa New Zealand, Colombia and India",
+    series: "Routledge Studies in Environmental Justice",
+    type: "Edited book",
+    category: "Environmental justice & law",
+    creators: "Edited by Malene K. Brandshaug and Axel Borchgrevink, with chapters by Miriama Cribb, Catalina Vallejo Piedrahíta, John Andrew McNeish, Jenny Moreno Socha, Arlinton Cuesta Mosquera, Daniel Alfonso León, Kavita Upadhyay, Nataly Montoya-Restrepo, Camilo Arango Duque and Julián Gaviria Mira",
+    publisher: "Routledge, an imprint of the Taylor & Francis Group, Abingdon, Oxon and New York",
+    year: 2026,
+    pages: 245,
+    fileSizeMb: 6.7,
+    language: "English",
+    isbn: "978-1-003-58120-8",
+    doi: "10.4324/9781003581208",
+    sourceUrl: "https://doi.org/10.4324/9781003581208",
+    licence: CC_BY_NC_ND_4,
+    terms: null,
+    rightsHolder: "© 2026 selection and editorial matter, Malene K. Brandshaug and Axel Borchgrevink; individual chapters, the contributors",
+    coverKind: "tile",
+    coverCredit: TILE_COVER_CREDIT,
+    thirdPartyNotice:
+      "Per the publisher, the Creative Commons licence applies to the Open Access version of the book; any third-party material in it is not included in the licence unless a credit line says otherwise. This is a NoDerivatives licence: Eleventh Press shows the book unchanged and does not adapt, excerpt or translate it, and its Editorial Takeaways are separate commentary, not a version of the book. The Routledge and Taylor & Francis names and logos are trademarks of their owners. Routledge and the authors have not reviewed this listing, and no endorsement of Eleventh Press is suggested or implied.",
+    summary:
+      "Comparative research on what it means for a river to be a legal person, drawing on the Whanganui in Aotearoa New Zealand, the Atrato in Colombia and the Ganga and Yamuna in India.",
+    description: [
+      "In recent years courts and parliaments in Aotearoa New Zealand, Colombia and India have declared rivers to be legal persons. This edited collection, based on comparative ethnographic research, asks what those decisions have meant in practice for the Whanganui River, the Río Atrato, the Ganga and the Yamuna, and for the people who live by them.",
+      "The first chapters take each case in turn, covering its history, institutional setting, the actors and interests involved and the outcomes of the legal decisions. Later chapters compare the cases across legal pluralism, the struggles of Indigenous peoples, ethnic minorities and marginalised groups, and different understandings of how people, rivers and nature are related.",
+      "The book closes by placing the cases in global trends, weighing human rights against the rights of nature, and arguing for a broad idea of riverine rights that includes those who live by the river. It was written by an interdisciplinary team from anthropology, law, history, political science, management studies and water science, many from the case study countries.",
+    ],
+    highlights: [
+      "Case chapters on the Whanganui, the Atrato, and the Ganga and Yamuna",
+      "Comparative chapters on legal pluralism and Indigenous rights",
+      "How human rights and the rights of nature meet and conflict",
+      "A case for riverine rights that include the people who live by the river",
+    ],
+    audience:
+      "Researchers and students in law, anthropology, geography and environmental studies, plus policymakers, lawyers, activists and communities working on the rights of nature and water governance.",
+    citation:
+      "Brandshaug, M. K. and Borchgrevink, A. (eds.) 2026. The Politics of Riverine Rights: Environmental Struggles in Aotearoa New Zealand, Colombia and India. Routledge Studies in Environmental Justice. Abingdon and New York: Routledge. https://doi.org/10.4324/9781003581208",
+    pdfPath: "/open-resources/the-politics-of-riverine-rights-2026.pdf",
+    coverPath: "/open-resources/covers/the-politics-of-riverine-rights-2026.webp",
   },
 ];
 

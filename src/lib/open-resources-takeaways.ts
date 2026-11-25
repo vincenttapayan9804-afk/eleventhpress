@@ -936,6 +936,39 @@ export const OPEN_RESOURCE_TAKEAWAYS: Record<string, EditorialTakeaways> = {
       "What evidence shows whether responsible research assessment changes the behaviour of applicants and reviewers?",
     ],
   },
+  "the-politics-of-riverine-rights-2026": {
+    code: "EP-OR-28",
+    preparedOn: PREPARED,
+    takeaways: [
+      {
+        title: "Three countries, four rivers",
+        text: "The book follows the Whanganui in Aotearoa New Zealand, the Atrato in Colombia, and the Ganga and Yamuna in India, three places where rivers have been declared legal persons.",
+      },
+      {
+        title: "A legal status is not the same as protection",
+        text: "The case chapters look at how each decision came about, who was involved and what followed, rather than assuming that a new legal status changes conditions on the river.",
+      },
+      {
+        title: "Indigenous and marginalised communities are at the centre",
+        text: "The comparative chapters examine the struggles of Indigenous peoples, ethnic minorities and marginalised groups, and how different ways of understanding people, rivers and nature shape the outcomes.",
+      },
+      {
+        title: "Human rights and the rights of nature can pull apart",
+        text: "The closing chapters discuss tensions and overlaps between human rights and the rights of nature, with particular attention to how Indigenous rights connect to the rights of rivers.",
+      },
+      {
+        title: "Rights for the river, and for those who live by it",
+        text: "The editors argue for a broad idea of riverine rights that includes the people who depend on the river, and that looks to the social, cultural and political sides of legal change.",
+      },
+    ],
+    whyItMatters:
+      "The Philippines is a country of rivers, Indigenous peoples and active debate on environmental rights, so these three comparisons offer useful background for law, policy and community advocacy on water. The book also shows how open-access publishing can put expensive academic research within reach of researchers outside wealthy institutions.",
+    researchQuestions: [
+      "What would recognising a Philippine river as a legal person mean for Indigenous and riverside communities?",
+      "How do the rights of nature and Indigenous rights work together or conflict in water governance?",
+      "What conditions turn a court declaration into lasting protection on the ground?",
+    ],
+  },
 };
 
 export function takeawaysFor(slug: string): EditorialTakeaways | null {
