@@ -7,6 +7,7 @@ import { articlePath } from "@/lib/spa-routes";
 import { ReaderToolsCard, HighlightCapture } from "@/components/article-reader-tools";
 import { ArticleDiscussion } from "@/components/article-discussion";
 import { authorPath } from "@/lib/author-path";
+import { realDoi } from "@/lib/real-doi";
 import { useEffect, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import { useApp } from "@/lib/store";
@@ -76,6 +77,8 @@ import {
   Landmark,
   ShieldCheck,
   BadgeCheck,
+  Rss,
+  Globe,
   Tag,
   MessageSquare,
   ThumbsUp,
@@ -431,6 +434,9 @@ export function ArticleView() {
                 <OpenAccessIcon title="" /> Open access
               </span>
               <CcLicenceBadge code={JOURNAL_IDENTITY.license} />
+              <span className="inline-flex items-center rounded-md border border-border bg-background px-1.5 py-0.5 text-[0.65rem] font-medium text-foreground/80" data-testid="article-free-to-read" title="Free to read: no embargo, no sign-up">
+                Free to read · no embargo · no sign-up
+              </span>
               {/* DORA is Eleventh Press's own commitment, so white-label journals never show it. */}
               {!isWhitelabel(articleBranding) && (
                 <a
@@ -464,9 +470,17 @@ export function ArticleView() {
             </Badge>
           )}
           {article.hasCompletedReview && (
-            <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700 gap-1">
-              <BadgeCheck className="h-3 w-3" /> Peer Reviewed
-            </Badge>
+            isWhitelabel(articleBranding) ? (
+              <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700 gap-1">
+                <BadgeCheck className="h-3 w-3" /> Peer-reviewed
+              </Badge>
+            ) : (
+              <a href="/policies/peer-review" data-testid="article-peer-reviewed" title="Read our peer-review policy" className="inline-flex">
+                <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700 gap-1 hover:border-amber-500">
+                  <BadgeCheck className="h-3 w-3" /> Peer-reviewed
+                </Badge>
+              </a>
+            )
           )}
           <span className="font-mono text-[0.65rem] text-muted-foreground">
             DOI: {article.doi} · Status: {article.status}
@@ -1136,6 +1150,21 @@ export function ArticleView() {
                   <span className="text-muted-foreground">Licence</span>
                   <CcLicenceBadge code={JOURNAL_IDENTITY.license} />
                 </p>
+                {realDoi(article.doi, article.doiStatus) && (
+                  <div className="mt-2 rounded-md border border-border bg-muted/30 p-2.5 text-[0.7rem] leading-snug" data-testid="article-permanent-link">
+                    <span className="block text-xs font-semibold text-foreground">Cited as · permanent link</span>
+                    <a href={`https://doi.org/${realDoi(article.doi, article.doiStatus)}`} target="_blank" rel="noreferrer" className="break-all font-mono text-muted-foreground hover:text-primary">
+                      https://doi.org/{realDoi(article.doi, article.doiStatus)}
+                    </a>
+                  </div>
+                )}
+                {!isWhitelabel(articleBranding) && (
+                  <p className="mt-2 flex items-center gap-3 text-[0.7rem] text-muted-foreground" data-testid="article-feeds">
+                    <span>Feeds</span>
+                    <a href="/api/feed/articles.xml" className="inline-flex items-center gap-1 hover:text-primary" aria-label="RSS feed of new articles"><Rss className="h-3.5 w-3.5" /> RSS</a>
+                    <a href="/api/oai-pmh?verb=Identify" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-primary" aria-label="OAI-PMH metadata feed"><Globe className="h-3.5 w-3.5" /> OAI-PMH</a>
+                  </p>
+                )}
                 {!isWhitelabel(articleBranding) && (
                   <a
                     href="/policies/peer-review#responsible-research-assessment-dora"
