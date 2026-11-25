@@ -15,7 +15,9 @@ import { DOI_REGISTRAR } from "@/lib/site";
 export type PolicyBlock =
   | { kind: "p"; text: string }
   | { kind: "list"; items: string[] }
-  | { kind: "steps"; items: { title: string; text: string }[] };
+  | { kind: "steps"; items: { title: string; text: string }[] }
+  /** Plain text links to independent organisations. Never logos: a logo implies a relationship. */
+  | { kind: "links"; items: { label: string; href: string; note: string }[] };
 
 export interface PolicySection {
   heading: string;
@@ -43,6 +45,34 @@ export const POLICY_SLUGS = ["open-access", "peer-review", "doi-deposit", "payme
 export type PolicySlug = (typeof POLICY_SLUGS)[number];
 
 export const POLICY_PAGES_UPDATED = "21 November 2026";
+
+/**
+ * Independent open-access organisations, named and linked in plain text only.
+ * No logos until the organisation has given written permission (see the
+ * permission-request letters). Descriptions follow each organisation's own wording.
+ */
+export const OPEN_ACCESS_RESOURCE_LINKS: { label: string; href: string; note: string }[] = [
+  {
+    label: "Budapest Open Access Initiative",
+    href: "https://www.budapestopenaccessinitiative.org/",
+    note: "The 2002 declaration that defined open access as free and unrestricted online access to research literature.",
+  },
+  {
+    label: "Open Access Directory",
+    href: "https://oad.simmons.edu/",
+    note: "Simple factual lists about open access to science and scholarship, maintained by the open access community.",
+  },
+  {
+    label: "OAPEN Foundation",
+    href: "https://www.oapen.org/",
+    note: "A non-profit organisation in the Netherlands that supports peer-reviewed open access books.",
+  },
+  {
+    label: "Plan S (cOAlition S)",
+    href: "https://www.coalition-s.org/",
+    note: "An initiative of research funders for full and immediate open access to the research they fund.",
+  },
+];
 
 /** Builds every policy page for the visiting site's name. */
 export function policyPages(name: string, editorialEmail: string): Record<PolicySlug, PolicyPage> {
@@ -111,6 +141,14 @@ export function policyPages(name: string, editorialEmail: string): Record<Policy
           heading: "Third-party material",
           blocks: [
             p("Figures, tables or other content reproduced from other sources may be under a different licence. Where this applies, the article's caption or credit line says so, and reusers must follow the original licence for that material."),
+          ],
+        },
+        {
+          heading: "Open access initiatives and resources",
+          blocks: [
+            p("The definition of open access used here, free and unrestricted online access with reuse limited only by attribution, follows the Budapest Open Access Initiative. These independent organisations publish the definitions, directories and policies behind the open access movement."),
+            { kind: "links", items: OPEN_ACCESS_RESOURCE_LINKS },
+            p("These links are for reference only. The organisations are independent, and listing them does not mean they endorse or are affiliated with this site."),
           ],
         },
       ],

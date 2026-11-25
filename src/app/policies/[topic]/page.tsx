@@ -48,6 +48,27 @@ function Block({ block }: { block: PolicyBlock }) {
       </ul>
     );
   }
+  if (block.kind === "links") {
+    return (
+      <ul className="space-y-3" data-testid="policy-resource-links">
+        {block.items.map((item) => (
+          <li key={item.href}>
+            <a
+              href={item.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 font-semibold text-primary underline-offset-2 hover:underline"
+            >
+              {item.label}
+              <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+              <span className="sr-only"> (opens in a new tab)</span>
+            </a>
+            <p className="leading-relaxed text-foreground/85">{item.note}</p>
+          </li>
+        ))}
+      </ul>
+    );
+  }
   return (
     <ol className="space-y-3">
       {block.items.map((step, i) => (
