@@ -255,6 +255,12 @@ export function SiteFooter() {
                   <DoraSignatoryBadge className="h-[72px] w-[72px]" />
                 </a>
               )}
+              {!whitelabel && (
+                <a href="https://www.budapestopenaccessinitiative.org/read/" target="_blank" rel="noopener" data-testid="footer-boai-mark" className="inline-flex flex-col items-start gap-0.5 rounded-md border border-border px-3 py-2 text-xs leading-tight hover:border-primary hover:text-primary">
+                  <span className="font-mono uppercase tracking-wide text-muted-foreground">Signatory of the</span>
+                  <span className="text-sm font-semibold">Budapest Open Access Initiative</span>
+                </a>
+              )}
               <p className="font-mono">{t("indexedLine", { registrar: DOI_REGISTRAR })}</p>
             </div>
           </div>
