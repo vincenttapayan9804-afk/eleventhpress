@@ -434,9 +434,6 @@ export function ArticleView() {
                 <OpenAccessIcon title="" /> Open access
               </span>
               <CcLicenceBadge code={JOURNAL_IDENTITY.license} />
-              <span className="inline-flex items-center rounded-md border border-border bg-background px-1.5 py-0.5 text-[0.65rem] font-medium text-foreground/80" data-testid="article-free-to-read" title="Free to read: no embargo, no sign-up">
-                Free to read · no embargo · no sign-up
-              </span>
               {/* DORA is Eleventh Press's own commitment, so white-label journals never show it. */}
               {!isWhitelabel(articleBranding) && (
                 <a
