@@ -1442,6 +1442,95 @@ export const OPEN_RESOURCES: OpenResource[] = [
     pdfPath: "/open-resources/the-politics-of-riverine-rights-2026.pdf",
     coverPath: "/open-resources/covers/the-politics-of-riverine-rights-2026.webp",
   },
+  {
+    slug: "evaluating-environment-in-international-development-2021",
+    org: "Routledge",
+    title: "Evaluating Environment in International Development",
+    subtitle: "Second Edition",
+    type: "Edited book",
+    category: "Environmental evaluation",
+    creators: "Edited by Juha I. Uitto, with chapters by Rob D. van den Berg, Andy Rowe, Hazel Todd, David Todd and other contributors",
+    publisher: "Routledge, an imprint of the Taylor & Francis Group, Abingdon, Oxon and New York",
+    year: 2021,
+    pages: 346,
+    fileSizeMb: 7.6,
+    language: "English",
+    isbn: "978-1-003-09482-1",
+    sourceUrl: "https://doi.org/10.4324/9781003094821",
+    licence: CC_BY_NC_ND_4,
+    terms: null,
+    licenceSource:
+      "The imprint page states that the Open Access version of the book is available under a Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 licence. The DOI link above follows Taylor & Francis's pattern for e-book ISBNs; the PDF itself does not print a DOI.",
+    rightsHolder: "© 2021 selection and editorial matter, Juha I. Uitto; individual chapters, the contributors",
+    coverKind: "tile",
+    coverCredit: TILE_COVER_CREDIT,
+    thirdPartyNotice:
+      "This is a NoDerivatives licence: Eleventh Press shows the book unchanged and does not adapt, excerpt or translate it, and its Editorial Takeaways are separate commentary, not a version of the book. Chapters, figures and quotations from other sources remain the property of their owners and are not covered by the licence unless the book says so. The Routledge and Taylor & Francis names and logos are trademarks of their owners. Routledge and the authors have not reviewed this listing, and no endorsement of Eleventh Press is suggested or implied.",
+    summary:
+      "How leading international organisations, aid agencies and not-for-profits evaluate environmental and sustainability work in developing countries, updated for the 2030 Agenda and the Sustainable Development Goals.",
+    description: [
+      "Evaluation gives decision-makers the evidence they need to judge whether environmental and development efforts work. This second edition, edited by Juha I. Uitto, who directs the Independent Evaluation Office of the Global Environment Facility, brings together approaches and experiences from international organisations, not-for-profits and multilateral and bilateral aid agencies.",
+      "It goes beyond single projects and programmes to examine normative work on the environment and the environmental effects of economic and social development. Part I sets out the concepts, including environment and poverty as a global public goods question, evaluation at the nexus of sustainable development, and the links between poverty, climate change and disaster risk. Part II covers methods and cases, from big data and geospatial approaches to meta-analysis of climate mitigation evaluations, theory-of-change approaches and evaluations of small grants, transboundary aquifers, disaster risk management and agricultural research.",
+      "The new edition reflects the 2030 Agenda for Sustainable Development, recent climate change research and the implications of the 2020 pandemic.",
+    ],
+    highlights: [
+      "Concepts: global public goods, the sustainable development nexus, and poverty, climate and disaster risk",
+      "Methods: big data and geospatial tools, meta-analysis and theory-of-change approaches",
+      "Cases from the Global Environment Facility, UNDP, CGIAR and regional programmes",
+      "Updated for the SDGs, climate change research and the 2020 pandemic",
+    ],
+    audience:
+      "Evaluators, development and environment practitioners, international organisations and NGOs, and students and scholars of environmental studies, development, sustainable development and evaluation.",
+    citation:
+      "Uitto, J. I. (ed.) 2021. Evaluating Environment in International Development. Second edition. Abingdon and New York: Routledge. https://doi.org/10.4324/9781003094821",
+    pdfPath: "/open-resources/evaluating-environment-in-international-development-2021.pdf",
+    coverPath: "/open-resources/covers/evaluating-environment-in-international-development-2021.webp",
+  },
+  {
+    slug: "what-makes-or-breaks-a-democracy-2026",
+    org: "Central European University Press",
+    title: "What Makes or Breaks a Democracy",
+    subtitle: "Lessons from Hungary",
+    type: "Book",
+    category: "Democracy & politics",
+    creators: "András Schweitzer",
+    publisher: "Central European University Press, Budapest–Vienna–New York–Amsterdam, with Amsterdam University Press",
+    year: 2026,
+    pages: 190,
+    fileSizeMb: 5.5,
+    language: "English",
+    isbn: "978 90 4857 932 7",
+    doi: "10.5117/9789048579310",
+    sourceUrl: "https://doi.org/10.5117/9789048579310",
+    licence: CC_BY_NC_ND_4,
+    terms: null,
+    rightsHolder: "© András Schweitzer / Amsterdam University Press B.V. | Central European University Press, 2026",
+    coverKind: "tile",
+    coverCredit: TILE_COVER_CREDIT,
+    funding:
+      "An electronic version is freely available thanks to the libraries supporting CEU Press's Opening the Future model.",
+    thirdPartyNotice:
+      "This is a NoDerivatives licence: Eleventh Press shows the book unchanged and does not adapt, excerpt or translate it, and its Editorial Takeaways are separate commentary, not a version of the book. The publisher's imprint also states that no part of the book may be used or reproduced for the purpose of training artificial intelligence technologies or systems; Eleventh Press does not use it for that. The cover photograph (credited to a Pixabay contributor) is not reproduced here. Central European University Press and the author have not reviewed this listing, and no endorsement of Eleventh Press is suggested or implied.",
+    summary:
+      "A study of Hungary's democratic ups and downs since 1989, tracing seven factors, from political agency and the constitution to the economy, communication and culture, to draw lessons for building and keeping a democracy.",
+    description: [
+      "Hungary moved quickly and peacefully to democracy in 1989, then saw it gradually dismantled after 2010 under a hybrid regime that called itself the System of National Cooperation. The author, who has followed the country's transformation since it began, asks what made the democracy fragile and what can be learned from it.",
+      "The book examines seven factors in turn: political agency, the constitutional setup, economic performance, the international environment, political communication, political ideology and social culture. A conclusion weighs their causes, blunders and lessons, and an epilogue considers the April 2026 election that ended the Orbán government, which the author describes in the preface as a peaceful turnaround.",
+      "Although it centres on Hungary, the lessons are written for readers in many places who want to understand how democracies are made, kept and lost.",
+    ],
+    highlights: [
+      "Seven factors behind Hungary's democratic rise and decline",
+      "Why constitutional guardrails matter, and how they were broken",
+      "How political communication and ideology shaped the downturn",
+      "Lessons for building and maintaining a democracy elsewhere",
+    ],
+    audience:
+      "Researchers and students of political science, comparative politics and European studies, journalists, civil society groups and anyone interested in the resilience of democratic institutions.",
+    citation:
+      "Schweitzer, A. 2026. What Makes or Breaks a Democracy: Lessons from Hungary. Amsterdam: Amsterdam University Press / Central European University Press. https://doi.org/10.5117/9789048579310",
+    pdfPath: "/open-resources/what-makes-or-breaks-a-democracy-2026.pdf",
+    coverPath: "/open-resources/covers/what-makes-or-breaks-a-democracy-2026.webp",
+  },
 ];
 
 /** The publisher's terms of use shown with a title, or null when none apply beyond the licence. */
