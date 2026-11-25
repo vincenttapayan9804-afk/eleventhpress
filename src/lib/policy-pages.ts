@@ -177,6 +177,7 @@ export function policyPages(name: string, editorialEmail: string): Record<Policy
 
     "peer-review": {
       slug: "peer-review",
+      updated: "25 November 2026",
       title: "Double-blind peer review",
       eyebrow: "Editorial policy",
       summary: `${name} uses double-blind peer review by default: reviewers do not know who the authors are, and authors do not know who reviewed their work. This keeps the assessment focused on the research itself.`,
@@ -244,8 +245,22 @@ export function policyPages(name: string, editorialEmail: string): Record<Policy
         {
           heading: "Responsible research assessment (DORA)",
           blocks: [
-            p(`${name} supports the San Francisco Declaration on Research Assessment (DORA) and is applying to sign it as an organisation. We judge a paper on its own merits, not on the journal it appears in. We do not promote or rely on the Journal Impact Factor, and we show each article's own information so readers can judge it. Authors are credited by name and ORCID iD.`),
-            p("Read the declaration at sfdora.org."),
+            p(`${name} supports the San Francisco Declaration on Research Assessment (DORA) and is applying to sign it as an organisation. We believe research should be judged on its own merits, not on the journal it appears in. This is our public statement of that commitment. We will update it to say "has signed" once DORA confirms our signature.`),
+            p("What we do now:"),
+            list(
+              "We do not promote or rely on the Journal Impact Factor.",
+              "Papers go through double-blind peer review, so the work is judged rather than who wrote it.",
+              "Each article is shown with its own information, including article-level attention indicators where available, not journal-level scores.",
+              "Authors can show the specific contribution of each author using the CRediT roles, and can link their ORCID iD.",
+              "Every article is open access under CC BY 4.0, so anyone can read, reuse and build on it.",
+            ),
+            p("What we plan to do next:"),
+            list(
+              "Ask reviewers and editors not to judge a paper by the journals an author has published in or cited before.",
+              "Check whether our reference lists can be made openly reusable, and whether any limit on the number of references is needed.",
+              "Give authors a clear view of how their article is being read and cited, without ranking people by a single number.",
+            ),
+            p(`We will review this statement every year and update it as we make progress. Questions or concerns can be sent to ${editorialEmail}. Read the declaration at sfdora.org.`),
           ],
         },
         {
