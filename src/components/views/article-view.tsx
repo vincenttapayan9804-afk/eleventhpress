@@ -431,6 +431,18 @@ export function ArticleView() {
                 <OpenAccessIcon title="" /> Open access
               </span>
               <CcLicenceBadge code={JOURNAL_IDENTITY.license} />
+              {/* DORA is Eleventh Press's own commitment, so white-label journals never show it. */}
+              {!isWhitelabel(articleBranding) && (
+                <a
+                  href="/policies/peer-review#responsible-research-assessment-dora"
+                  data-testid="article-dora-header-badge"
+                  title="Eleventh Press is a signatory of DORA. Read our research assessment statement."
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background py-0.5 pl-0.5 pr-2 text-[0.65rem] font-medium text-foreground/80 hover:border-primary/40"
+                >
+                  <DoraSignatoryBadge className="h-8 w-8" />
+                  Signatory of DORA
+                </a>
+              )}
             </>
           )}
           {openReviewStatus?.openReview && (
@@ -1098,6 +1110,19 @@ export function ArticleView() {
                   <span className="text-muted-foreground">Licence</span>
                   <CcLicenceBadge code={JOURNAL_IDENTITY.license} />
                 </p>
+                {!isWhitelabel(articleBranding) && (
+                  <a
+                    href="/policies/peer-review#responsible-research-assessment-dora"
+                    data-testid="article-dora-sidebar"
+                    className="mt-2 flex items-center gap-3 rounded-md border border-border bg-muted/30 p-2.5 text-[0.7rem] leading-snug text-muted-foreground hover:border-primary/40"
+                  >
+                    <DoraSignatoryBadge className="h-14 w-14" />
+                    <span>
+                      <span className="block text-xs font-semibold text-foreground">Signatory of DORA</span>
+                      Judged on its own merits, not the journal.
+                    </span>
+                  </a>
+                )}
                 <p className="flex items-center justify-between gap-3">
                   <span className="text-muted-foreground">DOI status</span>
                   <Badge variant="outline" className="font-mono text-[0.6rem]">
