@@ -26,3 +26,13 @@ describe("open access resource links", () => {
     expect(links(a)).toEqual(links(b));
   });
 });
+
+describe("text lettering for the resources", () => {
+  test("every resource has short lettering and a kicker, and no image files", () => {
+    for (const l of OPEN_ACCESS_RESOURCE_LINKS) {
+      expect(l.mark.length).toBeGreaterThan(1);
+      expect(l.mark.length).toBeLessThan(12);
+      expect(l.kicker.length).toBeGreaterThan(3);
+    }
+  });
+});

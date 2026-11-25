@@ -17,7 +17,7 @@ export type PolicyBlock =
   | { kind: "list"; items: string[] }
   | { kind: "steps"; items: { title: string; text: string }[] }
   /** Plain text links to independent organisations. Never logos: a logo implies a relationship. */
-  | { kind: "links"; items: { label: string; href: string; note: string }[] };
+  | { kind: "links"; items: { label: string; mark: string; kicker: string; href: string; note: string }[] };
 
 export interface PolicySection {
   heading: string;
@@ -47,28 +47,36 @@ export type PolicySlug = (typeof POLICY_SLUGS)[number];
 export const POLICY_PAGES_UPDATED = "21 November 2026";
 
 /**
- * Independent open-access organisations, named and linked in plain text only.
- * No logos until the organisation has given written permission (see the
+ * Independent open-access organisations, named and linked in plain text only
+ * (`mark` is our own typographic lettering, not their logo). No logos until the organisation has given written permission (see the
  * permission-request letters). Descriptions follow each organisation's own wording.
  */
-export const OPEN_ACCESS_RESOURCE_LINKS: { label: string; href: string; note: string }[] = [
+export const OPEN_ACCESS_RESOURCE_LINKS: { label: string; mark: string; kicker: string; href: string; note: string }[] = [
   {
     label: "Budapest Open Access Initiative",
+    mark: "BOAI",
+    kicker: "Founding declaration",
     href: "https://www.budapestopenaccessinitiative.org/",
     note: "The 2002 declaration that defined open access as free and unrestricted online access to research literature.",
   },
   {
     label: "Open Access Directory",
+    mark: "OAD",
+    kicker: "Community reference",
     href: "https://oad.simmons.edu/",
     note: "Simple factual lists about open access to science and scholarship, maintained by the open access community.",
   },
   {
     label: "OAPEN Foundation",
+    mark: "OAPEN",
+    kicker: "Open access books",
     href: "https://www.oapen.org/",
     note: "A non-profit organisation in the Netherlands that supports peer-reviewed open access books.",
   },
   {
     label: "Plan S (cOAlition S)",
+    mark: "Plan S",
+    kicker: "Funder initiative",
     href: "https://www.coalition-s.org/",
     note: "An initiative of research funders for full and immediate open access to the research they fund.",
   },

@@ -50,20 +50,27 @@ function Block({ block }: { block: PolicyBlock }) {
   }
   if (block.kind === "links") {
     return (
-      <ul className="space-y-3" data-testid="policy-resource-links">
+      <ul className="grid gap-4 sm:grid-cols-2" data-testid="policy-resource-links">
         {block.items.map((item) => (
           <li key={item.href}>
             <a
               href={item.href}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 font-semibold text-primary underline-offset-2 hover:underline"
+              data-testid="policy-resource-card"
+              className="group flex h-full flex-col rounded-2xl border border-primary/20 bg-primary/[0.04] p-5 transition-colors hover:border-primary/50 hover:bg-primary/[0.08] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
-              {item.label}
-              <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
-              <span className="sr-only"> (opens in a new tab)</span>
+              <span className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{item.kicker}</span>
+              <span className="mt-2 flex items-start justify-between gap-2">
+                <span className="font-display text-4xl font-semibold leading-none tracking-tight text-primary sm:text-5xl">{item.mark}</span>
+                <ArrowUpRight className="mt-1 h-5 w-5 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" aria-hidden="true" />
+              </span>
+              <span className="mt-3 block border-t border-primary/15 pt-3 font-semibold text-foreground">
+                {item.label}
+                <span className="sr-only"> (opens in a new tab)</span>
+              </span>
+              <span className="mt-1 block text-sm leading-relaxed text-foreground/85">{item.note}</span>
             </a>
-            <p className="leading-relaxed text-foreground/85">{item.note}</p>
           </li>
         ))}
       </ul>
