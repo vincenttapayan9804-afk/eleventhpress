@@ -1,6 +1,6 @@
 "use client";
 
-import { CcLicenceBadge, OpenAccessIcon, OrcidIcon } from "@/components/badges/open-badges";
+import { CcLicenceBadge, DoraSignatoryBadge, OpenAccessIcon, OrcidIcon } from "@/components/badges/open-badges";
 import { AiLabel } from "@/components/ai-label";
 import { isWhitelabel, useTenantBranding } from "@/lib/tenant-branding-context";
 import { articlePath } from "@/lib/spa-routes";
@@ -172,6 +172,7 @@ function similarityRiskBand(score: number): { label: string; color: string } {
 
 export function ArticleView() {
   const { articleId, setView, openArticle, user, locale } = useApp();
+  const articleBranding = useTenantBranding();
   const [article, setArticle] = useState<ArticleDetail | null>(null);
   const [showOriginalAbstract, setShowOriginalAbstract] = useState(false);
   const [related, setRelated] = useState<(ArticleDetail & { whyRelated?: string })[]>([]);
@@ -835,6 +836,21 @@ export function ArticleView() {
                     <PlumXBadge doi={article.doi!} />
                   </div>
                 </div>
+              )}
+
+              {/* DORA is Eleventh Press's own commitment, so white-label journals never show it. */}
+              {!isWhitelabel(articleBranding) && (
+                <a
+                  href="/policies/peer-review#responsible-research-assessment-dora"
+                  data-testid="article-dora-badge"
+                  className="mt-5 flex items-center gap-3 rounded-md border border-border bg-muted/30 p-4 text-xs text-muted-foreground hover:border-primary/40"
+                >
+                  <DoraSignatoryBadge className="h-14 w-14" />
+                  <span>
+                    <span className="block text-sm font-semibold text-foreground">Research assessment</span>
+                    Eleventh Press has signed DORA. This article is judged on its own merits, not on the journal it appears in. Read our statement.
+                  </span>
+                </a>
               )}
 
               <div className="mt-5 rounded-md border border-border bg-muted/30 p-4 text-xs text-muted-foreground">
