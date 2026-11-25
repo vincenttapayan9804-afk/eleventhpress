@@ -969,6 +969,72 @@ export const OPEN_RESOURCE_TAKEAWAYS: Record<string, EditorialTakeaways> = {
       "What conditions turn a court declaration into lasting protection on the ground?",
     ],
   },
+  "evaluating-environment-in-international-development-2021": {
+    code: "EP-OR-29",
+    preparedOn: PREPARED,
+    takeaways: [
+      {
+        title: "Evaluation is how decision-makers learn what works",
+        text: "The book treats systematic evaluation as an essential source of evidence for environmental and development decisions, and its editor argues that evaluation needs to raise its game.",
+      },
+      {
+        title: "Look beyond single projects",
+        text: "It covers normative work on the environment and the environmental effects of economic and social development, not only individual projects and programmes.",
+      },
+      {
+        title: "Poverty, climate and disaster risk are linked",
+        text: "Chapters in the first part treat environment and poverty as a global public goods question and ask whether the links between poverty, climate change and disaster risk are too complex to evaluate.",
+      },
+      {
+        title: "New data tools are part of the toolkit",
+        text: "Part II covers big data and geospatial approaches, meta-analysis of climate mitigation evaluations and theory-of-change methods for judging progress towards impact.",
+      },
+      {
+        title: "Lessons come from programmes in many regions",
+        text: "Case chapters include the GEF-UNDP Small Grants Programme, the poverty-environment nexus in Africa, green economy initiatives in Latin America and the Caribbean, transboundary aquifers and disaster risk management.",
+      },
+    ],
+    whyItMatters:
+      "Climate and disaster risk shape development planning across the Philippines, where agencies, NGOs and funders need ways to judge whether environmental programmes deliver. The book gives evaluators and researchers a broad, practice-based overview of those methods.",
+    researchQuestions: [
+      "How could geospatial and big data methods improve evaluation of environmental programmes in the Philippines?",
+      "What would a joint evaluation of climate and disaster risk programmes need to measure?",
+      "How well do theory-of-change approaches capture long-term environmental impact in small-grant programmes?",
+    ],
+  },
+  "what-makes-or-breaks-a-democracy-2026": {
+    code: "EP-OR-30",
+    preparedOn: PREPARED,
+    takeaways: [
+      {
+        title: "A fast rise and a slow dismantling",
+        text: "The book contrasts the quick and peaceful move to democracy in 1989 with the gradual dismantling of democratic institutions after 2010.",
+      },
+      {
+        title: "Seven factors, not one cause",
+        text: "It examines political agency, the constitutional setup, economic performance, the international environment, political communication, political ideology and social culture.",
+      },
+      {
+        title: "Institutions can be bent from within",
+        text: "The chapter on the constitutional setup is titled for broken guardrails, pointing to how formal safeguards can be weakened by those who hold power.",
+      },
+      {
+        title: "Communication and ideology matter",
+        text: "Separate chapters treat political communication and political ideology as drivers of the downturn, alongside economic performance and culture.",
+      },
+      {
+        title: "Lessons meant to travel",
+        text: "The author writes the lessons for readers in many countries, and the preface notes the April 2026 election that ended the Orbán government.",
+      },
+    ],
+    whyItMatters:
+      "Democratic backsliding is a worry in many countries, including in Southeast Asia. A case study that separates several causes helps researchers and civil society compare warning signs and defences across very different places.",
+    researchQuestions: [
+      "Which of the seven factors best explain democratic backsliding in other countries, including in Asia?",
+      "How do formal constitutional safeguards hold up when political actors choose to ignore them?",
+      "What role do political communication and social media play in weakening democratic norms?",
+    ],
+  },
 };
 
 export function takeawaysFor(slug: string): EditorialTakeaways | null {
