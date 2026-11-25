@@ -242,6 +242,13 @@ export function policyPages(name: string, editorialEmail: string): Record<Policy
           ],
         },
         {
+          heading: "Responsible research assessment (DORA)",
+          blocks: [
+            p(`${name} supports the San Francisco Declaration on Research Assessment (DORA) and is applying to sign it as an organisation. We judge a paper on its own merits, not on the journal it appears in. We do not promote or rely on the Journal Impact Factor, and we show each article's own information so readers can judge it. Authors are credited by name and ORCID iD.`),
+            p("Read the declaration at sfdora.org."),
+          ],
+        },
+        {
           heading: "Fairness and integrity",
           blocks: [
             p("Our peer-review practice follows the guidance of the Committee on Publication Ethics (COPE). Decisions are never influenced by whether an author has paid, will pay, or has asked for a fee waiver. Authors who believe a decision was unfair may appeal to the editorial office, and the appeal is assessed by an editor who was not involved in the original decision."),
