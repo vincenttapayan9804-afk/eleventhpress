@@ -36,6 +36,15 @@ export function DoraSignatoryBadge({ className }: { className?: string }) {
   return <img src="/badges/dora-signatory.png" alt="Signatory of DORA" width={400} height={400} className={cn("inline-block h-16 w-16 shrink-0 rounded-full bg-white", className)} />;
 }
 
+/**
+ * The Budapest Open Access Initiative logo (public/badges/boai-signatory.png), used
+ * unaltered, linked to BOAI's own list of organisation signatories. Platform site only.
+ */
+export function BoaiSignatoryLogo({ className }: { className?: string }) {
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src="/badges/boai-signatory.png" alt="Signatory of the Budapest Open Access Initiative" width={429} height={158} className={cn("inline-block h-14 w-auto shrink-0", className)} />;
+}
+
 /** The licence buttons Creative Commons publishes; other combinations fall back to a text label. */
 const CC_BUTTONS = new Set(["by", "by-sa", "by-nc", "by-nc-sa", "by-nd", "by-nc-nd"]);
 

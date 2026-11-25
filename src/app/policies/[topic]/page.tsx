@@ -1,5 +1,5 @@
 import { WCAG_CLAIM } from "@/lib/wcag-claim";
-import { CcLicenceBadge, DoraSignatoryBadge, OpenAccessIcon, WcagConformanceLogo } from "@/components/badges/open-badges";
+import { BoaiSignatoryLogo, CcLicenceBadge, DoraSignatoryBadge, OpenAccessIcon, WcagConformanceLogo } from "@/components/badges/open-badges";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -120,6 +120,11 @@ export default async function PolicyTopicPage({ params }: { params: Promise<{ to
             <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2" data-testid="policy-open-access-marks">
               <OpenAccessIcon className="h-8" title="Open Access symbol" />
               <CcLicenceBadge code={JOURNAL_IDENTITY.license} />
+              {platform && (
+                <a href="https://www.budapestopenaccessinitiative.org/sign/organization/" target="_blank" rel="noopener" data-testid="policy-boai-mark" className="inline-flex hover:opacity-80" aria-label="Signatory of the Budapest Open Access Initiative">
+                  <BoaiSignatoryLogo className="h-10" />
+                </a>
+              )}
               <p className="text-xs text-muted-foreground">
                 Open Access symbol designed by PLOS (<a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="license noopener noreferrer" className="underline underline-offset-2">CC BY-SA 3.0</a>). Creative Commons licence buttons by Creative Commons.
               </p>

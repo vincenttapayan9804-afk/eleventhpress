@@ -1,6 +1,6 @@
 "use client";
 
-import { CcLicenceBadge, DoraSignatoryBadge, OpenAccessIcon } from "@/components/badges/open-badges";
+import { BoaiSignatoryLogo, CcLicenceBadge, DoraSignatoryBadge, OpenAccessIcon } from "@/components/badges/open-badges";
 import { useTranslations } from "next-intl";
 import { POWERED_BY_CREDIT, POWERED_BY_URL } from "@/lib/powered-by";
 import { useApp } from "@/lib/store";
@@ -256,9 +256,8 @@ export function SiteFooter() {
                 </a>
               )}
               {!whitelabel && (
-                <a href="https://www.budapestopenaccessinitiative.org/read/" target="_blank" rel="noopener" data-testid="footer-boai-mark" className="inline-flex flex-col items-start gap-0.5 rounded-md border border-border px-3 py-2 text-xs leading-tight hover:border-primary hover:text-primary">
-                  <span className="font-mono uppercase tracking-wide text-muted-foreground">Signatory of the</span>
-                  <span className="text-sm font-semibold">Budapest Open Access Initiative</span>
+                <a href="https://www.budapestopenaccessinitiative.org/sign/organization/" target="_blank" rel="noopener" data-testid="footer-boai-mark" className="inline-flex hover:opacity-80" aria-label="Signatory of the Budapest Open Access Initiative (opens BOAI's list of organisation signatories)">
+                  <BoaiSignatoryLogo className="h-[72px]" />
                 </a>
               )}
               <p className="font-mono">{t("indexedLine", { registrar: DOI_REGISTRAR })}</p>
