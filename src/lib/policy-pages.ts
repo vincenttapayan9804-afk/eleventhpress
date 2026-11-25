@@ -749,6 +749,21 @@ export function policyPages(name: string, editorialEmail: string, options: { pla
             ),
           ],
         },
+        ...(platform ? [{
+          heading: "Open civic space and the causes we align with",
+          blocks: [
+            p("We are a recognised associate member of the CIVICUS Alliance, a global network that works for a strong and open civic space, where people can speak, organise and take part freely. Our work supports that aim in practical ways:"),
+            list(
+              "Access to information: every article is free to read from the day it is published, with no login, fee or embargo, so research reaches citizens, community groups and journalists, not only those who can pay.",
+              "Freedom of expression and independence: editorial decisions are made on merit, and funders, advertisers, governments and sources have no say over what we publish or how we cover them.",
+              "Fair participation: authors who cannot pay can ask for a fee waiver, and a waiver never affects peer review. We publish in a way that welcomes voices from the Global South, and we support multilingual publishing through the Helsinki Initiative.",
+              "Reuse and public benefit: articles are released under CC BY 4.0, so civil society organisations, teachers and public bodies can share and build on them freely.",
+              "Privacy: we do not sell or share personal data for advertising.",
+            ),
+            p("The same commitments line up with other public goals we work towards: the UN Sustainable Development Goals, especially Goal 16 (including public access to information) and Goal 4 (quality education), which authors can tag their articles with; the UNESCO Recommendation on Open Science; and the right to seek, receive and share information and to share in scientific progress set out in the Universal Declaration of Human Rights."),
+            p("These are commitments we work to, not endorsements. CIVICUS and the other bodies named here are independent and are not affiliated with, and do not endorse, this site or its content."),
+          ],
+        }] : []),
         {
           heading: "How we are funded",
           blocks: [
