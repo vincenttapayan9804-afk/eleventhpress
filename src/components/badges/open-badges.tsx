@@ -44,6 +44,7 @@ export function CcLicenceBadge({
   className,
   linked = true,
   showLabel = true,
+  large = false,
 }: {
   /** Licence code such as "CC BY 4.0". Anything that is not a CC code renders nothing. */
   code: string | null | undefined;
@@ -52,6 +53,8 @@ export function CcLicenceBadge({
   linked?: boolean;
   /** Show the full licence name (with version) beside the button. */
   showLabel?: boolean;
+  /** A larger button (still the official artwork, scaled in proportion) for footers. */
+  large?: boolean;
 }) {
   const lic = parseCcLicence(code);
   if (!lic) return null;
@@ -60,7 +63,7 @@ export function CcLicenceBadge({
     <>
       {CC_BUTTONS.has(slug) && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={`/badges/cc-${slug}.svg`} alt="" width={72} height={25} className="h-[25px] w-[72px] shrink-0" />
+        <img src={`/badges/cc-${slug}.svg`} alt="" width={72} height={25} className={cn("shrink-0", large ? "h-[40px] w-[115px]" : "h-[25px] w-[72px]")} />
       )}
       {(showLabel || !CC_BUTTONS.has(slug)) && <span>{lic.label}</span>}
     </>

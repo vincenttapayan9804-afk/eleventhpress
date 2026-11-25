@@ -245,14 +245,14 @@ export function SiteFooter() {
             ) : (
               <p>{t("copyright", { year: new Date().getFullYear() })}</p>
             )}
-            <div className="flex flex-wrap items-center gap-4" data-testid="footer-open-access-note">
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-4" data-testid="footer-open-access-note">
               <a href="/policies/open-access" className="inline-flex min-h-6 min-w-6 items-center justify-center hover:opacity-80" aria-label={t("policyOpenAccess")}>
-                <OpenAccessIcon className="h-6" title="" />
+                <OpenAccessIcon className="h-11" title="" />
               </a>
-              <CcLicenceBadge code={JOURNAL_IDENTITY.license} showLabel={false} />
+              <CcLicenceBadge code={JOURNAL_IDENTITY.license} showLabel={false} large />
               {!whitelabel && (
                 <a href="/policies/peer-review#responsible-research-assessment-dora" data-testid="footer-dora-badge" className="inline-flex hover:opacity-80" aria-label="Signatory of DORA: our responsible research assessment statement">
-                  <DoraSignatoryBadge className="h-10 w-10" />
+                  <DoraSignatoryBadge className="h-[72px] w-[72px]" />
                 </a>
               )}
               <p className="font-mono">{t("indexedLine", { registrar: DOI_REGISTRAR })}</p>
