@@ -91,6 +91,7 @@ const SCHOLARLY: Row[] = [
   { standard: "ORCID · ROR · CRediT (NISO Z39.104)", what: "Persistent identifiers for authors and institutions, and the 14-role contributor taxonomy.", status: "in-place" },
   { standard: "DORA (research assessment)", what: "We have signed the San Francisco Declaration on Research Assessment. DORA staff are reviewing our signature; our public statement is in the peer review policy.", status: "rolling-out" },
   { standard: "BOAI (Budapest Open Access Initiative)", what: "We have signed the declaration as an organisation, and we appear on the BOAI public list of organisation signatories.", status: "in-place" },
+  { standard: "Helsinki Initiative on Multilingualism", what: "We have signed the initiative as an organisation. It supports sharing research with all audiences, locally relevant publishing and language diversity in research assessment.", status: "in-place" },
   { standard: "JATS · OAI-PMH 2.0 · Dublin Core", what: "Standard full-text XML and a harvesting endpoint for indexers and repositories.", status: "in-place" },
   { standard: "FAIR Signposting", what: "Machine-readable links from each article page to its DOI, authors, PDF, metadata and licence — and back from the PDF.", status: "in-place" },
   { standard: "KBART (NISO RP-9)", what: "A title list libraries load into their catalogues and link resolvers: /api/export/kbart.", status: "in-place" },
@@ -207,7 +208,7 @@ export function TrustView() {
   const legal = useLegalIdentity();
   const branding = useTenantBranding();
   // DORA and BOAI are Eleventh Press's own signatures, so white-label sites never list them.
-  const scholarlyRows = isWhitelabel(branding) ? SCHOLARLY.filter((r) => !/^(DORA|BOAI)/.test(r.standard)) : SCHOLARLY;
+  const scholarlyRows = isWhitelabel(branding) ? SCHOLARLY.filter((r) => !/^(DORA|BOAI|Helsinki)/.test(r.standard)) : SCHOLARLY;
   const { setView } = useApp();
 
   return (

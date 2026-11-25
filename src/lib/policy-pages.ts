@@ -60,6 +60,13 @@ export const OPEN_ACCESS_RESOURCE_LINKS: { label: string; mark: string; kicker: 
     note: "The 2002 declaration that defined open access as free and unrestricted online access to research literature.",
   },
   {
+    label: "Helsinki Initiative on Multilingualism",
+    mark: "HELSINKI",
+    kicker: "Multilingual scholarship",
+    href: "https://www.helsinki-initiative.org/",
+    note: "Recommendations for supporting multilingualism in scholarly communication, so research can reach all audiences.",
+  },
+  {
     label: "Open Access Directory",
     mark: "OAD",
     kicker: "Community reference",
@@ -187,6 +194,7 @@ export function policyPages(name: string, editorialEmail: string, options: { pla
             p(`How ${name} follows these initiatives in practice:`),
             list(
               "Budapest Open Access Initiative: every article is free to read online from the day it is published, with no login, fee or embargo. Reuse is limited only by attribution (CC BY 4.0), and authors keep their copyright. Authors may also deposit the published version in any repository at any time, which is the self-archiving route the declaration describes." + (platform ? " We have also signed the declaration as an organisation." : ""),
+              ...(platform ? ["Helsinki Initiative on Multilingualism: we have signed the initiative as an organisation. We support sharing research with all audiences, keeping locally relevant publishing channels, and giving language diversity a fair place in research assessment."] : []),
               "Open Access Directory: our licence, fees, waiver rules and reuse terms are written out in plain language on this page, so anyone compiling or checking open access listings can verify them directly.",
               "OAPEN Foundation: the same open approach applies to books. Where we list books, we show each book's own open licence, credit the author and publisher, link to the original source and never alter the text.",
               "Plan S (cOAlition S): immediate open access, the CC BY 4.0 licence, author-held copyright and no embargo are the licensing conditions Plan S asks for, and we apply all of them to every article.",
