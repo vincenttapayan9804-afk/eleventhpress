@@ -4,7 +4,7 @@ import { openContact } from "@/lib/contact-store";
 import type { ComponentType } from "react";
 import { useApp } from "@/lib/store";
 import { DOI_REGISTRAR } from "@/lib/site";
-import { useLegalIdentity } from "@/lib/tenant-branding-context";
+import { isWhitelabel, useLegalIdentity, useTenantBranding } from "@/lib/tenant-branding-context";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -205,6 +205,9 @@ const NAV = [
 
 export function TrustView() {
   const legal = useLegalIdentity();
+  const branding = useTenantBranding();
+  // DORA and BOAI are Eleventh Press's own signatures, so white-label sites never list them.
+  const scholarlyRows = isWhitelabel(branding) ? SCHOLARLY.filter((r) => !/^(DORA|BOAI)/.test(r.standard)) : SCHOLARLY;
   const { setView } = useApp();
 
   return (
@@ -315,7 +318,7 @@ export function TrustView() {
       </Section>
 
       <Section id="scholarly" icon={FileCheck2} title="Open scholarship" intro="Standards that let indexers, libraries and funders find, verify and reuse what we publish.">
-        <RowList rows={SCHOLARLY} />
+        <RowList rows={scholarlyRows} />
         <p className="mt-6 text-xs font-semibold uppercase tracking-wide text-muted-foreground">TOP Guidelines statement</p>
         <div className="mt-2">
           <PairList keyLabel="Practice" rows={TOP.map((t) => ({ a: t.practice, b: t.level }))} />

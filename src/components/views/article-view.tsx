@@ -1,6 +1,6 @@
 "use client";
 
-import { CcLicenceBadge, DoraSignatoryBadge, OpenAccessIcon, OrcidIcon } from "@/components/badges/open-badges";
+import { BoaiSignatoryLogo, CcLicenceBadge, DoraSignatoryBadge, OpenAccessIcon, OrcidIcon } from "@/components/badges/open-badges";
 import { AiLabel } from "@/components/ai-label";
 import { isWhitelabel, useTenantBranding } from "@/lib/tenant-branding-context";
 import { articlePath } from "@/lib/spa-routes";
@@ -443,6 +443,19 @@ export function ArticleView() {
                   Signatory of DORA
                 </a>
               )}
+              {/* BOAI signature is Eleventh Press's own, so white-label journals never show it. */}
+              {!isWhitelabel(articleBranding) && (
+                <a
+                  href="https://www.budapestopenaccessinitiative.org/sign/organization/"
+                  target="_blank"
+                  rel="noopener"
+                  data-testid="article-boai-header-badge"
+                  title="Eleventh Press is a signatory of the Budapest Open Access Initiative."
+                  className="inline-flex items-center rounded-md border border-border bg-background p-0.5 hover:border-primary/40"
+                >
+                  <BoaiSignatoryLogo className="h-7" />
+                </a>
+              )}
             </>
           )}
           {openReviewStatus?.openReview && (
@@ -864,6 +877,19 @@ export function ArticleView() {
                   </span>
                 </a>
               )}
+              {!isWhitelabel(articleBranding) && (
+                <a
+                  href="/policies/open-access#open-access-initiatives-and-resources"
+                  data-testid="article-boai-badge"
+                  className="mt-3 flex items-center gap-3 rounded-md border border-border bg-muted/30 p-4 text-xs text-muted-foreground hover:border-primary/40"
+                >
+                  <BoaiSignatoryLogo className="h-12" />
+                  <span>
+                    <span className="block text-sm font-semibold text-foreground">Open access</span>
+                    Eleventh Press has signed the Budapest Open Access Initiative. Free to read, no embargo. See how we follow it.
+                  </span>
+                </a>
+              )}
 
               <div className="mt-5 rounded-md border border-border bg-muted/30 p-4 text-xs text-muted-foreground">
                 <p className="font-semibold text-foreground">Indexing status</p>
@@ -1120,6 +1146,19 @@ export function ArticleView() {
                     <span>
                       <span className="block text-xs font-semibold text-foreground">Signatory of DORA</span>
                       Judged on its own merits, not the journal.
+                    </span>
+                  </a>
+                )}
+                {!isWhitelabel(articleBranding) && (
+                  <a
+                    href="/policies/open-access#open-access-initiatives-and-resources"
+                    data-testid="article-boai-sidebar"
+                    className="mt-2 flex items-center gap-3 rounded-md border border-border bg-muted/30 p-2.5 text-[0.7rem] leading-snug text-muted-foreground hover:border-primary/40"
+                  >
+                    <BoaiSignatoryLogo className="h-10" />
+                    <span>
+                      <span className="block text-xs font-semibold text-foreground">Signatory of BOAI</span>
+                      Open access, no embargo.
                     </span>
                   </a>
                 )}
