@@ -903,6 +903,39 @@ export const OPEN_RESOURCE_TAKEAWAYS: Record<string, EditorialTakeaways> = {
       "How can ICT professional development be delivered cost-effectively in low-connectivity areas?",
     ],
   },
+  "practical-guide-responsible-research-assessment-funders-2026": {
+    code: "EP-OR-27",
+    preparedOn: PREPARED,
+    takeaways: [
+      {
+        title: "Funders set the tone for how research is judged",
+        text: "The guide starts from the point that the criteria, policies and expectations a funder sets reach well beyond its own decisions. They influence institutional strategies and researcher behaviour, so reform at funders can spread through the whole system.",
+      },
+      {
+        title: "Reform is a set of activities, not a single policy",
+        text: "Seven activities carry the work inside an organisation, from engaging leadership and developing a vision to mobilising resources, planning communication, and monitoring and reviewing what has been tried.",
+      },
+      {
+        title: "Responsible assessment touches the whole funding cycle",
+        text: "Five moments are covered: establishing programmes and calls, making funding decisions, setting grant terms and conditions, monitoring and evaluating grants, and communicating with communities.",
+      },
+      {
+        title: "Funders sit inside a wider research system",
+        text: "Eight components link funders' practice to responsible use of metrics, research information infrastructure, equity, diversity and inclusion, ethics and integrity, open science, societal impact and scholarly communication.",
+      },
+      {
+        title: "Learn from what other funders have tried",
+        text: "The guide pairs its advice with case studies from funders in several countries and spotlights on topics such as narrative CVs, the use of AI in research funding and experiments to make funding decisions fairer.",
+      },
+    ],
+    whyItMatters:
+      "National and regional research funders, including those supporting researchers in the Philippines and across the Global South, can use the guide as a checklist when they review calls, reviewer instructions and grant terms. It also gives open-access publishers and researchers a clear picture of what funders may ask for under responsible assessment.",
+    researchQuestions: [
+      "Which of the guide's activities have funders in Southeast Asia adopted, and which have been hardest to put in place?",
+      "How do narrative CVs and similar formats change who receives funding?",
+      "What evidence shows whether responsible research assessment changes the behaviour of applicants and reviewers?",
+    ],
+  },
 };
 
 export function takeawaysFor(slug: string): EditorialTakeaways | null {

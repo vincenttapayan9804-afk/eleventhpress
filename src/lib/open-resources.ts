@@ -136,6 +136,12 @@ const CC_BY_SA_3: OpenLicence = {
   url: "https://creativecommons.org/licenses/by-sa/3.0/",
 };
 
+const CC_BY_NC: OpenLicence = {
+  code: "CC BY-NC",
+  name: "Creative Commons Attribution-NonCommercial",
+  url: "https://creativecommons.org/licenses/by-nc/4.0/",
+};
+
 const CC_BY_SA_4: OpenLicence = {
   code: "CC BY-SA 4.0",
   name: "Creative Commons Attribution-ShareAlike 4.0 International",
@@ -1339,6 +1345,52 @@ export const OPEN_RESOURCES: OpenResource[] = [
       "Moore, A. 2012. Information and Communication Technologies (ICT) Professional Development Strategy for Teachers in Guyana: A Case Study. Vancouver: Commonwealth of Learning. http://hdl.handle.net/11599/279",
     pdfPath: "/open-resources/ict-professional-development-teachers-guyana-2012.pdf",
     coverPath: "/open-resources/covers/ict-professional-development-teachers-guyana-2012.webp",
+  },
+  {
+    slug: "practical-guide-responsible-research-assessment-funders-2026",
+    org: "DORA",
+    title: "A Practical Guide to Implementing Responsible Research Assessment",
+    subtitle: "at Research Funding Organizations",
+    type: "Guide",
+    category: "Research assessment",
+    creators:
+      "Liz Allen, Virginia Barbour, Lidia Borrell-Damián, Kelly Cobey, Nosisa Dube, Catriona Firth, Rebecca Lawrence, Giovanna Lima, Shawn McGuirk, James Morris, Anh-Khoi Trinh and Joséphine Uwineza",
+    publisher:
+      "Declaration on Research Assessment (DORA), in collaboration with the Global Research Council's Responsible Research Assessment Working Group and Science Europe",
+    year: 2026,
+    pages: 102,
+    fileSizeMb: 8.5,
+    language: "English",
+    doi: "10.5281/zenodo.18402271",
+    sourceUrl: "https://doi.org/10.5281/zenodo.18402271",
+    licence: CC_BY_NC,
+    terms: null,
+    licenceSource:
+      "The PDF states: “This publication is licensed under the Creative Commons Attribution-Noncommercial CC BY-NC” and gives no version number; the link above goes to the current version of that licence. DORA's Zenodo record for the guide lists CC BY 4.0, which is more permissive. Eleventh Press follows the stricter licence printed in the PDF itself: the guide is shown unchanged, free of charge and for non-commercial use only.",
+    rightsHolder: "Declaration on Research Assessment (DORA), 2026",
+    coverKind: "tile",
+    coverCredit: TILE_COVER_CREDIT,
+    thirdPartyNotice:
+      "The DORA, Global Research Council and Science Europe logos, the photographs in the guide (for example the one credited “© Peter Madsen”) and the third-party material it quotes or links to are not covered by the licence. The original cover is not reproduced here. DORA, the Global Research Council and Science Europe have not reviewed this listing, and no endorsement of Eleventh Press is suggested or implied.",
+    summary:
+      "A practical guide for research funders on building responsible research assessment into how they plan programmes, choose projects, set grant terms and report on results.",
+    description: [
+      "Research funders shape what counts as good research through the criteria they set and the questions they ask. This guide, written for staff across a funding organisation from leadership to programme officers, reviewers and grant administrators, sets out how to put the principles of responsible research assessment into everyday funding practice.",
+      "It is organised in four parts: an introduction to research assessment reform; seven activities for embedding responsible assessment inside an organisation; five key moments in the funding cycle, from designing programmes and calls to communicating with communities; and eight components of the wider research system, including responsible use of metrics, open science and equity, diversity and inclusion.",
+      "Case studies from funders in several countries, spotlights on topics such as the use of AI in research funding and narrative CVs, and a long list of further resources sit alongside the guidance. It was produced by DORA with the Global Research Council's Responsible Research Assessment Working Group and Science Europe, and follows DORA's earlier guide for research performing organisations.",
+    ],
+    highlights: [
+      "Seven activities for embedding responsible research assessment in a funder",
+      "Five moments in the funding cycle, from calls to community engagement",
+      "Eight components, from responsible use of metrics to open science",
+      "Case studies from funders and spotlights on AI and narrative CVs",
+    ],
+    audience:
+      "Research funders and funding agencies, programme managers, grant reviewers and administrators, research managers and policymakers working on research evaluation reform.",
+    citation:
+      "Allen, L., Barbour, V., Borrell-Damián, L., Cobey, K., Dube, N., Firth, C., Lawrence, R., Lima, G., McGuirk, S., Morris, J. P., Trinh, A.-K., & Uwineza, J. (2026). A practical guide to implementing responsible research assessment at research funding organizations. Declaration on Research Assessment (DORA). https://doi.org/10.5281/zenodo.18402271",
+    pdfPath: "/open-resources/practical-guide-responsible-research-assessment-funders-2026.pdf",
+    coverPath: "/open-resources/covers/practical-guide-responsible-research-assessment-funders-2026.webp",
   },
 ];
 
