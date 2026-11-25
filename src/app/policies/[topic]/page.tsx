@@ -1,5 +1,5 @@
 import { WCAG_CLAIM } from "@/lib/wcag-claim";
-import { CcLicenceBadge, OpenAccessIcon, WcagConformanceLogo } from "@/components/badges/open-badges";
+import { CcLicenceBadge, DoraSignatoryBadge, OpenAccessIcon, WcagConformanceLogo } from "@/components/badges/open-badges";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -10,15 +10,16 @@ import { JOURNAL_IDENTITY } from "@/lib/site";
 import { POLICY_PAGES_UPDATED, POLICY_SLUGS, isPolicySlug, policyPages, type PolicyBlock } from "@/lib/policy-pages";
 
 /** The visiting site's name and editorial contact — a whitelabel tenant's own, never Eleventh Press's. */
-async function siteIdentity(): Promise<{ name: string; email: string }> {
+async function siteIdentity(): Promise<{ name: string; email: string; platform: boolean }> {
   const tenant = await getCurrentTenant().catch(() => null);
   if (tenant && !tenant.isPlatform) {
     return {
       name: tenant.siteName || tenant.name,
       email: tenant.officialEmail || tenant.supportEmail || "the editorial office",
+      platform: false,
     };
   }
-  return { name: JOURNAL_IDENTITY.name, email: JOURNAL_IDENTITY.editorialEmail };
+  return { name: JOURNAL_IDENTITY.name, email: JOURNAL_IDENTITY.editorialEmail, platform: true };
 }
 
 export function generateStaticParams() {
@@ -28,8 +29,8 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ topic: string }> }): Promise<Metadata> {
   const { topic } = await params;
   if (!isPolicySlug(topic)) return {};
-  const { name, email } = await siteIdentity();
-  const page = policyPages(name, email)[topic];
+  const { name, email, platform } = await siteIdentity();
+  const page = policyPages(name, email, { platform })[topic];
   return {
     title: `${page.title} — ${name}`,
     description: searchDescription(page.summary),
@@ -97,8 +98,8 @@ function Block({ block }: { block: PolicyBlock }) {
 export default async function PolicyTopicPage({ params }: { params: Promise<{ topic: string }> }) {
   const { topic } = await params;
   if (!isPolicySlug(topic)) notFound();
-  const { name, email } = await siteIdentity();
-  const pages = policyPages(name, email);
+  const { name, email, platform } = await siteIdentity();
+  const pages = policyPages(name, email, { platform });
   const page = pages[topic];
   const others = POLICY_SLUGS.filter((s) => s !== topic).map((s) => pages[s]);
 
@@ -124,6 +125,19 @@ export default async function PolicyTopicPage({ params }: { params: Promise<{ to
               </p>
             </div>
           )}
+          {topic === "peer-review" && platform && (
+            <a
+              href="#responsible-research-assessment-dora"
+              data-testid="policy-dora-mark"
+              className="mt-4 inline-flex items-center gap-3 rounded-xl border border-border p-2.5 pr-4 text-xs text-muted-foreground hover:border-primary/40"
+            >
+              <DoraSignatoryBadge className="h-14 w-14" />
+              <span>
+                <span className="block text-sm font-semibold text-foreground">Signatory of DORA</span>
+                San Francisco Declaration on Research Assessment
+              </span>
+            </a>
+          )}
           <p className="mt-3 text-xs text-muted-foreground">Last updated {page.updated ?? POLICY_PAGES_UPDATED}</p>
           <dl className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
             {page.highlights.map((h) => (
@@ -137,7 +151,7 @@ export default async function PolicyTopicPage({ params }: { params: Promise<{ to
 
         <div className="mt-10 space-y-10">
           {page.sections.map((section) => (
-            <section key={section.heading} className="space-y-4">
+            <section key={section.heading} id={section.heading.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")} className="scroll-mt-24 space-y-4">
               <h2 className="font-display text-xl font-semibold sm:text-2xl">{section.heading}</h2>
               {section.blocks.map((block, i) => (
                 <Block key={i} block={block} />

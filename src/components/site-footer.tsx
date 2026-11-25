@@ -1,6 +1,6 @@
 "use client";
 
-import { CcLicenceBadge, OpenAccessIcon } from "@/components/badges/open-badges";
+import { CcLicenceBadge, DoraSignatoryBadge, OpenAccessIcon } from "@/components/badges/open-badges";
 import { useTranslations } from "next-intl";
 import { POWERED_BY_CREDIT, POWERED_BY_URL } from "@/lib/powered-by";
 import { useApp } from "@/lib/store";
@@ -250,6 +250,11 @@ export function SiteFooter() {
                 <OpenAccessIcon className="h-6" title="" />
               </a>
               <CcLicenceBadge code={JOURNAL_IDENTITY.license} showLabel={false} />
+              {!whitelabel && (
+                <a href="/policies/peer-review#responsible-research-assessment-dora" data-testid="footer-dora-badge" className="inline-flex hover:opacity-80" aria-label="Signatory of DORA: our responsible research assessment statement">
+                  <DoraSignatoryBadge className="h-10 w-10" />
+                </a>
+              )}
               <p className="font-mono">{t("indexedLine", { registrar: DOI_REGISTRAR })}</p>
             </div>
           </div>

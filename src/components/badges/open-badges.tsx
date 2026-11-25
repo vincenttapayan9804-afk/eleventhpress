@@ -26,6 +26,16 @@ export function OrcidIcon({ className }: { className?: string }) {
   return <img src="/badges/orcid-id.svg" alt="" width={16} height={16} className={cn("inline-block h-4 w-4 shrink-0 align-[-0.15em]", className)} />;
 }
 
+/**
+ * DORA's own "Signatory of DORA" badge (public/badges/dora-signatory.png), used
+ * unaltered, as DORA gives it to signers. Platform site only. It sits on a white
+ * disc so the dark lettering stays readable in dark mode.
+ */
+export function DoraSignatoryBadge({ className }: { className?: string }) {
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src="/badges/dora-signatory.png" alt="Signatory of DORA" width={400} height={400} className={cn("inline-block h-16 w-16 shrink-0 rounded-full bg-white", className)} />;
+}
+
 /** The licence buttons Creative Commons publishes; other combinations fall back to a text label. */
 const CC_BUTTONS = new Set(["by", "by-sa", "by-nc", "by-nc-sa", "by-nd", "by-nc-nd"]);
 
