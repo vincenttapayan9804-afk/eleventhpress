@@ -142,6 +142,12 @@ const CC_BY_NC: OpenLicence = {
   url: "https://creativecommons.org/licenses/by-nc/4.0/",
 };
 
+const CC_BY_NC_ND_3: OpenLicence = {
+  code: "CC BY-NC-ND 3.0",
+  name: "Creative Commons Attribution-NonCommercial-NoDerivs 3.0 Unported",
+  url: "https://creativecommons.org/licenses/by-nc-nd/3.0/",
+};
+
 const CC_BY_NC_ND_4: OpenLicence = {
   code: "CC BY-NC-ND 4.0",
   name: "Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International",
@@ -1530,6 +1536,140 @@ export const OPEN_RESOURCES: OpenResource[] = [
       "Schweitzer, A. 2026. What Makes or Breaks a Democracy: Lessons from Hungary. Amsterdam: Amsterdam University Press / Central European University Press. https://doi.org/10.5117/9789048579310",
     pdfPath: "/open-resources/what-makes-or-breaks-a-democracy-2026.pdf",
     coverPath: "/open-resources/covers/what-makes-or-breaks-a-democracy-2026.webp",
+  },
+  {
+    slug: "negotiating-bioethics-2013",
+    org: "Routledge",
+    title: "Negotiating Bioethics",
+    subtitle: "The governance of UNESCO's Bioethics Programme",
+    series: "Genetics and Society",
+    type: "Book",
+    category: "Bioethics & global governance",
+    creators: "Adèle Langlois",
+    publisher: "Routledge, an imprint of the Taylor & Francis Group, Abingdon, Oxon and New York",
+    year: 2013,
+    pages: 212,
+    fileSizeMb: 1.9,
+    language: "English",
+    isbn: "978-0-203-10179-7",
+    sourceUrl: "https://doi.org/10.4324/9780203101797",
+    licence: CC_BY_NC_ND_3,
+    terms: null,
+    licenceSource:
+      "The imprint page states that a PDF version is available free in Open Access under a Creative Commons Attribution-Non Commercial-No Derivatives 3.0 licence. The DOI link above follows Taylor & Francis's pattern for e-book ISBNs; the PDF itself does not print a DOI.",
+    rightsHolder: "© 2013 Adèle Langlois",
+    coverKind: "tile",
+    coverCredit: TILE_COVER_CREDIT,
+    funding:
+      "The author's doctoral research and follow-up project were funded by the Wellcome Trust (grant refs 075315 and 096024), with further support from Innogen, the Open University and the University of Lincoln.",
+    thirdPartyNotice:
+      "This is a NoDerivatives licence: Eleventh Press shows the book unchanged and does not adapt, excerpt or translate it, and its Editorial Takeaways are separate commentary, not a version of the book. UNESCO is the subject of this study, not its publisher: the views in it are the author's and not UNESCO's, and Eleventh Press is not affiliated with UNESCO. The Routledge and Taylor & Francis names and logos are trademarks of their owners. Routledge and the author have not reviewed this listing, and no endorsement of Eleventh Press is suggested or implied.",
+    summary:
+      "A study of how UNESCO's Bioethics Programme negotiated and put into practice its declarations on human genetics and bioethics, based on fieldwork in Kenya, South Africa, France and the UK.",
+    description: [
+      "UNESCO's Bioethics Programme was set up in 1993 and has since adopted three declarations on human genetics and bioethics (1997, 2003 and 2005), run training programmes around the world and debated an international convention on human reproductive cloning. This book asks whether it is an effective forum for making decisions on bioethics and for making sure ethical practice follows.",
+      "It uses a global governance framework to look at two sides of the programme, deliberation and implementation, at international and national levels. The research draws on fieldwork among policy-makers, geneticists, ethicists, civil society representatives and industry professionals, with national case studies in Kenya and South Africa.",
+      "Along the way it asks how relations between developed and developing countries can be made more equal, who should take part in global decisions, how far universal norms can be adapted to local contexts and how states can be helped to implement international norms.",
+    ],
+    highlights: [
+      "How three UNESCO declarations on genetics and bioethics were negotiated",
+      "Whether formally equal states take part on equal terms",
+      "How the declarations were received in Kenya and South Africa",
+      "The cloning debate and pragmatic suggestions for better governance",
+    ],
+    audience:
+      "Students and scholars of politics, sociology, science and technology studies, bioethics, anthropology, international relations and public health, and policy-makers working on research ethics.",
+    citation:
+      "Langlois, A. 2013. Negotiating Bioethics: The governance of UNESCO's Bioethics Programme. Genetics and Society. Abingdon and New York: Routledge. https://doi.org/10.4324/9780203101797",
+    pdfPath: "/open-resources/negotiating-bioethics-2013.pdf",
+    coverPath: "/open-resources/covers/negotiating-bioethics-2013.webp",
+  },
+  {
+    slug: "the-question-of-emergence-2026",
+    org: "Routledge",
+    title: "The Question of Emergence",
+    subtitle: "Sociology vs. Physics",
+    series: "Routledge Studies in Critical Realism",
+    type: "Book",
+    category: "Philosophy of science & social theory",
+    creators: "Douglas V. Porpora",
+    publisher: "Routledge, an imprint of the Taylor & Francis Group, Abingdon, Oxon and New York",
+    year: 2026,
+    pages: 148,
+    fileSizeMb: 2.2,
+    language: "English",
+    isbn: "978-1-003-64959-5",
+    doi: "10.4324/9781003649595",
+    sourceUrl: "https://doi.org/10.4324/9781003649595",
+    licence: CC_BY_4,
+    terms: null,
+    rightsHolder: "© 2026 Douglas V. Porpora",
+    coverKind: "tile",
+    coverCredit: TILE_COVER_CREDIT,
+    thirdPartyNotice:
+      "Per the publisher, any third-party material in the book is not included in the Creative Commons licence unless a credit line says otherwise. The Routledge and Taylor & Francis names and logos are trademarks of their owners. Routledge and the author have not reviewed this listing, and no endorsement of Eleventh Press is suggested or implied.",
+    summary:
+      "A critical realist argument that the mystery of emergence, the idea that wholes show properties their parts lack, disappears once causality is understood as powers rather than laws.",
+    description: [
+      "Do higher-level things, such as human choices and social structures, reduce to the behaviour of the most basic physical elements, or do new forms of causality emerge as atoms combine into molecules and molecules into cells and societies? This book takes the debate between physicalist reductionism and emergentism as its subject and defends emergentism.",
+      "From a critical realist perspective, it argues that the mystery attached to emergence is an artefact of the Humean covering-law model of causality that both reductionists and emergentists have assumed. Replacing it with a powers view of causality removes the mystery and lets emergence be traced across the levels from physics to social behaviour.",
+      "The chapters move from laws and physicalist reductionism to powers, ontological emergence, the difference between one-off and level emergence, and social powers, social wholes and downward causation. The author argues that this gives sociology, rather than physics, a claim to be the queen of the sciences.",
+    ],
+    highlights: [
+      "The dispute between reductionism and emergentism, set out plainly",
+      "From laws to causal powers as the way out of the mystery",
+      "One-off versus level emergence, from physics to society",
+      "Social powers, social wholes and downward causation",
+    ],
+    audience:
+      "Critical realists, philosophers of science and mind, social theorists and social scientists, and theoretically minded practitioners in chemistry, biology and psychology.",
+    citation:
+      "Porpora, D. V. 2026. The Question of Emergence: Sociology vs. Physics. Routledge Studies in Critical Realism. Abingdon and New York: Routledge. https://doi.org/10.4324/9781003649595",
+    pdfPath: "/open-resources/the-question-of-emergence-2026.pdf",
+    coverPath: "/open-resources/covers/the-question-of-emergence-2026.webp",
+  },
+  {
+    slug: "creating-future-people-2024",
+    org: "Routledge",
+    title: "Creating Future People",
+    subtitle: "The Science and Ethics of Genetic Enhancement",
+    type: "Book",
+    category: "Genetics & ethics",
+    creators: "Jonathan Anomaly",
+    publisher: "Routledge, an imprint of the Taylor & Francis Group, New York and Abingdon, Oxon",
+    year: 2024,
+    pages: 175,
+    fileSizeMb: 3.0,
+    language: "English",
+    isbn: "978-1-003-46426-6",
+    doi: "10.4324/9781003464266",
+    sourceUrl: "https://doi.org/10.4324/9781003464266",
+    licence: CC_BY_NC_ND_4,
+    terms: null,
+    rightsHolder: "© 2024 Jonathan Anomaly",
+    coverKind: "tile",
+    coverCredit: TILE_COVER_CREDIT,
+    thirdPartyNotice:
+      "This is a NoDerivatives licence: Eleventh Press shows the book unchanged and does not adapt, excerpt or translate it, and its Editorial Takeaways are separate commentary, not a version of the book. The cover image is credited to Getty and is not reproduced here. The book argues positions on contested ethical questions; they are the author's own, and Eleventh Press neither endorses nor disputes them. The book's back-cover biography states that the author works with a company that offers polygenic embryo screening. The Routledge and Taylor & Francis names and logos are trademarks of their owners. Routledge and the author have not reviewed this listing, and no endorsement of Eleventh Press is suggested or implied.",
+    summary:
+      "A short primer on how advances in genetics may let parents influence their children's traits, and on the moral and coordination problems that embryo selection and gene editing raise.",
+    description: [
+      "Pre-implantation genetic testing already lets parents screen embryos for some inherited diseases, and the book looks ahead to selection for complex traits using polygenic scores. This second edition explains the science of gene editing and embryo selection and the moral questions they raise, with new coverage of embryo selection to reduce the risk of genetic disease.",
+      "Its distinctive argument is that once embryo selection for complex traits becomes possible, everyone will have an interest in the traits others select, creating coordination problems that earlier writers on genetic enhancement did not consider. It also takes seriously the diversity of parents' preferences and the limits policymakers face in regulating a global market for reproductive technology.",
+      "Chapters take up smart, good, pretty, healthy and synthetic people, with appendices on the Ultimatum Game, the Prisoner's Dilemma and the Public Goods Game, and close by asking how genetic engineering may transform humanity.",
+    ],
+    highlights: [
+      "How gene editing and embryo selection work, in plain terms",
+      "Why parents' choices can create coordination problems for everyone",
+      "Chapters on intelligence, morality, appearance, health and synthetic biology",
+      "A glossary and short appendices on game theory",
+    ],
+    audience:
+      "Students and scholars of bioethics, philosophy, genetics and public policy, clinicians and policymakers, and general readers curious about reproductive genetics.",
+    citation:
+      "Anomaly, J. 2024. Creating Future People: The Science and Ethics of Genetic Enhancement. Second edition. New York and Abingdon: Routledge. https://doi.org/10.4324/9781003464266",
+    pdfPath: "/open-resources/creating-future-people-2024.pdf",
+    coverPath: "/open-resources/covers/creating-future-people-2024.webp",
   },
 ];
 
