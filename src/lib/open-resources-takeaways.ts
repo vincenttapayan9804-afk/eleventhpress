@@ -1035,6 +1035,105 @@ export const OPEN_RESOURCE_TAKEAWAYS: Record<string, EditorialTakeaways> = {
       "What role do political communication and social media play in weakening democratic norms?",
     ],
   },
+  "negotiating-bioethics-2013": {
+    code: "EP-OR-31",
+    preparedOn: PREPARED,
+    takeaways: [
+      {
+        title: "Equal votes do not mean equal voices",
+        text: "The study finds that procedures gave every country an equal voice and vote, yet delegates from the global North were more numerous and more experienced than those from the global South.",
+      },
+      {
+        title: "Three declarations, negotiated with compromise",
+        text: "The declarations of 1997, 2003 and 2005 are described as classic products of a formal international regime, with compromises on their nature and content needed to reach agreement.",
+      },
+      {
+        title: "Norms need national uptake",
+        text: "Case studies in Kenya and South Africa look at how the declarations were received, adopted and used nationally, and at views on UNESCO's capacity-building work.",
+      },
+      {
+        title: "No agreement on cloning",
+        text: "The book traces the debate on an international convention on human reproductive cloning and notes the lack of universal norms on the subject.",
+      },
+      {
+        title: "Small practical fixes can help",
+        text: "The closing suggestions are modest: for example, starting meetings on time so debates are not cut short, and covering some participation costs for developing countries.",
+      },
+    ],
+    whyItMatters:
+      "Philippine researchers, ethics committees and policymakers deal with international research ethics standards that were negotiated elsewhere. The book shows how those norms are made, who gets heard, and what helps them work in developing countries.",
+    researchQuestions: [
+      "How have UNESCO's bioethics declarations been used by research ethics committees in the Philippines?",
+      "What helps developing countries take an equal part in international norm-setting?",
+      "How should universal bioethics norms be adapted to local contexts without losing their force?",
+    ],
+  },
+  "the-question-of-emergence-2026": {
+    code: "EP-OR-32",
+    preparedOn: PREPARED,
+    takeaways: [
+      {
+        title: "The core question",
+        text: "Can everything, including human behaviour, be explained by the behaviour of the most basic physical elements (physicalist reductionism), or do new forms of causality emerge at higher levels (emergentism)? The book defends the second view.",
+      },
+      {
+        title: "The mystery may come from the model of cause",
+        text: "The author argues that the apparent mystery of emergence is an artefact of the covering-law model of causal explanation, which both sides of the debate have assumed.",
+      },
+      {
+        title: "Think in powers, not laws",
+        text: "Replacing lawful regularities with a view of causality based on powers is presented as the move that lets emergence be explained without mystery.",
+      },
+      {
+        title: "Look at relations among wholes, not just whole and parts",
+        text: "The book says the debate has focused too narrowly on a single whole and its parts, and that attention should go to the new causal logics that arise among emergent wholes.",
+      },
+      {
+        title: "A case for sociology",
+        text: "The later chapters take the argument to social powers, social wholes and downward causation, leading to the author's claim that sociology rather than physics is the queen of the sciences.",
+      },
+    ],
+    whyItMatters:
+      "The debate shapes how researchers think about explaining social life: whether social structures have real causal effects of their own. The book is a compact entry point for social scientists and philosophers, and a model of argument within critical realism.",
+    researchQuestions: [
+      "How does a powers view of causality change how social scientists explain institutions?",
+      "Where might the distinction between one-off and level emergence apply in other disciplines?",
+      "What evidence would count for or against downward causation in social systems?",
+    ],
+  },
+  "creating-future-people-2024": {
+    code: "EP-OR-33",
+    preparedOn: PREPARED,
+    takeaways: [
+      {
+        title: "Screening embryos is already possible",
+        text: "The preface explains that pre-implantation genetic testing already lets parents screen embryos for some single-gene and some polygenic diseases, and expects selection for complex traits to follow.",
+      },
+      {
+        title: "Polygenic scores are statistical estimates",
+        text: "Embryos are given scores that indicate the likelihood of developing traits, built from large genome-wide association studies that link genetic tests to physical and psychological traits.",
+      },
+      {
+        title: "One parent's choice affects everyone",
+        text: "The book argues that once selection for complex traits happens, everyone will have an interest in the traits others choose, creating coordination problems earlier writers did not consider.",
+      },
+      {
+        title: "Parents differ, and regulators are limited",
+        text: "It takes seriously the diversity of parents' preferences and the limits policymakers face in regulating what may become a global market for reproductive technology.",
+      },
+      {
+        title: "Read it as one author's argument",
+        text: "The book takes positions on contested ethical questions. The back cover discloses that the author works with a company offering polygenic embryo screening, which readers may want to weigh alongside other views.",
+      },
+    ],
+    whyItMatters:
+      "Reproductive genetics is moving from research to clinics and commercial services, and countries including the Philippines will need to decide how to regulate it. A short, readable text helps students and policymakers understand the science and the moral questions before they read wider and opposing views.",
+    researchQuestions: [
+      "How should countries regulate embryo screening for complex traits, and who should take part in deciding?",
+      "What are the strongest objections to the book's coordination-problem argument?",
+      "How do religious, cultural and legal contexts in the Philippines shape attitudes to genetic selection?",
+    ],
+  },
 };
 
 export function takeawaysFor(slug: string): EditorialTakeaways | null {
