@@ -201,21 +201,60 @@ function PairList({ rows, keyLabel }: { rows: { a: string; b: string }[]; keyLab
 }
 
 /** Adopted policies and their review dates, from the owner's private Compliance Register (titles and dates only). */
-function usePolicyRegister(): PublicRegisterRow[] {
+interface PublicSubprocessorRow { name: string; purpose: string; dataShared: string; location: string }
+
+function usePolicyRegister(): { policies: PublicRegisterRow[]; subprocessors: PublicSubprocessorRow[] } {
   const [rows, setRows] = useState<PublicRegisterRow[]>([]);
+  const [subs, setSubs] = useState<PublicSubprocessorRow[]>([]);
   useEffect(() => {
     let cancelled = false;
     fetch("/api/trust/register")
       .then((r) => (r.ok ? r.json() : { policies: [] }))
-      .then((d) => { if (!cancelled && Array.isArray(d.policies)) setRows(d.policies); })
+      .then((d) => {
+        if (cancelled) return;
+        if (Array.isArray(d.policies)) setRows(d.policies);
+        if (Array.isArray(d.subprocessors)) setSubs(d.subprocessors);
+      })
       .catch(() => {});
     return () => { cancelled = true; };
   }, []);
-  return rows;
+  return { policies: rows, subprocessors: subs };
 }
 
 function fmtDate(iso: string | null): string {
   return iso ? new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—";
+}
+
+function SubprocessorList({ rows }: { rows: PublicSubprocessorRow[] }) {
+  return (
+    <Card className="paper-card">
+      <CardContent className="p-0">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <caption className="sr-only">Outside services that process platform data</caption>
+            <thead>
+              <tr className="border-b border-border text-xs text-muted-foreground">
+                <th scope="col" className="p-3 font-medium">Service</th>
+                <th scope="col" className="p-3 font-medium">What it does</th>
+                <th scope="col" className="p-3 font-medium">Data it receives</th>
+                <th scope="col" className="p-3 font-medium">Where</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {rows.map((r) => (
+                <tr key={r.name} data-testid="subprocessor-row">
+                  <th scope="row" className="p-3 align-top font-display text-sm font-semibold">{r.name}</th>
+                  <td className="p-3 align-top text-xs text-muted-foreground">{r.purpose}</td>
+                  <td className="p-3 align-top text-xs text-muted-foreground">{r.dataShared}</td>
+                  <td className="p-3 align-top text-xs text-muted-foreground">{r.location}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 function PolicyRegister({ rows }: { rows: PublicRegisterRow[] }) {
@@ -278,8 +317,8 @@ export function TrustView() {
   const scholarlyRows = isWhitelabel(branding) ? SCHOLARLY.filter((r) => !ownSignature.test(r.standard)) : SCHOLARLY;
   const privacyRows = isWhitelabel(branding) ? PRIVACY.filter((r) => !ownSignature.test(r.standard)) : PRIVACY;
   const { setView } = useApp();
-  const policyRows = usePolicyRegister();
-  const showPolicies = !isWhitelabel(branding) && policyRows.length > 0;
+  const { policies: policyRows, subprocessors } = usePolicyRegister();
+  const showPolicies = !isWhitelabel(branding) && (policyRows.length > 0 || subprocessors.length > 0);
   const nav = showPolicies ? [...NAV.slice(0, 2), { id: "policies", label: "Policies" }, ...NAV.slice(2)] : NAV;
 
   return (
@@ -365,9 +404,16 @@ export function TrustView() {
           id="policies"
           icon={ScrollText}
           title="Policy register"
-          intro="The written policies that govern how we run the platform, each reviewed at least once a year. Dates come from our own internal register. The policy texts are internal; this list shows only that each exists and when it was last reviewed."
+          intro="The written policies that govern how we run the platform, each reviewed at least once a year. Dates come from our own internal register. The policy texts are internal; the list shows only that each exists and when it was last reviewed."
         >
-          <PolicyRegister rows={policyRows} />
+          {policyRows.length > 0 && <PolicyRegister rows={policyRows} />}
+          {subprocessors.length > 0 && (
+            <div className="mt-6">
+              <h3 className="mb-1 font-display text-lg font-semibold">Outside services that process data</h3>
+              <p className="mb-3 text-sm text-muted-foreground">Each is listed with what it does and what data it receives. The list is kept by us and reviewed at least once a year.</p>
+              <SubprocessorList rows={subprocessors} />
+            </div>
+          )}
         </Section>
       )}
 
