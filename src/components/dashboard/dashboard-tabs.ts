@@ -201,6 +201,7 @@ export const TABS: DashboardTabDef[] = [
   { key: "branding", label: "Branding", icon: Palette, roles: ["SUPER_ADMIN"], group: "Platform Administration" },
   { key: "tenants", label: "Tenants", icon: Globe, roles: ["SUPER_ADMIN"], group: "Platform Administration", platformOnly: true },
   { key: "admin", label: "Admin & audit", icon: Users, roles: ["SUPER_ADMIN"], group: "Platform Administration" },
+  { key: "compliance", label: "Compliance Register", icon: ShieldCheck, roles: ["SUPER_ADMIN"], group: "Platform Administration", platformOnly: true },
 ];
 
 /**

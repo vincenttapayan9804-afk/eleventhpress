@@ -3022,3 +3022,74 @@ model ArticleComment {
 
   @@index([articleId, createdAt])
 }
+
+// ---------------------------------------------------------------------------
+// Compliance Register (src/lib/compliance.ts). A private, SUPER_ADMIN-only
+// record of the platform's own security and privacy governance: the policy
+// library, the dated reviews of each policy, and the checklist for every
+// device used for platform work. Like DirectoryListing it is self-reported
+// and admin-maintained: nothing here is derived, and the public Trust page
+// shows only what the owner has adopted and reviewed — never a draft.
+// ---------------------------------------------------------------------------
+model CompliancePolicy {
+  id                   String    @id @default(cuid())
+  slug                 String    @unique
+  title                String
+  // GOVERNANCE | SECURITY | PRIVACY | PEOPLE | DEVICES | AI | SUPPLIERS
+  category             String
+  // Markdown source. A draft may contain [CONFIRM: ...] notes; adoption is
+  // refused while any remain.
+  body                 String
+  // DRAFT | ADOPTED | RETIRED
+  status               String    @default("DRAFT")
+  version              Int       @default(1)
+  reviewIntervalMonths Int       @default(12)
+  // Question IDs (CAIQ / AI-CAIQ) whose answer relies on this document,
+  // comma separated. Used for the yearly STAR refresh.
+  covers               String    @default("")
+  // Shown on the public Trust page (title and dates only, never the text).
+  isPublic             Boolean   @default(true)
+  adoptedAt            DateTime?
+  adoptedBy            String?
+  lastReviewedAt       DateTime?
+  nextReviewDue        DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  reviews ComplianceReview[]
+
+  @@index([status, nextReviewDue])
+}
+
+model ComplianceReview {
+  id         String   @id @default(cuid())
+  policyId   String
+  reviewedAt DateTime
+  reviewedBy String?
+  // NO_CHANGE | UPDATED
+  outcome    String
+  notes      String?
+  version    Int
+  createdAt  DateTime @default(now())
+
+  policy CompliancePolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+
+  @@index([policyId, reviewedAt])
+}
+
+model ComplianceDevice {
+  id             String    @id @default(cuid())
+  label          String
+  // OWNER | CONTRACTOR | OTHER
+  kind           String    @default("OWNER")
+  // JSON object of check key -> boolean (see DEVICE_CHECKS in compliance.ts)
+  checks         String    @default("{}")
+  notes          String?
+  lastCheckedAt  DateTime?
+  nextCheckDue   DateTime?
+  retiredAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([retiredAt, nextCheckDue])
+}

@@ -140,6 +140,9 @@ export const ResearchDashboardTab = dynamic(() => import("./research-dashboard-t
 export const ResearchAssistantTab = dynamic(() => import("./research-assistant-tab").then((m) => m.ResearchAssistantTab), {
   loading: () => <TabLoadingFallback />,
 });
+export const ComplianceTab = dynamic(() => import("./compliance-tab").then((m) => m.ComplianceTab), {
+  loading: () => <TabLoadingFallback />,
+});
 export const BenchmarkingTab = dynamic(() => import("./benchmarking-tab").then((m) => m.BenchmarkingTab), {
   loading: () => <TabLoadingFallback />,
 });

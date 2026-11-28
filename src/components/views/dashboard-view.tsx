@@ -99,6 +99,7 @@ import {
   ResearchDashboardTab,
   ResearchAssistantTab,
   BenchmarkingTab,
+  ComplianceTab,
   BoardIntelligenceTab,
   ReputationIntelligenceTab,
   ReviewerMarketplaceTab,
@@ -359,6 +360,7 @@ export function DashboardView() {
           {dashboardTab === "certificates" && <CertificatesTab />}
           {dashboardTab === "researchLab" && <ResearchLabTab />}
           {dashboardTab === "researchLabActivity" && <ResearchLabAuditTab />}
+          {dashboardTab === "compliance" && visibleTabs.some((t) => t.key === "compliance") && <ComplianceTab />}
           {dashboardTab === "admin" && <AdminTab audit={data.recentAudit || []} stats={data.stats} currentRole={user.role} />}
         </div>
       </div>
