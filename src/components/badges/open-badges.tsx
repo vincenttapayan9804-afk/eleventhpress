@@ -45,6 +45,28 @@ export function BoaiSignatoryLogo({ className }: { className?: string }) {
   return <img src="/badges/boai-signatory.png" alt="Signatory of the Budapest Open Access Initiative" width={429} height={158} className={cn("inline-block h-14 w-auto shrink-0", className)} />;
 }
 
+/**
+ * MyData's own "MyData Signatory" badge (public/badges/mydata-signatory.svg), used
+ * unaltered, as shown on MyData's public list of Declaration signatories. It sits on
+ * a white panel so its dark lettering stays readable in dark mode. Platform site only.
+ */
+export function MyDataSignatoryBadge({ className }: { className?: string }) {
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src="/badges/mydata-signatory.svg" alt="MyData Declaration signatory" width={720} height={281} className={cn("inline-block h-14 w-auto shrink-0 rounded-md bg-white px-2 py-1", className)} />;
+}
+
+/**
+ * Eleventh Press's own signatory mark for the Sustainable Web Manifesto
+ * (public/badges/sustainable-web-signatory.webp). The Manifesto publishes no badge, so
+ * this is our own design (six leaves for its six principles) and does not copy or imitate
+ * the Manifesto's name lettering or colours. It states a fact (we signed) and is not a
+ * Manifesto certification. Platform site only.
+ */
+export function SustainableWebSignatoryMark({ className }: { className?: string }) {
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src="/badges/sustainable-web-signatory.webp" alt="Signatory of the Sustainable Web Manifesto" width={480} height={480} className={cn("inline-block h-16 w-16 shrink-0", className)} />;
+}
+
 /** The licence buttons Creative Commons publishes; other combinations fall back to a text label. */
 const CC_BUTTONS = new Set(["by", "by-sa", "by-nc", "by-nc-sa", "by-nd", "by-nc-nd"]);
 
