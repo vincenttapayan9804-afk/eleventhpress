@@ -1,7 +1,7 @@
 "use client";
 
 import { openContact } from "@/lib/contact-store";
-import type { ComponentType } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 import { useApp } from "@/lib/store";
 import { DOI_REGISTRAR } from "@/lib/site";
 import { MYDATA_INTRO, MYDATA_LIMITS, MYDATA_PRACTICES } from "@/lib/mydata-practices";
@@ -10,6 +10,7 @@ import { MyDataSignatoryBadge, SustainableWebSignatoryMark } from "@/components/
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { POLICY_CATEGORY_LABELS, type PublicRegisterRow } from "@/lib/compliance";
 import {
   Accessibility,
   Archive,
@@ -199,6 +200,65 @@ function PairList({ rows, keyLabel }: { rows: { a: string; b: string }[]; keyLab
   );
 }
 
+/** Adopted policies and their review dates, from the owner's private Compliance Register (titles and dates only). */
+function usePolicyRegister(): PublicRegisterRow[] {
+  const [rows, setRows] = useState<PublicRegisterRow[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/trust/register")
+      .then((r) => (r.ok ? r.json() : { policies: [] }))
+      .then((d) => { if (!cancelled && Array.isArray(d.policies)) setRows(d.policies); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+  return rows;
+}
+
+function fmtDate(iso: string | null): string {
+  return iso ? new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—";
+}
+
+function PolicyRegister({ rows }: { rows: PublicRegisterRow[] }) {
+  return (
+    <Card className="paper-card">
+      <CardContent className="p-0">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <caption className="sr-only">Adopted policies with their version, last review and next review dates</caption>
+            <thead>
+              <tr className="border-b border-border text-xs text-muted-foreground">
+                <th scope="col" className="p-3 font-medium">Policy</th>
+                <th scope="col" className="p-3 font-medium">Version</th>
+                <th scope="col" className="p-3 font-medium">Last reviewed</th>
+                <th scope="col" className="p-3 font-medium">Next review</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {rows.map((r) => (
+                <tr key={r.title} data-testid="policy-row">
+                  <th scope="row" className="p-3 align-top font-display text-sm font-semibold">
+                    {r.title}
+                    <span className="block text-[11px] font-normal text-muted-foreground">{POLICY_CATEGORY_LABELS[r.category]}</span>
+                  </th>
+                  <td className="p-3 align-top text-xs text-muted-foreground">{r.version}</td>
+                  <td className="p-3 align-top text-xs text-muted-foreground">{fmtDate(r.lastReviewedAt)}</td>
+                  <td className="p-3 align-top text-xs">
+                    <span className={r.state === "OVERDUE" ? "font-medium text-red-700 dark:text-red-300" : "text-muted-foreground"}>
+                      {fmtDate(r.nextReviewDue)}
+                      {r.state === "OVERDUE" && " · review overdue"}
+                      {r.state === "DUE_SOON" && " · due soon"}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 const NAV = [
   { id: "security", label: "Security" },
   { id: "incidents", label: "Incidents" },
@@ -218,6 +278,9 @@ export function TrustView() {
   const scholarlyRows = isWhitelabel(branding) ? SCHOLARLY.filter((r) => !ownSignature.test(r.standard)) : SCHOLARLY;
   const privacyRows = isWhitelabel(branding) ? PRIVACY.filter((r) => !ownSignature.test(r.standard)) : PRIVACY;
   const { setView } = useApp();
+  const policyRows = usePolicyRegister();
+  const showPolicies = !isWhitelabel(branding) && policyRows.length > 0;
+  const nav = showPolicies ? [...NAV.slice(0, 2), { id: "policies", label: "Policies" }, ...NAV.slice(2)] : NAV;
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
@@ -230,7 +293,7 @@ export function TrustView() {
           against the published standard, not certified by an outside auditor.
         </p>
         <nav aria-label="On this page" className="mt-5 flex flex-wrap gap-2">
-          {NAV.map((n) => (
+          {nav.map((n) => (
             <a
               key={n.id}
               href={`#${n.id}`}
@@ -296,6 +359,17 @@ export function TrustView() {
           </CardContent>
         </Card>
       </Section>
+
+      {showPolicies && (
+        <Section
+          id="policies"
+          icon={ScrollText}
+          title="Policy register"
+          intro="The written policies that govern how we run the platform, each reviewed at least once a year. Dates come from our own internal register. The policy texts are internal; this list shows only that each exists and when it was last reviewed."
+        >
+          <PolicyRegister rows={policyRows} />
+        </Section>
+      )}
 
       <Section id="email" icon={Mail} title="Email authenticity" intro="So messages from us can be trusted, and nobody can convincingly send mail pretending to be us.">
         <RowList rows={EMAIL} />

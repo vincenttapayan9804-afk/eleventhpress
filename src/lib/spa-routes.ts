@@ -22,7 +22,7 @@ export const DASHBOARD_TABS: DashboardTab[] = [
   "certificates", "researchLab", "researchLabActivity", "benchmarking", "boardIntelligence",
   "reputationIntelligence", "reviewerMarketplace", "researchBoard", "narration", "researchIntegrity",
   "admin", "branding", "team", "tenants", "departments", "ethics", "officialForms", "ethicsReview", "grants",
-  "myGrants", "rankings", "researchDashboard", "researchAssistant",
+  "myGrants", "rankings", "researchDashboard", "researchAssistant", "compliance",
 ];
 
 export const RESOURCE_TABS = ["trainings", "webinars", "blogs", "guides", "forms", "books", "discover"];

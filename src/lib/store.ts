@@ -87,7 +87,8 @@ export type DashboardTab =
   | "myGrants"
   | "rankings"
   | "researchDashboard"
-  | "researchAssistant";
+  | "researchAssistant"
+  | "compliance";
 
 interface SessionUser {
   id: string;
