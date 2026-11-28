@@ -4,6 +4,7 @@ import { openContact } from "@/lib/contact-store";
 import type { ComponentType } from "react";
 import { useApp } from "@/lib/store";
 import { DOI_REGISTRAR } from "@/lib/site";
+import { MYDATA_INTRO, MYDATA_LIMITS, MYDATA_PRACTICES } from "@/lib/mydata-practices";
 import { isWhitelabel, useLegalIdentity, useTenantBranding } from "@/lib/tenant-branding-context";
 import { MyDataSignatoryBadge, SustainableWebSignatoryMark } from "@/components/badges/open-badges";
 import { Card, CardContent } from "@/components/ui/card";
@@ -83,7 +84,7 @@ const PRIVACY: Row[] = [
   { standard: "EU / UK GDPR", what: "Lawful bases recorded, data-subject rights honoured (access, correction, export, erasure), records of processing kept.", status: "in-place" },
   { standard: "Philippine Data Privacy Act (RA 10173)", what: "Privacy notice, a privacy contact, and breach notification to the National Privacy Commission and affected people within 72 hours.", status: "in-place" },
   { standard: "CCPA / CPRA", what: "No personal data is sold or shared for advertising; requests to know or delete are honoured.", status: "in-place" },
-  { standard: "MyData Declaration", what: "We have signed the MyData Declaration, which sets out principles for human-centric handling of personal data, where people stay in control of their own data. Signing is a commitment, not a certification, and MyData does not endorse our content.", status: "in-place" },
+  { standard: "MyData Declaration", what: "We have signed the MyData Declaration, which sets out principles for human-centric handling of personal data, where people stay in control of their own data. Signing is a commitment, not a certification, and MyData does not endorse our content. How we apply it is set out below.", status: "in-place" },
   { standard: "Global Privacy Control", what: "A browser's GPC signal is honoured automatically as an opt-out of every optional cookie — declared at /.well-known/gpc.json.", status: "in-place" },
 ];
 
@@ -124,6 +125,7 @@ const AI_ROWS: Row[] = [
   { standard: "EU AI Act · Article 50 transparency", what: "Every feature that generates text or images with AI is labelled as AI-generated where you see the output.", status: "in-place" },
   { standard: "COPE position on AI and authorship", what: "AI tools cannot be listed as authors; authors must disclose any use of generative AI in writing, data or images.", status: "in-place" },
   { standard: "Human oversight", what: "AI suggestions that change published content (alt text, translations, accessibility fixes) are reviewed and approved by an editor before they appear.", status: "in-place" },
+  { standard: "MyData Declaration · your data in AI features", what: "Questions you ask the assistant and manuscript text sent for editorial triage go to AI model providers without your account details, and you can delete any assistant conversation at any time. See how we apply the MyData Declaration under Privacy.", status: "in-place" },
 ];
 
 function StatusBadge({ status }: { status: Status }) {
@@ -306,6 +308,24 @@ export function TrustView() {
             <MyDataSignatoryBadge className="h-16" />
           </a>
         )}
+        {!isWhitelabel(branding) && (
+          <div id="mydata" data-testid="trust-mydata-practice">
+            <p className="mt-6 text-xs font-semibold uppercase tracking-wide text-muted-foreground">How we apply the MyData Declaration</p>
+            <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+              {MYDATA_INTRO}
+            </p>
+            <div className="mt-2">
+              <PairList keyLabel="Practice" rows={MYDATA_PRACTICES} />
+            </div>
+            <Card className="paper-card mt-4">
+              <CardContent className="p-6 text-xs leading-relaxed text-muted-foreground">
+                <p>
+                  <span className="font-semibold text-foreground">What this does not mean.</span> {MYDATA_LIMITS}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
         <div className="mt-4 flex flex-wrap gap-3">
           <Button variant="outline" size="sm" onClick={() => setView("privacy")}>Privacy Policy</Button>
           <Button variant="outline" size="sm" asChild>
@@ -363,7 +383,7 @@ export function TrustView() {
       </Section>
 
       <Section id="ai" icon={Cpu} title="Responsible AI" intro="Where this platform uses AI, and the rules around it.">
-        <RowList rows={AI_ROWS} />
+        <RowList rows={isWhitelabel(branding) ? AI_ROWS.filter((r) => !ownSignature.test(r.standard)) : AI_ROWS} />
       </Section>
 
       <section className="mt-14 rounded-md border border-border bg-card p-8 text-center">
