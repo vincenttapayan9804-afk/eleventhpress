@@ -1,6 +1,6 @@
 "use client";
 
-import { BoaiSignatoryLogo, CcLicenceBadge, DoraSignatoryBadge, MyDataSignatoryBadge, OpenAccessIcon } from "@/components/badges/open-badges";
+import { BoaiSignatoryLogo, CcLicenceBadge, DoraSignatoryBadge, MyDataSignatoryBadge, OpenAccessIcon, SustainableWebSignatoryMark } from "@/components/badges/open-badges";
 import { useTranslations } from "next-intl";
 import { POWERED_BY_CREDIT, POWERED_BY_URL } from "@/lib/powered-by";
 import { useApp } from "@/lib/store";
@@ -266,8 +266,8 @@ export function SiteFooter() {
                 </a>
               )}
               {!whitelabel && (
-                <a href="https://www.sustainablewebmanifesto.com/signatures/" target="_blank" rel="noopener" data-testid="footer-swm-mark" className="inline-flex min-h-6 items-center rounded-md border border-border px-3 py-2 font-mono text-[0.7rem] font-medium leading-tight text-foreground/80 hover:text-primary" aria-label="Signatory of the Sustainable Web Manifesto (opens the Manifesto's list of signatures)">
-                  Sustainable Web<br />Manifesto signatory
+                <a href="https://www.sustainablewebmanifesto.com/signatures/" target="_blank" rel="noopener" data-testid="footer-swm-mark" className="inline-flex hover:opacity-80" aria-label="Signatory of the Sustainable Web Manifesto (opens the Manifesto's list of signatures)">
+                  <SustainableWebSignatoryMark className="h-[88px] w-[88px]" />
                 </a>
               )}
               <p className="font-mono">{t("indexedLine", { registrar: DOI_REGISTRAR })}</p>

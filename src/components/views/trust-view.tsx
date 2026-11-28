@@ -5,7 +5,7 @@ import type { ComponentType } from "react";
 import { useApp } from "@/lib/store";
 import { DOI_REGISTRAR } from "@/lib/site";
 import { isWhitelabel, useLegalIdentity, useTenantBranding } from "@/lib/tenant-branding-context";
-import { MyDataSignatoryBadge } from "@/components/badges/open-badges";
+import { MyDataSignatoryBadge, SustainableWebSignatoryMark } from "@/components/badges/open-badges";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -331,6 +331,11 @@ export function TrustView() {
 
       <Section id="scholarly" icon={FileCheck2} title="Open scholarship" intro="Standards that let indexers, libraries and funders find, verify and reuse what we publish.">
         <RowList rows={scholarlyRows} />
+        {!isWhitelabel(branding) && (
+          <a href="https://www.sustainablewebmanifesto.com/signatures/" target="_blank" rel="noopener" data-testid="trust-swm-mark" className="mt-4 inline-flex hover:opacity-80" aria-label="Signatory of the Sustainable Web Manifesto (opens the Manifesto's list of signatures)">
+            <SustainableWebSignatoryMark className="h-16 w-16" />
+          </a>
+        )}
         <p className="mt-6 text-xs font-semibold uppercase tracking-wide text-muted-foreground">TOP Guidelines statement</p>
         <div className="mt-2">
           <PairList keyLabel="Practice" rows={TOP.map((t) => ({ a: t.practice, b: t.level }))} />
