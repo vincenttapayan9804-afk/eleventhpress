@@ -156,7 +156,7 @@ To find and fix weaknesses in the platform and its components, and to keep malic
 - Semgrep, Gitleaks and Dependabot run on every change and weekly; a failing scan blocks release.
 - Dependabot waits 7 days before accepting a brand-new release, as protection against compromised packages.
 - Anyone can report a vulnerability through the contact published at /.well-known/security.txt.
-- Uploaded files are checked for malware with VirusTotal when that service is enabled. [CONFIRM: is VirusTotal scanning switched on in production?]
+- Uploaded files are checked for malware with VirusTotal. The scan runs only when the VirusTotal key is set in the hosting settings; without it a file is marked as not scanned, never as clean.
 
 ## Rules
 1. Vulnerabilities are ranked with CVSS and fixed within these targets from the day they are confirmed: critical 7 days, high 30 days, medium 90 days, low at the next convenient update.
@@ -177,7 +177,7 @@ To keep a trustworthy record of what happens on the platform, and to notice prob
 
 ## How it works today
 - Privileged actions are written to an audit log with the user, action, entity, time and details. The product has no route to edit or delete audit records, and only privileged roles can read them.
-- Application errors go to Sentry. [CONFIRM: is Sentry error monitoring switched on in production?] The hosting provider keeps runtime logs. Time comes from the provider's synchronised infrastructure.
+- Application errors are sent to Sentry. Reporting runs only when the Sentry address is set in the hosting settings; without it nothing is sent. The hosting provider keeps runtime logs. Time comes from the provider's synchronised infrastructure.
 - Health checks run continuously and are published on the public status page.
 - Ordinary page views are not logged with personal details. Raw IP addresses attached to usage events are cleared after 90 days.
 
@@ -226,7 +226,7 @@ ${REVIEW}`,
 To keep the platform available, and to bring it back quickly and correctly when something goes wrong.
 
 ## How it works today
-- The platform runs on a serverless hosting platform with managed Postgres. The database provider takes backups and offers point-in-time recovery. [CONFIRM: are backups and point-in-time recovery switched on for the production database, and in which region is it? Replace with the plan name and region.]
+- The platform runs on a serverless hosting platform with managed Postgres. Backups and point-in-time recovery are features of the database provider's plan, not of the platform's own code. The owner keeps them switched on (see the rules below).
 - Recovery targets are: recovery point of 24 hours or less, and recovery time of 4 hours or less.
 - The runbook (docs/incident-response.md) describes how to roll back a deployment and restore the database to a branch, test it on a preview deployment, then switch production over. The old database is kept read-only for 14 days.
 - Public status information is on the status page.
@@ -235,7 +235,8 @@ To keep the platform available, and to bring it back quickly and correctly when 
 1. The restore procedure is rehearsed and timed once every quarter, and the date and duration are recorded. The first drill is due by January 2027.
 2. The continuity plan, impact analysis and recovery targets are reviewed at least once a year and after any significant change to hosting or suppliers.
 3. A short written impact analysis lists the platform's critical functions and how long each can be down. This is being written (target January 2027).
-4. The owner and one trusted backup person know where the recovery steps and account access are kept. [CONFIRM: who is the backup person, if any?]
+4. The owner keeps the provider's backups and point-in-time recovery switched on, and checks this at each yearly review.
+5. The owner aims to name one trusted backup person who knows where the recovery steps and account access are kept. Until a person is named, the owner alone holds them, and that is recorded as a known risk rather than hidden.
 ${REVIEW}`,
   },
   {
@@ -317,7 +318,7 @@ ${REVIEW}`,
 - We run no servers or data centres. Infrastructure, network and physical security are provided by the hosting and database providers.
 - We manage application configuration (headers, Content-Security-Policy, redirects, build settings) in version control.
 - Every connection uses TLS. Database and service calls use credentials, and API routes require authorisation.
-- Platform protections against network attacks are provided by the hosting provider; the application adds account lockout, a strict Content-Security-Policy and request rate limiting. [CONFIRM: is request rate limiting (Upstash) switched on in production?]
+- Platform protections against network attacks are provided by the hosting provider; the application adds account lockout and a strict Content-Security-Policy. Request rate limiting is enforced only when the Upstash address and token are set in the hosting settings; without them the code runs in a visible "simulation" mode that logs a warning and does not enforce limits.
 - Internet-facing services are: the website and its API, the status page, and the mail and DNS records of the domain. Everything else is closed.
 
 ## Rules
@@ -413,7 +414,7 @@ ${REVIEW}`,
     body: `# People Security Policy
 
 ## Scope
-Anyone who is given access to the platform's systems or data: employees, contractors, volunteers and editors. [CONFIRM: who works on the platform besides the owner today? Replace with a one-line description. If it is only the owner, keep the rules below as the rules that apply the moment anyone else is given access.]
+Anyone who is given access to the platform's systems or data: employees, contractors, volunteers and editors. The platform is run by its owner. These rules apply in full to the owner and apply the moment anyone else is given access.
 
 ## Rules
 1. Before access: we check identity and relevant background in proportion to the access given and local law. Anyone with access to personal data or administrator rights gets a more careful check.

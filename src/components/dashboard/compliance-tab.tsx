@@ -308,6 +308,7 @@ export function ComplianceTab() {
   const [open, setOpen] = useState<string | null>(null);
   const [view, setView] = useState<"policies" | "devices">("policies");
   const [seeding, setSeeding] = useState(false);
+  const [adopting, setAdopting] = useState(false);
   const [newLabel, setNewLabel] = useState("");
   const [newKind, setNewKind] = useState<DeviceKind>("OWNER");
 
@@ -326,6 +327,21 @@ export function ComplianceTab() {
       toast.error((e as Error).message);
     } finally {
       setSeeding(false);
+    }
+  }
+
+  async function adoptReady() {
+    const ready = data?.policies.filter((p) => p.status === "DRAFT" && p.openNotes === 0).length ?? 0;
+    if (!confirm(`Adopt ${ready} polic${ready === 1 ? "y" : "ies"} now?\n\nBy doing this you say you have read each one and that it is true for the platform. Each is dated today, set to be reviewed in a year, and written to the audit log. Policies that still have notes to answer are left as drafts.`)) return;
+    setAdopting(true);
+    try {
+      const r = await apiFetch<{ adopted: string[]; skipped: { title: string }[] }>("/api/admin/compliance/policies", { method: "POST", body: JSON.stringify({ action: "adopt-ready" }) });
+      toast.success(`${r.adopted.length} adopted${r.skipped.length ? `. ${r.skipped.length} left as drafts because they still have notes to answer: ${r.skipped.map((x) => x.title).join(", ")}` : ""}`, { duration: 10000 });
+      load();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setAdopting(false);
     }
   }
 
@@ -387,6 +403,17 @@ export function ComplianceTab() {
 
       {view === "policies" && (
         <div className="space-y-6">
+          {data.policies.some((p) => p.status === "DRAFT" && p.openNotes === 0) && (
+            <Card className="paper-card border-primary/30">
+              <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-6">
+                <div className="max-w-2xl text-sm">
+                  <p className="font-medium">{data.policies.filter((p) => p.status === "DRAFT" && p.openNotes === 0).length} draft{data.policies.filter((p) => p.status === "DRAFT" && p.openNotes === 0).length === 1 ? " has" : "s have"} no open notes</p>
+                  <p className="text-muted-foreground">Read them first (open each below and change anything that is not true). Then adopt them all at once. Drafts that still have notes to answer are skipped.</p>
+                </div>
+                <Button onClick={adoptReady} disabled={adopting}>{adopting && <Loader2 className="mr-1 h-4 w-4 animate-spin" />} Adopt all ready policies</Button>
+              </CardContent>
+            </Card>
+          )}
           {POLICY_CATEGORIES.map((cat) => {
             const rows = data.policies.filter((p) => p.category === cat);
             if (rows.length === 0) return null;
