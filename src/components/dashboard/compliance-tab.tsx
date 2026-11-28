@@ -455,7 +455,7 @@ export function ComplianceTab() {
       {recs && view === "risks" && <RecordsSection kinds={["RISK", "ASSESSMENT"]} rows={recs.records} onChanged={load} />}
       {recs && view === "suppliers" && <RecordsSection kinds={["SUPPLIER"]} rows={recs.records} onChanged={load} />}
       {recs && view === "keys" && <RecordsSection kinds={["KEY", "ACCESS_REVIEW"]} rows={recs.records} onChanged={load} />}
-      {recs && view === "exercises" && <RecordsSection kinds={["EXERCISE"]} rows={recs.records} onChanged={load} />}
+      {recs && view === "exercises" && <RecordsSection kinds={["EXERCISE", "INCIDENT"]} rows={recs.records} onChanged={load} incidents={recs.incidents} />}
 
       {view === "policies" && (
         <div className="space-y-6">

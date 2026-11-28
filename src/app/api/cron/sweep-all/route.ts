@@ -15,6 +15,7 @@ import { sweepStudyGuides } from "@/lib/study-guide/server";
 import { submitSitemapToIndexNow } from "@/lib/indexnow";
 import { reindexStaleChunks } from "@/lib/chunk-reindex";
 import { sendComplianceReminders } from "@/lib/compliance-reminders";
+import { runSecurityAlerts } from "@/lib/security-alerts";
 
 /**
  * GET /api/cron/sweep-all
@@ -61,6 +62,9 @@ const SWEEPS = [
   // Not a stuck-job sweep: a weekly nudge to the platform owner when a
   // policy review or device check in the Compliance Register is due.
   { name: "complianceReminders", run: () => sendComplianceReminders() },
+  // Not a stuck-job sweep: a daily count-based check of the audit log that
+  // tells the platform owner about unusual sign-in, role or deletion activity.
+  { name: "securityAlerts", run: () => runSecurityAlerts() },
   // Daily notification digest for people who chose one email a day.
   // Review invitation nudges, due-soon and overdue reminders, then the
   // daily notification digest — in that order, so a daily-summary user gets

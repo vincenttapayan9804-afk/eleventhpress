@@ -191,7 +191,7 @@ function NewLiving({ kind, onChanged }: { kind: RecordKind; onChanged: () => voi
   );
 }
 
-function EventForm({ kind, onChanged }: { kind: "ACCESS_REVIEW" | "EXERCISE"; onChanged: () => void }) {
+function EventForm({ kind, onChanged }: { kind: "ACCESS_REVIEW" | "EXERCISE" | "INCIDENT"; onChanged: () => void }) {
   const def = KIND_DEFS[kind];
   const today = new Date().toISOString().slice(0, 10);
   const [open, setOpen] = useState(false);
@@ -199,7 +199,7 @@ function EventForm({ kind, onChanged }: { kind: "ACCESS_REVIEW" | "EXERCISE"; on
   const [doneOn, setDoneOn] = useState(today);
   const [busy, setBusy] = useState(false);
   const typeLabel = def.fields.find((f) => f.key === "type")?.options?.find((o) => o.value === data.type)?.label;
-  const title = kind === "ACCESS_REVIEW" ? `Access review ${doneOn}` : `${typeLabel ?? "Exercise"} ${doneOn}`;
+  const title = kind === "ACCESS_REVIEW" ? `Access review ${doneOn}` : kind === "INCIDENT" ? `Incident ${doneOn}` : `${typeLabel ?? "Exercise"} ${doneOn}`;
 
   async function loadAccounts() {
     try {
@@ -218,7 +218,7 @@ function EventForm({ kind, onChanged }: { kind: "ACCESS_REVIEW" | "EXERCISE"; on
       <CardContent className="space-y-3 pt-4">
         <p className="text-xs text-muted-foreground">Record this only when it has really been done. It is saved with the date you give and cannot be edited later.</p>
         <div className="space-y-1">
-          <Label htmlFor={`ev-${kind}-d`} className="text-xs">Date it was done *</Label>
+          <Label htmlFor={`ev-${kind}-d`} className="text-xs">{kind === "INCIDENT" ? "Date it was noticed *" : "Date it was done *"}</Label>
           <Input id={`ev-${kind}-d`} type="date" max={today} value={doneOn} onChange={(e) => setDoneOn(e.target.value)} className="h-9 w-44" />
         </div>
         {kind === "ACCESS_REVIEW" && <Button size="sm" variant="outline" onClick={loadAccounts}>Load the accounts that hold these roles now</Button>}
@@ -246,9 +246,9 @@ function EventList({ rows }: { rows: RecordRow[] }) {
             <CardHeader className="pb-1">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="font-medium">{r.title}</p>
-                <Badge variant="outline" className={`text-[0.65rem] ${STYLE[r.status === "RETIRED" ? "RETIRED" : r.state]}`}>{r.status === "RETIRED" ? "Retired" : r.state === "CURRENT" ? "Up to date" : LABEL[r.state]}</Badge>
+                <Badge variant="outline" className={`text-[0.65rem] ${STYLE[r.status === "RETIRED" ? "RETIRED" : r.state]}`}>{r.kind === "INCIDENT" ? "Logged" : r.status === "RETIRED" ? "Retired" : r.state === "CURRENT" ? "Up to date" : LABEL[r.state]}</Badge>
               </div>
-              <p className="text-xs text-muted-foreground">Done {fmt(r.lastDoneAt)} · next due {fmt(r.nextDue)}</p>
+              <p className="text-xs text-muted-foreground">{r.kind === "INCIDENT" ? `Noticed ${fmt(r.lastDoneAt)}` : `Done ${fmt(r.lastDoneAt)} · next due ${fmt(r.nextDue)}`}</p>
             </CardHeader>
             <CardContent>
               <details>
@@ -268,7 +268,7 @@ function EventList({ rows }: { rows: RecordRow[] }) {
 }
 
 /** One section of the register for one or more record kinds. */
-export function RecordsSection({ kinds, rows, onChanged }: { kinds: RecordKind[]; rows: RecordRow[]; onChanged: () => void }) {
+export function RecordsSection({ kinds, rows, onChanged, incidents }: { kinds: RecordKind[]; rows: RecordRow[]; onChanged: () => void; incidents?: RecordsOverview["incidents"] }) {
   return (
     <div className="space-y-8">
       {kinds.map((kind) => {
@@ -280,10 +280,15 @@ export function RecordsSection({ kinds, rows, onChanged }: { kinds: RecordKind[]
             <div>
               <h3 id={`rec-${kind}`} className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{def.plural} ({mine.length})</h3>
               <p className="mt-1 max-w-3xl text-sm text-muted-foreground">{def.intro}</p>
+              {kind === "INCIDENT" && incidents && (
+                <p className="mt-2 text-xs text-muted-foreground" data-testid="incident-metrics">
+                  {incidents.total} logged ({incidents.lastYear} in the last 12 months) · major {incidents.bySeverity.SEV1}, significant {incidents.bySeverity.SEV2}, minor {incidents.bySeverity.SEV3} · {incidents.meanDaysToResolve === null ? "no resolution time yet" : `average ${incidents.meanDaysToResolve} days to resolve`}
+                </p>
+              )}
             </div>
             {isEventKind(kind) ? (
               <>
-                <EventForm kind={kind as "ACCESS_REVIEW" | "EXERCISE"} onChanged={onChanged} />
+                <EventForm kind={kind as "ACCESS_REVIEW" | "EXERCISE" | "INCIDENT"} onChanged={onChanged} />
                 <EventList rows={mine} />
               </>
             ) : (
@@ -310,4 +315,5 @@ export interface RecordsOverview {
   summary: { byKind: Record<RecordKind, { total: number; draft: number; active: number; dueSoon: number; overdue: number }>; eventsNeeded: string[] };
   records: RecordRow[];
   seedsAvailable: number;
+  incidents?: { total: number; lastYear: number; bySeverity: { SEV1: number; SEV2: number; SEV3: number }; meanDaysToResolve: number | null };
 }
