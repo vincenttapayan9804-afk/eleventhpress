@@ -45,6 +45,16 @@ export function BoaiSignatoryLogo({ className }: { className?: string }) {
   return <img src="/badges/boai-signatory.png" alt="Signatory of the Budapest Open Access Initiative" width={429} height={158} className={cn("inline-block h-14 w-auto shrink-0", className)} />;
 }
 
+/**
+ * MyData's own "MyData Signatory" badge (public/badges/mydata-signatory.svg), used
+ * unaltered, as shown on MyData's public list of Declaration signatories. It sits on
+ * a white panel so its dark lettering stays readable in dark mode. Platform site only.
+ */
+export function MyDataSignatoryBadge({ className }: { className?: string }) {
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src="/badges/mydata-signatory.svg" alt="MyData Declaration signatory" width={720} height={281} className={cn("inline-block h-14 w-auto shrink-0 rounded-md bg-white px-2 py-1", className)} />;
+}
+
 /** The licence buttons Creative Commons publishes; other combinations fall back to a text label. */
 const CC_BUTTONS = new Set(["by", "by-sa", "by-nc", "by-nc-sa", "by-nd", "by-nc-nd"]);
 

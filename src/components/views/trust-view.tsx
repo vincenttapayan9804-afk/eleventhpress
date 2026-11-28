@@ -5,6 +5,7 @@ import type { ComponentType } from "react";
 import { useApp } from "@/lib/store";
 import { DOI_REGISTRAR } from "@/lib/site";
 import { isWhitelabel, useLegalIdentity, useTenantBranding } from "@/lib/tenant-branding-context";
+import { MyDataSignatoryBadge } from "@/components/badges/open-badges";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -82,6 +83,7 @@ const PRIVACY: Row[] = [
   { standard: "EU / UK GDPR", what: "Lawful bases recorded, data-subject rights honoured (access, correction, export, erasure), records of processing kept.", status: "in-place" },
   { standard: "Philippine Data Privacy Act (RA 10173)", what: "Privacy notice, a privacy contact, and breach notification to the National Privacy Commission and affected people within 72 hours.", status: "in-place" },
   { standard: "CCPA / CPRA", what: "No personal data is sold or shared for advertising; requests to know or delete are honoured.", status: "in-place" },
+  { standard: "MyData Declaration", what: "We have signed the MyData Declaration, which sets out principles for human-centric handling of personal data, where people stay in control of their own data. Signing is a commitment, not a certification, and MyData does not endorse our content.", status: "in-place" },
   { standard: "Global Privacy Control", what: "A browser's GPC signal is honoured automatically as an opt-out of every optional cookie — declared at /.well-known/gpc.json.", status: "in-place" },
 ];
 
@@ -93,6 +95,7 @@ const SCHOLARLY: Row[] = [
   { standard: "BOAI (Budapest Open Access Initiative)", what: "We have signed the declaration as an organisation, and we appear on the BOAI public list of organisation signatories.", status: "in-place" },
   { standard: "Helsinki Initiative on Multilingualism", what: "We have signed the initiative as an organisation. It supports sharing research with all audiences, locally relevant publishing and language diversity in research assessment.", status: "in-place" },
   { standard: "CIVICUS Alliance", what: "We are a recognised associate member of the CIVICUS Alliance, a global network of civil society organisations. This is a membership only; CIVICUS does not endorse our content.", status: "in-place" },
+  { standard: "Sustainable Web Manifesto", what: "We have signed the Sustainable Web Manifesto, a pledge to build a web that is clean, efficient, open, honest, regenerative and resilient. Signing is a commitment, not a certification, and the Manifesto's authors do not endorse our content.", status: "in-place" },
   { standard: "JATS · OAI-PMH 2.0 · Dublin Core", what: "Standard full-text XML and a harvesting endpoint for indexers and repositories.", status: "in-place" },
   { standard: "FAIR Signposting", what: "Machine-readable links from each article page to its DOI, authors, PDF, metadata and licence — and back from the PDF.", status: "in-place" },
   { standard: "KBART (NISO RP-9)", what: "A title list libraries load into their catalogues and link resolvers: /api/export/kbart.", status: "in-place" },
@@ -208,8 +211,10 @@ const NAV = [
 export function TrustView() {
   const legal = useLegalIdentity();
   const branding = useTenantBranding();
-  // DORA and BOAI are Eleventh Press's own signatures, so white-label sites never list them.
-  const scholarlyRows = isWhitelabel(branding) ? SCHOLARLY.filter((r) => !/^(DORA|BOAI|Helsinki)/.test(r.standard)) : SCHOLARLY;
+  // DORA, BOAI, Helsinki, the Sustainable Web Manifesto and MyData are Eleventh Press's own signatures, so white-label sites never list them.
+  const ownSignature = /^(DORA|BOAI|Helsinki|Sustainable Web|MyData)/;
+  const scholarlyRows = isWhitelabel(branding) ? SCHOLARLY.filter((r) => !ownSignature.test(r.standard)) : SCHOLARLY;
+  const privacyRows = isWhitelabel(branding) ? PRIVACY.filter((r) => !ownSignature.test(r.standard)) : PRIVACY;
   const { setView } = useApp();
 
   return (
@@ -295,7 +300,12 @@ export function TrustView() {
       </Section>
 
       <Section id="privacy" icon={Lock} title="Privacy">
-        <RowList rows={PRIVACY} />
+        <RowList rows={privacyRows} />
+        {!isWhitelabel(branding) && (
+          <a href="https://mydata.org/participate/declaration/signatories/" target="_blank" rel="noopener" data-testid="trust-mydata-badge" className="mt-4 inline-flex hover:opacity-80" aria-label="MyData Declaration signatory (opens MyData's list of signatories)">
+            <MyDataSignatoryBadge className="h-16" />
+          </a>
+        )}
         <div className="mt-4 flex flex-wrap gap-3">
           <Button variant="outline" size="sm" onClick={() => setView("privacy")}>Privacy Policy</Button>
           <Button variant="outline" size="sm" asChild>

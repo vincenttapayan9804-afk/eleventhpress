@@ -1,6 +1,6 @@
 "use client";
 
-import { BoaiSignatoryLogo, CcLicenceBadge, DoraSignatoryBadge, OpenAccessIcon } from "@/components/badges/open-badges";
+import { BoaiSignatoryLogo, CcLicenceBadge, DoraSignatoryBadge, MyDataSignatoryBadge, OpenAccessIcon } from "@/components/badges/open-badges";
 import { useTranslations } from "next-intl";
 import { POWERED_BY_CREDIT, POWERED_BY_URL } from "@/lib/powered-by";
 import { useApp } from "@/lib/store";
@@ -258,6 +258,16 @@ export function SiteFooter() {
               {!whitelabel && (
                 <a href="https://www.budapestopenaccessinitiative.org/sign/organization/" target="_blank" rel="noopener" data-testid="footer-boai-mark" className="inline-flex hover:opacity-80" aria-label="Signatory of the Budapest Open Access Initiative (opens BOAI's list of organisation signatories)">
                   <BoaiSignatoryLogo className="h-[72px]" />
+                </a>
+              )}
+              {!whitelabel && (
+                <a href="https://mydata.org/participate/declaration/signatories/" target="_blank" rel="noopener" data-testid="footer-mydata-badge" className="inline-flex hover:opacity-80" aria-label="MyData Declaration signatory (opens MyData's list of signatories)">
+                  <MyDataSignatoryBadge className="h-[72px]" />
+                </a>
+              )}
+              {!whitelabel && (
+                <a href="https://www.sustainablewebmanifesto.com/signatures/" target="_blank" rel="noopener" data-testid="footer-swm-mark" className="inline-flex min-h-6 items-center rounded-md border border-border px-3 py-2 font-mono text-[0.7rem] font-medium leading-tight text-foreground/80 hover:text-primary" aria-label="Signatory of the Sustainable Web Manifesto (opens the Manifesto's list of signatures)">
+                  Sustainable Web<br />Manifesto signatory
                 </a>
               )}
               <p className="font-mono">{t("indexedLine", { registrar: DOI_REGISTRAR })}</p>
