@@ -133,9 +133,17 @@ describe("starting policy drafts", () => {
       expect(p.body).toContain("## Review");
     }
   });
-  test("drafts that need owner facts cannot be adopted as shipped", () => {
-    const withNotes = POLICY_DRAFTS.filter((p) => openConfirmNotes(p.body).length > 0).map((p) => p.slug);
-    expect(withNotes).toEqual(expect.arrayContaining(["people-security", "continuity-and-recovery", "logging-and-monitoring", "vulnerability-and-malware"]));
+  test("every starting draft states only what the code shows, so all can be adopted once read", () => {
+    for (const p of POLICY_DRAFTS) {
+      expect(openConfirmNotes(p.body)).toEqual([]);
+      expect(canAdopt(p.body).ok).toBe(true);
+    }
+  });
+  test("production-dependent services are described as conditional, never as switched on", () => {
+    const text = POLICY_DRAFTS.map((p) => p.body).join("\n");
+    expect(text).toMatch(/Reporting runs only when the Sentry address is set/i);
+    expect(text).toMatch(/VirusTotal key is set/i);
+    expect(text).toMatch(/rate limiting is enforced only when/i);
   });
   test("no draft claims an independent audit or certification we do not have", () => {
     for (const p of POLICY_DRAFTS) {
