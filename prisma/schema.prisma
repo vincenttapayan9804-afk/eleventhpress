@@ -3093,3 +3093,27 @@ model ComplianceDevice {
 
   @@index([retiredAt, nextCheckDue])
 }
+
+// Compliance Register phase 2: one generic, owner-maintained record per
+// risk, assessment, supplier, key, access review or exercise. The per-kind
+// fields live in `data` (JSON) and are defined in src/lib/compliance-records.ts.
+model ComplianceRecord {
+  id            String    @id @default(cuid())
+  // RISK | ASSESSMENT | SUPPLIER | KEY | ACCESS_REVIEW | EXERCISE
+  kind          String
+  title         String
+  // DRAFT | ACTIVE | RETIRED
+  status        String    @default("DRAFT")
+  data          String    @default("{}")
+  // Only a complete, active supplier can be listed publicly.
+  isPublic      Boolean   @default(false)
+  intervalMonths Int      @default(12)
+  // When the owner last reviewed / rotated / held it, and when it is next due.
+  lastDoneAt    DateTime?
+  nextDue       DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([kind, status])
+  @@index([status, nextDue])
+}

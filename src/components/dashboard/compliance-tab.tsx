@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, ShieldCheck, FileText, Laptop, CheckCircle2, AlertTriangle, Clock, Lock } from "lucide-react";
+import { Loader2, ShieldCheck, FileText, Laptop, CheckCircle2, AlertTriangle, Clock, Lock, ListChecks, Building2, KeyRound, Dumbbell } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { RecordsSection, type RecordsOverview } from "@/components/dashboard/compliance-records";
 import {
   POLICY_CATEGORIES,
   POLICY_CATEGORY_LABELS,
@@ -306,13 +307,16 @@ export function ComplianceTab() {
   const [data, setData] = useState<Overview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
-  const [view, setView] = useState<"policies" | "devices">("policies");
+  const [view, setView] = useState<"policies" | "devices" | "risks" | "suppliers" | "keys" | "exercises">("policies");
+  const [recs, setRecs] = useState<RecordsOverview | null>(null);
+  const [adopting, setAdopting] = useState(false);
   const [seeding, setSeeding] = useState(false);
   const [newLabel, setNewLabel] = useState("");
   const [newKind, setNewKind] = useState<DeviceKind>("OWNER");
 
   const load = useCallback(() => {
     apiFetch<Overview>("/api/admin/compliance").then(setData).catch((e) => setError(e.message));
+    apiFetch<RecordsOverview>("/api/admin/compliance/records").then(setRecs).catch((e) => setError(e.message));
   }, []);
   useEffect(load, [load]);
 
@@ -326,6 +330,34 @@ export function ComplianceTab() {
       toast.error((e as Error).message);
     } finally {
       setSeeding(false);
+    }
+  }
+
+  async function seedRecords() {
+    setSeeding(true);
+    try {
+      const r = await apiFetch<{ added: number }>("/api/admin/compliance/records", { method: "POST", body: JSON.stringify({ action: "seed" }) });
+      toast.success(`${r.added} starting record${r.added === 1 ? "" : "s"} added as drafts`);
+      load();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSeeding(false);
+    }
+  }
+
+  async function adoptReady() {
+    const ready = data?.policies.filter((p) => p.status === "DRAFT" && p.openNotes === 0).length ?? 0;
+    if (!confirm(`Adopt ${ready} polic${ready === 1 ? "y" : "ies"} now?\n\nBy doing this you say you have read each one and that it is true for the platform. Each is dated today, set to be reviewed in a year, and written to the audit log. Policies that still have notes to answer are left as drafts.`)) return;
+    setAdopting(true);
+    try {
+      const r = await apiFetch<{ adopted: string[]; skipped: { title: string }[] }>("/api/admin/compliance/policies", { method: "POST", body: JSON.stringify({ action: "adopt-ready" }) });
+      toast.success(`${r.adopted.length} adopted${r.skipped.length ? `. ${r.skipped.length} left as drafts because they still have notes to answer: ${r.skipped.map((x) => x.title).join(", ")}` : ""}`, { duration: 10000 });
+      load();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setAdopting(false);
     }
   }
 
@@ -368,6 +400,37 @@ export function ComplianceTab() {
         </CardContent>
       </Card>
 
+      {recs && (
+        <Card className="paper-card">
+          <CardContent className="grid grid-cols-2 gap-4 pt-6 sm:grid-cols-4 lg:grid-cols-8">
+            <Stat label="Risks confirmed" value={recs.summary.byKind.RISK.active} tone={recs.summary.byKind.RISK.active ? "ok" : undefined} />
+            <Stat label="Assessments confirmed" value={recs.summary.byKind.ASSESSMENT.active} tone={recs.summary.byKind.ASSESSMENT.active ? "ok" : undefined} />
+            <Stat label="Suppliers confirmed" value={recs.summary.byKind.SUPPLIER.active} tone={recs.summary.byKind.SUPPLIER.active ? "ok" : undefined} />
+            <Stat label="Keys confirmed" value={recs.summary.byKind.KEY.active} tone={recs.summary.byKind.KEY.active ? "ok" : undefined} />
+            <Stat label="Drafts to finish" value={Object.values(recs.summary.byKind).reduce((n, k) => n + k.draft, 0)} />
+            <Stat label="Reviews due soon" value={Object.values(recs.summary.byKind).reduce((n, k) => n + k.dueSoon, 0)} tone={Object.values(recs.summary.byKind).some((k) => k.dueSoon) ? "warn" : undefined} />
+            <Stat label="Reviews overdue" value={Object.values(recs.summary.byKind).reduce((n, k) => n + k.overdue, 0)} tone={Object.values(recs.summary.byKind).some((k) => k.overdue) ? "bad" : undefined} />
+            <Stat label="Yearly tasks to do" value={recs.summary.eventsNeeded.length} tone={recs.summary.eventsNeeded.length ? "warn" : "ok"} />
+          </CardContent>
+        </Card>
+      )}
+
+      {recs && recs.summary.eventsNeeded.length > 0 && (
+        <p className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-sm"><strong>Yearly tasks:</strong> {recs.summary.eventsNeeded.join(" · ")}.</p>
+      )}
+
+      {recs && recs.seedsAvailable > 0 && (
+        <Card className="paper-card border-sky-500/30">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-6">
+            <div className="max-w-2xl text-sm">
+              <p className="font-medium">{recs.seedsAvailable} starting record{recs.seedsAvailable === 1 ? " is" : "s are"} ready to load</p>
+              <p className="text-muted-foreground">A supplier list, a risk register, the key list and two impact assessments, written from how the platform works. They load as drafts. Each has notes only you can answer, and nothing is shown publicly until you confirm it.</p>
+            </div>
+            <Button onClick={seedRecords} disabled={seeding}>{seeding && <Loader2 className="mr-1 h-4 w-4 animate-spin" />} Load the starting records</Button>
+          </CardContent>
+        </Card>
+      )}
+
       {data.draftsAvailable > 0 && (
         <Card className="paper-card border-sky-500/30">
           <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-6">
@@ -380,13 +443,33 @@ export function ComplianceTab() {
         </Card>
       )}
 
-      <div className="flex gap-2" role="tablist" aria-label="Register sections">
+      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Register sections">
         <Button size="sm" role="tab" aria-selected={view === "policies"} variant={view === "policies" ? "default" : "outline"} onClick={() => setView("policies")}><FileText className="mr-1 h-4 w-4" /> Policy Library ({data.policies.length})</Button>
         <Button size="sm" role="tab" aria-selected={view === "devices"} variant={view === "devices" ? "default" : "outline"} onClick={() => setView("devices")}><Laptop className="mr-1 h-4 w-4" /> Devices ({devices.length})</Button>
+        <Button size="sm" role="tab" aria-selected={view === "risks"} variant={view === "risks" ? "default" : "outline"} onClick={() => setView("risks")}><ListChecks className="mr-1 h-4 w-4" /> Risks and assessments</Button>
+        <Button size="sm" role="tab" aria-selected={view === "suppliers"} variant={view === "suppliers" ? "default" : "outline"} onClick={() => setView("suppliers")}><Building2 className="mr-1 h-4 w-4" /> Suppliers</Button>
+        <Button size="sm" role="tab" aria-selected={view === "keys"} variant={view === "keys" ? "default" : "outline"} onClick={() => setView("keys")}><KeyRound className="mr-1 h-4 w-4" /> Keys and access</Button>
+        <Button size="sm" role="tab" aria-selected={view === "exercises"} variant={view === "exercises" ? "default" : "outline"} onClick={() => setView("exercises")}><Dumbbell className="mr-1 h-4 w-4" /> Exercises</Button>
       </div>
+
+      {recs && view === "risks" && <RecordsSection kinds={["RISK", "ASSESSMENT"]} rows={recs.records} onChanged={load} />}
+      {recs && view === "suppliers" && <RecordsSection kinds={["SUPPLIER"]} rows={recs.records} onChanged={load} />}
+      {recs && view === "keys" && <RecordsSection kinds={["KEY", "ACCESS_REVIEW"]} rows={recs.records} onChanged={load} />}
+      {recs && view === "exercises" && <RecordsSection kinds={["EXERCISE"]} rows={recs.records} onChanged={load} />}
 
       {view === "policies" && (
         <div className="space-y-6">
+          {data.policies.some((p) => p.status === "DRAFT" && p.openNotes === 0) && (
+            <Card className="paper-card border-primary/30">
+              <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-6">
+                <div className="max-w-2xl text-sm">
+                  <p className="font-medium">{data.policies.filter((p) => p.status === "DRAFT" && p.openNotes === 0).length} draft{data.policies.filter((p) => p.status === "DRAFT" && p.openNotes === 0).length === 1 ? " has" : "s have"} no open notes</p>
+                  <p className="text-muted-foreground">Read them first (open each below and change anything that is not true). Then adopt them all at once. Drafts that still have notes to answer are skipped.</p>
+                </div>
+                <Button onClick={adoptReady} disabled={adopting}>{adopting && <Loader2 className="mr-1 h-4 w-4 animate-spin" />} Adopt all ready policies</Button>
+              </CardContent>
+            </Card>
+          )}
           {POLICY_CATEGORIES.map((cat) => {
             const rows = data.policies.filter((p) => p.category === cat);
             if (rows.length === 0) return null;
