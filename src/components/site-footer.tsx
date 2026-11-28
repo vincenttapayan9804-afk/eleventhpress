@@ -270,7 +270,6 @@ export function SiteFooter() {
                   <SustainableWebSignatoryMark className="h-[88px] w-[88px]" />
                 </a>
               )}
-              <p className="font-mono">{t("indexedLine", { registrar: DOI_REGISTRAR })}</p>
             </div>
           </div>
         </div>
