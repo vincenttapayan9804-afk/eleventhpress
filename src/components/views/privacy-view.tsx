@@ -6,6 +6,7 @@ import { useApp } from "@/lib/store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { openCookiePreferences } from "@/lib/cookie-consent";
+import { MYDATA_INTRO, MYDATA_LIMITS, MYDATA_PRACTICES, MYDATA_TRUST_URL } from "@/lib/mydata-practices";
 import { LEGAL_PAGES_UPDATED } from "@/lib/site";
 import {
   ShieldCheck,
@@ -292,6 +293,31 @@ export function PrivacyView() {
           </CardContent>
         </Card>
       </section>
+
+      {!legal.whitelabel && (
+        <section className="mt-10" id="mydata" data-testid="privacy-mydata">
+          <div className="flex flex-wrap items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-primary" />
+            <h2 className="font-display text-2xl font-semibold">How we apply the MyData Declaration</h2>
+          </div>
+          <Card className="paper-card mt-4">
+            <CardContent className="space-y-4 p-6">
+              <p className="text-sm text-muted-foreground">
+                {MYDATA_INTRO} We have signed it as an organisation; see also our{" "}
+                <a className="text-primary hover:underline" href={MYDATA_TRUST_URL}>Trust page</a>.
+              </p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {MYDATA_PRACTICES.map((p) => (
+                  <PrivacyItem key={p.a} title={p.a} desc={p.b} />
+                ))}
+              </div>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                <span className="font-semibold text-foreground">What this does not mean.</span> {MYDATA_LIMITS}
+              </p>
+            </CardContent>
+          </Card>
+        </section>
+      )}
 
       <section className="mt-14 rounded-md border border-border bg-card p-8 text-center">
         <p className="eyebrow">Full detail</p>

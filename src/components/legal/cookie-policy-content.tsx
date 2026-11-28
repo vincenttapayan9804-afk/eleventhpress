@@ -4,6 +4,7 @@ import { useSyncExternalStore } from "react";
 import { Cookie, Database, Globe2, Mail, Settings2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLegalIdentity } from "@/lib/tenant-branding-context";
+import { MYDATA_TRUST_URL } from "@/lib/mydata-practices";
 import {
   COOKIE_CATEGORIES,
   COOKIE_CONSENT_CHANGED_EVENT,
@@ -176,6 +177,18 @@ export function CookiePolicyContent() {
           dialog first, and ask again where consent is needed.
         </p>
       </section>
+
+      {!legal.whitelabel && (
+        <section className="mt-10" data-testid="cookie-mydata">
+          <h2 className="font-display text-2xl font-semibold">7. The MyData Declaration</h2>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            We have signed the MyData Declaration, which puts people in control of their own personal data. For cookies this means the choice is yours:
+            only strictly necessary cookies are set until you decide, the one optional cookie is set only if you accept it, you can change your mind at any
+            time, and a browser&apos;s Global Privacy Control signal is honoured automatically. The full list of how we apply the Declaration is on the{" "}
+            <a className="text-primary hover:underline" href={MYDATA_TRUST_URL}>Trust page</a> and the Privacy page.
+          </p>
+        </section>
+      )}
 
       <section className="mt-10 rounded-2xl border border-border/70 bg-muted/30 p-5">
         <h2 className="flex items-center gap-2 font-display text-xl font-semibold">
