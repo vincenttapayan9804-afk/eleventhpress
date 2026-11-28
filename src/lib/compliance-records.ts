@@ -13,14 +13,14 @@
  */
 import { addMonths, dueState, openConfirmNotes } from "@/lib/compliance";
 
-export const RECORD_KINDS = ["RISK", "ASSESSMENT", "SUPPLIER", "KEY", "ACCESS_REVIEW", "EXERCISE"] as const;
+export const RECORD_KINDS = ["RISK", "ASSESSMENT", "SUPPLIER", "KEY", "ACCESS_REVIEW", "EXERCISE", "INCIDENT"] as const;
 export type RecordKind = (typeof RECORD_KINDS)[number];
 
 export const RECORD_STATUSES = ["DRAFT", "ACTIVE", "RETIRED"] as const;
 export type RecordStatus = (typeof RECORD_STATUSES)[number];
 
 /** Kinds that are a dated event (something that was done on a day) rather than a living record. */
-export const EVENT_KINDS: readonly RecordKind[] = ["ACCESS_REVIEW", "EXERCISE"];
+export const EVENT_KINDS: readonly RecordKind[] = ["ACCESS_REVIEW", "EXERCISE", "INCIDENT"];
 export function isEventKind(k: string): boolean {
   return (EVENT_KINDS as readonly string[]).includes(k);
 }
@@ -156,6 +156,21 @@ export const KIND_DEFS: Record<RecordKind, KindDef> = {
       { key: "fixes", label: "What will be fixed or changed", type: "area", max: 2000 },
     ],
   },
+  INCIDENT: {
+    kind: "INCIDENT",
+    label: "Incident",
+    plural: "Incident register",
+    intro: "Every security or data incident, however small, once it is resolved: when it was noticed, how serious it was, what happened and what was changed. The register keeps the dates and works out how long fixes take. There is no yearly deadline: log each one when it happens.",
+    doneLabel: "Log incident",
+    intervalMonths: 12,
+    fields: [
+      { key: "severity", label: "How serious", type: "select", required: true, options: [{ value: "SEV3", label: "Minor (no data exposed, little disruption)" }, { value: "SEV2", label: "Significant (some disruption or limited exposure)" }, { value: "SEV1", label: "Major (personal data exposed or the platform down)" }], max: 20 },
+      { key: "resolvedOn", label: "Date it was resolved (YYYY-MM-DD)", type: "text", required: true, help: "Not earlier than the date it was noticed.", max: 10 },
+      { key: "whatHappened", label: "What happened", type: "area", required: true, max: 4000 },
+      { key: "peopleAffected", label: "Who was affected, and whether they or a regulator were told", type: "area", required: true, max: 2000 },
+      { key: "changes", label: "What was changed so it does not happen again", type: "area", max: 2000 },
+    ],
+  },
 };
 
 export type RecordData = Record<string, string>;
@@ -207,6 +222,7 @@ export function canActivate(
   const missing = missingRequired(kind, data);
   if (missing.length > 0) return { ok: false, reason: `Fill in: ${missing.join(", ")}.` };
   if (kind === "ASSESSMENT" && (data.body ?? "").length < 200) return { ok: false, reason: "The assessment text is too short to confirm." };
+  if (kind === "INCIDENT" && !/^\d{4}-\d{2}-\d{2}$/.test(data.resolvedOn ?? "")) return { ok: false, reason: "Enter the resolved date as YYYY-MM-DD." };
   return { ok: true };
 }
 
@@ -296,3 +312,37 @@ export function summarizeRecords(records: { kind: string; status: string; nextDu
 }
 
 export const ELEVATED_ROLES = ["SUPER_ADMIN", "EDITOR", "ASSOCIATE_EDITOR", "TENANT_ADMIN"] as const;
+
+export interface IncidentMetrics {
+  total: number;
+  /** Incidents logged in the last 12 months. */
+  lastYear: number;
+  bySeverity: { SEV1: number; SEV2: number; SEV3: number };
+  /** Mean days from noticed to resolved, or null when there is no incident. */
+  meanDaysToResolve: number | null;
+}
+
+/** Pure: the numbers the incident-management policy asks the owner to track. */
+export function incidentMetrics(records: { kind: string; status: string; lastDoneAt: Date | null; data: string }[], now: Date): IncidentMetrics {
+  const inc = records.filter((r) => r.kind === "INCIDENT" && r.status === "ACTIVE" && r.lastDoneAt);
+  const bySeverity = { SEV1: 0, SEV2: 0, SEV3: 0 };
+  let days = 0;
+  let counted = 0;
+  const yearAgo = new Date(now);
+  yearAgo.setFullYear(yearAgo.getFullYear() - 1);
+  let lastYear = 0;
+  for (const r of inc) {
+    const d = parseRecordData("INCIDENT", r.data);
+    if (d.severity in bySeverity) bySeverity[d.severity as keyof typeof bySeverity]++;
+    if (r.lastDoneAt! >= yearAgo) lastYear++;
+    const resolved = Date.parse(`${d.resolvedOn || ""}T12:00:00Z`);
+    if (Number.isFinite(resolved)) {
+      const span = (resolved - r.lastDoneAt!.getTime()) / 86_400_000;
+      if (span >= 0) {
+        days += span;
+        counted++;
+      }
+    }
+  }
+  return { total: inc.length, lastYear, bySeverity, meanDaysToResolve: counted ? Math.round((days / counted) * 10) / 10 : null };
+}

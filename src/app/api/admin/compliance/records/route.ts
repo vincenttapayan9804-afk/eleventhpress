@@ -3,7 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requirePlatformSuperAdmin } from "@/lib/tenant-auth";
 import { parseBody } from "@/lib/validate";
-import { RECORD_KINDS, KIND_DEFS, cleanRecordData, isEventKind, canActivate, nextDueFrom, parseRecordData, recordOpenNotes, recordState, summarizeRecords, type RecordKind } from "@/lib/compliance-records";
+import { RECORD_KINDS, KIND_DEFS, cleanRecordData, isEventKind, canActivate, nextDueFrom, parseRecordData, recordOpenNotes, recordState, summarizeRecords, incidentMetrics, type RecordKind } from "@/lib/compliance-records";
 import { RECORD_SEEDS } from "@/lib/compliance-record-seeds";
 import { auditCompliance } from "@/lib/compliance-server";
 
@@ -20,6 +20,7 @@ export async function GET(req: NextRequest) {
   );
   return NextResponse.json({
     summary: summarizeRecords(rows, now),
+    incidents: incidentMetrics(rows, now),
     records: rows.map((r) => {
       const data = parseRecordData(r.kind, r.data);
       return {
@@ -91,6 +92,12 @@ export async function POST(req: NextRequest) {
     if (!body.doneOn) return NextResponse.json({ error: "Enter the date it was done." }, { status: 400 });
     const ok = canActivate(kind, body.title, data);
     if (!ok.ok) return NextResponse.json({ error: ok.reason }, { status: 400 });
+    if (kind === "INCIDENT") {
+      const resolved = new Date(`${data.resolvedOn}T12:00:00Z`);
+      if (Number.isNaN(resolved.getTime()) || resolved.getTime() < body.doneOn.getTime() - 86_400_000 || resolved.getTime() > Date.now() + 86_400_000) {
+        return NextResponse.json({ error: "The resolved date must be a real date, not earlier than the date it was noticed and not in the future." }, { status: 400 });
+      }
+    }
     const def = KIND_DEFS[kind];
     const r = await db.complianceRecord.create({
       data: { kind, title: body.title, status: "ACTIVE", data: JSON.stringify(data), intervalMonths: def.intervalMonths, lastDoneAt: body.doneOn, nextDue: nextDueFrom(body.doneOn, def.intervalMonths) },

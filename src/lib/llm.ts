@@ -388,7 +388,7 @@ async function chatJSONLocal<T>(
  * expected to catch and fall back to a heuristic rather than treat a
  * throw as fatal.
  */
-export async function chatJSON<T = any>(
+async function chatJSONUnguarded<T = any>(
   systemPrompt: string,
   userPrompt: string,
   opts: {
@@ -602,4 +602,38 @@ export async function describeImage(
 
   if (anthropicError) throw anthropicError;
   throw new Error("No vision-capable LLM provider configured (set ANTHROPIC_API_KEY, OPENROUTER_API_KEY, or LLM_BASE_URL/LLM_API_KEY)");
+}
+
+
+/**
+ * Every JSON chat call goes through here: the input is screened for
+ * prompt-injection phrases (flagged and logged, never blocked), the model is
+ * told to treat user text as material, and a usage entry is written without
+ * the text itself. See ai-guard.ts.
+ */
+export async function chatJSON<T = any>(
+  systemPrompt: string,
+  userPrompt: string,
+  opts: Parameters<typeof chatJSONUnguarded>[2] = {}
+): Promise<ChatJSONResult<T>> {
+  const { screenInput, screenOutput, hardenSystem, logAiCall } = await import("@/lib/ai-guard");
+  const inputFlags = screenInput(userPrompt);
+  const started = Date.now();
+  try {
+    const result = await chatJSONUnguarded<T>(hardenSystem(systemPrompt, inputFlags), userPrompt, opts);
+    logAiCall({
+      provider: result.provider,
+      model: result.model,
+      ms: Date.now() - started,
+      inChars: systemPrompt.length + userPrompt.length,
+      outChars: result.rawResponse.length,
+      ok: true,
+      inputFlags,
+      outputFlags: screenOutput(result.rawResponse, systemPrompt),
+    });
+    return result;
+  } catch (e) {
+    logAiCall({ provider: "none", model: "", ms: Date.now() - started, inChars: systemPrompt.length + userPrompt.length, outChars: 0, ok: false, inputFlags, outputFlags: [] });
+    throw e;
+  }
 }

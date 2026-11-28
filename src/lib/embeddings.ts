@@ -42,8 +42,14 @@ function getExtractor(): Promise<any | null> {
   if (!extractorPromise) {
     extractorPromise = (async () => {
       try {
-        const { pipeline } = await loadTransformers();
-        return await pipeline("feature-extraction", LOCAL_MODEL_ID);
+        const { pipeline, env } = await loadTransformers();
+        const extractor = await pipeline("feature-extraction", LOCAL_MODEL_ID);
+        // A model pinned in models.lock.json must match its checksums; a model
+        // that is not pinned loads as before. A mismatch falls back, below.
+        const { assertModelIntegrity } = await import("@/lib/model-integrity");
+        const { join } = await import("node:path");
+        await assertModelIntegrity(LOCAL_MODEL_ID, join(String(env.cacheDir), LOCAL_MODEL_ID));
+        return extractor;
       } catch (e) {
         console.error("[embeddings] local embedding model failed to load, falling back to hashed n-grams:", e);
         return null;

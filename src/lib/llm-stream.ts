@@ -329,7 +329,7 @@ async function streamAnthropic(c: StreamCandidate, system: string, user: string,
  * throws StreamInterruptedError, carrying the partial text, when a provider
  * stops part-way through.
  */
-export async function streamChat(system: string, user: string, opts: StreamChatOptions): Promise<StreamChatResult> {
+async function streamChatUnguarded(system: string, user: string, opts: StreamChatOptions): Promise<StreamChatResult> {
   const started = Date.now();
   const all = streamCandidates();
   if (all.length === 0) throw new Error("No model provider configured (LLM_BASE_URL/LLM_MODEL, OPENROUTER_API_KEY or ANTHROPIC_API_KEY)");
@@ -412,4 +412,26 @@ export async function streamChat(system: string, user: string, opts: StreamChatO
     }
   }
   throw new Error(`Every model provider failed: ${errors.join(" | ") || "aborted"}`);
+}
+
+
+/**
+ * Every streamed chat call goes through here: input screening, the safety
+ * rule when the input is flagged, and a usage entry without the text. The
+ * reply is checked after it is complete and flagged in the log, not altered.
+ * See ai-guard.ts.
+ */
+export async function streamChat(system: string, user: string, opts: StreamChatOptions): Promise<StreamChatResult> {
+  const { screenInput, screenOutput, hardenSystem, logAiCall } = await import("@/lib/ai-guard");
+  const inputFlags = screenInput(user);
+  const started = Date.now();
+  try {
+    const result = await streamChatUnguarded(hardenSystem(system, inputFlags), user, opts);
+    logAiCall({ provider: result.provider, model: result.model, ms: Date.now() - started, inChars: system.length + user.length, outChars: result.text.length, ok: true, inputFlags, outputFlags: screenOutput(result.text, system) });
+    return result;
+  } catch (e) {
+    const partial = e instanceof StreamInterruptedError ? e.partial : undefined;
+    logAiCall({ provider: partial?.provider ?? "none", model: partial?.model ?? "", ms: Date.now() - started, inChars: system.length + user.length, outChars: partial?.text.length ?? 0, ok: false, inputFlags, outputFlags: [] });
+    throw e;
+  }
 }
